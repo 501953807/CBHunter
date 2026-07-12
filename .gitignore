@@ -46,3 +46,6 @@ data/
 .claude/
 .codex/
 .agents/
+
+# Serena
+.serena/
