@@ -1,0 +1,295 @@
+import { ArrowRight, Calculator, Globe, Package, ShoppingCart, Sparkles } from 'lucide-react'
+import { Card, CardContent } from '../../components/ui/Card'
+import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
+import type { DictMarket, DictPlatform } from '../../api/config'
+
+export interface PublishableItem {
+  key: string
+  id: string
+  sourceType: 'sourcing' | 'product'
+  name: string
+  costPrice: number | null
+  sellingPrice?: number | null
+  pricingSourceLabel?: string
+  imageUrl?: string | null
+  platformRequirements?: {
+    required_attributes?: string[]
+    media?: string[]
+    content?: string[]
+    compliance?: string[]
+    attribute_values?: Record<string, unknown>
+    field_groups?: unknown[]
+    object_model?: string[]
+    evidence_source?: string
+  }
+  platformRequirementsByPlatform?: Record<string, PlatformRequirementsLike>
+  mediaReadiness?: {
+    captured_image_count?: number
+    missing_image_count?: number
+    min_platform_images?: number
+    recommended_platform_images?: number
+    gaps?: string[]
+  }
+  lifecycleLabel?: string
+  disabled?: boolean
+  disabledReason?: string
+}
+
+interface Props {
+  items: PublishableItem[]
+  platforms: DictPlatform[]
+  markets: DictMarket[]
+  stores: { id: string; platform: string; account_name: string; shop_id?: string }[]
+  platformStatus: Record<string, { configured: boolean; label: string }>
+  selectedItems: Set<string>
+  selectedPlatforms: Set<string>
+  selectedMarkets: Set<string>
+  selectedStores: Set<string>
+  pricingMode: 'cost_based' | 'selling_based'
+  targetProfit: number
+  loading: boolean
+  onToggleItem: (id: string) => void
+  onTogglePlatform: (id: string) => void
+  onToggleMarket: (id: string) => void
+  onToggleStore: (id: string) => void
+  onPricingModeChange: (mode: 'cost_based' | 'selling_based') => void
+  onTargetProfitChange: (value: number) => void
+  onPreview: () => void
+}
+
+export function BatchPublishSelectStep({
+  items, platforms, markets, stores, platformStatus, selectedItems, selectedPlatforms, selectedMarkets, selectedStores,
+  pricingMode, targetProfit, loading, onToggleItem, onTogglePlatform, onToggleMarket,
+  onToggleStore, onPricingModeChange, onTargetProfitChange, onPreview,
+}: Props) {
+  const marketLabelMap = new Map(markets.map(m => [m.id, `${m.flag ? `${m.flag} ` : ''}${m.label}`]))
+  const selectedPlatformsList = Array.from(selectedPlatforms)
+  const platformLabelMap = new Map(platforms.map(platform => [platform.id, platform.label]))
+  const visibleStores = stores.filter(store => selectedPlatforms.size === 0 || selectedPlatforms.has(store.platform))
+  const platformRequirementsForSelection = (item: PublishableItem) => {
+    if (selectedPlatformsList.length === 0) {
+      return [{ platform: '', label: '未选择平台', requirements: item.platformRequirements }]
+    }
+    return selectedPlatformsList.map(platform => ({
+      platform,
+      label: platformLabelMap.get(platform) || platform,
+      requirements: item.platformRequirementsByPlatform?.[platform] || item.platformRequirements,
+    }))
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="w-4 h-4 text-[var(--color-primary)]" />
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">选择产品</h3>
+            <span className="text-xs text-[var(--color-muted)]">已选 {selectedItems.size} / {items.length}</span>
+          </div>
+          <div className="max-h-80 overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
+                <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
+                  <th className="w-10 px-3 py-2">选</th>
+                  <th className="px-3 py-2">商品</th>
+                  <th className="px-3 py-2">成本/售价</th>
+                  <th className="px-3 py-2">阶段</th>
+                  <th className="px-3 py-2">平台字段组</th>
+                  <th className="px-3 py-2">状态</th>
+                </tr>
+              </thead>
+              <tbody>
+            {items.map(item => {
+              const requirementsBySelection = platformRequirementsForSelection(item)
+              const mediaReadiness = item.mediaReadiness
+              const mediaGaps = mediaReadiness?.gaps || []
+              return (
+                <tr
+                  key={item.key}
+                  className="border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
+                  style={{ background: selectedItems.has(item.key) ? 'var(--color-primary-light)' : 'transparent' }}
+                >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.has(item.key)}
+                      disabled={item.disabled}
+                      onChange={() => onToggleItem(item.key)}
+                      title={item.disabledReason || item.name}
+                      className="h-4 w-4"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex min-w-0 gap-2">
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-12 w-12 shrink-0 rounded-lg border object-cover"
+                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 font-medium text-[var(--color-fg)]">{item.name || '未命名'}</p>
+                        <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">{item.sourceType === 'product' ? '商品库' : '品源库'}</p>
+                        {mediaReadiness && (
+                          <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--color-warning)]" aria-label="媒体缺口">
+                            图 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}；{mediaGaps.length ? mediaGaps.join('、') : '图片基础满足'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-[var(--color-fg)]">
+                    <p>成本 {item.costPrice == null ? '待录入' : `¥${item.costPrice}`}</p>
+                    <p className="mt-1 text-[var(--color-muted)]">售价 {item.sellingPrice == null ? item.pricingSourceLabel || '待确认' : `¥${item.sellingPrice}`}</p>
+                  </td>
+                  <td className="px-3 py-3 text-[var(--color-muted)]">{item.lifecycleLabel || '--'}</td>
+                  <td className="min-w-72 px-3 py-3">
+                    <div className="space-y-2" aria-label="多平台字段组">
+                      {requirementsBySelection.map(({ platform, label, requirements }) => (
+                        <div key={platform || 'unselected'} className="rounded-lg border border-[var(--color-border)] p-2">
+                          <p className="mb-1 text-[11px] font-semibold text-[var(--color-fg)]">{label}</p>
+                          <PlatformFieldGroupSummary requirements={requirements} compact maxGroups={2} />
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3">
+                    {item.disabledReason
+                      ? <span className="text-[var(--color-warning)]">{item.disabledReason}</span>
+                      : <span className="text-[var(--color-success)]">可生成草稿</span>}
+                  </td>
+                </tr>
+              )
+            })}
+              </tbody>
+            </table>
+            {items.length === 0 && <p className="p-3 text-xs text-[var(--color-muted)]">暂无发布就绪商品。请先完成选品决策、内容任务人工确认和定价确认。</p>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShoppingCart className="w-4 h-4 text-[var(--color-primary)]" />
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标店铺</h3>
+            <span className="text-xs text-[var(--color-muted)]">已选 {selectedStores.size} 个；必须选择目标店铺后才能生成店铺级 Listing 草稿</span>
+          </div>
+          {visibleStores.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">当前平台未配置可刊登店铺，请先到设置中心配置平台账号。</p>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {visibleStores.map(store => (
+                <button
+                  key={store.id}
+                  onClick={() => onToggleStore(store.id)}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium transition-all"
+                  style={{
+                    background: selectedStores.has(store.id) ? 'var(--color-primary)' : 'var(--color-border)',
+                    color: selectedStores.has(store.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
+                  }}
+                >
+                  {store.account_name} · {store.platform.toUpperCase()}{store.shop_id ? ` · ${store.shop_id}` : ''}
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe className="w-4 h-4 text-[var(--color-accent)]" />
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标平台</h3>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            {platforms.map(platform => (
+              <button
+                key={platform.id}
+                onClick={() => onTogglePlatform(platform.id)}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2"
+                style={{
+                  background: selectedPlatforms.has(platform.id) ? 'var(--color-primary)' : 'var(--color-border)',
+                  color: selectedPlatforms.has(platform.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
+                }}
+              >
+                <span>{platform.icon}</span>
+                <span>{platform.label}</span>
+                <span className="rounded-full bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px]" style={{ color: platformStatus[platform.id]?.configured ? 'var(--color-success)' : 'var(--color-warning)' }}>
+                  {platformStatus[platform.id]?.label || '未配置'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShoppingCart className="w-4 h-4 text-[var(--color-success)]" />
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标市场</h3>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {markets.map(market => (
+              <button
+                key={market.id}
+                onClick={() => onToggleMarket(market.id)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: selectedMarkets.has(market.id) ? 'var(--color-success)' : 'var(--color-border)',
+                  color: selectedMarkets.has(market.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
+                }}
+              >
+                {marketLabelMap.get(market.id)}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Calculator className="w-4 h-4 text-[var(--color-warning)]" />
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">定价策略</h3>
+          </div>
+          <div className="flex items-center gap-6 flex-wrap">
+            <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
+              <input type="radio" checked={pricingMode === 'cost_based'} onChange={() => onPricingModeChange('cost_based')} />
+              成本利润率
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
+              <input type="radio" checked={pricingMode === 'selling_based'} onChange={() => onPricingModeChange('selling_based')} />
+              售价利润率
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--color-muted)]">目标利润</span>
+              <input type="range" min={5} max={60} value={targetProfit} onChange={e => onTargetProfitChange(parseInt(e.target.value))} className="w-32" />
+              <span className="text-sm font-bold text-[var(--color-primary)]">{targetProfit}%</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        {selectedStores.size === 0 && (
+          <span className="mr-3 self-center text-xs text-[var(--color-warning)]">请选择至少一个目标店铺</span>
+        )}
+        <button
+          onClick={onPreview}
+          disabled={loading || selectedItems.size === 0 || selectedPlatforms.size === 0 || selectedMarkets.size === 0 || selectedStores.size === 0}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
+          style={{ background: 'var(--gradient-accent)' }}
+        >
+          {loading
+            ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-pulse" /> 生成中...</span>
+            : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
+        </button>
+      </div>
+    </div>
+  )
+}

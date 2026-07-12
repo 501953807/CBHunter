@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+venv*/
+.venv/
+backend/venv.broken/
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+coverage/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment
+.env
+backend/.env
+*.local
+
+# OS
+.DS_Store
+
+# Local runtime data
+backend/data/
+backend/app/data/
+data/
+
+# Local automation/browser profiles and caches
+.cache/
+.playwright-cli/
+.playwright-mcp/
+
+# Local agent/tool state
+.claude/
+.codex/
+.agents/

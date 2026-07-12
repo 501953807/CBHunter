@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" rx="48" fill="#f7fbff"/>
+  <rect x="145" y="210" width="310" height="190" rx="34" fill="#dff1ff" stroke="#3b84c5" stroke-width="14"/>
+  <rect x="195" y="175" width="210" height="70" rx="26" fill="none" stroke="#3b84c5" stroke-width="14"/>
+  <path d="M200 285h200M230 340h140" stroke="#3b84c5" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="415" cy="335" r="22" fill="#b80064"/>
+  <text x="300" y="535" font-family="Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="#222">Makeup Bag</text>
+</svg>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#92174d" />
+    <title>CBHunter 离线</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; color: #2b2026; background: #f7f5f6; }
+      main { width: min(420px, calc(100% - 40px)); padding: 28px; border: 1px solid #ddd4d9; border-radius: 8px; background: #fff; }
+      h1 { margin: 0 0 12px; font-size: 22px; }
+      p { margin: 0; color: #74666d; line-height: 1.6; }
+      button { margin-top: 20px; padding: 9px 14px; border: 0; border-radius: 6px; color: #fff; background: #92174d; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>当前处于离线状态</h1>
+      <p>CBHunter 需要连接本地后端才能读取和修改业务数据。网络恢复后请重新加载。</p>
+      <button onclick="location.reload()">重新加载</button>
+    </main>
+  </body>
+</html>

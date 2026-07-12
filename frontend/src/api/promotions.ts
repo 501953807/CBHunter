@@ -1,0 +1,73 @@
+import client from './client'
+import type { ApiResponse } from '../types/common'
+
+export interface PromotionCampaignItem {
+  id: string
+  platform_listing_id: string
+  product_id: string
+  product_name: string
+  listing_title: string
+  sku?: string | null
+  discount_type: string
+  discount_value?: number | null
+  original_price?: number | null
+  promotion_price?: number | null
+  stock_limit?: number | null
+  status: string
+}
+
+export interface PromotionCampaign {
+  id: string
+  name: string
+  promotion_type: string
+  status: string
+  platform: string
+  store: {
+    id: string
+    account_name: string
+    shop_id?: string | null
+    market?: string | null
+  }
+  starts_at?: string | null
+  ends_at?: string | null
+  external_promotion_id?: string | null
+  stack_rule?: string | null
+  source: string
+  product_count: number
+  items: PromotionCampaignItem[]
+}
+
+export async function getPromotionCampaigns() {
+  const res = await client.get<ApiResponse<PromotionCampaign[]>>('/promotions')
+  return res.data
+}
+
+export async function createPromotionCampaign(payload: Record<string, unknown>) {
+  const res = await client.post<ApiResponse<PromotionCampaign>>('/promotions', payload)
+  return res.data
+}
+
+export async function updatePromotionCampaign(campaignId: string, payload: Record<string, unknown>) {
+  const res = await client.patch<ApiResponse<PromotionCampaign>>(`/promotions/${campaignId}`, payload)
+  return res.data
+}
+
+export async function updatePromotionCampaignStatus(campaignId: string, status: string) {
+  const res = await client.patch<ApiResponse<PromotionCampaign>>(`/promotions/${campaignId}/state`, { status })
+  return res.data
+}
+
+export async function addPromotionCampaignItems(campaignId: string, items: Record<string, unknown>[]) {
+  const res = await client.post<ApiResponse<PromotionCampaign>>(`/promotions/${campaignId}/items`, { items })
+  return res.data
+}
+
+export async function updatePromotionCampaignDiscount(campaignId: string, discountValue: number) {
+  const res = await client.patch<ApiResponse<PromotionCampaign>>(`/promotions/${campaignId}/discount`, { discount_value: discountValue })
+  return res.data
+}
+
+export async function syncPromotionCampaign(campaignId: string) {
+  const res = await client.post<ApiResponse<PromotionCampaign>>(`/promotions/${campaignId}/sync`)
+  return res.data
+}

@@ -1,0 +1,282 @@
+@import "tailwindcss";
+
+/* ── Tailwind v4: register dark variant as class-based ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Design Tokens — Light (Airbnb-inspired) ── */
+:root {
+  /* Neutrals — warm off-white palette */
+  --color-bg:      oklch(97.5% 0.004 55);
+  --color-surface: oklch(100% 0 0);
+  --color-fg:      oklch(20% 0.012 55);
+  --color-muted:   oklch(55% 0.006 55);
+  --color-border:  oklch(89% 0.004 55);
+
+  /* Glass effects */
+  --color-glass-bg: rgba(255, 255, 255, 0.72);
+  --color-glass-border: rgba(0, 0, 0, 0.06);
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay-strong: rgba(0, 0, 0, 0.7);
+  --color-overlay-light: rgba(255, 255, 255, 0.9);
+  --color-active-overlay: rgba(255, 255, 255, 0.2);
+
+  /* Primary — deep burgundy */
+  --color-primary:       oklch(42% 0.22 350);
+  --color-primary-hover: oklch(36% 0.22 350);
+  --color-primary-light: oklch(90% 0.06 350);
+  --color-primary-text:  white;
+
+  /* Accent — bright coral */
+  --color-accent:       oklch(52% 0.22 24);
+  --color-accent-hover: oklch(46% 0.22 24);
+  --color-accent-light: oklch(92% 0.06 24);
+
+  /* Sidebar — dark warm */
+  --color-sidebar-bg:     oklch(14% 0.006 55);
+  --color-sidebar-fg:     oklch(55% 0.006 55);
+  --color-sidebar-active: white;
+  --color-sidebar-hover:  oklch(20% 0.008 55);
+
+  /* Status */
+  --color-success:       oklch(55% 0.18 145);
+  --color-success-light: oklch(92% 0.06 145);
+  --color-warning:       oklch(60% 0.18 85);
+  --color-warning-light: oklch(92% 0.06 85);
+  --color-danger:        oklch(55% 0.20 30);
+  --color-danger-light:  oklch(92% 0.06 30);
+  --color-info:          oklch(55% 0.14 240);
+  --color-info-light:    oklch(92% 0.04 240);
+
+  /* Chart */
+  --color-chart-line: oklch(42% 0.22 350);
+  --color-chart-bar:  oklch(42% 0.22 350);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Shadow — subtle, Airbnb-style */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.06);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,.08);
+
+  /* Gradient accent — Airbnb signature */
+  --gradient-accent: linear-gradient(135deg, oklch(42% 0.22 350), oklch(52% 0.22 24));
+}
+
+/* ── Design Tokens — Dark ── */
+.dark {
+  --color-bg:      oklch(13% 0.004 55);
+  --color-surface: oklch(19% 0.006 55);
+  --color-fg:      oklch(88% 0.004 55);
+  --color-muted:   oklch(60% 0.006 55);
+  --color-border:  oklch(27% 0.006 55);
+
+  --color-primary:       oklch(58% 0.22 350);
+  --color-primary-hover: oklch(52% 0.22 350);
+  --color-primary-light: oklch(22% 0.08 350);
+  --color-primary-text:  oklch(98% 0.004 55);
+
+  --color-accent:       oklch(58% 0.22 24);
+  --color-accent-hover: oklch(52% 0.22 24);
+  --color-accent-light: oklch(22% 0.08 24);
+
+  --color-sidebar-bg:     oklch(10% 0.004 55);
+  --color-sidebar-fg:     oklch(65% 0.004 55);
+  --color-sidebar-active: oklch(90% 0.004 55);
+  --color-sidebar-hover:  oklch(16% 0.006 55);
+
+  --color-success:       oklch(60% 0.18 145);
+  --color-success-light: oklch(18% 0.08 145);
+  --color-warning:       oklch(65% 0.18 85);
+  --color-warning-light: oklch(20% 0.08 85);
+  --color-danger:        oklch(60% 0.20 30);
+  --color-danger-light:  oklch(20% 0.08 30);
+  --color-info:          oklch(60% 0.14 240);
+  --color-info-light:    oklch(20% 0.05 240);
+
+  --color-chart-line: oklch(58% 0.22 350);
+  --color-chart-bar:  oklch(58% 0.22 350);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.35);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.45);
+
+  --gradient-accent: linear-gradient(135deg, oklch(58% 0.22 350), oklch(58% 0.22 24));
+}
+
+/* ── Global styles ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-fg);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--color-bg);
+  transition: color .2s, background .2s;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+thead {
+  background: var(--color-bg);
+}
+
+th {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+/* Placeholders */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-border);
+}
+
+/* ── Scrollbar — Light ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+
+/* ── Scrollbar — Dark ── */
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(28% 0.006 55);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(38% 0.006 55);
+}
+
+/* ── Frosted glass header (Airbnb style) ── */
+.frosted {
+  background: var(--color-glass-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+}
+.dark .frosted {
+  --color-glass-bg: rgba(17, 17, 17, 0.88);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  background: var(--color-glass-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+}
+
+/* ── Gradient brand mark (Airbnb signature) ── */
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--gradient-accent);
+}
+
+/* ── Recharts dark override ── */
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-label {
+  color: var(--color-fg) !important;
+}
+.dark .recharts-cartesian-grid line {
+  stroke: var(--color-border) !important;
+}
+.dark .recharts-text {
+  fill: var(--color-muted) !important;
+}
+
+/* ── Flyout sub-menu (portal-rendered) ── */
+.flyout-menu {
+  animation: flyoutEnter 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes flyoutEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Page transition (route change animation) ── */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-enter {
+  animation: page-enter 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Glass surface (shared utility) ── */
+.glass {
+  background: var(--color-glass-bg);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid var(--color-glass-border);
+}
+.dark .glass {
+  --color-glass-bg: rgba(17, 17, 17, 0.72);
+  --color-glass-border: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Card hover lift (shared utility) ── */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Shimmer skeleton (shared utility) ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg,
+    var(--color-border) 25%,
+    var(--color-bg) 50%,
+    var(--color-border) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
