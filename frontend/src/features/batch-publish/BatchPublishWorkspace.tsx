@@ -46,6 +46,7 @@ export default function BatchPublishPage() {
   const [evidence, setEvidence] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [initialTargetsApplied, setInitialTargetsApplied] = useState(false)
 
   useEffect(() => {
     getListingWorkbench()
@@ -71,6 +72,8 @@ export default function BatchPublishPage() {
             costPrice: product.cost_price ?? null,
             imageUrl: product.images?.[0] ?? null,
             platformRequirementsByPlatform: (product.attributes?.platform_requirements || {}) as PublishableItem['platformRequirementsByPlatform'],
+            targetPlatforms: productTargetPlatforms(product),
+            targetMarkets: productTargetMarkets(product),
             lifecycleLabel: '定价确认商品',
             pricingSourceLabel: '预览读取本地 Listing 草稿',
           }))
@@ -84,6 +87,21 @@ export default function BatchPublishPage() {
       .catch(error => logger.error('Load products for batch publish failed', error))
   }, [searchParams])
 
+  useEffect(() => {
+    if (initialTargetsApplied || queryProductItems.length === 0) return
+    const stores = fullConfig.store_scope?.stores || []
+    const platformsFromProducts = uniq(queryProductItems.flatMap(item => item.targetPlatforms || []))
+      .filter(platform => publishPlatforms.some(option => option.id === platform))
+    const marketsFromProducts = uniq(queryProductItems.flatMap(item => item.targetMarkets || []))
+      .filter(market => markets.some(option => option.id === market))
+    const matchingStores = stores.filter(store => platformsFromProducts.includes(store.platform))
+
+    if (platformsFromProducts.length > 0) setSelectedPlatforms(new Set(platformsFromProducts))
+    if (marketsFromProducts.length > 0) setSelectedMarkets(new Set(marketsFromProducts))
+    if (matchingStores.length === 1) setSelectedStores(new Set([matchingStores[0].id]))
+    setInitialTargetsApplied(true)
+  }, [fullConfig.store_scope?.stores, initialTargetsApplied, markets, publishPlatforms, queryProductItems])
+
   const workbenchItems: PublishableItem[] = listingItems.map(item => ({
     key: item.key,
     id: item.id,
@@ -94,11 +112,18 @@ export default function BatchPublishPage() {
     imageUrl: item.image_url,
     mediaReadiness: item.media_readiness,
     platformRequirements: item.platform_requirements,
+    targetPlatforms: item.platform ? [item.platform] : [],
+    targetMarkets: item.market ? [item.market] : [],
+    targetStoreIds: item.platform_account_id ? [item.platform_account_id] : [],
     lifecycleLabel: item.lifecycle_label,
   }))
   const publishableItems: PublishableItem[] = queryProductItems.length
     ? [...queryProductItems, ...workbenchItems.filter(item => !queryProductItems.some(queryItem => queryItem.key === item.key))]
     : workbenchItems
+  const selectedProductIds = Array.from(selectedItems)
+    .filter(key => key.startsWith('product:'))
+    .map(key => key.slice('product:'.length))
+  const activeProductId = selectedProductIds.length === 1 ? selectedProductIds[0] : ''
 
   const platformStatus = Object.fromEntries(publishPlatforms.map(platform => {
     const stores = fullConfig.store_scope?.stores || []
@@ -115,6 +140,30 @@ export default function BatchPublishPage() {
     if (publishableItems.some(item => item.key === id && item.disabled)) return
     next.has(id) ? next.delete(id) : next.add(id)
     setSelection(next)
+  }
+
+  const toggleItemSelection = (id: string) => {
+    const item = publishableItems.find(entry => entry.key === id)
+    if (item?.disabled) return
+    const isSelecting = !selectedItems.has(id)
+    toggleSelection(selectedItems, setSelectedItems, id)
+    if (!isSelecting || !item) return
+
+    const availablePlatformIds = new Set(publishPlatforms.map(platform => platform.id))
+    const availableMarketIds = new Set(markets.map(market => market.id))
+    const availableStoreIds = new Set((fullConfig.store_scope?.stores || []).map(store => store.id))
+    const selectablePlatforms = (item.targetPlatforms || []).filter(platform => availablePlatformIds.has(platform))
+    const selectableMarkets = (item.targetMarkets || []).filter(market => availableMarketIds.has(market))
+    if (selectablePlatforms.length > 0) {
+      setSelectedPlatforms(current => new Set([...Array.from(current), ...selectablePlatforms]))
+    }
+    if (selectableMarkets.length > 0) {
+      setSelectedMarkets(current => new Set([...Array.from(current), ...selectableMarkets]))
+    }
+    const selectableStores = (item.targetStoreIds || []).filter(storeId => availableStoreIds.has(storeId))
+    if (selectableStores.length > 0) {
+      setSelectedStores(current => new Set([...Array.from(current), ...selectableStores]))
+    }
   }
 
   const loadPreview = async () => {
@@ -219,9 +268,9 @@ export default function BatchPublishPage() {
       <BusinessObjectActionBar
         description="刊登页只处理已确认对象；需要补商品、内容或价格时从这里回到对应环节。"
         actions={[
-          { label: '商品主数据', description: '核验图片、类目、成本、重量和平台属性。', href: '/products' },
-          { label: '内容制作', description: '补标题、描述、图片处理、视频脚本和合规。', href: '/content' },
-          { label: '定价校验', description: '确认售价、费率、汇率和利润空间。', href: '/pricing' },
+          { label: '商品主数据', description: '核验图片、类目、成本、重量和平台属性。', href: activeProductId ? `/products/${activeProductId}` : '/products' },
+          { label: '内容制作', description: '补标题、描述、图片处理、视频脚本和合规。', href: activeProductId ? `/content?product_id=${activeProductId}` : '/content' },
+          { label: '定价校验', description: '确认售价、费率、汇率和利润空间。', href: activeProductId ? `/pricing?product_id=${activeProductId}` : '/pricing' },
         ]}
       />
 
@@ -239,7 +288,7 @@ export default function BatchPublishPage() {
           pricingMode={pricingMode}
           targetProfit={targetProfit}
           loading={loading}
-          onToggleItem={id => toggleSelection(selectedItems, setSelectedItems, id)}
+          onToggleItem={toggleItemSelection}
           onTogglePlatform={id => toggleSelection(selectedPlatforms, setSelectedPlatforms, id)}
           onToggleMarket={id => toggleSelection(selectedMarkets, setSelectedMarkets, id)}
           onToggleStore={id => toggleSelection(selectedStores, setSelectedStores, id)}
@@ -269,4 +318,27 @@ export default function BatchPublishPage() {
       {step === 'confirm' && publishResult && <BatchPublishResultStep result={publishResult} onReset={reset} />}
     </div>
   )
+}
+
+function productTargetPlatforms(product: Product) {
+  const attrs = product.attributes || {}
+  const fromTargets = arrayOfStrings(attrs.target_platforms)
+  const fromRequirements = Object.keys((attrs.platform_requirements || {}) as Record<string, unknown>)
+  const fromListings = (product.listings || []).map(listing => listing.platform).filter(Boolean)
+  return uniq([...fromTargets, ...fromRequirements, ...fromListings])
+}
+
+function productTargetMarkets(product: Product) {
+  const attrs = product.attributes || {}
+  return uniq(arrayOfStrings(attrs.target_markets))
+}
+
+function arrayOfStrings(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+    : []
+}
+
+function uniq(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
 }

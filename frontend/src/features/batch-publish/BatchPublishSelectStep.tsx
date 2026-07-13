@@ -2,6 +2,7 @@ import { ArrowRight, Calculator, Globe, Package, ShoppingCart, Sparkles } from '
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
 import type { DictMarket, DictPlatform } from '../../api/config'
+import { productImageSrc } from '../../utils/productImages'
 
 export interface PublishableItem {
   key: string
@@ -23,6 +24,9 @@ export interface PublishableItem {
     evidence_source?: string
   }
   platformRequirementsByPlatform?: Record<string, PlatformRequirementsLike>
+  targetPlatforms?: string[]
+  targetMarkets?: string[]
+  targetStoreIds?: string[]
   mediaReadiness?: {
     captured_image_count?: number
     missing_image_count?: number
@@ -65,6 +69,7 @@ export function BatchPublishSelectStep({
   const marketLabelMap = new Map(markets.map(m => [m.id, `${m.flag ? `${m.flag} ` : ''}${m.label}`]))
   const selectedPlatformsList = Array.from(selectedPlatforms)
   const platformLabelMap = new Map(platforms.map(platform => [platform.id, platform.label]))
+  const storeLabelMap = new Map(stores.map(store => [store.id, `${store.account_name} · ${store.platform.toUpperCase()}${store.shop_id ? ` · ${store.shop_id}` : ''}`]))
   const visibleStores = stores.filter(store => selectedPlatforms.size === 0 || selectedPlatforms.has(store.platform))
   const platformRequirementsForSelection = (item: PublishableItem) => {
     if (selectedPlatformsList.length === 0) {
@@ -87,12 +92,13 @@ export function BatchPublishSelectStep({
             <span className="text-xs text-[var(--color-muted)]">已选 {selectedItems.size} / {items.length}</span>
           </div>
           <div className="max-h-80 overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
-            <table className="w-full text-left text-xs">
+            <table className="professional-table w-full text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
                   <th className="w-10 px-3 py-2">选</th>
                   <th className="px-3 py-2">商品</th>
                   <th className="px-3 py-2">成本/售价</th>
+                  <th className="px-3 py-2">目标归属</th>
                   <th className="px-3 py-2">阶段</th>
                   <th className="px-3 py-2">平台字段组</th>
                   <th className="px-3 py-2">状态</th>
@@ -123,7 +129,7 @@ export function BatchPublishSelectStep({
                     <div className="flex min-w-0 gap-2">
                       {item.imageUrl && (
                         <img
-                          src={item.imageUrl}
+                          src={productImageSrc(item.imageUrl)}
                           alt={item.name}
                           className="h-12 w-12 shrink-0 rounded-lg border object-cover"
                           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
@@ -143,6 +149,14 @@ export function BatchPublishSelectStep({
                   <td className="px-3 py-3 text-[var(--color-fg)]">
                     <p>成本 {item.costPrice == null ? '待录入' : `¥${item.costPrice}`}</p>
                     <p className="mt-1 text-[var(--color-muted)]">售价 {item.sellingPrice == null ? item.pricingSourceLabel || '待确认' : `¥${item.sellingPrice}`}</p>
+                  </td>
+                  <td className="min-w-48 px-3 py-3">
+                    <ItemTargetContext
+                      item={item}
+                      platformLabelMap={platformLabelMap}
+                      marketLabelMap={marketLabelMap}
+                      storeLabelMap={storeLabelMap}
+                    />
                   </td>
                   <td className="px-3 py-3 text-[var(--color-muted)]">{item.lifecycleLabel || '--'}</td>
                   <td className="min-w-72 px-3 py-3">
@@ -290,6 +304,47 @@ export function BatchPublishSelectStep({
             : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
         </button>
       </div>
+    </div>
+  )
+}
+
+function ItemTargetContext({
+  item,
+  platformLabelMap,
+  marketLabelMap,
+  storeLabelMap,
+}: {
+  item: PublishableItem
+  platformLabelMap: Map<string, string>
+  marketLabelMap: Map<string, string>
+  storeLabelMap: Map<string, string>
+}) {
+  const platforms = (item.targetPlatforms || []).map(id => platformLabelMap.get(id) || id.toUpperCase())
+  const markets = (item.targetMarkets || []).map(id => marketLabelMap.get(id) || id.toUpperCase())
+  const stores = (item.targetStoreIds || []).map(id => storeLabelMap.get(id) || id)
+
+  if (platforms.length === 0 && markets.length === 0 && stores.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]">
+        待选择目标平台/市场/店铺
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-1 text-[11px]" aria-label="商品目标归属">
+      {platforms.length > 0 && <TargetLine label="平台" values={platforms} />}
+      {markets.length > 0 && <TargetLine label="市场" values={markets} />}
+      {stores.length > 0 && <TargetLine label="店铺" values={stores} />}
+    </div>
+  )
+}
+
+function TargetLine({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="flex min-w-0 gap-1">
+      <span className="shrink-0 text-[var(--color-muted)]">{label}</span>
+      <span className="line-clamp-2 font-medium text-[var(--color-fg)]">{values.join('、')}</span>
     </div>
   )
 }

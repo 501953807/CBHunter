@@ -106,7 +106,7 @@ export function ProfileSettings({ toast }: { toast: any }) {
               </div>
             </div>
           )}
-          <table className="w-full text-sm">
+          <table className="professional-table w-full text-sm">
             <thead><tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
               <th className="text-left py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>用户名</th>
               <th className="text-left py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>显示名称</th>

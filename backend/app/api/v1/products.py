@@ -1,5 +1,10 @@
 import math
+import ipaddress
+import socket
 from typing import Optional
+from urllib.parse import urlparse
+
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import select
@@ -38,6 +43,18 @@ from app.services.sync_service import SyncService
 from app.services.product_image_service import attach_product_image_from_url, attach_product_image_upload
 
 router = APIRouter(prefix="/products", tags=["products"])
+MAX_PROXY_IMAGE_BYTES = 10 * 1024 * 1024
+BLOCKED_PROXY_NETWORKS = tuple(ipaddress.ip_network(cidr) for cidr in (
+    "0.0.0.0/8",
+    "10.0.0.0/8",
+    "127.0.0.0/8",
+    "169.254.0.0/16",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "::1/128",
+    "fc00::/7",
+    "fe80::/10",
+))
 
 
 @router.get("", response_model=ApiResponse)
@@ -294,6 +311,47 @@ async def import_product_image_url_endpoint(
     )
 
 
+@router.get("/image-proxy")
+async def proxy_product_image_endpoint(
+    url: str = Query(..., min_length=8, max_length=2048),
+):
+    """Serve real external product images through the backend for display.
+
+    Some 1688/CDN images used as product evidence block direct browser hotlinking.
+    This endpoint does not generate or substitute images; it fetches the user-visible
+    source image with browser-like headers and returns the original bytes.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="仅支持 http/https 图片 URL")
+    if _is_private_or_local_host(parsed.hostname or ""):
+        raise HTTPException(status_code=400, detail="不允许代理本地或内网地址")
+
+    try:
+        async with httpx.AsyncClient(timeout=12, follow_redirects=True) as client:
+            response = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                "Referer": f"{parsed.scheme}://{parsed.netloc}/",
+            })
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="源图片读取失败") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"源图片不可访问：{response.status_code}")
+    if len(response.content) > MAX_PROXY_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="源图片超过 10MB 展示限制")
+
+    media_type = _image_media_type(url, response.headers.get("content-type", ""))
+    return Response(
+        content=response.content,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/{product_id}", response_model=ApiResponse)
 async def get_product_endpoint(
     product_id: str,
@@ -429,6 +487,41 @@ async def product_classification(
     )
     from app.services.product_analysis import classify_sourcing_items
     return ApiResponse(data=classify_sourcing_items(list(result.scalars().all())))
+
+
+def _is_private_or_local_host(hostname: str) -> bool:
+    lowered = hostname.lower().strip("[]")
+    if lowered in {"localhost", "0.0.0.0"} or lowered.endswith(".local"):
+        return True
+    try:
+        addresses = socket.getaddrinfo(lowered, None)
+    except socket.gaierror:
+        return False
+    for address in addresses:
+        ip_text = address[4][0]
+        try:
+            ip = ipaddress.ip_address(ip_text)
+        except ValueError:
+            continue
+        if any(ip in network for network in BLOCKED_PROXY_NETWORKS):
+            return True
+    return False
+
+
+def _image_media_type(url: str, content_type: str) -> str:
+    lowered = content_type.split(";")[0].strip().lower()
+    if lowered.startswith("image/"):
+        return lowered
+    path = urlparse(url).path.lower()
+    if ".webp" in path:
+        return "image/webp"
+    if ".png" in path:
+        return "image/png"
+    if ".gif" in path:
+        return "image/gif"
+    if ".svg" in path:
+        return "image/svg+xml"
+    return "image/jpeg"
 
 
 def _product_snapshot(product) -> dict:

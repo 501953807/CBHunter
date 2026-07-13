@@ -68,7 +68,7 @@ export default function CompetitorMonitorPage() {
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="professional-table w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>名称</th>

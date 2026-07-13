@@ -13,6 +13,7 @@ import { useConfig } from '../../hooks/useConfig'
 import { getStatusMeta, toDomainOptions, withAllOption } from '../../utils/domainOptions'
 import { useToast } from '../../components/ui/Toast'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 interface PlatformStoreProductsPanelProps {
   initialPlatform?: string
@@ -149,7 +150,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
       <EvidenceBanner evidence={productsQuery.data} compact />
 
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <table className="w-full text-left text-xs">
+        <table className="professional-table w-full text-left text-xs">
           <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
             <tr>
               <th className="px-3 py-2">平台商品</th>
@@ -192,7 +193,7 @@ function PlatformStoreProductRow({ item }: { item: PlatformStoreProduct }) {
     <tr className="border-t border-[var(--color-border)] align-top">
       <td className="min-w-72 px-3 py-3">
         <div className="flex gap-3">
-          {item.images?.[0] ? <img src={item.images[0]} alt="平台商品图" className="h-14 w-14 rounded-lg object-cover bg-[var(--color-bg)]" /> : <div className="h-14 w-14 rounded-lg bg-[var(--color-bg)]" />}
+          {item.images?.[0] ? <img src={productImageSrc(item.images[0])} alt="平台商品图" className="h-14 w-14 rounded-lg object-cover bg-[var(--color-bg)]" /> : <div className="h-14 w-14 rounded-lg bg-[var(--color-bg)]" />}
           <div>
             <Badge>{item.platform.toUpperCase()}</Badge>
             <p className="mt-1 line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.title}</p>

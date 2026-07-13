@@ -108,7 +108,7 @@ export function DataTable<T>({
   return (
     <div>
       <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
-        <table className="min-w-full divide-y divide-[var(--color-border)]">
+        <table className="professional-table min-w-full divide-y divide-[var(--color-border)]">
           <thead className="bg-[var(--color-border)]/40">
             <tr>
               {onSelectionChange && (

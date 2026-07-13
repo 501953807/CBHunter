@@ -7,6 +7,7 @@ import { PlatformFieldGroupEditor } from '../../components/shared/PlatformFieldG
 import { generateListingDraftAssist, type BatchListingDraft, type BatchPreviewSummary, type PlatformListingRequirements } from '../../api/listing'
 import { labelBusinessCode } from '../../utils/businessLabels'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 import { getProviderTaskMatrix } from '../../api/settings'
 import { ListingDraftQueue } from './ListingDraftQueue'
 import { ListingCompletenessPanel } from './ListingCompletenessPanel'
@@ -386,7 +387,7 @@ function MediaEditor({ draft, onChange }: { draft: BatchListingDraft; onChange: 
     <>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {images.slice(0, 5).map(url => (
-          <img key={url} src={url} alt="Listing 图片" className="h-14 w-14 shrink-0 rounded-lg border border-[var(--color-border)] object-cover" />
+          <img key={url} src={productImageSrc(url)} alt="Listing 图片" className="h-14 w-14 shrink-0 rounded-lg border border-[var(--color-border)] object-cover" />
         ))}
         {images.length === 0 && <span className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-5 text-[11px] text-[var(--color-warning)]">图片待补</span>}
       </div>

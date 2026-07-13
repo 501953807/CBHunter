@@ -1,5 +1,6 @@
 import { Package, Plus, RefreshCw, ShoppingCart, Trash2, TrendingUp } from "lucide-react"
 import { Card, CardContent } from "../../components/ui/Card"
+import { productImageSrc } from "../../utils/productImages"
 
 export function PillFilter({ title, allLabel, value, options, tone, onChange }: any) {
   const activeBg = tone === 'success' ? 'var(--color-success)' : 'var(--color-primary)'
@@ -122,7 +123,7 @@ function TrendingProductCard({ product, onDelete, onCapture }: any) {
       </button>
       <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
         {product.images?.length > 0 ? (
-          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
+          <img src={productImageSrc(product.images[0])} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
             onError={(event) => { (event.target as HTMLImageElement).style.display = 'none' }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><Package className="w-8 h-8 opacity-20" style={{ color: 'var(--color-muted)' }} /></div>

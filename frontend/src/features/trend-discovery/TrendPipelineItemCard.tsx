@@ -4,6 +4,7 @@ import { getMarketFlag } from "./TrendPipelineUtils"
 import { PipelineCostPanel } from "./TrendPipelineCostPanel"
 import { PipelineSupplierPanel } from "./TrendPipelineSupplierPanel"
 import { Handshake, Package, Trash2 } from "lucide-react"
+import { productImageSrc } from "../../utils/productImages"
 
 export function PipelineItemCard({
   item,
@@ -61,7 +62,7 @@ export function PipelineItemCard({
         <div className="flex items-start gap-3">
           <div className="w-14 h-14 rounded-lg bg-[var(--color-bg)] flex items-center justify-center text-xl shrink-0 overflow-hidden">
             {sourceImage
-              ? <img src={sourceImage} alt={item.product_name || '品源商品'} className="w-full h-full object-cover" loading="lazy" />
+              ? <img src={productImageSrc(sourceImage)} alt={item.product_name || '品源商品'} className="w-full h-full object-cover" loading="lazy" />
               : <Package className="w-5 h-5 text-[var(--color-muted)]" />}
           </div>
           <div className="flex-1 min-w-0">

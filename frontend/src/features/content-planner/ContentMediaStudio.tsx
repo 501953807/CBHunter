@@ -15,6 +15,7 @@ import {
   type ContentWorkbenchItem,
 } from '../../api/content'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 import { EvidenceBanner } from '../../components/shared/EvidenceBanner'
 import type { ApiResponse } from '../../types/common'
 
@@ -136,7 +137,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
     <div className="space-y-4">
       <section aria-label="素材商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
         {product?.image_url ? (
-          <img src={product.image_url} alt={product.product_name} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+          <img src={productImageSrc(product.image_url)} alt={product.product_name} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
         ) : (
           <div className="grid h-20 w-20 shrink-0 place-items-center rounded-lg text-xs" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>未选商品</div>
         )}

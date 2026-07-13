@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, Database, GitBranch, RefreshCw, Route, ShieldAlert } from 'lucide-react'
 import { getBusinessFlowOverview } from '../../api/businessFlow'
+import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
 import { Badge } from '../../components/ui/Badge'
 import type { BusinessFlowOverview } from '../../types/businessFlow'
 import { logger } from '../../utils/logger'
@@ -43,14 +44,17 @@ export default function BusinessFlowWorkspace() {
 
   return (
     <div className="space-y-4">
-      <section className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[var(--shadow-sm)] xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={hasNoItems ? 'warning' : (data?.metrics.blocked ?? 0) > 0 ? 'warning' : 'success'}>
-              {hasNoItems ? '尚未开始推进商品' : (data?.metrics.blocked ?? 0) > 0 ? '存在链路阻塞' : '链路可推进'}
-            </Badge>
-            <span className="text-xs text-[var(--color-muted)]">从信号、选品、内容、刊登到履约与优化的商品推进总线</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <CommandCenterFrame
+        eyebrow="Business Flow"
+        title="业务处理总线"
+        description="从信号、选品、内容、刊登到履约与优化的商品推进总线，按当前商品对象呈现阶段、阻塞、来源证据和下一步动作。"
+        badge={(
+          <Badge variant={hasNoItems ? 'warning' : (data?.metrics.blocked ?? 0) > 0 ? 'warning' : 'success'}>
+            {hasNoItems ? '尚未开始推进商品' : (data?.metrics.blocked ?? 0) > 0 ? '存在链路阻塞' : '链路可推进'}
+          </Badge>
+        )}
+        actions={(
+          <>
             <StatusPill icon={<GitBranch className="h-3.5 w-3.5" />} label="阶段" value={`${data?.metrics.stage_count ?? 0} 个`} />
             <StatusPill icon={<Route className="h-3.5 w-3.5" />} label="商品队列" value={`${data?.metrics.item_count ?? 0} 条`} />
             <StatusPill icon={<ShieldAlert className="h-3.5 w-3.5" />} label="阶段阻塞" value={`${data?.metrics.blocked ?? 0} 项`} />
@@ -64,12 +68,13 @@ export default function BusinessFlowWorkspace() {
               onClick={load}
               disabled={loading}
               title="刷新业务监控台"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary-text)] transition hover:-translate-y-0.5 hover:border-[var(--color-command-accent)] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-          </div>
-      </section>
+          </>
+        )}
+      />
 
       <BusinessFlowV2Board
         data={data}

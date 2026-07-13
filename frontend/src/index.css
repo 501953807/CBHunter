@@ -47,6 +47,13 @@
   --color-info:          oklch(55% 0.14 240);
   --color-info-light:    oklch(92% 0.04 240);
 
+  /* Hybrid UI scheme — command center + professional SaaS workspace */
+  --color-command-bg: oklch(17% 0.045 258);
+  --color-command-panel: oklch(22% 0.038 258);
+  --color-command-accent: oklch(66% 0.18 350);
+  --color-workspace-chrome: oklch(98% 0.008 70);
+  --shadow-command: 0 18px 42px rgba(15, 23, 42, .18);
+
   /* Chart */
   --color-chart-line: oklch(42% 0.22 350);
   --color-chart-bar:  oklch(42% 0.22 350);
@@ -96,6 +103,12 @@
   --color-danger-light:  oklch(20% 0.08 30);
   --color-info:          oklch(60% 0.14 240);
   --color-info-light:    oklch(20% 0.05 240);
+
+  --color-command-bg: oklch(10% 0.045 258);
+  --color-command-panel: oklch(16% 0.038 258);
+  --color-command-accent: oklch(68% 0.18 350);
+  --color-workspace-chrome: oklch(15% 0.01 55);
+  --shadow-command: 0 18px 42px rgba(0, 0, 0, .48);
 
   --color-chart-line: oklch(58% 0.22 350);
   --color-chart-bar:  oklch(58% 0.22 350);
@@ -255,6 +268,108 @@ textarea::placeholder {
 .card-lift:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+/* ── Hybrid UI selected: command center shell + professional SaaS workspace ── */
+.command-center-shell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--color-command-accent) 28%, transparent);
+  background:
+    radial-gradient(circle at top left, color-mix(in oklch, var(--color-command-accent) 24%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--color-command-bg), var(--color-command-panel));
+  box-shadow: var(--shadow-command);
+}
+
+.command-center-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: .18;
+}
+
+.command-center-hero {
+  position: relative;
+  z-index: 1;
+}
+
+.command-center-hero-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.command-center-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .5rem;
+}
+
+@media (min-width: 1280px) {
+  .command-center-hero-layout {
+    grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .command-center-actions {
+    justify-content: flex-end;
+  }
+}
+
+.professional-workspace-shell {
+  background: var(--color-workspace-chrome);
+}
+
+.professional-tabbar {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-workspace-chrome) 82%, var(--color-surface));
+}
+
+.professional-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.professional-table thead {
+  background: color-mix(in oklch, var(--color-workspace-chrome) 88%, var(--color-surface));
+}
+
+.professional-table th {
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+
+.professional-table td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.professional-table tbody tr {
+  transition: background .16s ease, box-shadow .16s ease;
+}
+
+.professional-table tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 42%, var(--color-surface));
+}
+
+.professional-context-rail {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.professional-status-chip {
+  border: 1px solid color-mix(in oklch, currentColor 18%, transparent);
+  letter-spacing: .01em;
 }
 
 /* ── Shimmer skeleton (shared utility) ── */

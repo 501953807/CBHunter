@@ -2,6 +2,7 @@ import { Bot, Camera, ChevronDown, ChevronUp, ScanText, Trash2 } from "lucide-re
 import { Card, CardContent } from "../../components/ui/Card"
 import type { DictShape } from "./TrendDiscoveryTypes"
 import { getMarketFlag } from "./TrendPipelineUtils"
+import { productImageSrc } from "../../utils/productImages"
 
 export function PendingImagesPanel({
   activeId,
@@ -28,7 +29,7 @@ export function PendingImagesPanel({
             }`}
             style={{ background: 'var(--color-surface)' }}>
             <div onClick={() => onSelect(thumb)}>
-              {thumb.image_url ? <img src={thumb.image_url} alt="待分析商品" className="w-full aspect-square object-cover rounded" /> : <div className="w-full aspect-square flex items-center justify-center"><Camera className="w-6 h-6 text-[var(--color-muted)]" /></div>}
+              {thumb.image_url ? <img src={productImageSrc(thumb.image_url)} alt="待分析商品" className="w-full aspect-square object-cover rounded" /> : <div className="w-full aspect-square flex items-center justify-center"><Camera className="w-6 h-6 text-[var(--color-muted)]" /></div>}
               <div className="flex gap-0.5 mt-1">
                 {thumb.ai_used && <span className="text-[11px] bg-[var(--color-success)] text-[var(--color-primary-text)] px-1 rounded">AI</span>}
                 {thumb.status === 'discovered' && <span className="text-[11px] bg-[var(--color-warning)] text-[var(--color-primary-text)] px-1 rounded">待</span>}

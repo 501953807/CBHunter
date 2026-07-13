@@ -141,7 +141,7 @@ export function BillingSettings({ toast }: { toast: any }) {
           {usage.length === 0 ? (
             <div className="text-sm" style={{ color: 'var(--color-muted)' }}>暂无额度消耗记录</div>
           ) : (
-            <table className="w-full text-xs">
+            <table className="professional-table w-full text-xs">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>权益</th>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { importProductImageUrl, uploadProductImage } from '../../api/products'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 interface Props {
   productId?: string
@@ -112,7 +113,7 @@ export function ProductImagesPanel({ productId, imageText, onChange }: Props) {
           {images.map((url, index) => (
             <div key={`${url}-${index}`} className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
               <a href={url} target="_blank" rel="noreferrer">
-                <img src={url} alt={index === 0 ? '主图预览' : '辅图预览'} className="aspect-square w-full rounded-lg object-cover bg-[var(--color-bg)]" />
+                <img src={productImageSrc(url)} alt={index === 0 ? '主图预览' : '辅图预览'} className="aspect-square w-full rounded-lg object-cover bg-[var(--color-bg)]" />
               </a>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] text-[var(--color-primary)]">{index === 0 ? '主图' : `辅图 ${index}`}</span>

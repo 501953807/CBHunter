@@ -121,7 +121,7 @@ export function ModuleSubnav() {
   const activeTo = activeItemTo(location.pathname, location.search, section.items)
 
   return (
-    <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 sm:px-5">
+    <div data-ui-scheme="professional-tabs" className="professional-tabbar px-3 sm:px-5">
       <nav className="flex min-w-max gap-5 overflow-x-auto" aria-label={`${section.label}页内功能导航`}>
           {section.items.map((item) => {
             const active = isItemActive(location.pathname, location.search, item.to) && item.to === activeTo

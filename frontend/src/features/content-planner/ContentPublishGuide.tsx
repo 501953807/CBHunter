@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { Card, CardContent } from '../../components/ui/Card'
 import type { ContentWorkbenchItem } from '../../api/content'
 import { BusinessObjectActionBar } from '../../components/shared/BusinessObjectActionBar'
+import { productImageSrc } from '../../utils/productImages'
 
 export function ContentPublishGuide({ product }: { product: ContentWorkbenchItem | null }) {
   const navigate = useNavigate()
@@ -26,7 +27,7 @@ export function ContentPublishGuide({ product }: { product: ContentWorkbenchItem
         {product ? (
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3" aria-label="内容到刊登商品上下文">
             <div className="flex items-center gap-3">
-              {product.image_url && <img src={product.image_url} alt={product.product_name} className="h-14 w-14 rounded-lg object-cover" />}
+              {product.image_url && <img src={productImageSrc(product.image_url)} alt={product.product_name} className="h-14 w-14 rounded-lg object-cover" />}
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-[var(--color-fg)]">{product.product_name}</p>
                 <p className="text-xs text-[var(--color-muted)]">{product.target_platform || '平台待补'} / {product.target_market || '市场待补'} · {product.lifecycle_label}</p>

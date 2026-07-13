@@ -60,7 +60,7 @@ export function RulesTab() {
           <EmptyState icon={<Bell className="w-10 h-10" />} title="暂无预警规则" description="点击「添加规则」设置库存阈值" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="professional-table w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>SKU</th>

@@ -14,7 +14,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div className="border-b border-[var(--color-border)] overflow-x-auto">
+    <div data-ui-scheme="professional-tabs" className="professional-tabbar overflow-x-auto">
       <nav className="-mb-px flex gap-5 min-w-max" aria-label="页面视图">
         {tabs.map((tab) => (
           <button

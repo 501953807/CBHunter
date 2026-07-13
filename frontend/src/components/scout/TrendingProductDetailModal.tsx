@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ExternalLink, MapPin, Package, Plus, RefreshCw, Star, Store, X } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { formatPrice, formatSales, getSourceLabel } from './TrendingProductsUtils'
+import { productImageSrc } from '../../utils/productImages'
 
 export function TrendingProductDetailModal({
   product,
@@ -65,7 +66,7 @@ function ImageCarousel({ product, images, imageIndex, maxIndex, onPrev, onNext }
     <div className="relative shrink-0 w-full md:w-[55%] bg-[var(--color-fg)] flex items-center justify-center" style={{ height: '100%' }}>
       {images.length > 0 ? (
         <>
-          <img src={images[imageIndex]} alt={product.name} className="w-full h-full object-contain" />
+          <img src={productImageSrc(images[imageIndex])} alt={product.name} className="w-full h-full object-contain" />
           {maxIndex > 0 && (
             <>
               <button onClick={onPrev} className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[var(--color-overlay)] text-[var(--color-primary-text)] hover:bg-[var(--color-overlay-strong)]">
@@ -136,7 +137,7 @@ function Thumbnails({ images, imageIndex, onImageIndexChange }: any) {
         <button key={index} onClick={() => onImageIndexChange(index)}
           className={`shrink-0 w-14 h-14 rounded-lg border-2 overflow-hidden ${index === imageIndex ? '' : 'opacity-50'}`}
           style={{ borderColor: index === imageIndex ? 'var(--color-primary)' : 'var(--color-border)' }}>
-          <img src={src} className="w-full h-full object-cover" alt="" loading="lazy" />
+          <img src={productImageSrc(src)} className="w-full h-full object-cover" alt="" loading="lazy" />
         </button>
       ))}
     </div>

@@ -36,6 +36,7 @@ backend/.env
 backend/data/
 backend/app/data/
 data/
+output/
 
 # Local automation/browser profiles and caches
 .cache/

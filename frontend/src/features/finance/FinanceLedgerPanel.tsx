@@ -190,7 +190,7 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
             <EmptyState icon={<Plus className="h-9 w-9" />} title="暂无台账记录" description="使用上方表单补录真实收支，或先同步平台订单。" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="professional-table w-full text-xs">
                 <thead>
                   <tr className="border-b bg-[var(--color-bg)]" style={{ borderColor: 'var(--color-border)' }}>
                     <th className="text-left py-2 pr-3 font-medium text-[var(--color-muted)]">时间</th>

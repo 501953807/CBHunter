@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Clock, Database, FileWarning, RefreshCw, ShieldCheck } from 'lucide-react'
 import { updateBusinessFlowTasks } from '../../api/businessFlow'
 import { getRiskControlAudit, getRiskControlOverview, updateRiskControlState } from '../../api/riskControl'
+import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
 import { Badge } from '../../components/ui/Badge'
 import type { RiskAuditItem, RiskControlOverview, RiskControlRisk } from '../../types/riskControl'
 import { logger } from '../../utils/logger'
@@ -108,18 +109,17 @@ export default function RiskControlWorkspace() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-semibold text-[var(--color-fg)]">风险处置中枢</h1>
-              <Badge variant={data?.assessment_status === 'attention' ? 'warning' : data?.assessment_status === 'insufficient' ? 'info' : 'success'}>
-                {data?.assessment_status === 'attention' ? '存在待处理风险' : data?.assessment_status === 'insufficient' ? '数据不足，暂无法确认风险' : '已覆盖范围内未识别到风险'}
-              </Badge>
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">按风险类型、业务影响、证据窗口和处置动作集中管控，支持下钻到库存、利润、履约、竞品与数据质量。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <CommandCenterFrame
+        eyebrow="Risk Command"
+        title="风险处置中枢"
+        description="按风险类型、业务影响、证据窗口和处置动作集中管控，支持下钻到库存、利润、履约、竞品与数据质量。"
+        badge={(
+          <Badge variant={data?.assessment_status === 'attention' ? 'warning' : data?.assessment_status === 'insufficient' ? 'info' : 'success'}>
+            {data?.assessment_status === 'attention' ? '存在待处理风险' : data?.assessment_status === 'insufficient' ? '数据不足，暂无法确认风险' : '已覆盖范围内未识别到风险'}
+          </Badge>
+        )}
+        actions={(
+          <>
             <StatusPill icon={<FileWarning className="h-3.5 w-3.5" />} label="待处理" value={`${data?.metrics.pending ?? 0} 项`} />
             <StatusPill icon={<ShieldCheck className="h-3.5 w-3.5" />} label="处理中" value={`${data?.metrics.processing ?? 0} 项`} />
             <StatusPill icon={<ShieldCheck className="h-3.5 w-3.5" />} label="类型" value={`${data?.metrics.category_count ?? 0} 类`} />
@@ -129,12 +129,13 @@ export default function RiskControlWorkspace() {
               onClick={load}
               disabled={loading}
               title="刷新风险管控台"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary-text)] transition hover:-translate-y-0.5 hover:border-[var(--color-command-accent)] disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-          </div>
-        </div>
+          </>
+        )}
+      >
         <div aria-label="风险处置指标" className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-6">
           <Metric label="高风险" value={String(data?.metrics.critical ?? 0)} tone="danger" />
           <Metric label="警告" value={String(data?.metrics.warning ?? 0)} tone="warning" />
@@ -143,7 +144,7 @@ export default function RiskControlWorkspace() {
           <Metric label="数据缺口" value={String(data?.gaps?.length ?? 0)} tone="warning" />
           <Metric label="已关闭" value={String(data?.metrics.closed ?? 0)} tone="ready" />
         </div>
-      </section>
+      </CommandCenterFrame>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[400px_minmax(0,1fr)_320px]">
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">

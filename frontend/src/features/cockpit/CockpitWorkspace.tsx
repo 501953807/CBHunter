@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { getOperatingCockpit } from '../../api/cockpit'
+import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
 import { Badge } from '../../components/ui/Badge'
 import type { CockpitData, CockpitFilters } from '../../types/cockpit'
 import { logger } from '../../utils/logger'
@@ -85,27 +86,22 @@ export default function CockpitWorkspace() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-semibold text-[var(--color-fg)]">经营指挥中枢</h1>
-              <Badge variant={data.data_status === 'ready' ? 'success' : 'warning'}>
-                {data.data_status === 'ready' ? '真实数据已接入' : '等待真实数据'}
-              </Badge>
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">从订单、收入、利润、库存、风险、链路阻塞、AI 建议和数据健康统一掌握经营全局，并下钻到具体业务对象。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <CommandCenterFrame
+        eyebrow="Command Center"
+        title="经营指挥中枢"
+        description="从订单、收入、利润、库存、风险、链路阻塞、AI 建议和数据健康统一掌握经营全局，并下钻到具体业务对象。"
+        badge={<Badge variant={data.data_status === 'ready' ? 'success' : 'warning'}>{data.data_status === 'ready' ? '真实数据已接入' : '等待真实数据'}</Badge>}
+        actions={(
+          <>
             <StatusPill icon={<ListChecks className="h-3.5 w-3.5" />} label="需处理" value={`${data.attention_count} 项`} />
             <StatusPill icon={<Database className="h-3.5 w-3.5" />} label="来源" value={`${totalSources} 条`} />
             <StatusPill icon={<Clock className="h-3.5 w-3.5" />} label="更新" value={formatTime(data.generated_at)} />
-            <button onClick={load} disabled={loading} title="刷新指挥台" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50">
+            <button onClick={load} disabled={loading} title="刷新指挥台" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary-text)] transition hover:-translate-y-0.5 hover:border-[var(--color-command-accent)] disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-          </div>
-        </div>
-      </section>
+          </>
+        )}
+      />
 
       <section aria-label="经营指挥指标">
         <CockpitMetricStrip data={data} onNavigate={navigate} />

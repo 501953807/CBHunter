@@ -5,6 +5,7 @@ import { TrendKeywordCard } from './TrendKeywordCard'
 import { addToSourcing } from '../../api/sourcing'
 import type { DictCategory } from '../../hooks/useConfig'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 interface Props {
   categories: DictCategory[]
@@ -79,7 +80,7 @@ export function PinterestColumn({ categories, selectedCat, onSelectCat, trendDat
             style={{ background: 'var(--color-bg)' }}
           >
             {kw.image_url ? (
-              <img src={kw.image_url} alt={kw.keyword} className="w-full h-full object-cover rounded-lg" />
+              <img src={productImageSrc(kw.image_url)} alt={kw.keyword} className="w-full h-full object-cover rounded-lg" />
             ) : (
               <span className="text-3xl">📌</span>
             )}

@@ -135,7 +135,7 @@ export function ContentTaskMatrix({ product, refreshToken = 0 }: { product: Cont
         )}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-            <table className="w-full text-left text-xs" aria-label="内容任务后台表格">
+            <table className="professional-table w-full text-left text-xs" aria-label="内容任务后台表格">
               <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
                 <tr>
                   <th className="px-3 py-2 font-medium">任务</th>
@@ -170,7 +170,7 @@ export function ContentTaskMatrix({ product, refreshToken = 0 }: { product: Cont
             </table>
           </div>
           {selectedTask && (
-            <aside className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3" aria-label="任务详情诊断">
+            <aside className="professional-context-rail rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3" aria-label="任务详情诊断">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-[var(--color-fg)]">任务详情诊断</p>

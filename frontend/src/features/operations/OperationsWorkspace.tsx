@@ -172,7 +172,7 @@ export default function OperationsWorkspace() {
         </CardHeader>
         <CardContent>
           {records.length === 0 ? <EmptyState icon={<Megaphone className="h-9 w-9" />} title="暂无运营记录" description="使用上方表单录入真实广告、达人或回款动作。" /> : (
-            <div className="overflow-x-auto"><table className="w-full text-xs">
+            <div className="overflow-x-auto"><table className="professional-table w-full text-xs">
               <thead className="bg-[var(--color-bg)]"><tr className="border-b border-[var(--color-border)] text-left text-[var(--color-muted)]"><th className="py-2">类型/名称</th><th>状态</th><th>平台/市场</th><th className="text-right">计划金额</th><th className="text-right">真实金额</th><th>财务台账</th><th>操作</th></tr></thead>
               <tbody>{records.map(record => <tr key={record.id} className="border-b border-[var(--color-border)]">
                 <td className="py-3"><p className="font-medium text-[var(--color-fg)]">{record.name}</p><p className="text-[var(--color-muted)]">{label(options.record_types, record.record_type)} · {record.counterparty || '-'}</p></td>

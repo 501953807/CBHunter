@@ -1,6 +1,7 @@
 import { ExternalLink, Globe, Package, Search } from "lucide-react"
 import type { SupplierForm } from "./TrendPipelineUtils"
 import { EvidenceBanner } from "../../components/shared/EvidenceBanner"
+import { productImageSrc } from "../../utils/productImages"
 
 export function PipelineSupplierPanel({
   item,
@@ -74,7 +75,7 @@ function SupplierList({ item, itemSuppliers, onOpenPurchase }: any) {
       {itemSuppliers.map((supplier: any) => (
         <div key={supplier.id} className="flex items-center gap-2 bg-[var(--color-bg)] rounded-lg p-2">
           <div className="w-10 h-10 rounded bg-[var(--color-border)] flex items-center justify-center text-lg shrink-0 overflow-hidden">
-            {supplier.product_image ? <img src={supplier.product_image} alt={supplier.supplier_name} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-[var(--color-muted)]" />}
+            {supplier.product_image ? <img src={productImageSrc(supplier.product_image)} alt={supplier.supplier_name} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-[var(--color-muted)]" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">

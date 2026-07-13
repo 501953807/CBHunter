@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ExternalLink, Package, Plus, RefreshCw, Trash2, Zap } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { buildPlatformSearchUrl, formatPrice, formatSales, getSourceLabel } from './TrendingProductsUtils'
+import { productImageSrc } from '../../utils/productImages'
 
 export function TrendingProductsGrid({
   loading,
@@ -107,7 +108,7 @@ function TrendingProductCard({
       onClick={() => onOpenDetail(product)}>
       <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
         {product.images && product.images.length > 0 ? (
-          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
+          <img src={productImageSrc(product.images[0])} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

@@ -18,6 +18,7 @@ import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Select } from '../components/ui/Select'
 import { usePlatforms } from '../hooks/usePlatforms'
 import { logger } from '../utils/logger'
+import { productImageSrc } from '../utils/productImages'
 
 interface PromotionCreateFormState {
   name: string
@@ -518,7 +519,7 @@ function PromotionCandidateCard({ item, selected, onToggle }: { item: PlatformSt
       aria-pressed={selected}
     >
       <div className="flex gap-3">
-        {item.images?.[0] ? <img src={item.images[0]} alt="参与促销商品图" className="h-14 w-14 rounded-lg object-cover bg-[var(--color-bg)]" /> : <div className="h-14 w-14 rounded-lg bg-[var(--color-bg)]" />}
+        {item.images?.[0] ? <img src={productImageSrc(item.images[0])} alt="参与促销商品图" className="h-14 w-14 rounded-lg object-cover bg-[var(--color-bg)]" /> : <div className="h-14 w-14 rounded-lg bg-[var(--color-bg)]" />}
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.title}</p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">{item.store.account_name} · 库存 {item.stock} · 售价 {item.price.toLocaleString()}</p>

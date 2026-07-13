@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge'
 import type { BusinessFlowAssignee, BusinessFlowBusItem, BusinessFlowItem, BusinessFlowOverview, BusinessFlowPipelineLane, BusinessFlowStageHealth, BusinessFlowTaskBulkRequest } from '../../types/businessFlow'
 import { labelBusinessCode } from '../../utils/businessLabels'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 import { BusinessFlowContextRail } from './BusinessFlowContextRail'
 import { buildObjectRoute } from './businessFlowRoutes'
 
@@ -185,7 +186,7 @@ function SwimlaneItem({ item, active, onPick, onNavigate }: {
     <button onClick={() => onPick(item.work_item_id)} className={`w-full rounded-md border p-2 text-left transition hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)] ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
       <span className="flex items-center gap-2">
         {item.image_url ? (
-          <img src={item.image_url} alt={item.name} className="h-8 w-8 shrink-0 rounded object-cover" style={{ border: '1px solid var(--color-border)' }} />
+          <img src={productImageSrc(item.image_url)} alt={item.name} className="h-8 w-8 shrink-0 rounded object-cover" style={{ border: '1px solid var(--color-border)' }} />
         ) : (
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded border border-[var(--color-border)] text-[var(--color-muted)]"><Package className="h-4 w-4" /></span>
         )}
@@ -277,7 +278,7 @@ function FlowTable({ items, selectedKeys, activeKey, onToggle, onPick, onNavigat
               <td className="max-w-[280px] px-2 py-3">
                 <div className="flex items-center gap-3">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="h-12 w-12 shrink-0 rounded-md object-cover" style={{ border: '1px solid var(--color-border)' }} />
+                    <img src={productImageSrc(item.image_url)} alt={item.name} className="h-12 w-12 shrink-0 rounded-md object-cover" style={{ border: '1px solid var(--color-border)' }} />
                   ) : (
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-primary)]"><Package className="h-5 w-5" /></span>
                   )}

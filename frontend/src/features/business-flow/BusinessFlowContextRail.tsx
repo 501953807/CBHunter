@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge'
 import type { BusinessFlowBusItem, BusinessFlowNextAction, BusinessFlowTaskEvent } from '../../types/businessFlow'
 import { labelBusinessCode } from '../../utils/businessLabels'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 import { buildObjectRoute } from './businessFlowRoutes'
 
 interface Props {
@@ -87,7 +88,7 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="flex items-start gap-3">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="h-14 w-14 shrink-0 rounded-lg object-cover" style={{ border: '1px solid var(--color-border)' }} />
+            <img src={productImageSrc(item.image_url)} alt={item.name} className="h-14 w-14 shrink-0 rounded-lg object-cover" style={{ border: '1px solid var(--color-border)' }} />
           ) : (
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)]">图</div>
           )}

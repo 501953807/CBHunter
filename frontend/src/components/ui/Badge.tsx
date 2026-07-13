@@ -9,8 +9,9 @@ interface BadgeProps {
 export function Badge({ variant = 'default', children, className }: BadgeProps) {
   return (
     <span
+      data-status-variant={variant}
       className={cn(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors',
+        'professional-status-chip inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors',
         {
           'bg-[var(--color-border)] text-[var(--color-muted)]': variant === 'default',
           'bg-[var(--color-success-light)] text-[var(--color-success)]': variant === 'success',

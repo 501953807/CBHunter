@@ -4,6 +4,7 @@ import { getContentWorkbench, type ContentWorkbench, type ContentWorkbenchItem }
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 const STATUS_LABELS: Record<string, string> = {
   not_started: '待制作',
@@ -87,7 +88,7 @@ export function ContentProductQueue({ onSelect, initialProductId = '' }: { onSel
                     <div className="flex min-w-0 gap-2">
                       {item.image_url && (
                         <img
-                          src={item.image_url}
+                          src={productImageSrc(item.image_url)}
                           alt={item.product_name}
                           className="h-12 w-12 shrink-0 rounded-lg border object-cover"
                           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}

@@ -1,5 +1,6 @@
 import type { PricingWorkbenchItem } from '../../api/pricing'
 import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
+import { productImageSrc } from '../../utils/productImages'
 
 export function PricingItemSelector({
   items,
@@ -43,7 +44,7 @@ export function PricingItemSelector({
       {item && (
         <section aria-label="定价商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
           {item.image_url ? (
-            <img src={item.image_url} alt={item.product_name} className="w-20 h-20 object-cover rounded-lg shrink-0" />
+            <img src={productImageSrc(item.image_url)} alt={item.product_name} className="w-20 h-20 object-cover rounded-lg shrink-0" />
           ) : (
             <div className="w-20 h-20 rounded-lg shrink-0 flex items-center justify-center text-xs" style={{ background: 'var(--color-surface)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>无图片</div>
           )}

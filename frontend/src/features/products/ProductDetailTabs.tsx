@@ -8,6 +8,7 @@ import { PlatformFieldGroupEditor, PlatformFieldGroupSummary, type PlatformRequi
 import { getProductListingMatrix, promoteListingToBaseVersion, updateListingOverrides, type ListingInstanceMatrixItem, type ProductListingMatrix } from '../../api/listing'
 import type { ProductListing, ProductVariant, ProductCompliance } from '../../types/product'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 type VariantEditRow = { sku: string; name: string; stock: string; price: string }
 type ListingEditSectionKey = 'basic' | 'detail' | 'sales' | 'media' | 'logistics' | 'attributes'
@@ -383,7 +384,7 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
                         onClick={() => toggleListingImage(url)}
                         className={`rounded-xl border p-2 text-left transition ${selected ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]' : 'border-[var(--color-border)] bg-[var(--color-bg)]'}`}
                       >
-                        <img src={url} alt="商品主档已入库图片" className="aspect-square w-full rounded-lg object-cover" />
+                        <img src={productImageSrc(url)} alt="商品主档已入库图片" className="aspect-square w-full rounded-lg object-cover" />
                         <p className="mt-2 truncate text-[11px] text-[var(--color-muted)]">{selected ? '已用于当前 Listing' : '点击使用主档图片'}</p>
                       </button>
                     )

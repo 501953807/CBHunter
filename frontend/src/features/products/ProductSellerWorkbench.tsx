@@ -5,6 +5,7 @@ import { BusinessObjectActionBar } from '../../components/shared/BusinessObjectA
 import type { PaginationMeta } from '../../types/common'
 import type { ProductListRow } from '../../types/product'
 import { getStatusMeta } from '../../utils/domainOptions'
+import { productImageSrc } from '../../utils/productImages'
 
 interface Props {
   products: ProductListRow[]
@@ -64,7 +65,7 @@ export function ProductSellerWorkbench({
           </div>
         </div>
         <div className="max-h-[62vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <table className="w-full text-left text-xs">
+          <table className="professional-table w-full text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[var(--color-surface)] text-[var(--color-muted)]">
               <tr className="border-b border-[var(--color-border)]">
                 <th className="w-10 px-3 py-2"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
@@ -156,7 +157,7 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
   const opportunities = opportunityActions(product)
   const media = mediaReadinessForProduct(product)
   return (
-    <aside className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="商品机会处理">
+    <aside className="professional-context-rail rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="商品机会处理">
       <ProductThumb row={product} large />
       <h3 className="mt-3 line-clamp-2 text-base font-semibold text-[var(--color-fg)]">{product.name}</h3>
       <p className="mt-1 text-xs text-[var(--color-muted)]">{product.sku}</p>
@@ -222,7 +223,7 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
 function ProductThumb({ row, large = false }: { row: ProductListRow; large?: boolean }) {
   const size = large ? 'h-40 w-full' : 'h-12 w-12'
   return row.images?.[0]
-    ? <img src={row.images[0]} alt={row.name} className={`${size} shrink-0 rounded-xl border border-[var(--color-border)] object-cover`} loading="lazy" />
+    ? <img src={productImageSrc(row.images[0])} alt={row.name} className={`${size} shrink-0 rounded-xl border border-[var(--color-border)] object-cover`} loading="lazy" />
     : <div className={`${size} flex shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]`}><Package className="h-5 w-5" /></div>
 }
 

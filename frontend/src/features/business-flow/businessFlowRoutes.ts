@@ -19,7 +19,10 @@ export function buildObjectRoute(route: string, source: ObjectRouteSource, fallb
     return withParams(nextRoute, { product_id: productId || contentItemId })
   }
   if (nextRoute.startsWith('/pricing') || stageKey === 'pricing') {
-    return withParams(nextRoute, { content_item_id: contentItemId })
+    return withParams(nextRoute, {
+      content_item_id: contentItemId && contentItemId !== productId ? contentItemId : '',
+      product_id: productId || contentItemId,
+    })
   }
   if (nextRoute.startsWith('/products/')) {
     return nextRoute

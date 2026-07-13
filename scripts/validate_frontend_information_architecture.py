@@ -6,10 +6,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_SRC = ROOT / "frontend/src"
+INDEX_CSS = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
 NATIVE_CONFIRM_ALLOWLIST = {
     "frontend/src/components/ui/ConfirmDialog.tsx",
 }
 MODULE_SUBNAV = (ROOT / "frontend/src/components/layout/ModuleSubnav.tsx").read_text(encoding="utf-8")
+TABS_COMPONENT = (ROOT / "frontend/src/components/ui/Tabs.tsx").read_text(encoding="utf-8")
+BADGE_COMPONENT = (ROOT / "frontend/src/components/ui/Badge.tsx").read_text(encoding="utf-8")
+DATA_TABLE = (ROOT / "frontend/src/components/shared/DataTable.tsx").read_text(encoding="utf-8")
 SIDEBAR = (ROOT / "frontend/src/components/layout/Sidebar.tsx").read_text(encoding="utf-8")
 NAVIGATION = (ROOT / "frontend/src/components/layout/navigation.ts").read_text(encoding="utf-8")
 ROUTE_META = (ROOT / "frontend/src/components/layout/routeMeta.ts").read_text(encoding="utf-8")
@@ -20,6 +24,7 @@ HEADER = (ROOT / "frontend/src/components/layout/Header.tsx").read_text(encoding
 SCOUT_WORKSPACE = (ROOT / "frontend/src/features/scout-sources/ScoutSourcesWorkspace.tsx").read_text(encoding="utf-8")
 SELECTION_PIPELINE = (ROOT / "frontend/src/components/shared/SelectionBusinessPipeline.tsx").read_text(encoding="utf-8")
 BUSINESS_FLOW_V2 = (ROOT / "frontend/src/features/business-flow/BusinessFlowV2Board.tsx").read_text(encoding="utf-8")
+BUSINESS_FLOW_WORKSPACE = (ROOT / "frontend/src/features/business-flow/BusinessFlowWorkspace.tsx").read_text(encoding="utf-8")
 BUSINESS_FLOW_CONTEXT_RAIL = (ROOT / "frontend/src/features/business-flow/BusinessFlowContextRail.tsx").read_text(encoding="utf-8")
 BUSINESS_FLOW_ROUTES = (ROOT / "frontend/src/features/business-flow/businessFlowRoutes.ts").read_text(encoding="utf-8")
 RISK_CONTROL_WORKSPACE = (ROOT / "frontend/src/features/risk-control/RiskControlWorkspace.tsx").read_text(encoding="utf-8")
@@ -76,6 +81,11 @@ FINANCE_PAGE = (ROOT / "frontend/src/pages/FinancePage.tsx").read_text(encoding=
 FINANCE_API = (ROOT / "frontend/src/api/finance.ts").read_text(encoding="utf-8")
 FINANCE_LEDGER_PANEL = (ROOT / "frontend/src/features/finance/FinanceLedgerPanel.tsx").read_text(encoding="utf-8")
 GROWTH_ENGINE_PAGE = (ROOT / "frontend/src/pages/GrowthEnginePage.tsx").read_text(encoding="utf-8")
+OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
+COMPETITOR_MONITOR_PAGE = (ROOT / "frontend/src/pages/CompetitorMonitorPage.tsx").read_text(encoding="utf-8")
+AUDIT_LOG_TAB = (ROOT / "frontend/src/pages/settings/AuditLogTab.tsx").read_text(encoding="utf-8")
+INVENTORY_ALERT_PANELS = (ROOT / "frontend/src/features/inventory-alerts/InventoryAlertPanels.tsx").read_text(encoding="utf-8")
+SETTINGS_BILLING_PANEL = (ROOT / "frontend/src/features/settings/SettingsBillingPanel.tsx").read_text(encoding="utf-8")
 OPERATIONS_API = (ROOT / "frontend/src/api/operations.ts").read_text(encoding="utf-8")
 PROMOTIONS_PAGE = (ROOT / "frontend/src/pages/PromotionsPage.tsx").read_text(encoding="utf-8")
 PROMOTIONS_API = (ROOT / "frontend/src/api/promotions.ts").read_text(encoding="utf-8")
@@ -94,8 +104,11 @@ PLATFORMS_API = (ROOT / "frontend/src/api/platforms.ts").read_text(encoding="utf
 PLATFORM_SETTINGS_PAGE = (ROOT / "frontend/src/pages/PlatformSettingsPage.tsx").read_text(encoding="utf-8")
 PROFESSIONAL_WORKSPACE_FRAME_PATH = ROOT / "frontend/src/components/shared/ProfessionalWorkspaceFrame.tsx"
 PROFESSIONAL_WORKSPACE_FRAME = PROFESSIONAL_WORKSPACE_FRAME_PATH.read_text(encoding="utf-8") if PROFESSIONAL_WORKSPACE_FRAME_PATH.exists() else ""
+COMMAND_CENTER_FRAME_PATH = ROOT / "frontend/src/components/shared/CommandCenterFrame.tsx"
+COMMAND_CENTER_FRAME = COMMAND_CENTER_FRAME_PATH.read_text(encoding="utf-8") if COMMAND_CENTER_FRAME_PATH.exists() else ""
 BUSINESS_OBJECT_ACTION_BAR_PATH = ROOT / "frontend/src/components/shared/BusinessObjectActionBar.tsx"
 BUSINESS_OBJECT_ACTION_BAR = BUSINESS_OBJECT_ACTION_BAR_PATH.read_text(encoding="utf-8") if BUSINESS_OBJECT_ACTION_BAR_PATH.exists() else ""
+IMPLEMENTATION_PLAN = (ROOT / "docs/系统建设方案4.0-实施任务总表.md").read_text(encoding="utf-8")
 
 
 def native_confirm_usages() -> list[str]:
@@ -114,6 +127,73 @@ def native_confirm_usages() -> list[str]:
 
 def validate() -> list[str]:
     errors: list[str] = []
+
+    ui_scheme_section = IMPLEMENTATION_PLAN.split("#### 6.7.7.1 三套可实施 UI 页面方案", 1)[-1].split("### 6.7.8 新增实施任务", 1)[0]
+    for required in (
+        "6.7.7.1 三套可实施 UI 页面方案",
+        "UI-V4-A 专业 SaaS 卖家后台",
+        "UI-V4-B 跨境经营控制塔",
+        "UI-V4-C 现代电商运营工作台",
+        "经营指挥台页面结构",
+        "商品 Listing 工作台页面结构",
+        "订单详情/财务拆解页面结构",
+        "页面对象",
+        "组件摆放",
+        "业务链表达",
+        "验收口径",
+    ):
+        if required not in IMPLEMENTATION_PLAN:
+            errors.append(f"UI-V4-P0-01 implementation plan must keep executable design detail: {required}")
+    for scheme in ("UI-V4-A", "UI-V4-B", "UI-V4-C"):
+        for detail in ("页面对象", "组件摆放", "业务链表达", "验收口径"):
+            if f"{scheme} {detail}" not in ui_scheme_section:
+                errors.append(f"UI-V4-P0-01 scheme must explicitly define {scheme} {detail}")
+    for required in ("--color-command-bg", "--color-command-panel", "--color-command-accent", "--color-workspace-chrome", "--shadow-command"):
+        if required not in INDEX_CSS:
+            errors.append(f"mixed UI scheme tokens must be declared in index.css: {required}")
+    for required in ("aria-label=\"三大中枢控制塔框架\"", "data-ui-scheme=\"hybrid-command-center\"", "command-center-shell", "command-center-hero"):
+        if required not in COMMAND_CENTER_FRAME:
+            errors.append(f"command center frame must implement hybrid B/C shell: {required}")
+    for page_name, page_content in (
+        ("operating cockpit", COCKPIT_WORKSPACE),
+        ("risk control", RISK_CONTROL_WORKSPACE),
+        ("business monitor", BUSINESS_FLOW_WORKSPACE),
+    ):
+        if "CommandCenterFrame" not in page_content:
+            errors.append(f"{page_name} must use CommandCenterFrame for the selected hybrid command-center shell")
+    if "data-ui-scheme=\"professional-saas\"" not in PROFESSIONAL_WORKSPACE_FRAME:
+        errors.append("professional workspace frame must explicitly mark the A-style professional SaaS shell")
+    for required in ("professional-tabbar", "professional-table", "professional-context-rail", "professional-status-chip"):
+        if required not in INDEX_CSS:
+            errors.append(f"professional SaaS workspaces must share density/style utility: {required}")
+    if "professional-tabbar" not in TABS_COMPONENT or "data-ui-scheme=\"professional-tabs\"" not in TABS_COMPONENT:
+        errors.append("shared Tabs component must use the professional tabbar scheme")
+    if "professional-tabbar" not in MODULE_SUBNAV or "data-ui-scheme=\"professional-tabs\"" not in MODULE_SUBNAV:
+        errors.append("module subnav must use the same professional tabbar scheme as page tabs")
+    if "professional-status-chip" not in BADGE_COMPONENT or "data-status-variant" not in BADGE_COMPONENT:
+        errors.append("Badge must expose a shared professional status chip class and data-status-variant")
+    for page_name, page_content in (
+        ("product seller workbench", PRODUCT_SELLER_WORKBENCH),
+        ("content task matrix", CONTENT_TASK_MATRIX),
+        ("platform store products", PLATFORM_STORE_PRODUCTS_PANEL),
+        ("batch publish select", BATCH_PUBLISH_SELECT),
+        ("shared data table", DATA_TABLE),
+        ("finance ledger", FINANCE_LEDGER_PANEL),
+        ("operations workspace", OPERATIONS_WORKSPACE),
+        ("competitor monitor", COMPETITOR_MONITOR_PAGE),
+        ("audit log", AUDIT_LOG_TAB),
+        ("inventory alerts", INVENTORY_ALERT_PANELS),
+        ("settings account", SETTINGS_ACCOUNT_PANELS),
+        ("settings billing", SETTINGS_BILLING_PANEL),
+    ):
+        if "professional-table" not in page_content:
+            errors.append(f"{page_name} must use the shared professional table density class")
+    for page_name, page_content in (
+        ("product seller workbench", PRODUCT_SELLER_WORKBENCH),
+        ("content task matrix", CONTENT_TASK_MATRIX),
+    ):
+        if "professional-context-rail" not in page_content:
+            errors.append(f"{page_name} must mark its right-side diagnostic panel as professional-context-rail")
 
     native_confirm = native_confirm_usages()
     if native_confirm:
@@ -276,9 +356,12 @@ def validate() -> list[str]:
             errors.append(f"product selection decision page must auto-select candidate from route parameter: {required}")
     if "aria-label=\"定价商品上下文\"" not in PRICING_ITEM_SELECTOR:
         errors.append("pricing workbench must show concrete product context before price calculation")
-    for required in ("useSearchParams", "content_item_id", "handleSelectItem(initialContentItemId)"):
+    for required in ("useSearchParams", "content_item_id", "initialProductId", "matchesPricingProduct"):
         if required not in SMART_PRICING_PAGE:
             errors.append(f"pricing page must auto-select content item from route parameter: {required}")
+    for required in ("nextRoute.startsWith('/pricing')", "content_item_id", "product_id: productId || contentItemId"):
+        if required not in BUSINESS_FLOW_ROUTES:
+            errors.append(f"business flow route builder must carry product_id into pricing route: {required}")
     for required in ("confirmedProductId", "/publish?product_id=${confirmedProductId}", "进入平台刊登"):
         if required not in SMART_PRICING_PAGE:
             errors.append(f"pricing page must continue confirmed product into batch publishing: {required}")
@@ -326,6 +409,9 @@ def validate() -> list[str]:
     ):
         if "BusinessObjectActionBar" not in page_content:
             errors.append(f"{page_name} must use shared business object drill-down actions")
+    for required in ("activeProductId", "`/products/${activeProductId}`", "`/content?product_id=${activeProductId}`", "`/pricing?product_id=${activeProductId}`"):
+        if required not in BATCH_PUBLISH_WORKSPACE:
+            errors.append(f"batch publish action bar must preserve the selected product object: {required}")
     for required in ("内容任务后台", "任务状态分组", "任务详情诊断", "aria-label=\"内容任务后台表格\""):
         if required not in CONTENT_TASK_MATRIX:
             errors.append(f"content task matrix must become a seller-console task workbench element: {required}")
@@ -344,6 +430,12 @@ def validate() -> list[str]:
     for required in ("useSearchParams", "product_id", "product_ids", "getProduct", "setSelectedItems"):
         if required not in BATCH_PUBLISH_WORKSPACE:
             errors.append(f"batch publish workspace must keep product detail deep-link support: {required}")
+    for required in ("initialTargetsApplied", "productTargetPlatforms", "productTargetMarkets", "matchingStores.length === 1"):
+        if required not in BATCH_PUBLISH_WORKSPACE:
+            errors.append(f"batch publish workspace must carry product target platform/market context safely: {required}")
+    for required in ("toggleItemSelection", "targetStoreIds", "availablePlatformIds", "availableMarketIds", "availableStoreIds", "selectablePlatforms", "selectableMarkets", "setSelectedStores(current =>"):
+        if required not in BATCH_PUBLISH_WORKSPACE:
+            errors.append(f"batch publish manual item selection must carry known target context: {required}")
     if "不选则按平台默认店铺生成" in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
         errors.append("batch publish must not generate drafts for an implicit default store")
     for required in ("必须选择目标店铺", "selectedStores.size === 0", "请选择至少一个目标店铺"):
@@ -352,6 +444,9 @@ def validate() -> list[str]:
     for required in ("selectedPlatformsList", "多平台字段组", "platformRequirementsForSelection"):
         if required not in BATCH_PUBLISH_SELECT:
             errors.append(f"batch publish select step must show requirements for every selected platform: {required}")
+    for required in ("目标归属", "ItemTargetContext", "商品目标归属", "待选择目标平台/市场/店铺"):
+        if required not in BATCH_PUBLISH_SELECT:
+            errors.append(f"batch publish select step must show product target context, not only field requirements: {required}")
     if "Array.from(selectedPlatforms)[0]" in BATCH_PUBLISH_SELECT:
         errors.append("batch publish select step must not inspect only the first selected platform for field requirements")
     if "ProductBulkToolbar" not in PRODUCT_EDIT_PAGE and "ProductBulkToolbar" not in PRODUCT_LIST_PAGE:

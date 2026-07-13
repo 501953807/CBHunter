@@ -1,5 +1,6 @@
 import { Badge } from '../../components/ui/Badge'
 import type { BatchListingDraft } from '../../api/listing'
+import { productImageSrc } from '../../utils/productImages'
 
 interface Props {
   drafts: BatchListingDraft[]
@@ -36,7 +37,7 @@ export function ListingDraftQueue({ drafts, activeIndex, confirmedDrafts, onSele
             >
               <div className="flex gap-2">
                 {image && (
-                  <img src={image} alt={draft.product_name || '草稿商品图'} className="h-11 w-11 shrink-0 rounded-lg border border-[var(--color-border)] object-cover" />
+                  <img src={productImageSrc(image)} alt={draft.product_name || '草稿商品图'} className="h-11 w-11 shrink-0 rounded-lg border border-[var(--color-border)] object-cover" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-xs font-semibold text-[var(--color-fg)]">{draft.product_name || '未命名商品'}</p>

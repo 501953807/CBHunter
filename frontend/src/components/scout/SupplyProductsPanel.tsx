@@ -7,6 +7,7 @@ import { useToast } from '../ui/Toast'
 import { addSupplyProductToDiscovery, deleteSupplyProduct, listSupplyProducts } from '../../api/scout'
 import { useConfig } from '../../hooks/useConfig'
 import { logger } from '../../utils/logger'
+import { productImageSrc } from '../../utils/productImages'
 
 const SOURCE_LABELS: Record<string, string> = {
   browser_ext: '扩展采集', manual: '手动录入',
@@ -125,7 +126,7 @@ export default function SupplyProductsPanel() {
                 {/* Image */}
                 <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
                   {p.images && p.images.length > 0 ? (
-                    <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
+                    <img src={productImageSrc(p.images[0])} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 opacity-20" style={{ color: 'var(--color-muted)' }} /></div>

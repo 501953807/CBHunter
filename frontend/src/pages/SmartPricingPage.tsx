@@ -19,6 +19,7 @@ export default function SmartPricingPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const initialContentItemId = searchParams.get('content_item_id') || ''
+  const initialProductId = searchParams.get('product_id') || ''
   const { platforms, markets } = useConfig()
   const [sourcePrice, setSourcePrice] = useState('')
   const [platform, setPlatform] = useState('')
@@ -45,9 +46,16 @@ export default function SmartPricingPage() {
   }, [])
 
   useEffect(() => {
-    if (!initialContentItemId || selectedItemId || pricingItems.length === 0) return
-    if (pricingItems.some(item => item.id === initialContentItemId)) handleSelectItem(initialContentItemId)
-  }, [initialContentItemId, pricingItems, selectedItemId])
+    if (selectedItemId || pricingItems.length === 0) return
+    const direct = initialContentItemId
+      ? pricingItems.find(item => item.id === initialContentItemId || item.work_item_id === initialContentItemId)
+      : null
+    const byProduct = initialProductId
+      ? pricingItems.find(item => matchesPricingProduct(item, initialProductId))
+      : null
+    const initial = direct || byProduct
+    if (initial) handleSelectItem(initial.id)
+  }, [initialContentItemId, initialProductId, pricingItems, selectedItemId])
 
   const handleSelectItem = (itemId: string) => {
     setSelectedItemId(itemId)
@@ -311,4 +319,12 @@ export default function SmartPricingPage() {
       </div>
     </div>
   )
+}
+
+function matchesPricingProduct(item: PricingWorkbenchItem, productId: string) {
+  return Boolean(productId && (
+    item.id === productId ||
+    item.work_item_id === productId ||
+    item.object_refs?.some(ref => ref.type === 'product' && ref.id === productId)
+  ))
 }
