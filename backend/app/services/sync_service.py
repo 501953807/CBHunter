@@ -379,9 +379,12 @@ class SyncService:
         if existing_listing:
             product = await self.db.get(Product, existing_listing.product_id)
         if not product:
+            product = await self._find_product_master_for_remote(account, remote_product)
+        if not product:
+            product_sku = self._remote_product_master_sku(remote_product) or self._platform_product_sku(account, remote_product.platform_product_id)
             product = Product(
                 user_id=account.user_id,
-                sku=self._platform_product_sku(account, remote_product.platform_product_id),
+                sku=product_sku,
                 name=remote_product.title,
                 description=remote_product.description,
                 images=remote_product.images or [],
@@ -433,6 +436,56 @@ class SyncService:
         listing.last_synced_at = synced_at
         await self.db.flush()
         return "updated" if existing_listing else "created"
+
+    async def _find_product_master_for_remote(self, account: PlatformAccount, remote_product) -> Product | None:
+        """Find an existing product master by seller/internal SKU before creating a new one.
+
+        A platform product synced from different stores may have different platform IDs,
+        but the seller SKU normally points to the same internal product. Reusing the
+        master keeps Product facts stable while each store keeps its own Listing
+        title, price, stock, media, and platform response.
+        """
+        master_sku = self._remote_product_master_sku(remote_product)
+        if not master_sku:
+            return None
+        return (await self.db.execute(
+            select(Product).where(
+                Product.user_id == account.user_id,
+                Product.sku == master_sku,
+            )
+        )).scalar_one_or_none()
+
+    def _remote_product_master_sku(self, remote_product) -> str | None:
+        raw_data = remote_product.raw_data if isinstance(getattr(remote_product, "raw_data", None), dict) else {}
+        for key in (
+            "merchant_sku",
+            "seller_sku",
+            "sellerSku",
+            "sellerSKU",
+            "sku",
+            "skuExtCode",
+            "outer_sku_id",
+            "item_sku",
+        ):
+            sku = self._clean_product_sku(raw_data.get(key))
+            if sku:
+                return sku
+        for variant in getattr(remote_product, "variations", None) or []:
+            if not isinstance(variant, dict):
+                continue
+            for key in ("sku", "seller_sku", "sellerSku", "skuExtCode", "model_sku"):
+                sku = self._clean_product_sku(variant.get(key))
+                if sku:
+                    return sku
+        return None
+
+    def _clean_product_sku(self, value) -> str | None:
+        if value is None:
+            return None
+        sku = str(value).strip()
+        if not sku:
+            return None
+        return sku[:100]
 
     def _platform_store_product_payload(self, listing: PlatformListing, account: PlatformAccount, product: Product) -> dict:
         media_readiness = media_readiness_from_extra(listing.platform_data or {}, listing.images or [])

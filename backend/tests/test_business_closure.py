@@ -242,6 +242,107 @@ def test_product_sync_imports_remote_products_as_store_listing_instances(tmp_pat
     asyncio.run(run_test())
 
 
+def test_product_sync_links_same_internal_sku_to_one_product_master_across_stores(tmp_path):
+    class FakeStoreSkuProductClient:
+        def __init__(self, account, encryption_service):
+            self.account = account
+
+        async def authenticate(self):
+            return True
+
+        async def get_products(self, page=1, page_size=50):
+            if page > 1:
+                return [], 1
+            return [
+                PlatformProduct(
+                    platform_product_id=f"REMOTE-{self.account.shop_id}",
+                    title=f"{self.account.account_name} 店铺标题",
+                    description=f"{self.account.account_name} 店铺描述",
+                    price=29.9 if self.account.shop_id == "shop-a" else 31.9,
+                    stock=18 if self.account.shop_id == "shop-a" else 9,
+                    variations=[{"sku": "MASTER-SKU-001", "name": "默认规格", "stock": 18}],
+                    images=[f"https://img.example.com/{self.account.shop_id}.jpg"],
+                    status="active",
+                    platform_category_id="CAT-01",
+                    raw_data={"merchant_sku": "MASTER-SKU-001"},
+                )
+            ], 1
+
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'product-sync-master-link.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        original_client = PlatformClientFactory.get_client
+        original_connectors = __import__("app.integrations.status", fromlist=["PLATFORM_CONNECTORS"]).PLATFORM_CONNECTORS["shopee"]
+        try:
+            __import__("app.integrations.status", fromlist=["PLATFORM_CONNECTORS"]).PLATFORM_CONNECTORS["shopee"] = {
+                "implementation_status": "implemented",
+                "implemented_operations": ("authenticate", "products"),
+                "required_inputs": (),
+            }
+            PlatformClientFactory.get_client = staticmethod(lambda platform, account, decrypt: FakeStoreSkuProductClient(account, decrypt))
+            async with sessions() as session:
+                product = Product(
+                    user_id="user-a",
+                    sku="MASTER-SKU-001",
+                    name="商品主档原始名称",
+                    description="主档描述不得被店铺同步覆盖",
+                    images=["https://img.example.com/master.jpg"],
+                    status="active",
+                )
+                store_a = PlatformAccount(
+                    user_id="user-a",
+                    platform="shopee",
+                    account_name="Shopee A",
+                    shop_id="shop-a",
+                    api_key_encrypted="key",
+                    api_secret_encrypted="secret",
+                    access_token_encrypted="access-token-a",
+                    refresh_token_encrypted="refresh-token-a",
+                    token_expires_at=datetime.now(timezone.utc).replace(year=datetime.now(timezone.utc).year + 1),
+                    token_scopes=["products"],
+                    is_active=True,
+                )
+                store_b = PlatformAccount(
+                    user_id="user-a",
+                    platform="shopee",
+                    account_name="Shopee B",
+                    shop_id="shop-b",
+                    api_key_encrypted="key",
+                    api_secret_encrypted="secret",
+                    access_token_encrypted="access-token-b",
+                    refresh_token_encrypted="refresh-token-b",
+                    token_expires_at=datetime.now(timezone.utc).replace(year=datetime.now(timezone.utc).year + 1),
+                    token_scopes=["products"],
+                    is_active=True,
+                )
+                session.add_all([product, store_a, store_b])
+                await session.commit()
+
+                await SyncService(session).sync_products_for_account(store_a)
+                await SyncService(session).sync_products_for_account(store_b)
+                products = (await session.execute(select(Product))).scalars().all()
+                listings = (await session.execute(select(PlatformListing))).scalars().all()
+                product_after = await session.get(Product, product.id)
+        finally:
+            PlatformClientFactory.get_client = original_client
+            __import__("app.integrations.status", fromlist=["PLATFORM_CONNECTORS"]).PLATFORM_CONNECTORS["shopee"] = original_connectors
+            await engine.dispose()
+
+        assert len(products) == 1
+        assert product_after.name == "商品主档原始名称"
+        assert product_after.description == "主档描述不得被店铺同步覆盖"
+        assert product_after.images == ["https://img.example.com/master.jpg"]
+        assert len(listings) == 2
+        assert {item.product_id for item in listings} == {product.id}
+        assert {item.platform_account_id for item in listings} == {store_a.id, store_b.id}
+        assert {item.title for item in listings} == {"Shopee A 店铺标题", "Shopee B 店铺标题"}
+        assert {item.price for item in listings} == {29.9, 31.9}
+
+    asyncio.run(run_test())
+
+
 def test_batch_preview_accepts_owned_product_master_records(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'product-preview.db'}")
