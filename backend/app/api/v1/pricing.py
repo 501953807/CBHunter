@@ -1,5 +1,7 @@
 """Smart pricing API — DB-backed fee templates, real profit calculations."""
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import desc, select
@@ -452,6 +454,7 @@ def _pricing_workbench_item(item: SourcingItem, stores: list[PlatformAccount], f
         "market": item.market,
         "pricing_status": pricing_status,
         "platform_requirements": _platform_requirements(item, field_schemas),
+        "listing_store_override": _listing_store_override(item),
         "pricing_confirmation": (item.extra_data or {}).get("pricing_confirmation") or {},
         "pricing_inputs": {
             "cost_rmb": item.source_price_rmb,
@@ -656,31 +659,38 @@ async def _upsert_pricing_listing_draft(
     listing = await db.get(PlatformListing, previous_listing_id) if previous_listing_id else None
     if listing and listing.user_id != user_id:
         listing = None
+    override = _listing_store_override(item)
+    override_title = (override.get("title") or "").strip()
+    override_images = [url for url in override.get("image_urls", []) if isinstance(url, str) and url.strip()]
+    listing_title = override_title or _confirmed_title(item)
+    listing_images = override_images or ([item.source_image] if item.source_image else [])
     if listing is None:
         listing = PlatformListing(
             user_id=user_id,
             product_id=product.id,
             platform_account_id=account.id,
-            title=_confirmed_title(item),
+            title=listing_title,
             description=_confirmed_task_content(item, "description"),
             price=selling_price_local,
             stock=0,
             status="draft",
-            images=[item.source_image] if item.source_image else [],
+            images=listing_images,
             platform_data={},
         )
         db.add(listing)
     listing.product_id = product.id
     listing.platform_account_id = account.id
-    listing.title = _confirmed_title(item)[:500]
+    listing.title = listing_title[:500]
     listing.description = _confirmed_task_content(item, "description")
     listing.price = selling_price_local
     listing.status = "draft"
+    listing.images = listing_images
     listing.platform_data = {
         **(listing.platform_data or {}),
         "stock_status": "missing",
         "source_sourcing_item_id": item.id,
         "pricing_confirmation": confirmation,
+        "listing_store_override": override,
     }
     await db.flush()
     return listing
@@ -699,3 +709,32 @@ def _confirmed_task_content(item: SourcingItem, task_type: str) -> str:
         if version.get("version") == confirmed_version:
             return (version.get("content") or "").strip()
     return ""
+
+
+def _listing_store_override(item: SourcingItem) -> dict:
+    content = _confirmed_task_content(item, "listing_store_override")
+    if not content:
+        return {}
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(payload, dict) or payload.get("schema") != "listing_store_override.v1":
+        return {}
+    images = payload.get("image_urls") if isinstance(payload.get("image_urls"), list) else []
+    skus = payload.get("skus") if isinstance(payload.get("skus"), list) else []
+    return {
+        "schema": payload.get("schema"),
+        "store_id": payload.get("store_id"),
+        "store_label": payload.get("store_label"),
+        "title": payload.get("title"),
+        "price": payload.get("price"),
+        "currency": payload.get("currency"),
+        "image_urls": [url for url in images if isinstance(url, str) and url.strip()],
+        "image_count": len([url for url in images if isinstance(url, str) and url.strip()]),
+        "sku_count": len([row for row in skus if isinstance(row, dict) and (row.get("seller_sku") or row.get("price"))]),
+        "has_logistics": bool((payload.get("logistics_note") or "").strip()),
+        "has_compliance": bool((payload.get("compliance_note") or "").strip()),
+        "promotion_note": payload.get("promotion_note"),
+        "override_boundary": payload.get("override_boundary"),
+    }

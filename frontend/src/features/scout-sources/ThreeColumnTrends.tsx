@@ -117,7 +117,7 @@ export function ThreeColumnTrends({ trendKeywords, setTrendKeywords, addingKeywo
   }
 
   const renderColumn = (title: string, items: any[], description: string, showScore = false) => (
-    <div className="flex flex-col space-y-3 h-full overflow-y-auto border border-[var(--color-border)] rounded-lg p-3 bg-[var(--color-surface)]">
+    <div className="flex h-full min-w-0 flex-col space-y-3 overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="flex items-center gap-2 shrink-0">
         <h3 className="text-sm font-semibold text-[var(--color-fg)]">{title}</h3>
         <span className="text-xs text-[var(--color-muted)]">{items.length}个</span>
@@ -163,7 +163,7 @@ export function ThreeColumnTrends({ trendKeywords, setTrendKeywords, addingKeywo
         </div>
         <p className="mt-2 text-[11px] text-[var(--color-muted)]">用于没有同步数据时手工补充趋势种子；系统只记录为人工信号，不生成虚构搜索量。</p>
       </div>
-      <div className="grid grid-cols-3 gap-4 min-h-[60vh]">
+      <div className="grid min-h-[60vh] gap-4 xl:grid-cols-3">
         {renderColumn('Google Trends', google, 'Google 搜索趋势数据，反映关键词搜索热度和变化。')}
         {renderColumn('Pinterest Trends', pinterest, 'Pinterest 图片搜索趋势数据，反映用户对产品视觉风格的兴趣。')}
         {renderColumn('交叉热点', cross, 'Google Trends 与 Pinterest 同时出现的关键词，评分越高越值得验证。', true)}

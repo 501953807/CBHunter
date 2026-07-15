@@ -78,7 +78,7 @@ async def get_dashboard_kpis(db: AsyncSession, user_id: str) -> dict:
     if order_count == 0:
         data_gaps.append("近30天没有可访问店铺的有效订单")
     if prev_sales <= 0:
-        data_gaps.append("上一周期没有可比较销售额")
+        data_gaps.append("上一个同天数日期范围没有可比较销售额")
     return {
         "status": "ready" if order_count > 0 else "data_required",
         "total_sales": float(total_sales),

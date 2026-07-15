@@ -46,6 +46,9 @@ export interface ContentWorkbenchItem {
   lifecycle_label: string
   evidence_completeness: ProductRecommendation['evidence_completeness']
   evidence_summary: ProductRecommendation['evidence_summary']
+  source_price_rmb?: number | null
+  selling_price_local?: number | null
+  profit_margin_pct?: number | null
   content_status: 'not_started' | 'in_progress' | 'ready'
   content_gaps: string[]
   next_action: string

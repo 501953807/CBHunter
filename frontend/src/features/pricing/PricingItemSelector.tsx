@@ -20,6 +20,9 @@ export function PricingItemSelector({
   const mediaReadiness = item?.media_readiness
   const mediaGaps = mediaReadiness?.gaps || []
   const pricingInputs = item?.pricing_inputs
+  const storeOverride = item?.listing_store_override || {}
+  const overrideImageCount = storeOverride.image_count ?? storeOverride.image_urls?.length ?? 0
+  const selectedStore = item?.store_options.find(store => store.id === selectedStoreId)
   return (
     <div className="space-y-3">
       <div className="grid gap-3 md:grid-cols-2">
@@ -61,6 +64,24 @@ export function PricingItemSelector({
               <Info label="平台" value={`${item.platform}/${item.market}`} />
               <Info label="素材要求" value={media.length ? media.slice(0, 3).join('、') : '待补素材要求'} />
             </div>
+            <section aria-label="店铺 Listing 覆盖定价上下文" className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold text-[var(--color-fg)]">店铺 Listing 覆盖字段</p>
+                <span className={storeOverride.schema ? 'rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[10px] text-[var(--color-primary)]' : 'rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]'}>
+                  {storeOverride.schema ? '已从内容制作回读' : '暂无覆盖草稿'}
+                </span>
+              </div>
+              {storeOverride.schema ? (
+                <div className="grid gap-2 text-[11px] md:grid-cols-4">
+                  <Info label="覆盖店铺" value={storeOverride.store_label || selectedStore?.account_name || '店铺待确认'} />
+                  <Info label="覆盖标题" value={storeOverride.title || '未覆盖标题'} />
+                  <Info label="覆盖图片" value={`${overrideImageCount} 张`} />
+                  <Info label="SKU/合规" value={`${storeOverride.sku_count ?? 0} SKU · ${storeOverride.has_compliance ? '合规已写' : '合规待补'}`} />
+                </div>
+              ) : (
+                <p className="text-[11px] leading-5 text-[var(--color-muted)]">内容制作页尚未保存 `listing_store_override`，本次定价会使用基础标题、源图和当前店铺选择创建本地草稿。</p>
+              )}
+            </section>
             {mediaReadiness && (
               <div className="rounded-lg px-2 py-1 text-[11px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} aria-label="媒体缺口">
                 <span style={{ color: 'var(--color-fg)' }}>图片就绪：</span>

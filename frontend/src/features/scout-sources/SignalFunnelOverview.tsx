@@ -60,8 +60,10 @@ export function SignalFunnelOverview() {
         <div className="grid gap-2 md:grid-cols-3">
           <Metric label="信号记录" value={metrics.signal_count} />
           <Metric label="归并候选" value={metrics.candidate_count} />
-          <Metric label="证据完整候选" value={metrics.complete_candidate_count} />
+          <Metric label="四层完整候选" value={metrics.complete_candidate_count} />
         </div>
+
+        <SignalFunnelMap layers={layers} metrics={metrics} />
 
         <div className="grid gap-2 lg:grid-cols-4">
           {layers.map((layer: any) => (
@@ -79,7 +81,7 @@ export function SignalFunnelOverview() {
                     {item.title} · {item.source_name}
                   </p>
                 ))}
-                {(layer.latest_signals || []).length === 0 && <p className="text-[11px] text-[var(--color-warning)]">待补该层真实证据</p>}
+                {(layer.latest_signals || []).length === 0 && <p className="text-[11px] text-[var(--color-warning)]">待补该层真实来源</p>}
               </div>
             </div>
           ))}
@@ -91,6 +93,72 @@ export function SignalFunnelOverview() {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function SignalFunnelMap({ layers, metrics }: { layers: any[]; metrics: any }) {
+  const orderedLayers = orderLayers(layers)
+  const signalCount = Number(metrics.signal_count || 0)
+  const candidateCount = Number(metrics.candidate_count || 0)
+  const completeCount = Number(metrics.complete_candidate_count || 0)
+  const conversionPct = signalCount > 0 ? Math.round((candidateCount / signalCount) * 100) : 0
+  const completePct = candidateCount > 0 ? Math.round((completeCount / candidateCount) * 100) : 0
+  const maxSignals = Math.max(...orderedLayers.map(layer => Number(layer.signal_count || 0)), 1)
+
+  return (
+    <section className="signal-funnel-map" aria-label="四层信号收缩路径">
+      <div className="signal-funnel-map-header">
+        <div>
+          <p className="text-[11px] font-semibold text-[var(--color-primary)]">信号收缩路径</p>
+          <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">从市场信号到候选商品</h3>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">先看四层来源是否有真实记录，再看这些记录能否归并成可决策商品。</p>
+        </div>
+        <div className="signal-funnel-scorecard">
+          <span>归并率</span>
+          <strong>{conversionPct}%</strong>
+          <small>完整候选 {completePct}%</small>
+        </div>
+      </div>
+
+      <div className="signal-funnel-path" role="list" aria-label="四层来源节点">
+        {orderedLayers.map((layer, index) => {
+          const signalValue = Number(layer.signal_count || 0)
+          const candidateValue = Number(layer.candidate_count || 0)
+          const width = Math.max(8, Math.round((signalValue / maxSignals) * 100))
+          const ready = signalValue > 0
+          return (
+            <div key={layer.id || index} className="signal-funnel-node" role="listitem" data-ready={ready ? 'true' : 'false'}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="signal-funnel-step">{index + 1}</span>
+                <span className="rounded-full bg-[var(--color-bg)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">
+                  {ready ? '已接入' : '待补数'}
+                </span>
+              </div>
+              <h4 className="mt-3 text-sm font-semibold text-[var(--color-fg)]">{layer.label || layerName(layer.id)}</h4>
+              <p className="mt-1 text-[11px] text-[var(--color-muted)]">{signalValue} 条信号 · 覆盖 {candidateValue} 个候选</p>
+              <div className="mt-3 h-1.5 rounded-full bg-[var(--color-bg)]">
+                <span className="block h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${width}%` }} />
+              </div>
+              {index < orderedLayers.length - 1 && <ArrowRight className="signal-funnel-arrow" aria-hidden="true" />}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="signal-funnel-outcome">
+        <div>
+          <p className="text-[11px] text-[var(--color-muted)]">输入</p>
+          <p className="text-sm font-semibold text-[var(--color-fg)]">{signalCount} 条真实信号</p>
+        </div>
+        <div className="signal-funnel-outcome-bar" aria-hidden="true">
+          <span style={{ width: `${Math.max(4, Math.min(100, conversionPct))}%` }} />
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] text-[var(--color-muted)]">输出</p>
+          <p className="text-sm font-semibold text-[var(--color-fg)]">{candidateCount} 个候选 · {completeCount} 个完整</p>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -121,7 +189,7 @@ function CandidateCards({ candidates }: { candidates: any[] }) {
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-fg)]">{candidate.title}</h3>
               <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-                证据 {candidate.evidence_summary.present}/{candidate.evidence_summary.total}
+                资料 {candidate.evidence_summary.present}/{candidate.evidence_summary.total}
                 {candidate.missing_layers.length > 0 ? ` · 缺 ${candidate.missing_layers.join('、')}` : ' · 可进入选品决策'}
               </p>
             </div>
@@ -167,6 +235,14 @@ function SignalStream({ stream }: { stream: any[] }) {
       </div>
     </div>
   )
+}
+
+function orderLayers(layers: any[]) {
+  const order = ['culture', 'trend', 'platform', 'supply']
+  const byId = new Map(layers.map(layer => [layer.id, layer]))
+  const ordered = order.map(id => byId.get(id) || { id, label: layerName(id), signal_count: 0, candidate_count: 0, latest_signals: [] })
+  const extras = layers.filter(layer => !order.includes(layer.id))
+  return [...ordered, ...extras]
 }
 
 function layerName(layer: string) {

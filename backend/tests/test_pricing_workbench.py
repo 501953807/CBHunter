@@ -1,6 +1,7 @@
 """Pricing workbench regression tests."""
 
 import asyncio
+import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -250,6 +251,25 @@ def test_pricing_workbench_lists_only_content_ready_products(tmp_path):
                     }
                 },
             )
+            ready.extra_data["content_tasks"]["listing_store_override"] = {
+                "confirmed_version": 1,
+                "versions": [{
+                    "version": 1,
+                    "content": json.dumps({
+                        "schema": "listing_store_override.v1",
+                        "store_id": "store-shopee-my",
+                        "store_label": "Shopee MY 主店",
+                        "title": "Shopee 店铺专用编织包标题",
+                        "price": "17.09",
+                        "currency": "MYR",
+                        "image_urls": ["https://img.example.com/main.jpg", "https://img.example.com/detail.jpg"],
+                        "skus": [{"seller_sku": "BAG-MY-001", "price": "17.09"}],
+                        "logistics_note": "500g，20x15x8cm",
+                        "compliance_note": "无品牌授权风险",
+                    }, ensure_ascii=False),
+                    "provider": "manual",
+                }],
+            }
             blocked = SourcingItem(
                 user_id="pricing-user",
                 product_name="内容未完成商品",
@@ -295,6 +315,12 @@ def test_pricing_workbench_lists_only_content_ready_products(tmp_path):
             "target_market": "MY",
             "content_confirmed": True,
         }
+        assert response.data["items"][0]["listing_store_override"]["store_label"] == "Shopee MY 主店"
+        assert response.data["items"][0]["listing_store_override"]["title"] == "Shopee 店铺专用编织包标题"
+        assert response.data["items"][0]["listing_store_override"]["image_count"] == 2
+        assert response.data["items"][0]["listing_store_override"]["sku_count"] == 1
+        assert response.data["items"][0]["listing_store_override"]["has_logistics"] is True
+        assert response.data["items"][0]["listing_store_override"]["has_compliance"] is True
 
     asyncio.run(run_test())
 
@@ -394,6 +420,21 @@ def test_confirm_pricing_creates_local_listing_draft(tmp_path):
                 },
             )
             item.extra_data["content_tasks"]["description"]["versions"][0]["content"] = "适合通勤和海岛旅行的大容量编织包。"
+            item.extra_data["content_tasks"]["listing_store_override"] = {
+                "confirmed_version": 1,
+                "versions": [{
+                    "version": 1,
+                    "content": json.dumps({
+                        "schema": "listing_store_override.v1",
+                        "store_id": account.id,
+                        "store_label": "Shopee MY",
+                        "title": "Shopee 店铺覆盖标题",
+                        "image_urls": ["https://img.example.com/main.jpg", "https://img.example.com/scene.jpg"],
+                        "skus": [{"seller_sku": "BAG-MY-001", "price": "17.09"}],
+                    }, ensure_ascii=False),
+                    "provider": "manual",
+                }],
+            }
             session.add_all([account, item])
             await session.commit()
             await session.refresh(item)
@@ -426,10 +467,13 @@ def test_confirm_pricing_creates_local_listing_draft(tmp_path):
         assert product.cost_price == 18
         assert listing.status == "draft"
         assert listing.price == 17.09
-        assert listing.title == "越南风编织包 轻便通勤"
+        assert listing.title == "Shopee 店铺覆盖标题"
         assert listing.description == "适合通勤和海岛旅行的大容量编织包。"
+        assert listing.images == ["https://img.example.com/main.jpg", "https://img.example.com/scene.jpg"]
         assert listing.platform_account_id == account.id
         assert listing.platform_data["source_sourcing_item_id"] == item.id
         assert listing.platform_data["pricing_confirmation"]["selling_price_rmb"] == 26.29
+        assert listing.platform_data["listing_store_override"]["store_label"] == "Shopee MY"
+        assert listing.platform_data["listing_store_override"]["sku_count"] == 1
 
     asyncio.run(run_test())

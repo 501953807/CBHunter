@@ -501,6 +501,7 @@ class SyncService:
             "images": listing.images or [],
             "media_readiness": media_readiness,
             "variation_count": len(listing.variations or []),
+            "store_override_summary": self._listing_store_override_summary(listing, product),
             "last_synced_at": listing.last_synced_at.isoformat() if listing.last_synced_at else None,
             "source": (listing.platform_data or {}).get("source", "local_listing"),
             "store": {
@@ -515,6 +516,30 @@ class SyncService:
                 "name": product.name,
                 "image_count": len(product.images or []),
             },
+        }
+
+    def _listing_store_override_summary(self, listing: PlatformListing, product: Product) -> dict:
+        product_images = product.images if isinstance(product.images, list) else []
+        listing_images = listing.images if isinstance(listing.images, list) else []
+        variations = listing.variations if isinstance(listing.variations, list) else []
+        platform_data = listing.platform_data if isinstance(listing.platform_data, dict) else {}
+        shipping_config = listing.shipping_config if isinstance(listing.shipping_config, dict) else {}
+        raw_data = platform_data.get("raw_data") if isinstance(platform_data.get("raw_data"), dict) else {}
+        attribute_values = platform_data.get("attribute_values") if isinstance(platform_data.get("attribute_values"), dict) else {}
+        raw_attributes = raw_data.get("attributes") if isinstance(raw_data.get("attributes"), dict) else {}
+        platform_attribute_count = len(attribute_values) or len(raw_attributes)
+        return {
+            "relation_label": "基础商品 → 店铺 Listing 实例",
+            "isolation_note": "店铺覆盖字段不回写基础商品版本",
+            "title_overridden": bool(listing.title and listing.title != product.name),
+            "description_overridden": bool((listing.description or "") != (product.description or "")),
+            "image_count": len(listing_images),
+            "master_image_count": len(product_images),
+            "images_overridden": bool(listing_images and listing_images != product_images),
+            "variation_count": len(variations),
+            "price_stock_overridden": True,
+            "platform_attribute_count": platform_attribute_count,
+            "logistics_configured": bool(shipping_config),
         }
 
     def _platform_product_sku(self, account: PlatformAccount, platform_product_id: str) -> str:

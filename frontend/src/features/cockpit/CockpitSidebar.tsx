@@ -35,7 +35,7 @@ export function CockpitSidebar({ actionQueue, sourceRefs, evidenceWindows, loadi
     try {
       await navigator.clipboard.writeText(ref.id)
     } catch (e: any) {
-      logger.error('复制证据编号失败', e)
+      logger.error('复制来源编号失败', e)
     }
   }
 
@@ -44,13 +44,13 @@ export function CockpitSidebar({ actionQueue, sourceRefs, evidenceWindows, loadi
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-[var(--color-warning)]" />
-          <h2 className="text-sm font-semibold text-[var(--color-fg)]">行动队列</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-fg)]">经营待处理</h2>
           <Badge variant="outline" className="ml-auto">{actionQueue.length}</Badge>
         </div>
         <div className="mt-3 space-y-2">
           {actionQueue.length === 0 ? (
             <div className="rounded-md border border-[var(--color-border)] p-3">
-              <p className="text-xs text-[var(--color-muted)]">暂无需要处理的真实风险或数据缺口。</p>
+              <p className="text-xs text-[var(--color-muted)]">暂无需要处理的经营异常或数据缺口。</p>
               <button onClick={onRefresh} disabled={loading} className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--color-primary)] disabled:opacity-50">
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />刷新核验
               </button>
@@ -62,8 +62,8 @@ export function CockpitSidebar({ actionQueue, sourceRefs, evidenceWindows, loadi
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-[var(--color-fg)]">{item.title}</p>
                   <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{item.detail}</p>
-                  <p className="mt-2 text-[11px] text-[var(--color-muted)]">行动优先级：{levelText(item.level)}</p>
-                  {item.sourceRefs.length > 0 && <p className="mt-2 truncate text-[11px] text-[var(--color-muted)]">证据：{item.sourceRefs.slice(0, 2).map(sourceLabel).join('、')}</p>}
+                  <p className="mt-2 text-[11px] text-[var(--color-muted)]">处理优先级：{levelText(item.level)}</p>
+                  {item.sourceRefs.length > 0 && <p className="mt-2 truncate text-[11px] text-[var(--color-muted)]">关联记录：{item.sourceRefs.slice(0, 2).map(sourceLabel).join('、')}</p>}
                 </div>
                 <ArrowRight className="mt-0.5 h-3.5 w-3.5 text-[var(--color-muted)]" />
               </div>
@@ -72,15 +72,15 @@ export function CockpitSidebar({ actionQueue, sourceRefs, evidenceWindows, loadi
         </div>
       </section>
 
-      <CockpitEvidenceWindow evidenceWindows={evidenceWindows} />
+      <CockpitDataWindow evidenceWindows={evidenceWindows} />
 
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <Database className="h-4 w-4 text-[var(--color-primary)]" />
-          <h2 className="text-sm font-semibold text-[var(--color-fg)]">证据来源</h2>
+          <h2 className="text-sm font-semibold text-[var(--color-fg)]">数据来源</h2>
         </div>
         <div className="mt-3 space-y-2">
-          {visibleRefs.length === 0 ? <p className="text-xs text-[var(--color-muted)]">暂无来源记录，请先同步业务数据。</p> : visibleRefs.map((ref) => (
+          {visibleRefs.length === 0 ? <p className="text-xs text-[var(--color-muted)]">暂无经营来源记录，请先同步业务数据。</p> : visibleRefs.map((ref) => (
             <div key={`${ref.type}-${ref.id}`} className="flex items-center gap-2 rounded-md bg-[var(--color-bg)] px-2 py-2 text-[11px]">
               <button onClick={() => ref.meta?.route && onNavigate(ref.meta.route)} disabled={!ref.meta?.route} title={ref.id} className="min-w-0 flex-1 text-left disabled:cursor-default">
                 <span className="block text-[var(--color-muted)]">{sourceLabel(ref)}</span>
@@ -98,17 +98,17 @@ export function CockpitSidebar({ actionQueue, sourceRefs, evidenceWindows, loadi
   )
 }
 
-function CockpitEvidenceWindow({ evidenceWindows }: { evidenceWindows: string[] }) {
+function CockpitDataWindow({ evidenceWindows }: { evidenceWindows: string[] }) {
   const windows = Array.from(new Set(evidenceWindows.filter(Boolean))).slice(0, 6)
   return (
     <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
       <div className="flex items-center gap-2">
         <Database className="h-4 w-4 text-[var(--color-info)]" />
-        <h2 className="text-sm font-semibold text-[var(--color-fg)]">证据窗口</h2>
+        <h2 className="text-sm font-semibold text-[var(--color-fg)]">数据时间范围</h2>
       </div>
       <div className="mt-3 space-y-2">
         {windows.length === 0 ? (
-          <p className="rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无证据窗口，请先同步真实业务数据。</p>
+          <p className="rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无数据时间范围，请先同步真实业务数据。</p>
         ) : windows.map((windowText) => (
           <p key={windowText} className="rounded-md bg-[var(--color-bg)] px-2 py-2 text-[11px] text-[var(--color-muted)]">{windowText}</p>
         ))}

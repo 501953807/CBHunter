@@ -102,8 +102,8 @@ export function ContentTaskMatrix({ product, refreshToken = 0 }: { product: Cont
           <div className="mr-auto flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4 text-[var(--color-primary)]" />
             <div>
-              <h3 className="font-semibold text-[var(--color-fg)]">内容任务后台</h3>
-              <p className="mt-0.5 text-xs text-[var(--color-muted)]">按卖家后台任务表管理标题、卖点、描述、图片、视频和合规确认。</p>
+              <h3 className="font-semibold text-[var(--color-fg)]">Listing 内容任务</h3>
+              <p className="mt-0.5 text-xs text-[var(--color-muted)]">在当前商品上下文内管理标题、卖点、描述、图片、视频和合规确认。</p>
             </div>
           </div>
           <span className="text-xs text-[var(--color-muted)]">
@@ -135,7 +135,7 @@ export function ContentTaskMatrix({ product, refreshToken = 0 }: { product: Cont
         )}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-            <table className="professional-table w-full text-left text-xs" aria-label="内容任务后台表格">
+            <table className="professional-table w-full text-left text-xs" aria-label="Listing 内容任务表格">
               <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
                 <tr>
                   <th className="px-3 py-2 font-medium">任务</th>

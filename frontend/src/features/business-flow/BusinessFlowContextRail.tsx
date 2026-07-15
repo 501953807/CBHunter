@@ -108,7 +108,7 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
         <div className="flex items-center gap-3">
           <ReadinessRing value={readiness} />
           <div className="flex-1 space-y-1">
-            <EvidenceLine label="趋势证据" value={item.evidence_completeness.trend} />
+            <EvidenceLine label="趋势资料" value={item.evidence_completeness.trend} />
             <EvidenceLine label="社媒/文娱信号" value={item.evidence_completeness.social} />
             <EvidenceLine label="标题/卖点/属性" value={item.evidence_completeness.content} />
             <EvidenceLine label="图片/视频素材" value={item.evidence_completeness.content} />
@@ -119,7 +119,7 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
       <Panel title="平台校验" icon={<ShieldCheck className="h-4 w-4" />}>
         <InfoLine label="目标平台" value={item.platform || '待选择 Shopee / TEMU / TikTok Shop'} />
         <InfoLine label="目标市场" value={item.market || '待选择东南亚市场'} />
-        <CheckLine label="平台销量/竞品证据" ok={item.evidence_completeness.platform === 'present' || item.evidence_completeness.competitor === 'present'} />
+        <CheckLine label="平台销量/竞品资料" ok={item.evidence_completeness.platform === 'present' || item.evidence_completeness.competitor === 'present'} />
         <CheckLine label="发布风险排查" ok={item.evidence_completeness.risk === 'present'} />
         <CheckLine label="当前无阻塞缺口" ok={item.gaps.length === 0 && item.status !== 'blocked'} />
       </Panel>
@@ -127,11 +127,11 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
       <Panel title="利润与定价" icon={<DollarSign className="h-4 w-4" />}>
         <InfoLine label="利润测算" value={evidenceText(item.evidence_completeness.profit)} />
         <InfoLine label="定价状态" value={item.stage_key === 'pricing' || item.lifecycle_status === 'price_confirmed' ? item.lifecycle_label : '等待进入定价校验'} />
-        <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">未取得成本、售价、佣金或汇率证据时不展示虚拟利润。</p>
+        <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">未取得成本、售价、佣金或汇率资料时不展示虚拟利润。</p>
       </Panel>
 
       <Panel title="库存与货源" icon={<Truck className="h-4 w-4" />}>
-        <InfoLine label="供应证据" value={evidenceText(item.evidence_completeness.supply)} />
+        <InfoLine label="供应资料" value={evidenceText(item.evidence_completeness.supply)} />
         <InfoLine label="业务来源" value={item.source || '来源待补'} />
         <InfoLine label="负责人" value={item.assigned_to || '未分配'} />
       </Panel>
@@ -160,7 +160,7 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
         ) : (
           <div className="space-y-2">
             {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
-            <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="补充处理备注、外部沟通或证据说明" className="min-h-16 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]" />
+            <textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="补充处理备注、外部沟通或资料说明" className="min-h-16 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]" />
             <button disabled={saving || !comment.trim()} onClick={submitComment} className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-primary)] hover:border-[var(--color-primary)] disabled:opacity-40">提交备注</button>
             <div className="border-t border-[var(--color-border)] pt-2">
               <textarea value={outcome} onChange={(event) => setOutcome(event.target.value)} placeholder="完成复盘：实际结果、是否解决阻塞" className="min-h-16 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]" />
@@ -219,7 +219,7 @@ function CheckLine({ label, ok }: { label: string; ok: boolean }) {
   return (
     <p className="mb-1 flex items-center justify-between gap-2 text-xs">
       <span className="text-[var(--color-muted)]">{label}</span>
-      <span className={ok ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>{ok ? '已通过' : '待补证据'}</span>
+      <span className={ok ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>{ok ? '已通过' : '待补资料'}</span>
     </p>
   )
 }
@@ -236,7 +236,7 @@ function evidenceText(value: BusinessFlowBusItem['evidence_completeness'][keyof 
   if (value === 'present') return '已具备'
   if (value === 'stale') return '需刷新'
   if (value === 'low_confidence') return '低置信'
-  return '待补证据'
+  return '待补资料'
 }
 
 function eventText(action: string) {

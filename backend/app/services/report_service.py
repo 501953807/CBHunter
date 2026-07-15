@@ -278,9 +278,9 @@ async def _build_report(
     if missing_cost_items:
         data_gaps.append(f"{missing_cost_items} 个订单商品缺采购成本")
     if previous_orders is None:
-        data_gaps.append("缺少上一周期对比样本")
+        data_gaps.append("缺少上一个同天数日期范围对比样本")
     elif not previous_orders:
-        data_gaps.append("上一周期没有真实订单记录")
+        data_gaps.append("上一个同天数日期范围没有真实订单记录")
     refs = [
         source_ref("order", str(order_id))
         for order in orders[:50]
@@ -383,15 +383,15 @@ def _anomaly_evidence(
     if start and end:
         window = f"{start.isoformat()} 至 {end.isoformat()}，并对比前置样本"
     else:
-        window = "当前报表周期与上一同等周期"
+        window = "当前报表日期范围与上一个同天数日期范围"
     gaps = []
     if not current_orders:
-        gaps.append("当前周期没有真实订单")
+        gaps.append("当前报表日期区间没有真实订单")
     if not previous_orders:
-        gaps.append("对比周期没有真实订单")
+        gaps.append("上一个同天数日期范围没有真实订单")
     return evidence_payload(
         source_refs=refs,
         evidence_window=window,
-        confidence_reason="异常检测只在存在上一周期或历史均值样本时计算偏差。",
+        confidence_reason="异常检测只在存在上一个同天数日期范围或历史均值样本时计算偏差。",
         data_gaps=gaps,
     )

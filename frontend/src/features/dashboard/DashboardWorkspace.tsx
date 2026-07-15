@@ -75,13 +75,13 @@ export default function DashboardPage() {
   const kpiCards = [
     {
       key: 'sales',
-      label: '近30天销售',
+      label: '最近30天销售',
       value: kpis?.status === 'ready' ? `¥${kpis.total_sales.toFixed(2)}` : '--',
       sub: kpis?.sales_change_pct != null ? (
         <span className={kpis.sales_change_pct >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}>
-          {kpis.sales_change_pct >= 0 ? '↑' : '↓'} {Math.abs(kpis.sales_change_pct).toFixed(1)}% 较上期
+          {kpis.sales_change_pct >= 0 ? '↑' : '↓'} {Math.abs(kpis.sales_change_pct).toFixed(1)}% 较上一个同天数范围
         </span>
-      ) : <span className="text-[var(--color-muted)]">上期无可比数据</span>,
+      ) : <span className="text-[var(--color-muted)]">上一个同天数范围无可比数据</span>,
       icon: 'sales',
     },
     {

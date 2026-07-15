@@ -135,6 +135,8 @@ def _queue_item(item: dict) -> dict:
         "source_refs": item["source_refs"],
         "platform": item["platform"],
         "market": item["market"],
+        "platform_account_id": item.get("platform_account_id"),
+        "account_name": item.get("account_name"),
         "task_id": item["task_id"],
         "task_status": item["task_status"],
         "assigned_to": item["assigned_to"],

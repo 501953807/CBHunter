@@ -8,8 +8,8 @@ import type { DictShape } from './TrendDiscoveryTypes'
 
 const COUNT_LABELS: Record<string, string> = {
   candidate_products: '候选商品',
-  trend_signals: '趋势证据',
-  competitor_products: '竞品证据',
+  trend_signals: '趋势资料',
+  competitor_products: '竞品资料',
   supply_products: '1688 供应商品',
   historical_outcomes: '历史经营结果',
 }
@@ -51,7 +51,7 @@ export function RecommenderReadinessPanel({ dict }: { dict: DictShape }) {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 mr-auto">
             <Database className="w-4 h-4 text-[var(--color-primary)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">自动选品决策就绪度</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">选品决策准备度</h3>
           </div>
           <select value={platform} onChange={(e) => setPlatform(e.target.value)}
             className="text-xs border border-[var(--color-border)] rounded-md px-2 py-1.5 bg-[var(--color-surface)] text-[var(--color-fg)]">
@@ -65,12 +65,12 @@ export function RecommenderReadinessPanel({ dict }: { dict: DictShape }) {
           </select>
         </div>
 
-        {!platform || !market ? <p className="text-xs text-[var(--color-muted)]">请选择平台和市场后检查真实证据就绪度。</p> : null}
+        {!platform || !market ? <p className="text-xs text-[var(--color-muted)]">请选择平台和市场后检查真实资料准备度。</p> : null}
         {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
         {readiness && (
           <>
             <div className="flex flex-wrap gap-4">
-              {statusItem('真实证据规则决策', readiness.rules_decision_status === 'ready')}
+              {statusItem('规则决策资料', readiness.rules_decision_status === 'ready')}
               {statusItem('历史数据模型训练', readiness.model_training_status === 'ready')}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">

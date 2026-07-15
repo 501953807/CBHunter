@@ -37,6 +37,19 @@ export interface PlatformStoreProduct {
     gaps?: string[]
     source?: string
   }
+  store_override_summary?: {
+    relation_label: string
+    isolation_note: string
+    title_overridden: boolean
+    description_overridden: boolean
+    image_count: number
+    master_image_count: number
+    images_overridden: boolean
+    variation_count: number
+    price_stock_overridden: boolean
+    platform_attribute_count: number
+    logistics_configured: boolean
+  }
   variation_count: number
   last_synced_at?: string | null
   source: string

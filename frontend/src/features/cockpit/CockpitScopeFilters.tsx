@@ -62,7 +62,7 @@ export function CockpitScopeFilters({ value, active, loading, onApply }: Props) 
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-[var(--color-muted)]">
-          未选择时使用系统默认近 30 天；选择项会真实作用于订单、财务、库存、竞品与建议查询。
+          未选择时使用系统默认最近 30 个自然日；选择项会真实作用于订单、财务、库存、竞品与建议查询。
         </p>
         <div className="flex items-center gap-2">
           <button onClick={reset} disabled={loading} className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50">

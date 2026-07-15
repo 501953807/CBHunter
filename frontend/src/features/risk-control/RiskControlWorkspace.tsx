@@ -12,6 +12,7 @@ import { RiskEvidencePanel } from './RiskEvidencePanel'
 import { RiskActionPanel } from './RiskActionPanel'
 import { normalizeRiskControlOverview } from './riskControlCompat'
 import { RiskSignalBoard } from './RiskSignalBoard'
+import { RiskStoreCommandBoard } from './RiskStoreCommandBoard'
 
 export default function RiskControlWorkspace() {
   const navigate = useNavigate()
@@ -112,7 +113,7 @@ export default function RiskControlWorkspace() {
       <CommandCenterFrame
         eyebrow="Risk Command"
         title="风险处置中枢"
-        description="按风险类型、业务影响、证据窗口和处置动作集中管控，支持下钻到库存、利润、履约、竞品与数据质量。"
+        description="按平台规则风险、履约风险、库存资金风险和店铺经营风险集中管控，支持按平台、店铺和业务对象下钻处置。"
         badge={(
           <Badge variant={data?.assessment_status === 'attention' ? 'warning' : data?.assessment_status === 'insufficient' ? 'info' : 'success'}>
             {data?.assessment_status === 'attention' ? '存在待处理风险' : data?.assessment_status === 'insufficient' ? '数据不足，暂无法确认风险' : '已覆盖范围内未识别到风险'}
@@ -146,6 +147,8 @@ export default function RiskControlWorkspace() {
         </div>
       </CommandCenterFrame>
 
+      {data && <RiskStoreCommandBoard data={data} onNavigate={navigate} />}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[400px_minmax(0,1fr)_320px]">
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
           <div className="flex items-center gap-2">
@@ -165,7 +168,7 @@ export default function RiskControlWorkspace() {
             {risks.length === 0 ? (
               <div className="rounded-md border border-[var(--color-border)] p-3">
                 <p className="text-xs text-[var(--color-muted)]">
-                  {data?.assessment_status === 'insufficient' ? '风险证据尚不完整，请按右侧缺口补齐数据后重新评估。' : '已覆盖数据范围内暂无可追溯风险。'}
+                  {data?.assessment_status === 'insufficient' ? '风险判断数据尚不完整，请按右侧缺口补齐数据后重新评估。' : '已覆盖数据范围内暂无可追溯风险。'}
                 </p>
                 <button onClick={load} disabled={loading} className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--color-primary)] disabled:opacity-50">
                   <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />重新评估
@@ -181,7 +184,14 @@ export default function RiskControlWorkspace() {
                   <LevelIcon level={risk.severity === 'critical' ? 'danger' : risk.severity === 'warning' ? 'warning' : 'info'} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold text-[var(--color-fg)]">{risk.title}</p>
-                    <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">{risk.detail}</p>
+                    <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">
+                      {(risk.platform || '平台待定位')} · {(risk.account_name || '店铺待定位')} · {risk.market || '市场待补'}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{risk.detail}</p>
+                    <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">预计影响：{risk.estimated_impact}</p>
+                    <p className={risk.is_overdue ? 'mt-1 text-[11px] text-[var(--color-danger)]' : 'mt-1 text-[11px] text-[var(--color-muted)]'}>
+                      处理时限：{risk.due_at || risk.response_deadline_at ? formatTime(risk.due_at || risk.response_deadline_at || '') : '未设置'} · 剩余处理：{risk.remaining_time_label}{risk.is_overdue ? ' · 已逾期' : ''}
+                    </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <Badge variant={risk.severity === 'critical' ? 'danger' : risk.severity === 'warning' ? 'warning' : 'info'}>{risk.type_label || risk.type}</Badge>
@@ -198,7 +208,7 @@ export default function RiskControlWorkspace() {
         <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-[var(--color-primary)]" />
-            <h2 className="text-sm font-semibold text-[var(--color-fg)]">证据链路</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-fg)]">风险详情</h2>
           </div>
           {!selected ? (
             <p className="mt-3 rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">当前没有风险需要处理。</p>
@@ -223,10 +233,10 @@ export default function RiskControlWorkspace() {
             <div className="mb-4">
               <div className="mb-2 flex items-center gap-2">
                 <FileWarning className="h-4 w-4 text-[var(--color-info)]" />
-                <h2 className="text-sm font-semibold text-[var(--color-fg)]">AI 建议</h2>
+                <h2 className="text-sm font-semibold text-[var(--color-fg)]">处置建议</h2>
               </div>
               {(data?.ai_recommendations ?? []).length === 0 ? (
-                <p className="rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无基于风险对象的 AI 建议。</p>
+                <p className="rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无基于当前风险对象的处置建议。</p>
               ) : (data?.ai_recommendations ?? []).slice(0, 3).map((item) => (
                 <button key={item.risk_id} onClick={() => navigate(item.route)} className="mb-2 w-full rounded-md bg-[var(--color-bg)] px-2 py-2 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]">
                   <span className="text-xs font-semibold text-[var(--color-fg)]">{item.title}</span>
@@ -298,11 +308,12 @@ function DensityItem({ label, value, tone }: { label: string; value: number; ton
 }
 
 function RiskDispositionStatusCard({ risk }: { risk: RiskControlRisk }) {
-  const slaText = risk.due_at ? `${formatTime(risk.due_at)}${risk.is_overdue ? ' · 已逾期' : ''}` : '未设置'
+  const deadline = risk.due_at || risk.response_deadline_at
+  const slaText = deadline ? `${formatTime(deadline)} · ${risk.remaining_time_label}${risk.is_overdue ? ' · 已逾期' : ''}` : '未设置'
   const nextStep = risk.status === 'pending'
     ? '应先标记处理中并分派处理时间'
     : risk.status === 'processing'
-      ? '补齐证据后关闭或转业务任务'
+      ? '补齐来源记录后关闭或转业务任务'
       : '已结束，必要时可重新打开'
   return (
     <section aria-label="处置状态" className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
@@ -315,7 +326,9 @@ function RiskDispositionStatusCard({ risk }: { risk: RiskControlRisk }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <MiniStatus label="SLA状态" value={slaText} danger={risk.is_overdue} />
-        <MiniStatus label="证据数" value={`${risk.source_refs.length} 条`} danger={risk.source_refs.length === 0} />
+        <MiniStatus label="预计影响" value={risk.estimated_impact} danger={risk.severity === 'critical'} />
+        <MiniStatus label="剩余处理" value={risk.remaining_time_label} danger={risk.is_overdue} />
+        <MiniStatus label="来源记录" value={`${risk.source_refs.length} 条`} danger={risk.source_refs.length === 0} />
       </div>
       <p className="mt-3 rounded-md border border-[var(--color-border)] px-2 py-2 text-[11px] text-[var(--color-muted)]">
         下一步：{nextStep}

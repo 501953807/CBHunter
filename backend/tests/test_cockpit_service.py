@@ -34,8 +34,14 @@ from app.services.business_flow_task_service import (
     list_flow_task_assignees,
     list_flow_task_events,
 )
-from app.services.cockpit_service import get_operating_cockpit
+from app.services.cockpit_service import _window, get_operating_cockpit
 from app.services.risk_control_service import get_risk_control_overview, get_risk_event_audit, update_risk_event_state
+
+
+def test_cockpit_window_displays_inclusive_end_date():
+    start = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    end_exclusive = datetime(2026, 7, 15, tzinfo=timezone.utc)
+    assert _window(start, end_exclusive) == "2026-06-15T00:00:00+00:00 至 2026-07-14T23:59:59.999999+00:00"
 
 
 def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):
@@ -69,9 +75,15 @@ def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):
                 ),
                 FinanceLedgerEntry(
                     user_id="user-a", entry_type="sales_income", amount_rmb=50, occurred_at=now,
+                    platform="shopee", market="unknown", extra={"platform_account_id": account.id},
                 ),
                 FinanceLedgerEntry(
                     user_id="user-a", entry_type="purchase_cost", amount_rmb=20, occurred_at=now,
+                    platform="shopee", market="unknown", extra={"platform_account_id": account.id},
+                ),
+                FinanceLedgerEntry(
+                    user_id="user-b", entry_type="sales_income", amount_rmb=777, occurred_at=now,
+                    platform="temu", market="unknown", extra={"platform_account_id": other_account.id},
                 ),
                 PlatformListing(
                     user_id="user-a", product_id=product.id, platform_account_id=account.id,
@@ -121,6 +133,13 @@ def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):
         assert cockpit["sections"]["store_matrix"]["items"][0]["platform"] == "shopee"
         assert cockpit["sections"]["store_matrix"]["items"][0]["order_count"] == 1
         assert cockpit["sections"]["store_matrix"]["items"][0]["active_listings"] == 2
+        assert cockpit["sections"]["store_matrix"]["items"][0]["ledger_entry_count"] == 2
+        assert cockpit["sections"]["store_matrix"]["items"][0]["revenue_rmb"] == 50
+        assert cockpit["sections"]["store_matrix"]["items"][0]["cost_rmb"] == 20
+        assert cockpit["sections"]["store_matrix"]["items"][0]["net_profit_rmb"] == 30
+        assert cockpit["sections"]["store_matrix"]["metrics"]["total_revenue_rmb"] == 50
+        assert cockpit["sections"]["store_matrix"]["metrics"]["total_cost_rmb"] == 20
+        assert cockpit["sections"]["store_matrix"]["metrics"]["net_profit_rmb"] == 30
         assert cockpit["sections"]["risk_summary"]["metrics"]["active_risk_count"] >= 1
         assert cockpit["sections"]["risk_summary"]["items"][0]["object_type"] in {
             "inventory_alert_log", "report_anomaly", "ai_suggestion", "competitor_product", "order"
@@ -132,8 +151,8 @@ def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):
         assert cockpit["sections"]["orders"]["source_refs"][0]["meta"]["route"] == "/orders"
         assert cockpit["sections"]["ai_suggestions"]["items"][0]["source_refs"]
         assert risks["metrics"]["pending"] >= 1
-        assert risks["metrics"]["category_count"] == 5
-        assert {item["key"] for item in risks["risk_categories"]} == {"account", "compliance", "logistics", "currency", "inventory"}
+        assert risks["metrics"]["category_count"] == 6
+        assert {item["key"] for item in risks["risk_categories"]} == {"account", "business", "compliance", "logistics", "currency", "inventory"}
         assert risks["risks"][0]["source_refs"][0]["id"]
         assert risks["risks"][0]["type_label"]
         assert all("ORDER-B" not in str(item) for item in risks["risks"])
@@ -261,6 +280,67 @@ def test_risk_control_uses_order_fulfillment_exception_context(tmp_path):
         assert logistics_risks[0]["severity"] == "critical"
         assert logistics_risks[0]["route"] == "/orders?exceptions=1"
         assert "return_requested" in logistics_risks[0]["detail"]
+        assert logistics_risks[0]["estimated_impact"] == "订单金额 MYR 88，可能触发取消、退款或店铺履约扣分。"
+        assert logistics_risks[0]["response_deadline_at"]
+        assert logistics_risks[0]["remaining_time_label"] == "已超期"
+        assert logistics_risks[0]["sla_hours"] == 0
+
+    asyncio.run(run_test())
+
+
+def test_risk_control_flags_store_spend_without_sales_as_business_risk(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'store-spend-risk.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            account = PlatformAccount(
+                user_id="store-risk-user",
+                platform="tiktok",
+                account_name="TikTok PH 店铺",
+                settings={"market": "PH"},
+            )
+            session.add(account)
+            await session.flush()
+            session.add(FinanceLedgerEntry(
+                user_id="store-risk-user",
+                entry_type="purchase_cost",
+                amount_rmb=320,
+                platform="tiktok",
+                market="PH",
+                description="TikTok PH 首批备货投入",
+                extra={"platform_account_id": account.id},
+                occurred_at=now,
+            ))
+            await session.commit()
+            cockpit = await get_operating_cockpit(session, "store-risk-user")
+            risks = await get_risk_control_overview(session, "store-risk-user")
+        await engine.dispose()
+
+        store = cockpit["sections"]["store_matrix"]["items"][0]
+        assert store["account_name"] == "TikTok PH 店铺"
+        assert store["cost_rmb"] == 320
+        assert store["revenue_rmb"] is None
+        assert store["order_count"] == 0
+        business_risks = [item for item in risks["risks"] if item["type"] == "business"]
+        assert business_risks
+        risk = business_risks[0]
+        assert risk["id"] == f"business:spend-no-sales:{account.id}"
+        assert risk["type_label"] == "店铺经营风险"
+        assert risk["platform"] == "tiktok"
+        assert risk["platform_account_id"] == account.id
+        assert risk["account_name"] == "TikTok PH 店铺"
+        assert risk["market"] == "PH"
+        assert risk["severity"] == "warning"
+        assert risk["route"] == f"/finance?platform_account_id={account.id}#finance-ledger"
+        assert risk["estimated_impact"] == "店铺已投入 ¥320，但当前筛选日期范围没有订单或收入，可能造成资金占用和选品/投放策略失效。"
+        assert risk["response_deadline_at"]
+        assert 0 < risk["sla_hours"] <= 72
+        assert risk["remaining_time_label"].startswith("剩余")
+        assert any(ref["type"] == "platform_account" and ref["id"] == account.id for ref in risk["source_refs"])
+        assert any(item["key"] == "business" and item["active_count"] == 1 for item in risks["risk_categories"])
 
     asyncio.run(run_test())
 
@@ -330,6 +410,59 @@ def test_cockpit_exposes_product_operation_results_for_drilldown(tmp_path):
         assert section["items"][0]["review_result"] == "主图替换后点击率提升"
         assert any(ref["type"] == "operation_record" for ref in section["source_refs"])
         assert any(action["route"] == "/growth" for action in section["actions"])
+
+    asyncio.run(run_test())
+
+
+def test_risk_control_flags_traffic_without_orders_as_business_risk(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'traffic-no-order-risk.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(
+                user_id="traffic-risk-user",
+                platform="shopee",
+                account_name="Shopee SG 店铺",
+                settings={"market": "SG"},
+            )
+            product = Product(user_id="traffic-risk-user", sku="SKU-TRAFFIC", name="防水手机袋")
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="traffic-risk-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="Waterproof Phone Pouch Shopee SG",
+                price=29.9,
+                stock=15,
+                status="active",
+                performance={"views_30d": 360, "orders_30d": 0, "sales_amount_30d": 0},
+            )
+            session.add(listing)
+            await session.commit()
+            cockpit = await get_operating_cockpit(session, "traffic-risk-user")
+            risks = await get_risk_control_overview(session, "traffic-risk-user")
+        await engine.dispose()
+
+        operation_items = cockpit["sections"]["product_operations"]["items"]
+        assert operation_items[0]["diagnostic_code"] == "traffic_no_order"
+        business_risks = [item for item in risks["risks"] if item["id"] == f"business:traffic-no-order:{listing.id}"]
+        assert business_risks
+        risk = business_risks[0]
+        assert risk["type"] == "business"
+        assert risk["type_label"] == "店铺经营风险"
+        assert risk["platform"] == "shopee"
+        assert risk["platform_account_id"] == account.id
+        assert risk["account_name"] == "Shopee SG 店铺"
+        assert risk["market"] == "SG"
+        assert risk["listing_id"] == listing.id
+        assert risk["route"] == f"/growth?listing_id={listing.id}"
+        assert risk["estimated_impact"] == "近30天浏览 360、订单 0，库存 15 件，可能造成库存占用和 Listing/定价/主图失效。"
+        assert risk["response_deadline_at"]
+        assert 0 < risk["sla_hours"] <= 72
+        assert any(ref["type"] == "platform_listing" and ref["id"] == listing.id for ref in risk["source_refs"])
 
     asyncio.run(run_test())
 

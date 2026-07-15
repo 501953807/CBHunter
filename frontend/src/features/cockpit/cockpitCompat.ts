@@ -2,7 +2,7 @@ import type { CockpitData, CockpitFilters, CockpitSection, CockpitSourceRef } fr
 
 type AnySection = CockpitSection<Record<string, unknown>, Record<string, unknown>>
 
-const emptyWindow = '当前接口未返回该区块证据窗口'
+const emptyWindow = '当前接口未返回该区块数据范围'
 
 export function normalizeCockpitData(input: CockpitData | null): CockpitData | null {
   if (!input) return null
@@ -13,6 +13,7 @@ export function normalizeCockpitData(input: CockpitData | null): CockpitData | n
     generated_at: raw.generated_at || new Date().toISOString(),
     data_status: raw.data_status || 'data_required',
     attention_count: Number(raw.attention_count || 0),
+    comparison: normalizeComparison(raw.comparison),
     active_filters: normalizeFilters(raw.active_filters),
     sections: {
       orders: normalizeSection(sections.orders, { order_count: 0, revenue_by_currency: [] }),
@@ -47,6 +48,10 @@ export function normalizeCockpitData(input: CockpitData | null): CockpitData | n
         platform_count: 0,
         order_count: 0,
         active_listings: 0,
+        ledger_entry_count: 0,
+        total_revenue_rmb: null,
+        total_cost_rmb: null,
+        net_profit_rmb: null,
       }, ['平台店铺矩阵数据待后端升级返回']),
       risk_summary: normalizeSection(sections.risk_summary, {
         active_risk_count: 0,
@@ -59,6 +64,28 @@ export function normalizeCockpitData(input: CockpitData | null): CockpitData | n
         ready: 0,
         data_required: 0,
       }, ['链路摘要数据待后端升级返回']),
+    },
+  }
+}
+
+function normalizeComparison(raw: any): CockpitData['comparison'] {
+  const empty = { orders: 0, revenue_rmb: null, cost_rmb: null, net_profit_rmb: null, ledger_entries: 0 }
+  return {
+    current: { ...empty, ...(raw?.current || {}) },
+    previous: { ...empty, ...(raw?.previous || {}) },
+    last_year: { ...empty, ...(raw?.last_year || {}) },
+    rates: {
+      orders_mom_pct: raw?.rates?.orders_mom_pct ?? null,
+      orders_yoy_pct: raw?.rates?.orders_yoy_pct ?? null,
+      revenue_mom_pct: raw?.rates?.revenue_mom_pct ?? null,
+      revenue_yoy_pct: raw?.rates?.revenue_yoy_pct ?? null,
+      profit_mom_pct: raw?.rates?.profit_mom_pct ?? null,
+      profit_yoy_pct: raw?.rates?.profit_yoy_pct ?? null,
+    },
+    windows: {
+      current: raw?.windows?.current || '',
+      previous: raw?.windows?.previous || '',
+      last_year: raw?.windows?.last_year || '',
     },
   }
 }

@@ -8,6 +8,7 @@ import type { BusinessFlowOverview } from '../../types/businessFlow'
 import { logger } from '../../utils/logger'
 import { formatTime, StatusPill } from '../cockpit/CockpitCommandWidgets'
 import { BusinessFlowV2Board } from './BusinessFlowV2Board'
+import { BusinessFlowCommandBoard } from './BusinessFlowCommandBoard'
 import { normalizeBusinessFlowOverview } from './businessFlowCompat'
 
 export default function BusinessFlowWorkspace() {
@@ -47,7 +48,7 @@ export default function BusinessFlowWorkspace() {
       <CommandCenterFrame
         eyebrow="Business Flow"
         title="业务处理总线"
-        description="从信号、选品、内容、刊登到履约与优化的商品推进总线，按当前商品对象呈现阶段、阻塞、来源证据和下一步动作。"
+        description="从信号、选品、内容、刊登到履约与优化的商品推进总线，按当前商品对象呈现阶段、阻塞、资料完整度和下一步动作。"
         badge={(
           <Badge variant={hasNoItems ? 'warning' : (data?.metrics.blocked ?? 0) > 0 ? 'warning' : 'success'}>
             {hasNoItems ? '尚未开始推进商品' : (data?.metrics.blocked ?? 0) > 0 ? '存在链路阻塞' : '链路可推进'}
@@ -75,6 +76,8 @@ export default function BusinessFlowWorkspace() {
           </>
         )}
       />
+
+      <BusinessFlowCommandBoard data={data} onNavigate={navigate} />
 
       <BusinessFlowV2Board
         data={data}

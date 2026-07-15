@@ -145,7 +145,7 @@ export function BillingSettings({ toast }: { toast: any }) {
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>权益</th>
-                  <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>周期</th>
+                  <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>计费区间</th>
                   <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>已用</th>
                 </tr>
               </thead>

@@ -20,6 +20,24 @@ export interface CockpitData {
   generated_at: string
   data_status: 'ready' | 'data_required'
   attention_count: number
+  comparison: {
+    current: CockpitPeriodSnapshot
+    previous: CockpitPeriodSnapshot
+    last_year: CockpitPeriodSnapshot
+    rates: {
+      orders_mom_pct: number | null
+      orders_yoy_pct: number | null
+      revenue_mom_pct: number | null
+      revenue_yoy_pct: number | null
+      profit_mom_pct: number | null
+      profit_yoy_pct: number | null
+    }
+    windows: {
+      current: string
+      previous: string
+      last_year: string
+    }
+  }
   active_filters: Required<Pick<CockpitFilters, 'start_date' | 'end_date'>> & {
     platform?: string | null
     market?: string | null
@@ -84,9 +102,14 @@ export interface CockpitData {
     store_matrix: CockpitSection<{
       store_count: number; active_store_count: number; platform_count: number
       order_count: number; active_listings: number
+      ledger_entry_count: number; total_revenue_rmb: number | null
+      total_cost_rmb: number | null; net_profit_rmb: number | null
     }, {
       id: string; platform: string; account_name: string; market: string; status: string
       order_count: number; active_listings: number
+      ledger_entry_count: number
+      revenue_rmb: number | null; cost_rmb: number | null
+      net_profit_rmb: number | null; profit_margin_pct: number | null
       revenue_by_currency: { currency: string; orders: number; revenue: number }[]
       last_sync_at: string
     }>
@@ -103,6 +126,14 @@ export interface CockpitData {
       status: string; gap: string; next_action: string; source_refs: CockpitSourceRef[]
     }>
   }
+}
+
+export interface CockpitPeriodSnapshot {
+  orders: number
+  revenue_rmb: number | null
+  cost_rmb: number | null
+  net_profit_rmb: number | null
+  ledger_entries: number
 }
 
 export interface CockpitFilters {

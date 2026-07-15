@@ -159,10 +159,13 @@ def _listing_item(item: PlatformListing, product: Optional[Product] = None) -> d
         "平台上架 / Listing",
         _join_existing([f"状态 {item.status}", f"库存 {item.stock}", f"价格 {item.price}"]),
         "进入批量刊登和平台校验" if gaps else "继续跟踪 Listing 表现",
-        gaps, [source_ref("platform_listing", item.id, label=item.title, meta={"route": route})], None, None,
+        gaps, [source_ref("platform_listing", item.id, label=item.title, meta={"route": route})],
+        item.platform_data.get("platform") if isinstance(item.platform_data, dict) else None,
+        item.platform_data.get("market") if isinstance(item.platform_data, dict) else None,
         image_url=_first_image(item.images) or _first_image(product.images if product else None),
         source_url=item.listing_url,
     )
+    payload["platform_account_id"] = item.platform_account_id
     if product:
         payload["object_refs"] = [
             {"type": "platform_listing", "id": item.id, "label": item.title},
@@ -178,7 +181,7 @@ def _order_item(item: Order) -> dict:
         gaps.append(f"履约状态为 {fulfillment}")
     if item.payment_status and item.payment_status not in ("paid", "completed", "settled"):
         gaps.append(f"支付状态为 {item.payment_status}")
-    return _item_payload(
+    payload = _item_payload(
         item.id, "order", item.order_number or item.platform_order_id, "fulfillment", "/orders",
         "订单管道",
         _join_existing([f"订单 {item.status}", f"履约 {fulfillment}", f"{item.currency} {item.total}"]),
@@ -186,6 +189,9 @@ def _order_item(item: Order) -> dict:
         gaps, [source_ref("order", item.id, label=item.order_number or item.platform_order_id, meta={"route": "/orders"})],
         item.platform_account.platform if item.platform_account else None, None,
     )
+    payload["platform_account_id"] = item.platform_account_id
+    payload["account_name"] = item.platform_account.account_name if item.platform_account else None
+    return payload
 
 
 def _ai_item(item: AISuggestion) -> dict:
@@ -242,6 +248,8 @@ def _item_payload(
         "confidence_reason": f"基于 {source} 的 {item_type} 记录生成商品级业务节点。",
         "platform": platform,
         "market": market,
+        "platform_account_id": None,
+        "account_name": None,
         "image_url": image_url,
         "source_url": source_url,
     }

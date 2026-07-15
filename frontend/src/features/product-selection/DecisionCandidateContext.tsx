@@ -59,7 +59,7 @@ export function DecisionCandidateContext({
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <h3 className="font-semibold text-[var(--color-fg)]">决策商品上下文</h3>
-            <p className="text-xs text-[var(--color-muted)]">先锁定真实证据推荐候选，再执行九维评分；通过后自动衔接内容工厂。</p>
+            <p className="text-xs text-[var(--color-muted)]">先锁定推荐候选商品，再执行九维评分；通过后自动衔接内容工厂。</p>
           </div>
           <select value={platform} onChange={(event) => onPlatformChange(event.target.value)}
             className="text-xs border border-[var(--color-border)] rounded-md px-2 py-1.5 bg-[var(--color-surface)] text-[var(--color-fg)]">
@@ -74,14 +74,14 @@ export function DecisionCandidateContext({
         </div>
         {candidateError && <p className="text-xs text-[var(--color-danger)]">{candidateError}</p>}
         {candidates.length === 0 && !candidateError && (
-          <p className="text-xs text-[var(--color-muted)]">暂无可决策候选。请先在趋势与候选中补充真实趋势、平台、供应或竞品证据。</p>
+          <p className="text-xs text-[var(--color-muted)]">暂无可决策候选。请先在趋势与候选中补充真实趋势、平台、供应或竞品资料。</p>
         )}
         {candidates.length > 0 && (
           <select value={candidateId} onChange={(event) => onCandidateChange(event.target.value)}
             className="w-full text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]">
             {candidateOptions.map(({ item, summary }) => (
               <option key={item.work_item_id} value={item.work_item_id}>
-                {item.product_name} · {item.lifecycle_label || '待归类'} · 证据 {summary.present}/{summary.total}
+                {item.product_name} · {item.lifecycle_label || '待归类'} · 资料 {summary.present}/{summary.total}
               </option>
             ))}
           </select>
@@ -102,7 +102,7 @@ export function DecisionCandidateContext({
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">
-                证据完整度：{selectedEvidence?.present ?? 0}/{selectedEvidence?.total ?? 0}
+                资料完整度：{selectedEvidence?.present ?? 0}/{selectedEvidence?.total ?? 0}
               </span>
               {Object.entries(selectedCompleteness).map(([key, value]) => (
                 <span key={key} className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">
@@ -112,7 +112,7 @@ export function DecisionCandidateContext({
             </div>
             <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-                <p className="font-medium text-[var(--color-fg)]">证据输入</p>
+                <p className="font-medium text-[var(--color-fg)]">资料输入</p>
                 <p className="mt-0.5 text-[var(--color-muted)]">趋势、社媒、平台、供应共同支撑</p>
               </div>
               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">

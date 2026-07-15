@@ -268,7 +268,7 @@ function FlowTable({ items, selectedKeys, activeKey, onToggle, onPick, onNavigat
             <th className="px-2 py-2 text-left">来源平台</th>
             <th className="px-2 py-2 text-left">负责人</th>
             <th className="px-2 py-2 text-left">下一步动作</th>
-            <th className="px-3 py-2 text-left">证据</th>
+            <th className="px-3 py-2 text-left">资料完整度</th>
           </tr>
         </thead>
         <tbody>
@@ -290,7 +290,10 @@ function FlowTable({ items, selectedKeys, activeKey, onToggle, onPick, onNavigat
               </td>
               <td className="px-2 py-3"><StageBadge item={item} /></td>
               <td className="max-w-[220px] px-2 py-3 text-[var(--color-warning)]">{item.gaps[0] ? labelBusinessCode(item.gaps[0]) : '无阻塞缺口'}</td>
-              <td className="px-2 py-3"><p className="text-[var(--color-fg)]">{item.platform || item.source}</p><p className="text-[11px] text-[var(--color-muted)]">{item.market || '市场待补'}</p></td>
+              <td className="px-2 py-3">
+                <p className="text-[var(--color-fg)]">{item.platform || item.source}</p>
+                <p className="text-[11px] text-[var(--color-muted)]">{item.account_name || '店铺待定位'} · {item.market || '市场待补'}</p>
+              </td>
               <td className="px-2 py-3"><p className="text-[var(--color-fg)]">{item.assigned_to || '未分配'}</p><p className="text-[11px] text-[var(--color-muted)]">{taskStatusText(item.task_status)}</p></td>
               <td className="px-2 py-3"><button onClick={(event) => { event.stopPropagation(); onNavigate(buildObjectRoute(item.next_action_route, item)) }} className="inline-flex items-center gap-1 text-[var(--color-primary)]">{item.next_action}<ArrowRight className="h-3 w-3" /></button></td>
               <td className="px-3 py-3"><Badge variant={item.evidence_summary.missing > 0 ? 'warning' : 'success'}>{item.evidence_summary.present}/{item.evidence_summary.total}</Badge></td>

@@ -1,12 +1,13 @@
 """Risk-control projection built from traceable cockpit sections."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
+from app.models.platform_listing import PlatformListing
 from app.models.risk_event_state import RiskEventState
 from app.models.user import User
 from app.schemas.risk_control import RiskStateUpdateRequest
@@ -16,6 +17,7 @@ from app.services.risk_control_projection_service import build_risk_control_proj
 
 RISK_CATEGORY_LIBRARY = [
     {"key": "account", "label": "账号安全风险", "route": "/platforms", "description": "平台授权、凭证、店铺可用性和同步阻断。"},
+    {"key": "business", "label": "店铺经营风险", "route": "/command-center", "description": "店铺投入、销售下滑、长期无销售和经营效率异常。"},
     {"key": "compliance", "label": "合规/IP 风险", "route": "/monitor", "description": "侵权、禁限售、投诉和竞品异常信号。"},
     {"key": "logistics", "label": "物流时效风险", "route": "/orders", "description": "订单履约超时、物流异常和发货阻塞。"},
     {"key": "currency", "label": "汇率与利润风险", "route": "/settings/fees", "description": "市场币种、汇率缺口、利润台账矛盾。"},
@@ -26,6 +28,7 @@ RISK_CATEGORY_LIBRARY = [
 async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
     cockpit = await get_operating_cockpit(db, user_id)
     risks = _build_risks(cockpit)
+    risks = await _attach_risk_scope(db, cockpit, risks)
     states = await _load_states(db, user_id, [item["id"] for item in risks])
     risks = [_merge_state(item, states.get(item["id"])) for item in risks]
     active_risks = [item for item in risks if item["status"] not in ("closed", "ignored")]
@@ -33,6 +36,7 @@ async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
     assessment_status = "attention" if active_risks else "insufficient" if gaps else "clear"
     risk_categories = _risk_categories(cockpit, active_risks)
     projections = build_risk_control_projections(risks, risk_categories)
+    comparison = await _risk_period_comparison(db, user_id, cockpit)
     return {
         "generated_at": cockpit["generated_at"],
         "assessment_status": assessment_status,
@@ -48,6 +52,9 @@ async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
         },
         "risks": risks,
         "risk_categories": risk_categories,
+        "risk_store_matrix": _risk_store_matrix(active_risks),
+        "risk_platform_matrix": _risk_platform_matrix(active_risks),
+        "comparison": comparison,
         **projections,
         "source_refs": _unique_refs([ref for item in risks for ref in item["source_refs"]]),
         "evidence_window": cockpit["evidence_window"],
@@ -147,6 +154,7 @@ def _build_risks(cockpit: dict) -> list[dict]:
             "type": "inventory",
             "type_label": "库存/供货风险",
             "title": item["product_name"],
+            "product_id": item.get("product_id"),
             "severity": "critical" if item["severity"] == "critical" else "warning",
             "status": "pending",
             "detail": f"当前库存 {item['current_stock']}，阈值 {item['threshold']}",
@@ -201,15 +209,22 @@ def _build_risks(cockpit: dict) -> list[dict]:
             "source_refs": sections["competitors"]["source_refs"],
             "data_gaps": sections["competitors"]["data_gaps"],
         })
+    risks.extend(_store_business_risks(sections["store_matrix"]))
+    risks.extend(_listing_operation_business_risks(sections["product_operations"]))
     for item in sections["orders"]["items"]:
         exception = item.get("fulfillment_exception") or {}
         exception_status = exception.get("status")
         if exception_status and exception_status != "clear":
+            response_deadline_at = exception.get("deadline_at") or None
+            sla_hours, remaining_time_label = _deadline_snapshot(response_deadline_at)
             risks.append({
                 "id": f"logistics:{item['id']}",
                 "type": "logistics",
                 "type_label": "物流时效风险",
                 "title": f"订单 {item['order_number']} 履约异常",
+                "platform": item.get("platform"),
+                "platform_account_id": item.get("platform_account_id"),
+                "account_name": item.get("account_name"),
                 "severity": "critical" if exception.get("severity") == "critical" else "warning",
                 "status": "pending",
                 "detail": "；".join(exception.get("reasons") or ["履约异常待复核"]),
@@ -217,6 +232,10 @@ def _build_risks(cockpit: dict) -> list[dict]:
                 "evidence_window": sections["orders"]["evidence_window"],
                 "source_refs": [ref for ref in sections["orders"]["source_refs"] if ref.get("id") == item["id"]],
                 "data_gaps": exception.get("data_gaps") or [],
+                "estimated_impact": _order_risk_impact(item),
+                "response_deadline_at": response_deadline_at,
+                "remaining_time_label": remaining_time_label,
+                "sla_hours": sla_hours,
             })
             continue
         if item["status"] not in ("pending", "processing"):
@@ -224,11 +243,16 @@ def _build_risks(cockpit: dict) -> list[dict]:
         ordered_at = _parse_dt(item.get("ordered_at"))
         if not ordered_at or datetime.now(timezone.utc) - ordered_at < _days(3):
             continue
+        response_deadline_at = (ordered_at + _days(3)).isoformat()
+        sla_hours, remaining_time_label = _deadline_snapshot(response_deadline_at)
         risks.append({
             "id": f"logistics:{item['id']}",
             "type": "logistics",
             "type_label": "物流时效风险",
             "title": f"订单 {item['order_number']} 履约超时",
+            "platform": item.get("platform"),
+            "platform_account_id": item.get("platform_account_id"),
+            "account_name": item.get("account_name"),
             "severity": "warning",
             "status": "pending",
             "detail": f"订单状态仍为 {item['status']}，下单已超过 3 天，请复核发货与物流轨迹",
@@ -236,8 +260,240 @@ def _build_risks(cockpit: dict) -> list[dict]:
             "evidence_window": sections["orders"]["evidence_window"],
             "source_refs": [ref for ref in sections["orders"]["source_refs"] if ref.get("id") == item["id"]],
             "data_gaps": [],
+            "estimated_impact": _order_risk_impact(item),
+            "response_deadline_at": response_deadline_at,
+            "remaining_time_label": remaining_time_label,
+            "sla_hours": sla_hours,
         })
     return risks
+
+
+def _listing_operation_business_risks(product_operations: dict) -> list[dict]:
+    risks = []
+    refs = product_operations.get("source_refs") or []
+    for item in product_operations.get("items") or []:
+        listing_id = item.get("listing_id")
+        views = item.get("views_30d")
+        orders = item.get("orders_30d")
+        stock = item.get("stock")
+        if item.get("diagnostic_code") != "traffic_no_order":
+            continue
+        if not listing_id or not views or orders not in (0, 0.0) or not stock or stock <= 0:
+            continue
+        deadline = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
+        sla_hours, remaining_time_label = _deadline_snapshot(deadline)
+        risks.append({
+            "id": f"business:traffic-no-order:{listing_id}",
+            "type": "business",
+            "type_label": "店铺经营风险",
+            "title": f"{item.get('title') or 'Listing'} 有流量无订单",
+            "listing_id": listing_id,
+            "severity": "warning",
+            "status": "pending",
+            "detail": f"近30天浏览 {int(views)}、订单 0、库存 {int(stock)} 件，请复核主图、标题、价格、评价和平台属性。",
+            "route": f"/growth?listing_id={listing_id}",
+            "evidence_window": product_operations.get("evidence_window") or "近30天商品运营指标",
+            "source_refs": [ref for ref in refs if ref.get("id") == listing_id],
+            "data_gaps": [],
+            "estimated_impact": f"近30天浏览 {int(views)}、订单 0，库存 {int(stock)} 件，可能造成库存占用和 Listing/定价/主图失效。",
+            "response_deadline_at": deadline,
+            "remaining_time_label": remaining_time_label,
+            "sla_hours": sla_hours,
+        })
+    return risks
+
+
+def _store_business_risks(store_matrix: dict) -> list[dict]:
+    risks = []
+    refs = store_matrix.get("source_refs") or []
+    for store in store_matrix.get("items") or []:
+        cost = store.get("cost_rmb")
+        revenue = store.get("revenue_rmb")
+        order_count = store.get("order_count") or 0
+        if not cost or cost < 100 or revenue or order_count:
+            continue
+        deadline = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
+        sla_hours, remaining_time_label = _deadline_snapshot(deadline)
+        account_id = store.get("id")
+        risks.append({
+            "id": f"business:spend-no-sales:{account_id}",
+            "type": "business",
+            "type_label": "店铺经营风险",
+            "title": f"{store.get('account_name') or '店铺'} 投入未转化",
+            "platform": store.get("platform"),
+            "platform_account_id": account_id,
+            "account_name": store.get("account_name"),
+            "market": store.get("market"),
+            "severity": "warning",
+            "status": "pending",
+            "detail": f"当前筛选日期范围内店铺已记录成本投入 ¥{_plain_amount(cost)}，但没有平台订单或销售收入，请复核选品、Listing、投放和定价。",
+            "route": f"/finance?platform_account_id={account_id}#finance-ledger",
+            "evidence_window": store_matrix.get("evidence_window") or "当前店铺经营日期区间待补",
+            "source_refs": [ref for ref in refs if ref.get("id") == account_id],
+            "data_gaps": [],
+            "estimated_impact": f"店铺已投入 ¥{_plain_amount(cost)}，但当前筛选日期范围没有订单或收入，可能造成资金占用和选品/投放策略失效。",
+            "response_deadline_at": deadline,
+            "remaining_time_label": remaining_time_label,
+            "sla_hours": sla_hours,
+        })
+    return risks
+
+
+async def _attach_risk_scope(db: AsyncSession, cockpit: dict, risks: list[dict]) -> list[dict]:
+    store_lookup = {
+        item["id"]: {
+            "platform_account_id": item["id"],
+            "account_name": item["account_name"],
+            "platform": item["platform"],
+            "market": item.get("market"),
+        }
+        for item in cockpit["sections"]["store_matrix"]["items"]
+    }
+    product_ids = [
+        item.get("product_id")
+        for item in risks
+        if item.get("type") == "inventory" and item.get("product_id")
+    ]
+    listing_ids = [
+        item.get("listing_id")
+        for item in risks
+        if item.get("listing_id")
+    ]
+    listing_by_product: dict[str, dict] = {}
+    if product_ids:
+        result = await db.execute(
+            select(PlatformListing).where(PlatformListing.product_id.in_(list(dict.fromkeys(product_ids))))
+        )
+        for listing in result.scalars().all():
+            store = store_lookup.get(listing.platform_account_id)
+            if store and listing.product_id not in listing_by_product:
+                listing_by_product[listing.product_id] = store
+    listing_by_id: dict[str, dict] = {}
+    if listing_ids:
+        result = await db.execute(
+            select(PlatformListing).where(PlatformListing.id.in_(list(dict.fromkeys(listing_ids))))
+        )
+        for listing in result.scalars().all():
+            store = store_lookup.get(listing.platform_account_id)
+            if store:
+                listing_by_id[listing.id] = {
+                    **store,
+                    "product_id": listing.product_id,
+                }
+
+    scoped = []
+    for risk in risks:
+        item = dict(risk)
+        store = None
+        if item.get("platform_account_id"):
+            store = store_lookup.get(item["platform_account_id"])
+        if not store and item.get("product_id"):
+            store = listing_by_product.get(item["product_id"])
+        if not store and item.get("listing_id"):
+            store = listing_by_id.get(item["listing_id"])
+        if store:
+            item.update(store)
+        item.setdefault("platform", item.get("platform") or "待定位平台")
+        item.setdefault("platform_account_id", item.get("platform_account_id"))
+        item.setdefault("account_name", item.get("account_name") or "待定位店铺")
+        item.setdefault("market", item.get("market"))
+        scoped.append(item)
+    return scoped
+
+
+async def _risk_period_comparison(db: AsyncSession, user_id: str, cockpit: dict) -> dict:
+    active_filters = cockpit.get("active_filters") or {}
+    start = date.fromisoformat(active_filters["start_date"])
+    end = date.fromisoformat(active_filters["end_date"])
+    days = max((end - start).days + 1, 1)
+    previous_start = start - timedelta(days=days)
+    previous_end = start - timedelta(days=1)
+    year_start = start - timedelta(days=365)
+    year_end = end - timedelta(days=365)
+    previous = await _risk_snapshot_for_window(db, user_id, previous_start, previous_end)
+    last_year = await _risk_snapshot_for_window(db, user_id, year_start, year_end)
+    current = _risk_snapshot(_build_risks(cockpit))
+    return {
+        "current": current,
+        "previous": previous,
+        "last_year": last_year,
+        "rates": {
+            "active_mom_pct": _change_pct(current["active"], previous["active"]),
+            "active_yoy_pct": _change_pct(current["active"], last_year["active"]),
+            "critical_mom_pct": _change_pct(current["critical"], previous["critical"]),
+            "critical_yoy_pct": _change_pct(current["critical"], last_year["critical"]),
+        },
+        "windows": {
+            "current": f"{start.isoformat()} 至 {end.isoformat()}",
+            "previous": f"{previous_start.isoformat()} 至 {previous_end.isoformat()}",
+            "last_year": f"{year_start.isoformat()} 至 {year_end.isoformat()}",
+        },
+    }
+
+
+async def _risk_snapshot_for_window(db: AsyncSession, user_id: str, start: date, end: date) -> dict:
+    cockpit = await get_operating_cockpit(db, user_id, start_date=start, end_date=end)
+    return _risk_snapshot(_build_risks(cockpit))
+
+
+def _risk_snapshot(risks: list[dict]) -> dict:
+    active = [item for item in risks if item["status"] not in ("closed", "ignored")]
+    return {
+        "active": len(active),
+        "critical": sum(1 for item in active if item["severity"] == "critical"),
+        "warning": sum(1 for item in active if item["severity"] == "warning"),
+        "events": len(risks),
+    }
+
+
+def _change_pct(current, baseline):
+    if current is None or baseline in (None, 0):
+        return None
+    return round(((current - baseline) / abs(baseline)) * 100, 2)
+
+
+def _risk_store_matrix(risks: list[dict]) -> list[dict]:
+    buckets: dict[tuple[str, str], dict] = {}
+    for risk in risks:
+        key = (risk.get("platform_account_id") or "unassigned", risk.get("platform") or "待定位平台")
+        row = buckets.setdefault(key, {
+            "platform_account_id": risk.get("platform_account_id"),
+            "account_name": risk.get("account_name") or "待定位店铺",
+            "platform": risk.get("platform") or "待定位平台",
+            "market": risk.get("market"),
+            "critical": 0,
+            "warning": 0,
+            "processing": 0,
+            "overdue": 0,
+            "total": 0,
+        })
+        row["total"] += 1
+        if risk["severity"] == "critical":
+            row["critical"] += 1
+        elif risk["severity"] == "warning":
+            row["warning"] += 1
+        if risk["status"] == "processing":
+            row["processing"] += 1
+        if risk.get("is_overdue"):
+            row["overdue"] += 1
+    return sorted(buckets.values(), key=lambda item: (item["critical"], item["warning"], item["total"]), reverse=True)
+
+
+def _risk_platform_matrix(risks: list[dict]) -> list[dict]:
+    buckets: dict[str, dict] = {}
+    for risk in risks:
+        platform = risk.get("platform") or "待定位平台"
+        row = buckets.setdefault(platform, {"platform": platform, "critical": 0, "warning": 0, "processing": 0, "overdue": 0, "total": 0})
+        row["total"] += 1
+        if risk["severity"] == "critical":
+            row["critical"] += 1
+        elif risk["severity"] == "warning":
+            row["warning"] += 1
+        if risk["status"] == "processing":
+            row["processing"] += 1
+        if risk.get("is_overdue"):
+            row["overdue"] += 1
+    return sorted(buckets.values(), key=lambda item: (item["critical"], item["warning"], item["total"]), reverse=True)
 
 
 def _risk_categories(cockpit: dict, active_risks: list[dict]) -> list[dict]:
@@ -246,6 +502,7 @@ def _risk_categories(cockpit: dict, active_risks: list[dict]) -> list[dict]:
         counts[risk["type"]] = counts.get(risk["type"], 0) + 1
     gaps_by_type = {
         "account": [] if cockpit["active_filters"].get("store_count", 0) else ["platform_accounts"],
+        "business": cockpit["sections"]["store_matrix"]["data_gaps"],
         "compliance": cockpit["sections"]["competitors"]["data_gaps"],
         "logistics": cockpit["sections"]["orders"]["data_gaps"],
         "currency": cockpit["sections"]["finance"]["data_gaps"],
@@ -318,6 +575,71 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _complete_risk_operating_context(risk: dict) -> dict:
+    item = dict(risk)
+    response_deadline_at = item.get("response_deadline_at") or None
+    sla_hours, remaining_time_label = _deadline_snapshot(response_deadline_at)
+    item.setdefault("estimated_impact", _default_risk_impact(item))
+    item.setdefault("response_deadline_at", response_deadline_at)
+    item.setdefault("remaining_time_label", remaining_time_label)
+    item.setdefault("sla_hours", sla_hours)
+    return item
+
+
+def _order_risk_impact(item: dict) -> str:
+    currency = item.get("currency")
+    total = item.get("total")
+    if currency and total is not None:
+        return f"订单金额 {currency} {_plain_amount(total)}，可能触发取消、退款或店铺履约扣分。"
+    return "可能触发取消、退款或店铺履约扣分。"
+
+
+def _default_risk_impact(risk: dict) -> str:
+    risk_type = risk.get("type")
+    if risk_type == "inventory":
+        return "可能导致缺货、延迟发货、库存资金占用或错失销售。"
+    if risk_type == "currency":
+        return "可能导致利润判断偏差、资金投入失真或费用核算错误。"
+    if risk_type == "compliance":
+        return "可能触发平台限制、商品下架、投诉处理或店铺评分影响。"
+    if risk_type == "business":
+        return "可能造成资金占用、销售停滞、店铺经营效率下降或选品投放策略失效。"
+    if risk_type == "logistics":
+        return "可能触发订单取消、退款、平台履约扣分或买家体验下降。"
+    return "影响范围待根据关联业务记录进一步确认。"
+
+
+def _plain_amount(value) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}".rstrip("0").rstrip(".")
+
+
+def _deadline_snapshot(value) -> tuple[Optional[int], str]:
+    deadline = _parse_dt(value.isoformat() if isinstance(value, datetime) else value)
+    if not deadline:
+        return None, "未设置"
+    seconds = (deadline - datetime.now(timezone.utc)).total_seconds()
+    if seconds <= 0:
+        return 0, "已超期"
+    hours = max(1, int((seconds + 3599) // 3600))
+    if hours < 48:
+        return hours, f"剩余{hours}小时"
+    days = max(1, int((hours + 23) // 24))
+    return hours, f"剩余{days}天"
+
+
+def _deadline_overdue(value, status: str) -> bool:
+    if status in ("closed", "ignored"):
+        return False
+    deadline = _parse_dt(value.isoformat() if isinstance(value, datetime) else value)
+    return bool(deadline and deadline < datetime.now(timezone.utc))
+
+
 def _days(value: int):
     from datetime import timedelta
     return timedelta(days=value)
@@ -348,25 +670,30 @@ async def _load_states(db: AsyncSession, user_id: str, risk_ids: list[str]) -> d
 
 
 def _merge_state(risk: dict, state: Optional[RiskEventState]) -> dict:
-    merged = dict(risk)
+    merged = _complete_risk_operating_context(risk)
     if not state:
+        default_deadline = merged.get("response_deadline_at")
         merged.update({
             "assigned_to": None,
-            "due_at": None,
-            "is_overdue": False,
+            "due_at": default_deadline,
+            "is_overdue": _deadline_overdue(default_deadline, merged["status"]),
             "note": None,
             "closed_at": None,
             "updated_at": None,
         })
         return merged
+    state_deadline = state.due_at.isoformat() if state.due_at else merged.get("response_deadline_at")
+    sla_hours, remaining_time_label = _deadline_snapshot(state_deadline)
     merged.update({
         "status": state.status,
         "assigned_to": state.assigned_to,
         "due_at": state.due_at,
-        "is_overdue": _is_overdue(state),
+        "is_overdue": _deadline_overdue(state_deadline, state.status),
         "note": state.note,
         "closed_at": state.closed_at,
         "updated_at": state.updated_at,
+        "remaining_time_label": remaining_time_label,
+        "sla_hours": sla_hours,
     })
     return merged
 

@@ -130,6 +130,16 @@ async def get_operating_cockpit(
     ledger_entries = list((await db.execute(ledger_query.order_by(FinanceLedgerEntry.occurred_at.desc()))).scalars().all())
 
     finance = finance_summary_from_entries(ledger_entries)
+    comparison = await _period_comparison(
+        db,
+        user_id,
+        store_ids,
+        start_at=start_at,
+        end_exclusive=end_exclusive,
+        platform=platform,
+        market=market,
+        currency=currency,
+    )
     report_date = (end_exclusive - timedelta(microseconds=1)).date().isoformat()
     report = await generate_daily_report(db, user_id, report_date)
     anomalies = await detect_anomalies(db, user_id)
@@ -147,7 +157,8 @@ async def get_operating_cockpit(
     }
     sections.update(await build_cockpit_center_summaries(
         db, user_id, store_ids, orders=orders, listings=listings, alerts=alerts,
-        competitors=competitors, suggestions=suggestions, anomalies=anomalies, sections=sections, now=now,
+        ledger_entries=ledger_entries, competitors=competitors, suggestions=suggestions,
+        anomalies=anomalies, sections=sections, now=now,
     ))
     source_refs = unique_refs([ref for item in sections.values() for ref in item["source_refs"]])
     data_gaps = [gap for item in sections.values() for gap in item["data_gaps"]]
@@ -172,8 +183,99 @@ async def get_operating_cockpit(
             "currency": currency,
             "store_count": len(store_ids),
         },
+        "comparison": comparison,
         "sections": sections,
     }
+
+
+async def _period_comparison(
+    db: AsyncSession,
+    user_id: str,
+    store_ids: list[str],
+    *,
+    start_at: datetime,
+    end_exclusive: datetime,
+    platform: Optional[str],
+    market: Optional[str],
+    currency: Optional[str],
+) -> dict:
+    duration = end_exclusive - start_at
+    previous_start = start_at - duration
+    previous_end = start_at
+    year_start = start_at - timedelta(days=365)
+    year_end = end_exclusive - timedelta(days=365)
+
+    current = await _period_snapshot(db, user_id, store_ids, start_at, end_exclusive, platform=platform, market=market, currency=currency)
+    previous = await _period_snapshot(db, user_id, store_ids, previous_start, previous_end, platform=platform, market=market, currency=currency)
+    last_year = await _period_snapshot(db, user_id, store_ids, year_start, year_end, platform=platform, market=market, currency=currency)
+    return {
+        "current": current,
+        "previous": previous,
+        "last_year": last_year,
+        "rates": {
+            "orders_mom_pct": _change_pct(current["orders"], previous["orders"]),
+            "orders_yoy_pct": _change_pct(current["orders"], last_year["orders"]),
+            "revenue_mom_pct": _change_pct(current["revenue_rmb"], previous["revenue_rmb"]),
+            "revenue_yoy_pct": _change_pct(current["revenue_rmb"], last_year["revenue_rmb"]),
+            "profit_mom_pct": _change_pct(current["net_profit_rmb"], previous["net_profit_rmb"]),
+            "profit_yoy_pct": _change_pct(current["net_profit_rmb"], last_year["net_profit_rmb"]),
+        },
+        "windows": {
+            "current": _window(start_at, end_exclusive),
+            "previous": _window(previous_start, previous_end),
+            "last_year": _window(year_start, year_end),
+        },
+    }
+
+
+async def _period_snapshot(
+    db: AsyncSession,
+    user_id: str,
+    store_ids: list[str],
+    start_at: datetime,
+    end_exclusive: datetime,
+    *,
+    platform: Optional[str],
+    market: Optional[str],
+    currency: Optional[str],
+) -> dict:
+    order_query = select(Order).where(
+        Order.platform_account_id.in_(store_ids),
+        Order.ordered_at >= start_at,
+        Order.ordered_at < end_exclusive,
+    )
+    if currency:
+        order_query = order_query.where(Order.currency == currency)
+    orders = list((await db.execute(order_query)).scalars().all())
+    if market:
+        orders = [item for item in orders if order_market(item) == market]
+
+    ledger_query = select(FinanceLedgerEntry).where(
+        FinanceLedgerEntry.user_id == user_id,
+        FinanceLedgerEntry.occurred_at >= start_at,
+        FinanceLedgerEntry.occurred_at < end_exclusive,
+    )
+    if platform:
+        ledger_query = ledger_query.where(FinanceLedgerEntry.platform == platform)
+    if market:
+        ledger_query = ledger_query.where(FinanceLedgerEntry.market == market)
+    if currency:
+        ledger_query = ledger_query.where(FinanceLedgerEntry.currency == currency)
+    ledger_entries = list((await db.execute(ledger_query)).scalars().all())
+    finance = finance_summary_from_entries(ledger_entries)
+    return {
+        "orders": len(orders),
+        "revenue_rmb": finance["total_revenue_rmb"],
+        "cost_rmb": finance["total_cost_rmb"],
+        "net_profit_rmb": finance["net_profit_rmb"],
+        "ledger_entries": len(ledger_entries),
+    }
+
+
+def _change_pct(current, baseline):
+    if current is None or baseline in (None, 0):
+        return None
+    return round(((current - baseline) / abs(baseline)) * 100, 2)
 
 def _orders_section(orders: list[Order], start: datetime, now: datetime) -> dict:
     by_currency: dict[str, dict] = {}
@@ -196,6 +298,8 @@ def _order_section_item(order: Order, now: datetime) -> dict:
         "id": order.id,
         "order_number": order.order_number or order.platform_order_id,
         "platform": order.platform_account.platform if order.platform_account else None,
+        "platform_account_id": order.platform_account_id,
+        "account_name": order.platform_account.account_name if order.platform_account else None,
         "status": order.status,
         "total": order.total,
         "currency": order.currency,
@@ -368,6 +472,7 @@ def _alerts_section(alerts: list[InventoryAlertLog], now: datetime) -> dict:
         },
         items=[{
             "id": item.id,
+            "product_id": item.product_id,
             "product_name": item.product_name,
             "current_stock": item.current_stock,
             "threshold": item.threshold,
@@ -563,7 +668,8 @@ def _previous_price(item: CompetitorProduct):
     return prices[-1] if prices else None
 
 def _window(start: datetime, end: datetime) -> str:
-    return f"{_iso(start)} 至 {_iso(end)}"
+    display_end = end - timedelta(microseconds=1)
+    return f"{_iso(start)} 至 {_iso(display_end)}"
 
 def _iso(value) -> str:
     return value.isoformat() if value else ""

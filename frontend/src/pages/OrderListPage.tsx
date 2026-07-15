@@ -13,6 +13,8 @@ import type { OrderListRow } from '../types/order'
 import { getExceptionStatuses, getStatusMeta, toDomainOptions, withAllOption } from '../utils/domainOptions'
 import { ManualOrderModal } from '../features/orders/ManualOrderModal'
 import { Plus } from 'lucide-react'
+import { StoreContextBanner } from '../components/shared/StoreContextBanner'
+import { usePlatformStatuses } from '../hooks/usePlatforms'
 
 export default function OrderListPage() {
   const navigate = useNavigate()
@@ -24,6 +26,7 @@ export default function OrderListPage() {
   const platformAccountId = searchParams.get('platform_account_id') || ''
   const [exceptionMode, setExceptionMode] = useState(searchParams.get('exceptions') === '1')
   const [manualOpen, setManualOpen] = useState(false)
+  const platformStatusesQuery = usePlatformStatuses()
 
   const effectiveStatus = exceptionMode ? getExceptionStatuses(order_statuses).join(',') || undefined : status || undefined
 
@@ -178,11 +181,13 @@ export default function OrderListPage() {
       <Card>
         <CardContent className="pt-4">
           <EvidenceBanner evidence={data} compact />
-          {platformAccountId && (
-            <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
-              当前订单列表已按经营指挥台下钻的店铺筛选：{platformAccountId}
-            </div>
-          )}
+          <StoreContextBanner
+            platformAccountId={platformAccountId}
+            platform={platform}
+            statuses={platformStatusesQuery.data?.data || []}
+            currentModule="orders"
+            clearHref="/orders"
+          />
           <div className="flex items-center gap-3 mb-4">
             <Select
               options={withAllOption('全部状态', orderStatusOptions)}

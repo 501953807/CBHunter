@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle,
-  BarChart3,
-  Brain,
   Boxes,
   Clock,
   Database,
   Eye,
-  GitBranch,
   ListChecks,
   RefreshCw,
   ShoppingCart,
@@ -35,8 +31,8 @@ import { CockpitMetricStrip } from './CockpitMetricStrip'
 import { CockpitSidebar } from './CockpitSidebar'
 import { CockpitSetupBanner } from './CockpitSetupBanner'
 import { CockpitScopeFilters } from './CockpitScopeFilters'
-import { CockpitCenterSummaryPanels } from './CockpitCenterSummaryPanels'
 import { CockpitFinancialStructure } from './CockpitFinancialStructure'
+import { CockpitStoreCommandBoard } from './CockpitStoreCommandBoard'
 import { normalizeCockpitData } from './cockpitCompat'
 import { labelBusinessCode } from '../../utils/businessLabels'
 
@@ -72,15 +68,15 @@ export default function CockpitWorkspace() {
   const s = data.sections
   const sourceRefs = mergeSourceRefs([
     s.orders, s.finance, s.inventory, s.product_operations, s.alerts, s.competitors, s.reports, s.ai_suggestions,
-    s.store_matrix, s.risk_summary, s.flow_summary,
+    s.store_matrix,
   ])
   const evidenceWindows = [
     s.orders, s.finance, s.inventory, s.product_operations, s.alerts, s.competitors, s.reports, s.ai_suggestions,
-    s.store_matrix, s.risk_summary, s.flow_summary,
+    s.store_matrix,
   ].map((section) => section.evidence_window).filter(Boolean)
   const totalSources = [
     s.orders, s.finance, s.inventory, s.product_operations, s.alerts, s.competitors, s.reports, s.ai_suggestions,
-    s.store_matrix, s.risk_summary, s.flow_summary,
+    s.store_matrix,
   ]
     .reduce((sum, item) => sum + item.source_count, 0)
 
@@ -89,7 +85,7 @@ export default function CockpitWorkspace() {
       <CommandCenterFrame
         eyebrow="Command Center"
         title="经营指挥中枢"
-        description="从订单、收入、利润、库存、风险、链路阻塞、AI 建议和数据健康统一掌握经营全局，并下钻到具体业务对象。"
+        description="以全部平台店铺为总览，以平台、店铺、商品、订单和资金为分解对象，统一查看经营结果、趋势变化和下钻处理入口。"
         badge={<Badge variant={data.data_status === 'ready' ? 'success' : 'warning'}>{data.data_status === 'ready' ? '真实数据已接入' : '等待真实数据'}</Badge>}
         actions={(
           <>
@@ -107,13 +103,11 @@ export default function CockpitWorkspace() {
         <CockpitMetricStrip data={data} onNavigate={navigate} />
       </section>
 
-      <CockpitHealthRadar data={data} onNavigate={navigate} />
-
       <CockpitSetupBanner onNavigate={navigate} />
 
       <CockpitScopeFilters value={filters} active={data.active_filters} loading={loading} onApply={setFilters} />
 
-      <CockpitCenterSummaryPanels data={data} onNavigate={navigate} />
+      <CockpitStoreCommandBoard data={data} onNavigate={navigate} />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
@@ -200,133 +194,10 @@ export default function CockpitWorkspace() {
               }))} />
             </CommandPanel>
           </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <CommandPanel title="报表异常" icon={<BarChart3 className="h-4 w-4" />} section={s.reports} onOpen={() => navigate('/reports')}>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">今日订单 {s.reports.metrics.today_orders}</Badge>
-                <Badge variant={s.reports.metrics.anomaly_count ? 'warning' : 'success'}>异常 {s.reports.metrics.anomaly_count}</Badge>
-                <Badge variant={s.reports.metrics.cost_status === 'complete' ? 'success' : s.reports.metrics.cost_status === 'not_evaluated' ? 'outline' : 'warning'}>
-                  成本 {costStatusText(s.reports.metrics.cost_status)}
-                </Badge>
-              </div>
-              <DenseRows empty="暂无报表异常" rows={s.reports.items.map((item) => ({
-                key: item.metric,
-                title: item.metric,
-                detail: `预期 ${item.expected} · 实际 ${item.actual}`,
-                value: `${item.deviation_pct}%`,
-                danger: true,
-              }))} />
-            </CommandPanel>
-
-            <CommandPanel title="AI 运营建议" icon={<Brain className="h-4 w-4" />} section={s.ai_suggestions} onOpen={() => navigate('/ai-suggestions')}>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">有效 {s.ai_suggestions.metrics.active}</Badge>
-                <Badge variant="info">未读 {s.ai_suggestions.metrics.unread}</Badge>
-                <Badge variant={s.ai_suggestions.metrics.critical_unread ? 'danger' : 'outline'}>紧急 {s.ai_suggestions.metrics.critical_unread}</Badge>
-              </div>
-              <DenseRows empty="暂无 AI 建议" rows={s.ai_suggestions.items.slice(0, 5).map((item) => ({
-                key: item.id,
-                title: item.title,
-                detail: item.evidence_window || item.confidence_reason || '证据窗口待补充',
-                value: item.confidence == null ? '待验证' : `${Math.round(item.confidence * 100)}%`,
-              }))} />
-            </CommandPanel>
-          </div>
         </div>
 
         <CockpitSidebar actionQueue={actionQueue} sourceRefs={sourceRefs} evidenceWindows={evidenceWindows} loading={loading} onNavigate={navigate} onRefresh={load} />
       </div>
     </div>
   )
-}
-
-function CockpitHealthRadar({ data, onNavigate }: { data: CockpitData; onNavigate: (route: string) => void }) {
-  const finance = data.sections.finance.metrics
-  const rows = [
-    {
-      label: '订单动能',
-      route: '/orders',
-      icon: ShoppingCart,
-      score: data.sections.orders.metrics.order_count > 0 ? 86 : 42,
-      detail: `${data.sections.orders.metrics.order_count} 单 · 今日 ${data.sections.reports.metrics.today_orders}`,
-      weak: data.sections.orders.metrics.order_count === 0,
-    },
-    {
-      label: '资金质量',
-      route: '/finance',
-      icon: WalletCards,
-      score: finance.net_profit_rmb == null ? 48 : finance.net_profit_rmb < 0 ? 36 : 82,
-      detail: finance.net_profit_rmb == null ? '利润待补证据' : `净利润 ${money(finance.net_profit_rmb)}`,
-      weak: finance.net_profit_rmb == null || finance.net_profit_rmb < 0,
-    },
-    {
-      label: '库存履约',
-      route: '/inventory-alerts',
-      icon: Boxes,
-      score: data.sections.inventory.metrics.unknown_stock_listings > 0 || data.sections.alerts.metrics.open > 0 ? 58 : 84,
-      detail: `${data.sections.inventory.metrics.unknown_stock_listings} 个未知库存 · ${data.sections.alerts.metrics.open} 个预警`,
-      weak: data.sections.inventory.metrics.unknown_stock_listings > 0 || data.sections.alerts.metrics.open > 0,
-    },
-    {
-      label: '风险压力',
-      route: '/risk-control',
-      icon: AlertTriangle,
-      score: data.sections.risk_summary.metrics.critical > 0 ? 28 : data.sections.risk_summary.metrics.active_risk_count > 0 ? 62 : 90,
-      detail: `${data.sections.risk_summary.metrics.active_risk_count} 个开放风险 · 高危 ${data.sections.risk_summary.metrics.critical}`,
-      weak: data.sections.risk_summary.metrics.active_risk_count > 0,
-    },
-    {
-      label: '链路通畅',
-      route: '/business-flow',
-      icon: GitBranch,
-      score: data.sections.flow_summary.metrics.blocked > 0 ? 35 : data.sections.flow_summary.metrics.data_required > 0 ? 64 : 88,
-      detail: `${data.sections.flow_summary.metrics.ready}/${data.sections.flow_summary.metrics.stage_count} 阶段就绪`,
-      weak: data.sections.flow_summary.metrics.blocked > 0 || data.sections.flow_summary.metrics.data_required > 0,
-    },
-    {
-      label: '数据健康',
-      route: '/reports',
-      icon: Database,
-      score: data.data_status === 'ready' ? 86 : 46,
-      detail: `${data.attention_count} 项待处理 · ${data.data_status === 'ready' ? '已接入' : '待补数据'}`,
-      weak: data.data_status !== 'ready',
-    },
-  ]
-  const total = Math.round(rows.reduce((sum, item) => sum + item.score, 0) / Math.max(rows.length, 1))
-  return (
-    <section aria-label="经营健康雷达" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-[var(--color-fg)]">经营健康雷达</p>
-          <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">用真实订单、台账、库存、风险、链路和数据缺口压缩成经营健康评分，点击任一维度下钻处理。</p>
-        </div>
-        <Badge variant={total >= 75 ? 'success' : total >= 55 ? 'warning' : 'danger'}>经营健康评分 {total}</Badge>
-      </div>
-      <div className="grid gap-2 md:grid-cols-3 2xl:grid-cols-6">
-        {rows.map((item) => (
-          <button key={item.label} onClick={() => onNavigate(item.route)} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
-            <span className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-fg)]">
-                <item.icon className="h-3.5 w-3.5" style={{ color: item.weak ? 'var(--color-warning)' : 'var(--color-success)' }} />
-                {item.label}
-              </span>
-              <span className={item.score >= 75 ? 'text-xs font-semibold text-[var(--color-success)]' : item.score >= 55 ? 'text-xs font-semibold text-[var(--color-warning)]' : 'text-xs font-semibold text-[var(--color-danger)]'}>{item.score}</span>
-            </span>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
-              <span className="block h-full rounded-full" style={{ width: `${item.score}%`, background: item.score >= 75 ? 'var(--color-success)' : item.score >= 55 ? 'var(--color-warning)' : 'var(--color-danger)' }} />
-            </div>
-            <span className="mt-2 block truncate text-[11px] text-[var(--color-muted)]">{item.detail}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function costStatusText(status: string) {
-  if (status === 'complete') return '完整'
-  if (status === 'missing') return '缺失'
-  if (status === 'not_evaluated') return '未复核'
-  return '待补数据'
 }

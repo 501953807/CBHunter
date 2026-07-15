@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Download, Film, Image, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent } from '../../components/ui/Card'
+import { Badge } from '../../components/ui/Badge'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/Toast'
 import {
@@ -133,8 +134,14 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
     }
   }
 
+  const productAssets = product ? assets.filter(asset => String(asset.extra?.content_item_id || '') === product.id) : []
+  const productImageAssets = productAssets.filter(asset => asset.asset_type === 'image')
+  const productVideoAssets = productAssets.filter(asset => asset.asset_type === 'video')
+
   return (
     <div className="space-y-4">
+      <ListingMediaSlotBoard product={product || null} productImageAssets={productImageAssets} productVideoAssets={productVideoAssets} onUseSourceImage={runSourceImageEdit} loading={loading} />
+
       <section aria-label="素材商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
         {product?.image_url ? (
           <img src={productImageSrc(product.image_url)} alt={product.product_name} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
@@ -221,6 +228,114 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets, onUseSourceImage, loading }: {
+  product: ContentWorkbenchItem | null
+  productImageAssets: ContentAsset[]
+  productVideoAssets: ContentAsset[]
+  onUseSourceImage: () => void
+  loading: boolean
+}) {
+  const media = product?.media_readiness
+  const captured = media?.captured_image_count ?? (product?.image_url ? 1 : 0)
+  const minImages = media?.min_platform_images ?? 5
+  const recommendedImages = media?.recommended_platform_images ?? 9
+  const missing = Math.max(0, minImages - captured)
+  const mediaGaps = media?.gaps || []
+  const slotCount = Math.max(recommendedImages, minImages, 5)
+  const sourceImageUsed = Boolean(product?.image_url)
+  const imageSlots = Array.from({ length: slotCount }).map((_, index) => {
+    const slotNo = index + 1
+    const processedAsset = productImageAssets[index - 1]
+    const isMain = index === 0
+    const hasKnownImage = isMain ? sourceImageUsed : captured > index
+    return {
+      id: `slot-${slotNo}`,
+      label: isMain ? '主图' : `辅图 ${index}`,
+      role: isMain ? '搜索页首图 / 商品页主图' : slotNo <= 5 ? '核心卖点辅图' : '场景/尺寸/细节补充',
+      imageUrl: isMain ? product?.image_url : null,
+      status: hasKnownImage ? processedAsset ? '已处理素材' : '已采集未预览' : slotNo <= minImages ? '必补图片' : '建议补充',
+      assetLabel: processedAsset?.original_name || '',
+      required: slotNo <= minImages,
+    }
+  })
+
+  return (
+    <section aria-label="Listing 图片槽位工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 媒体素材</p>
+            <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">平台图片槽位与素材门禁</h3>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--color-muted)]">
+              按电商后台的主图、辅图、视频素材来管理当前商品；没有真实图片 URL 的位置只显示槽位状态，不使用假图替代。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant={missing === 0 ? 'success' : 'warning'}>图片 {captured}/{minImages}</Badge>
+            <Badge variant={productVideoAssets.length ? 'success' : 'default'}>视频素材 {productVideoAssets.length}</Badge>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <MediaHealthCard label="最低图片" value={`${minImages} 张`} detail="发布基础门槛" />
+          <MediaHealthCard label="建议图片" value={`${recommendedImages} 张`} detail="覆盖卖点、场景、尺寸、细节" />
+          <MediaHealthCard label="当前缺口" value={missing ? `${missing} 张` : '已达标'} detail={mediaGaps[0] || '数量基础达标，继续检查图片质量'} warning={missing > 0 || mediaGaps.length > 0} />
+          <MediaHealthCard label="处理素材" value={`${productImageAssets.length} 图 / ${productVideoAssets.length} 视频`} detail="仅统计绑定当前商品的素材" />
+        </div>
+      </div>
+
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="p-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+            {imageSlots.map(slot => (
+              <div key={slot.id} className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+                <div className="relative">
+                  {slot.imageUrl ? (
+                    <img src={productImageSrc(slot.imageUrl)} alt={`${product?.product_name || '商品'}${slot.label}`} className="aspect-square w-full object-cover" />
+                  ) : (
+                    <div className="grid aspect-square place-items-center bg-[var(--color-surface)] text-xs text-[var(--color-muted)]">
+                      {slot.required ? '待补真实图片' : '建议补图'}
+                    </div>
+                  )}
+                  <span className="absolute left-2 top-2 rounded-full bg-[var(--color-surface)]/95 px-2 py-1 text-[11px] font-medium text-[var(--color-fg)] shadow-[var(--shadow-sm)]">{slot.label}</span>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-[var(--color-fg)]">{slot.status}</p>
+                    {slot.required && <span className="rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-[10px] text-[var(--color-warning)]">必需</span>}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--color-muted)]">{slot.assetLabel || slot.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <aside aria-label="Listing 图片处理动作" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 xl:border-l xl:border-t-0">
+          <p className="text-xs font-semibold text-[var(--color-fg)]">图片处理动作</p>
+          <div className="mt-3 grid gap-2 text-xs text-[var(--color-muted)]">
+            <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">主图优先处理为 1:1 白底或干净背景，避免文字、水印和无关拼贴。</p>
+            <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">辅图覆盖细节、尺寸、使用场景、包装配件和卖点对比。</p>
+            <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">短视频素材用于 TikTok Shop 和内容分发，不替代主图数量要求。</p>
+          </div>
+          <Button className="mt-4 w-full" onClick={onUseSourceImage} disabled={!product?.image_url || loading}>
+            <SlidersHorizontal className="mr-1 h-4 w-4" />处理当前主图
+          </Button>
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function MediaHealthCard({ label, value, detail, warning }: { label: string; value: string; detail: string; warning?: boolean }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
+      <p className={warning ? 'mt-1 text-sm font-semibold text-[var(--color-warning)]' : 'mt-1 text-sm font-semibold text-[var(--color-fg)]'}>{value}</p>
+      <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{detail}</p>
     </div>
   )
 }

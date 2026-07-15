@@ -49,7 +49,7 @@ export function BusinessFlowQueuePanel({ items, stages, currentUsername, onStage
 
   const exportQueue = () => {
     if (filteredItems.length === 0) return
-    const rows = [['商品/候选', '生命周期', '阶段', '负责人', '任务状态', '来源', '平台', '市场', '信号', '证据完整度', '缺口'], ...filteredItems.map((item) => [
+    const rows = [['商品/候选', '生命周期', '阶段', '负责人', '任务状态', '来源', '平台', '市场', '信号', '资料完整度', '缺口'], ...filteredItems.map((item) => [
       item.name, item.lifecycle_label, item.stage_name, item.assigned_to || '', item.task_status || '', item.source, item.platform || '', item.market || '', item.signal, `${item.evidence_summary.present}/${item.evidence_summary.total}`, item.gaps.join('；'),
     ])]
     const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
@@ -132,7 +132,7 @@ export function BusinessFlowQueuePanel({ items, stages, currentUsername, onStage
               <th className="py-2 text-left">商品/候选</th>
               <th className="py-2 text-left">业务状态</th>
               <th className="py-2 text-left">阶段</th>
-              <th className="py-2 text-left">证据</th>
+              <th className="py-2 text-left">资料完整度</th>
               <th className="py-2 text-left">责任</th>
               <th className="py-2 text-left">缺口</th>
               <th className="py-2 text-left">动作</th>

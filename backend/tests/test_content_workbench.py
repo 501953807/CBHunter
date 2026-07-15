@@ -362,19 +362,22 @@ def test_content_task_matrix_tracks_versions_and_manual_confirmation(tmp_path):
             "image_edit_plan",
             "video_script",
             "compliance_check",
+            "listing_store_override",
             "enhanced_content",
             "ad_creative",
             "influencer_brief",
         ]
         optional = [task for task in initial["tasks"] if not task["required_for_pricing"]]
-        assert [task["task_type"] for task in optional] == ["enhanced_content", "ad_creative", "influencer_brief"]
+        assert [task["task_type"] for task in optional] == ["listing_store_override", "enhanced_content", "ad_creative", "influencer_brief"]
+        override_task = next(task for task in initial["tasks"] if task["task_type"] == "listing_store_override")
+        assert override_task["requires_ai"] is False
         listing_task = next(task for task in confirmed["tasks"] if task["task_type"] == "listing_copy")
         assert listing_task["status"] == "confirmed"
         assert listing_task["version_count"] == 1
         assert listing_task["confirmed_version"] == 1
         assert listing_task["latest_version"]["content"] == "轻量编织包，适合通勤和海岛旅行。"
         assert confirmed["metrics"]["confirmed"] == 1
-        assert confirmed["metrics"]["unconfirmed"] == 9
+        assert confirmed["metrics"]["unconfirmed"] == 10
 
     asyncio.run(run_test())
 

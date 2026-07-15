@@ -16,6 +16,7 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
   const items = (Array.isArray(raw.items) ? raw.items : []).map(normalizeItem)
   const stageHealth = Array.isArray(raw.stage_health) ? raw.stage_health : buildStageHealth(stages, items)
   const productPipeline = Array.isArray(raw.product_pipeline) ? raw.product_pipeline : buildPipeline(stages, items)
+  const emptySnapshot = { items: 0, blocked: 0, data_required: 0, ready: 0 }
   const pendingQueue = Array.isArray(raw.pending_queue) ? raw.pending_queue.map(normalizeItem) : items.filter((item: BusinessFlowBusItem) => item.status !== 'ready')
   const currentContext = raw.current_context ? normalizeItem(raw.current_context) : pendingQueue[0] || productPipeline.find((lane: BusinessFlowPipelineLane) => lane.items.length > 0)?.items[0] || null
   return {
@@ -24,6 +25,25 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
     current_username: raw.current_username ?? null,
     stages,
     items,
+    flow_stage_matrix: Array.isArray(raw.flow_stage_matrix) ? raw.flow_stage_matrix : buildFlowStageMatrix(items),
+    flow_store_matrix: Array.isArray(raw.flow_store_matrix) ? raw.flow_store_matrix : [],
+    flow_platform_matrix: Array.isArray(raw.flow_platform_matrix) ? raw.flow_platform_matrix : [],
+    comparison: {
+      current: { ...emptySnapshot, ...(raw.comparison?.current || {}) },
+      previous: raw.comparison?.previous ? { ...emptySnapshot, ...raw.comparison.previous } : null,
+      last_year: raw.comparison?.last_year ? { ...emptySnapshot, ...raw.comparison.last_year } : null,
+      rates: {
+        items_mom_pct: raw.comparison?.rates?.items_mom_pct ?? null,
+        items_yoy_pct: raw.comparison?.rates?.items_yoy_pct ?? null,
+        blocked_mom_pct: raw.comparison?.rates?.blocked_mom_pct ?? null,
+        blocked_yoy_pct: raw.comparison?.rates?.blocked_yoy_pct ?? null,
+      },
+      windows: {
+        current: raw.comparison?.windows?.current || '',
+        previous: raw.comparison?.windows?.previous || '',
+        last_year: raw.comparison?.windows?.last_year || '',
+      },
+    },
     stage_health: stageHealth,
     product_pipeline: productPipeline,
     pending_queue: pendingQueue,
@@ -48,6 +68,44 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
   }
 }
 
+function buildFlowStageMatrix(items: BusinessFlowBusItem[]): BusinessFlowOverview['flow_stage_matrix'] {
+  const stages = [
+    ['signal_capture', '信号收集', '/scout/sources'],
+    ['candidate_validation', '候选验证', '/scout'],
+    ['selection_decision', '选品决策', '/profit'],
+    ['listing_creation', 'Listing 制作', '/content'],
+    ['pricing_strategy', '定价策略', '/pricing'],
+    ['platform_publish', '平台刊登', '/publish'],
+    ['fulfillment', '订单履约', '/orders'],
+    ['optimization', '运营优化', '/growth'],
+  ] as const
+  return stages.map(([key, label, route]) => {
+    const stageItems = items.filter((item) => v5StageKey(item) === key)
+    return {
+      key,
+      label,
+      route,
+      object_count: stageItems.length,
+      blocked: stageItems.filter((item) => item.status === 'blocked').length,
+      data_required: stageItems.filter((item) => item.status === 'data_required').length,
+      ready: stageItems.filter((item) => item.status === 'ready').length,
+      avg_wait_hours: null,
+    }
+  })
+}
+
+function v5StageKey(item: BusinessFlowBusItem) {
+  if (item.lifecycle_status === 'signal_captured') return 'signal_capture'
+  if (item.lifecycle_status === 'candidate_validating') return 'candidate_validation'
+  if (item.lifecycle_status === 'decision_pending' || item.lifecycle_status === 'decision_passed') return 'selection_decision'
+  if (item.lifecycle_status === 'content_required' || item.lifecycle_status === 'content_ready') return 'listing_creation'
+  if (item.lifecycle_status === 'pricing_required' || item.lifecycle_status === 'price_confirmed') return 'pricing_strategy'
+  if (['listing_ready', 'draft_created', 'published'].includes(item.lifecycle_status)) return 'platform_publish'
+  if (item.stage_key === 'fulfillment') return 'fulfillment'
+  if (item.stage_key === 'optimization') return 'optimization'
+  return 'signal_capture'
+}
+
 function normalizeStage(stage: Partial<BusinessFlowStage> & { data_gaps?: string[] }): BusinessFlowStage {
   const gaps = Array.isArray(stage.gaps) ? stage.gaps : Array.isArray(stage.data_gaps) ? stage.data_gaps : []
   return {
@@ -61,7 +119,7 @@ function normalizeStage(stage: Partial<BusinessFlowStage> & { data_gaps?: string
     gaps,
     next_action: stage.next_action || '前往处理',
     source_refs: Array.isArray(stage.source_refs) ? stage.source_refs : [],
-    evidence_window: stage.evidence_window || '证据窗口待补',
+    evidence_window: stage.evidence_window || '数据范围待补',
   }
 }
 
@@ -77,7 +135,7 @@ function normalizeItem(item: any): BusinessFlowBusItem {
     work_item_id: item.work_item_id || `${item.type || 'business_item'}:${item.id || 'unknown'}`,
     object_refs: Array.isArray(item.object_refs) ? item.object_refs : [{ type: item.type || 'business_item', id: item.id || 'unknown', label: item.name || item.title || '未命名商品对象' }],
     lifecycle_status: item.lifecycle_status || (status === 'blocked' ? 'blocked' : status === 'ready' ? 'decision_passed' : 'candidate_validating'),
-    lifecycle_label: item.lifecycle_label || (status === 'blocked' ? '流程阻塞' : status === 'ready' ? '可推进' : '待补证据'),
+    lifecycle_label: item.lifecycle_label || (status === 'blocked' ? '流程阻塞' : status === 'ready' ? '可推进' : '待补资料'),
     evidence_completeness: item.evidence_completeness || Object.fromEntries(evidenceKeys.map((key) => [key, key === 'risk' && item.source_refs?.length ? 'present' : 'missing'])),
     evidence_summary: evidenceSummary,
     stage_key: item.stage_key || 'selection',
@@ -92,6 +150,8 @@ function normalizeItem(item: any): BusinessFlowBusItem {
     source_refs: Array.isArray(item.source_refs) ? item.source_refs : [],
     platform: item.platform ?? null,
     market: item.market ?? null,
+    platform_account_id: item.platform_account_id ?? null,
+    account_name: item.account_name ?? null,
     task_id: item.task_id ?? null,
     task_status: item.task_status ?? null,
     assigned_to: item.assigned_to ?? null,

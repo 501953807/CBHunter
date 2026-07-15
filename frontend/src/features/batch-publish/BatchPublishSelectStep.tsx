@@ -71,6 +71,12 @@ export function BatchPublishSelectStep({
   const platformLabelMap = new Map(platforms.map(platform => [platform.id, platform.label]))
   const storeLabelMap = new Map(stores.map(store => [store.id, `${store.account_name} · ${store.platform.toUpperCase()}${store.shop_id ? ` · ${store.shop_id}` : ''}`]))
   const visibleStores = stores.filter(store => selectedPlatforms.size === 0 || selectedPlatforms.has(store.platform))
+  const readinessRows = items.map(item => publishReadiness(item, selectedPlatforms, selectedMarkets, selectedStores))
+  const readyRows = readinessRows.filter(row => row.ready).length
+  const blockedRows = readinessRows.length - readyRows
+  const mediaBlockedRows = readinessRows.filter(row => !row.mediaReady).length
+  const fieldBlockedRows = readinessRows.filter(row => !row.fieldReady).length
+  const targetBlockedRows = readinessRows.filter(row => !row.targetReady).length
   const platformRequirementsForSelection = (item: PublishableItem) => {
     if (selectedPlatformsList.length === 0) {
       return [{ platform: '', label: '未选择平台', requirements: item.platformRequirements }]
@@ -83,15 +89,21 @@ export function BatchPublishSelectStep({
   }
 
   return (
-    <div className="space-y-6">
+    <section aria-label="发布队列主工作台" className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="space-y-4 pt-4">
           <div className="flex items-center gap-2 mb-3">
             <Package className="w-4 h-4 text-[var(--color-primary)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">选择产品</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">发布就绪商品队列</h3>
             <span className="text-xs text-[var(--color-muted)]">已选 {selectedItems.size} / {items.length}</span>
           </div>
-          <div className="max-h-80 overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
+          <section aria-label="发布门禁总览" className="grid gap-3 md:grid-cols-4">
+            <PublishGateCard label="可生成草稿" value={`${readyRows}`} detail={`阻断 ${blockedRows}`} ok={blockedRows === 0} />
+            <PublishGateCard label="图片门禁" value={mediaBlockedRows ? `缺 ${mediaBlockedRows}` : '通过'} detail="平台最低图片数量" ok={mediaBlockedRows === 0} />
+            <PublishGateCard label="字段门禁" value={fieldBlockedRows ? `缺 ${fieldBlockedRows}` : '通过'} detail="平台必填属性" ok={fieldBlockedRows === 0} />
+            <PublishGateCard label="目标归属" value={targetBlockedRows ? `缺 ${targetBlockedRows}` : '通过'} detail="平台/市场/店铺" ok={targetBlockedRows === 0} />
+          </section>
+          <div className="max-h-[calc(100vh-340px)] overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
             <table className="professional-table w-full text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
@@ -109,6 +121,7 @@ export function BatchPublishSelectStep({
               const requirementsBySelection = platformRequirementsForSelection(item)
               const mediaReadiness = item.mediaReadiness
               const mediaGaps = mediaReadiness?.gaps || []
+              const readiness = publishReadiness(item, selectedPlatforms, selectedMarkets, selectedStores)
               return (
                 <tr
                   key={item.key}
@@ -170,9 +183,7 @@ export function BatchPublishSelectStep({
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    {item.disabledReason
-                      ? <span className="text-[var(--color-warning)]">{item.disabledReason}</span>
-                      : <span className="text-[var(--color-success)]">可生成草稿</span>}
+                    <PublishGateStack readiness={readiness} disabledReason={item.disabledReason} />
                   </td>
                 </tr>
               )
@@ -184,6 +195,7 @@ export function BatchPublishSelectStep({
         </CardContent>
       </Card>
 
+      <aside aria-label="目标平台店铺操作区" className="space-y-4 xl:sticky xl:top-24 xl:self-start">
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center gap-2 mb-3">
@@ -304,8 +316,73 @@ export function BatchPublishSelectStep({
             : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
         </button>
       </div>
+      </aside>
+    </section>
+  )
+}
+
+function publishReadiness(
+  item: PublishableItem,
+  selectedPlatforms: Set<string>,
+  selectedMarkets: Set<string>,
+  selectedStores: Set<string>,
+) {
+  const captured = item.mediaReadiness?.captured_image_count ?? (item.imageUrl ? 1 : 0)
+  const minImages = item.mediaReadiness?.min_platform_images ?? 5
+  const mediaReady = captured >= minImages
+  const requirements = item.platformRequirements
+  const requiredAttrs = requirements?.required_attributes || []
+  const attrValues = requirements?.attribute_values || {}
+  const missingAttrs = requiredAttrs.filter(attr => !hasAttributeValue(attrValues[attr]))
+  const fieldReady = requiredAttrs.length > 0 && missingAttrs.length === 0
+  const priceReady = item.sellingPrice != null || item.costPrice != null
+  const targetReady = selectedPlatforms.size > 0 && selectedMarkets.size > 0 && selectedStores.size > 0
+  const ready = mediaReady && fieldReady && priceReady && targetReady && !item.disabled
+  return {
+    ready,
+    mediaReady,
+    fieldReady,
+    priceReady,
+    targetReady,
+    missingAttrs,
+    mediaLabel: `图 ${captured}/${minImages}`,
+  }
+}
+
+function PublishGateCard({ label, value, detail, ok }: { label: string; value: string; detail: string; ok: boolean }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
+      <p className={ok ? 'mt-1 text-lg font-semibold text-[var(--color-success)]' : 'mt-1 text-lg font-semibold text-[var(--color-warning)]'}>{value}</p>
+      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{detail}</p>
     </div>
   )
+}
+
+function PublishGateStack({ readiness, disabledReason }: { readiness: ReturnType<typeof publishReadiness>; disabledReason?: string }) {
+  if (disabledReason) return <span className="text-[var(--color-warning)]">{disabledReason}</span>
+  return (
+    <div className="grid gap-1" aria-label="发布门禁状态">
+      <GatePill label="媒体" ok={readiness.mediaReady} detail={readiness.mediaLabel} />
+      <GatePill label="字段" ok={readiness.fieldReady} detail={readiness.missingAttrs.length ? `缺 ${readiness.missingAttrs.length}` : '通过'} />
+      <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '可试算' : '待补'} />
+      <GatePill label="目标" ok={readiness.targetReady} detail={readiness.targetReady ? '已选' : '待选'} />
+    </div>
+  )
+}
+
+function GatePill({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
+  return (
+    <span className={ok ? 'inline-flex items-center justify-between gap-2 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-[11px] text-[var(--color-success)]' : 'inline-flex items-center justify-between gap-2 rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-[11px] text-[var(--color-warning)]'}>
+      <span>{label}</span>
+      <span>{detail}</span>
+    </span>
+  )
+}
+
+function hasAttributeValue(value: unknown) {
+  if (Array.isArray(value)) return value.length > 0
+  return value !== undefined && value !== null && String(value).trim() !== ''
 }
 
 function ItemTargetContext({

@@ -8,11 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.ai_suggestion import AISuggestion
 from app.models.competitor_product import CompetitorProduct
 from app.models.inventory_alert import InventoryAlertLog
+from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.order import Order
 from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.models.sourcing_item import SourcingItem
 from app.services.evidence_service import evidence_payload, source_ref, unique_refs
+from app.services.cockpit_scope import finance_summary_from_entries
 
 
 async def build_cockpit_center_summaries(
@@ -23,6 +25,7 @@ async def build_cockpit_center_summaries(
     orders: list[Order],
     listings: list[PlatformListing],
     alerts: list[InventoryAlertLog],
+    ledger_entries: list[FinanceLedgerEntry],
     competitors: list[CompetitorProduct],
     suggestions: list[AISuggestion],
     anomalies: list[dict],
@@ -32,7 +35,7 @@ async def build_cockpit_center_summaries(
     accounts = await _load_accounts(db, store_ids)
     sourcing_items = await _load_sourcing_items(db, user_id)
     return {
-        "store_matrix": _store_matrix_section(accounts, orders, listings, now),
+        "store_matrix": _store_matrix_section(accounts, orders, listings, ledger_entries, now),
         "risk_summary": _risk_summary_section(alerts, competitors, suggestions, anomalies, orders, sections, now),
         "flow_summary": _flow_summary_section(sourcing_items, orders, listings, suggestions, anomalies, sections, now),
     }
@@ -59,12 +62,18 @@ def _store_matrix_section(
     accounts: list[PlatformAccount],
     orders: list[Order],
     listings: list[PlatformListing],
+    ledger_entries: list[FinanceLedgerEntry],
     now: datetime,
 ) -> dict:
     items = []
     for account in accounts:
         account_orders = [item for item in orders if item.platform_account_id == account.id]
         account_listings = [item for item in listings if item.platform_account_id == account.id]
+        account_ledger_entries = [
+            item for item in ledger_entries
+            if isinstance(item.extra, dict) and item.extra.get("platform_account_id") == account.id
+        ]
+        account_finance = finance_summary_from_entries(account_ledger_entries)
         settings = account.settings if isinstance(account.settings, dict) else {}
         items.append({
             "id": account.id,
@@ -75,6 +84,11 @@ def _store_matrix_section(
             "order_count": len(account_orders),
             "active_listings": len(account_listings),
             "revenue_by_currency": _revenue_by_currency(account_orders),
+            "ledger_entry_count": account_finance["entry_count"],
+            "revenue_rmb": account_finance["total_revenue_rmb"],
+            "cost_rmb": account_finance["total_cost_rmb"],
+            "net_profit_rmb": account_finance["net_profit_rmb"],
+            "profit_margin_pct": account_finance["profit_margin_pct"],
             "last_sync_at": _iso(account.last_sync_at),
         })
     refs = [
@@ -86,13 +100,20 @@ def _store_matrix_section(
         records=accounts,
         refs=refs,
         evidence_window=f"当前平台店铺快照，生成于 {_iso(now)}",
-        confidence_reason=f"基于 {len(accounts)} 个可访问平台店铺、订单和 Listing 聚合。",
+        confidence_reason=f"基于 {len(accounts)} 个可访问平台店铺、订单、Listing 和明确绑定店铺的财务台账聚合。",
         metrics={
             "store_count": len(accounts),
             "active_store_count": sum(1 for item in accounts if item.is_active),
             "platform_count": len({item.platform for item in accounts}),
             "order_count": sum(item["order_count"] for item in items),
             "active_listings": sum(item["active_listings"] for item in items),
+            "ledger_entry_count": sum(item["ledger_entry_count"] for item in items),
+            "total_revenue_rmb": _sum_optional(item["revenue_rmb"] for item in items),
+            "total_cost_rmb": _sum_optional(item["cost_rmb"] for item in items),
+            "net_profit_rmb": _profit_from_totals(
+                _sum_optional(item["revenue_rmb"] for item in items),
+                _sum_optional(item["cost_rmb"] for item in items),
+            ),
         },
         items=items,
         gaps=gaps,
@@ -254,6 +275,19 @@ def _revenue_by_currency(orders: list[Order]) -> list[dict]:
         bucket["orders"] += 1
         bucket["revenue"] = round(bucket["revenue"] + order.total, 2)
     return list(buckets.values())
+
+
+def _sum_optional(values) -> float | None:
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    return round(sum(present), 2)
+
+
+def _profit_from_totals(revenue: float | None, cost: float | None) -> float | None:
+    if revenue is None or cost is None:
+        return None
+    return round(revenue - cost, 2)
 
 
 def _risk_gaps(sections: dict) -> list[str]:

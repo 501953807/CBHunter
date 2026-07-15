@@ -180,7 +180,7 @@ export function mergeSection(primary: SourceSection, secondary: SourceSection): 
     status: primary?.status === 'ready' && secondary?.status === 'ready' ? 'ready' : 'data_required',
     source_count: (primary?.source_count ?? 0) + (secondary?.source_count ?? 0),
     source_refs: mergeSourceRefs([primary, secondary]),
-    evidence_window: `${primary?.evidence_window || '证据窗口待补'}；${secondary?.evidence_window || '证据窗口待补'}`,
+    evidence_window: `${primary?.evidence_window || '数据范围待补'}；${secondary?.evidence_window || '数据范围待补'}`,
     gaps: [...(primary?.gaps ?? []), ...(secondary?.gaps ?? [])],
     actions: [...(primary?.actions || []), ...(secondary?.actions || [])],
   }

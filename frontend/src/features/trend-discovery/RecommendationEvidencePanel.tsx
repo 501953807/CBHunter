@@ -65,7 +65,7 @@ function safeTextList(value?: string[]) {
 function EvidenceChips({ item }: { item: ProductRecommendation }) {
   const entries = Object.entries(evidenceCompleteness(item))
   if (entries.length === 0) {
-    return <p className="text-xs text-[var(--color-warning)]">证据矩阵待补齐</p>
+    return <p className="text-xs text-[var(--color-warning)]">验证资料待补齐</p>
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -82,12 +82,87 @@ function EvidenceChips({ item }: { item: ProductRecommendation }) {
   )
 }
 
-function RecommendationCard({ item, onDecide }: { item: ProductRecommendation; onDecide: (item: ProductRecommendation) => void }) {
+function CandidatePoolTable({
+  items,
+  selectedRecommendationId,
+  onSelect,
+  onDecide,
+}: {
+  items: ProductRecommendation[]
+  selectedRecommendationId: string
+  onSelect: (id: string) => void
+  onDecide: (item: ProductRecommendation) => void
+}) {
+  return (
+    <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
+        <table aria-label="候选商品池主表" className="w-full min-w-[760px] text-left text-xs">
+          <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
+            <tr>
+              <th className="px-3 py-2 font-medium">候选商品</th>
+              <th className="px-3 py-2 font-medium">目标平台/市场</th>
+              <th className="px-3 py-2 font-medium">需求</th>
+              <th className="px-3 py-2 font-medium">利润</th>
+              <th className="px-3 py-2 font-medium">竞品</th>
+              <th className="px-3 py-2 font-medium">资料完整度</th>
+              <th className="px-3 py-2 font-medium">综合分</th>
+              <th className="px-3 py-2 text-right font-medium">动作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const summary = evidenceSummary(item)
+              const active = item.work_item_id === selectedRecommendationId
+              return (
+                <tr
+                  key={item.work_item_id}
+                  onClick={() => onSelect(item.work_item_id)}
+                  className={active ? 'border-t border-[var(--color-border)] bg-[var(--color-primary-light)]' : 'border-t border-[var(--color-border)] transition hover:bg-[var(--color-bg)]'}
+                >
+                  <td className="max-w-[240px] px-3 py-3">
+                    <button className="block w-full text-left" onClick={() => onSelect(item.work_item_id)}>
+                      <span className="block truncate font-semibold text-[var(--color-fg)]">{item.product_name}</span>
+                      <span className="mt-1 block truncate text-[11px] text-[var(--color-muted)]">{item.lifecycle_label || item.work_item_id}</span>
+                    </button>
+                  </td>
+                  <td className="px-3 py-3 text-[var(--color-muted)]">{item.target_platform || '平台待选'} / {item.target_market || '市场待选'}</td>
+                  <td className="px-3 py-3 text-[var(--color-fg)]">{item.demand_level}</td>
+                  <td className="px-3 py-3 text-[var(--color-fg)]">{item.profit_potential}</td>
+                  <td className="px-3 py-3 text-[var(--color-fg)]">{item.competition_level}</td>
+                  <td className="px-3 py-3">
+                    <span className={summary.missing > 0 ? 'text-[var(--color-warning)]' : 'text-[var(--color-success)]'}>
+                      {summary.present}/{summary.total}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className="font-semibold" style={{ color: decisionTone(item.decision_level) }}>{item.score}</span>
+                    <span className="ml-1 text-[11px] text-[var(--color-muted)]">{item.decision_label}</span>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      onClick={(event) => { event.stopPropagation(); onDecide(item) }}
+                      className="rounded-md border border-[var(--color-primary)] px-2 py-1 text-[11px] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+                    >
+                      进入选品决策
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <CandidateDetailSidebar item={items.find((item) => item.work_item_id === selectedRecommendationId) || items[0]} onDecide={onDecide} />
+    </div>
+  )
+}
+
+function CandidateDetailSidebar({ item, onDecide }: { item: ProductRecommendation; onDecide: (item: ProductRecommendation) => void }) {
   const summary = evidenceSummary(item)
   const keywords = safeTextList(item.keywords)
   const listingTips = safeTextList(item.listing_tips)
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 hover:shadow-sm transition-shadow">
+    <aside className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:sticky 2xl:top-24 2xl:self-start" aria-label="候选详情侧栏">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -108,15 +183,15 @@ function RecommendationCard({ item, onDecide }: { item: ProductRecommendation; o
         </div>
         <div className="text-right">
           <p className="text-lg font-semibold text-[var(--color-fg)]">{item.score}</p>
-          <p className="text-[11px] text-[var(--color-muted)]">证据评分</p>
+          <p className="text-[11px] text-[var(--color-muted)]">综合评分</p>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 md:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <Metric label="需求" value={item.demand_level} />
         <Metric label="利润" value={item.profit_potential} />
         <Metric label="竞品" value={item.competition_level} />
-        <Metric label="证据" value={`${summary.present}/${summary.total}`} />
+        <Metric label="资料完整度" value={`${summary.present}/${summary.total}`} />
       </div>
 
       <ProductContext item={item} />
@@ -150,7 +225,7 @@ function RecommendationCard({ item, onDecide }: { item: ProductRecommendation; o
           ))}
         </div>
       )}
-    </div>
+    </aside>
   )
 }
 
@@ -163,7 +238,7 @@ function ProductContext({ item }: { item: ProductRecommendation }) {
     ['趋势方向', context.trend?.trend_direction || (context.trend?.seasonal ? 'seasonal' : '未标记')],
     ['平台均价', formatValue(context.pricing?.avg_price_local)],
     ['采购价', context.pricing?.suggested_sourcing_price_rmb || '待补'],
-    ['证据源', `${context.evidence?.source_ref_count || 0} 个`],
+    ['来源记录', `${context.evidence?.source_ref_count || 0} 个`],
   ]
 
   return (
@@ -178,7 +253,7 @@ function ProductContext({ item }: { item: ProductRecommendation }) {
       </div>
       {context.evidence?.evidence_window && (
         <p className="mt-2 text-[11px] text-[var(--color-muted)]">
-          证据窗口：{context.evidence.evidence_window}
+          数据范围：{context.evidence.evidence_window}
         </p>
       )}
     </div>
@@ -206,6 +281,7 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
   const [platform, setPlatform] = useState('')
   const [market, setMarket] = useState('')
   const [bundle, setBundle] = useState<RecommenderBundle | null>(null)
+  const [selectedRecommendationId, setSelectedRecommendationId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -222,7 +298,7 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
     getRecommendations(platform, market).then((response) => {
       if (!cancelled) setBundle(response.data || null)
     }).catch((e: any) => {
-      logger.error('真实证据推荐加载失败', e)
+      logger.error('推荐候选商品加载失败', e)
       if (!cancelled) setError(e?.response?.data?.detail || e?.message || '加载失败')
     }).finally(() => {
       if (!cancelled) setLoading(false)
@@ -231,6 +307,16 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
   }, [market, platform])
 
   const recommendations = bundle?.recommendations || []
+  useEffect(() => {
+    if (recommendations.length === 0) {
+      setSelectedRecommendationId('')
+      return
+    }
+    if (!recommendations.some((item) => item.work_item_id === selectedRecommendationId)) {
+      setSelectedRecommendationId(recommendations[0].work_item_id)
+    }
+  }, [recommendations, selectedRecommendationId])
+
   const openDecision = (item: ProductRecommendation) => {
     navigate(`/product-selection?candidate_id=${encodeURIComponent(item.work_item_id)}&platform=${encodeURIComponent(item.target_platform || platform)}&market=${encodeURIComponent(item.target_market || market)}`)
   }
@@ -241,7 +327,7 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto flex items-center gap-2">
             <PackageSearch className="h-4 w-4 text-[var(--color-primary)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">真实证据推荐候选</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">推荐候选商品</h3>
           </div>
           <select value={platform} onChange={(e) => setPlatform(e.target.value)}
             className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-fg)]">
@@ -257,7 +343,7 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
-            <Database className="h-4 w-4 animate-pulse" /> 正在读取真实证据并生成候选推荐...
+            <Database className="h-4 w-4 animate-pulse" /> 正在读取真实来源并生成候选推荐...
           </div>
         )}
         {error && (
@@ -268,7 +354,7 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
         {!loading && !error && bundle?.status === 'data_required' && (
           <div className="flex items-start gap-2 text-xs text-[var(--color-warning)]">
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{bundle.note || '真实证据不足，暂不能生成推荐。'}</span>
+            <span>{bundle.note || '真实来源不足，暂不能生成推荐。'}</span>
           </div>
         )}
         {!loading && !error && recommendations.length > 0 && (
@@ -278,11 +364,12 @@ export function RecommendationEvidencePanel({ dict }: { dict: DictShape }) {
               <span>高需求 {bundle?.high_demand_count || 0}</span>
               <span>高利润 {bundle?.high_profit_count || 0}</span>
             </div>
-            <div className="space-y-2">
-              {recommendations.slice(0, 6).map((item) => (
-                <RecommendationCard key={item.work_item_id} item={item} onDecide={openDecision} />
-              ))}
-            </div>
+            <CandidatePoolTable
+              items={recommendations.slice(0, 12)}
+              selectedRecommendationId={selectedRecommendationId || recommendations[0].work_item_id}
+              onSelect={setSelectedRecommendationId}
+              onDecide={openDecision}
+            />
           </>
         )}
       </CardContent>

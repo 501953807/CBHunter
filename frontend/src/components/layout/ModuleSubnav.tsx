@@ -17,10 +17,8 @@ const sections: ModuleSubnavSection[] = [
     label: '品源与选品',
     match: ['/scout', '/smart', '/profit'],
     items: [
-      { to: '/scout/sources', label: '四层信号' },
-      { to: '/scout', label: '趋势与候选' },
-      { to: '/smart/radar', label: '关键词雷达' },
-      { to: '/smart/cross', label: '供应交叉验证' },
+      { to: '/scout/sources', label: '信号捕获' },
+      { to: '/scout', label: '候选验证' },
       { to: '/profit', label: '选品决策' },
     ],
   },
@@ -118,6 +116,7 @@ export function ModuleSubnav() {
   const location = useLocation()
   const section = sections.find((candidate) => isSectionActive(location.pathname, candidate))
   if (!section || section.items.length <= 1) return null
+  if (section.label === '品源与选品') return null
   const activeTo = activeItemTo(location.pathname, location.search, section.items)
 
   return (

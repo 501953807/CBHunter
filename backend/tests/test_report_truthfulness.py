@@ -63,7 +63,7 @@ def test_report_uses_explicit_market_and_real_previous_period_comparison():
     assert {key: anomalies[0][key] for key in ("metric", "expected", "actual", "deviation_pct")} == {
         "metric": "revenue", "expected": 100, "actual": 50, "deviation_pct": 50.0,
     }
-    assert anomalies[0]["evidence_window"] == "当前报表周期与上一同等周期"
+    assert anomalies[0]["evidence_window"] == "当前报表日期范围与上一个同天数日期范围"
 
 
 def test_product_classification_uses_known_revenue_and_marks_missing_metrics():

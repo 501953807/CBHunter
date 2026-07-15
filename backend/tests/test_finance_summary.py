@@ -90,6 +90,93 @@ def test_finance_ledger_can_filter_exact_platform_store(tmp_path):
     asyncio.run(run_test())
 
 
+def test_finance_summary_and_traceback_filter_exact_platform_store(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-store-scope.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            store_a = PlatformAccount(user_id="finance-user", platform="shopee", account_name="Shopee A")
+            store_b = PlatformAccount(user_id="finance-user", platform="tiktok", account_name="TikTok B")
+            session.add_all([store_a, store_b])
+            await session.flush()
+            session.add_all([
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=500,
+                    platform="shopee",
+                    order_id="order-a",
+                    sourcing_item_id="product-a",
+                    extra={"platform_account_id": store_a.id, "account_name": "Shopee A", "product_name": "斜挎包"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="platform_fee",
+                    amount_rmb=50,
+                    platform="shopee",
+                    order_id="order-a",
+                    sourcing_item_id="product-a",
+                    extra={"platform_account_id": store_a.id, "account_name": "Shopee A", "product_name": "斜挎包"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="cash_balance",
+                    amount_rmb=900,
+                    platform="shopee",
+                    extra={"platform_account_id": store_a.id, "account_name": "Shopee A"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=900,
+                    platform="tiktok",
+                    order_id="order-b",
+                    sourcing_item_id="product-b",
+                    extra={"platform_account_id": store_b.id, "account_name": "TikTok B", "product_name": "手机支架"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="cash_balance",
+                    amount_rmb=1800,
+                    platform="tiktok",
+                    extra={"platform_account_id": store_b.id, "account_name": "TikTok B"},
+                    occurred_at=now,
+                ),
+            ])
+            await session.commit()
+
+            summary = await get_finance_summary(session, "finance-user", "daily", platform_account_id=store_a.id)
+            traceback = await get_finance_traceback(session, "finance-user", "daily", platform_account_id=store_a.id)
+
+        await engine.dispose()
+
+        assert summary["total_revenue_rmb"] == 500
+        assert summary["total_cost_rmb"] == 50
+        assert summary["net_profit_rmb"] == 450
+        assert summary["cash_balance_rmb"] == 900
+        assert summary["entry_count"] == 3
+        assert f"店铺={store_a.account_name}" in summary["evidence_window"]
+        assert traceback["summary"] == {
+            "order_count": 1,
+            "product_count": 1,
+            "store_count": 1,
+            "entry_count": 3,
+        }
+        assert traceback["by_order"][0]["order_id"] == "order-a"
+        assert traceback["by_product"][0]["product_id"] == "product-a"
+        assert traceback["by_store"][0]["store_key"] == store_a.id
+        assert all("order-b" not in str(row) for row in traceback["by_order"])
+
+    asyncio.run(run_test())
+
+
 def test_finance_summary_excludes_future_ledger_entries(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-future.db'}")
@@ -511,6 +598,10 @@ def test_platform_bill_sync_imports_adapter_records_idempotently(tmp_path):
                     shop_id="shop-1",
                     api_key_encrypted="stored-key",
                     api_secret_encrypted="stored-secret",
+                    access_token_encrypted="stored-access-token",
+                    refresh_token_encrypted="stored-refresh-token",
+                    token_expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+                    token_scopes=["finance_bills"],
                     settings={"market": "MY"},
                 )
                 session.add(account)

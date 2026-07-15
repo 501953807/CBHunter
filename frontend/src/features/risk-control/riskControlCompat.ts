@@ -6,6 +6,7 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
   const risks = Array.isArray(raw.risks) ? raw.risks : []
   const gaps = Array.isArray(raw.gaps) ? raw.gaps : Array.isArray(raw.data_gaps) ? raw.data_gaps : []
   const riskCategories = Array.isArray(raw.risk_categories) ? raw.risk_categories : []
+  const emptySnapshot = { active: 0, critical: 0, warning: 0, events: 0 }
   return {
     ...raw,
     generated_at: raw.generated_at || new Date().toISOString(),
@@ -46,9 +47,33 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
       total: Number(item.active_count || 0),
       heat_level: item.status === 'attention' ? 'warning' : item.status === 'data_required' ? 'data_required' : 'clear',
     })),
+    risk_store_matrix: Array.isArray(raw.risk_store_matrix) ? raw.risk_store_matrix : [],
+    risk_platform_matrix: Array.isArray(raw.risk_platform_matrix) ? raw.risk_platform_matrix : [],
+    comparison: {
+      current: { ...emptySnapshot, ...(raw.comparison?.current || {}) },
+      previous: { ...emptySnapshot, ...(raw.comparison?.previous || {}) },
+      last_year: { ...emptySnapshot, ...(raw.comparison?.last_year || {}) },
+      rates: {
+        active_mom_pct: raw.comparison?.rates?.active_mom_pct ?? null,
+        active_yoy_pct: raw.comparison?.rates?.active_yoy_pct ?? null,
+        critical_mom_pct: raw.comparison?.rates?.critical_mom_pct ?? null,
+        critical_yoy_pct: raw.comparison?.rates?.critical_yoy_pct ?? null,
+      },
+      windows: {
+        current: raw.comparison?.windows?.current || '',
+        previous: raw.comparison?.windows?.previous || '',
+        last_year: raw.comparison?.windows?.last_year || '',
+      },
+    },
     ai_recommendations: Array.isArray(raw.ai_recommendations) ? raw.ai_recommendations : [],
     review_records: Array.isArray(raw.review_records) ? raw.review_records : [],
-    risks,
+    risks: risks.map((risk: any) => ({
+      ...risk,
+      estimated_impact: risk.estimated_impact || '影响范围待根据关联业务记录进一步确认。',
+      response_deadline_at: risk.response_deadline_at || risk.due_at || null,
+      remaining_time_label: risk.remaining_time_label || (risk.is_overdue ? '已超期' : '未设置'),
+      sla_hours: typeof risk.sla_hours === 'number' ? risk.sla_hours : null,
+    })),
     source_refs: Array.isArray(raw.source_refs) ? raw.source_refs : [],
     gaps,
     gap_actions: Array.isArray(raw.gap_actions) ? raw.gap_actions : gaps.map((gap: string) => ({

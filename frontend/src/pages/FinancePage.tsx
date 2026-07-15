@@ -20,6 +20,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { businessActionForCode } from '../utils/businessLabels'
 import { useConfig } from '../hooks/useConfig'
 import { usePlatformStatuses } from '../hooks/usePlatforms'
+import { StoreContextBanner } from '../components/shared/StoreContextBanner'
 
 
 const PERIOD_TABS = [
@@ -48,19 +49,19 @@ export default function FinancePage() {
   const platformStatuses = platformStatusQuery.data?.data || []
 
   useEffect(() => {
-    getFinanceSummary(period)
+    getFinanceSummary(period, { platform_account_id: platformAccountId || undefined })
       .then(r => { setSummary(r.data || null); setSummaryEvidence(r) })
       .catch(e => logger.error('Load finance summary failed', e))
-    getFinanceTraceback(period)
+    getFinanceTraceback(period, { platform_account_id: platformAccountId || undefined })
       .then(r => { setTraceback(r.data || null); setTracebackEvidence(r) })
       .catch(e => logger.error('Load finance traceback failed', e))
-  }, [period])
+  }, [period, platformAccountId])
 
   const reloadSummary = () => {
-    getFinanceSummary(period)
+    getFinanceSummary(period, { platform_account_id: platformAccountId || undefined })
       .then(r => { setSummary(r.data || null); setSummaryEvidence(r) })
       .catch(e => logger.error('Reload finance summary failed', e))
-    getFinanceTraceback(period)
+    getFinanceTraceback(period, { platform_account_id: platformAccountId || undefined })
       .then(r => { setTraceback(r.data || null); setTracebackEvidence(r) })
       .catch(e => logger.error('Reload finance traceback failed', e))
   }
@@ -140,10 +141,10 @@ export default function FinancePage() {
   const movementTotals = Object.entries(settlement?.movement_totals || {}).filter(([, value]) => Number(value || 0) > 0)
   const dataRisks = [
     summary?.total_revenue_rmb == null
-      ? { level: 'medium', title: '收入台账未入账', desc: '当前周期没有销售收入台账记录。', action: businessActionForCode('sales_income') }
+      ? { level: 'medium', title: '收入台账未入账', desc: '当前筛选范围没有销售收入台账记录。', action: businessActionForCode('sales_income') }
       : null,
     totalCost == null
-      ? { level: 'medium', title: '成本台账不完整', desc: '当前周期没有可汇总成本，净利润无法计算。', action: businessActionForCode('purchase_cost') }
+      ? { level: 'medium', title: '成本台账不完整', desc: '当前筛选范围没有可汇总成本，净利润无法计算。', action: businessActionForCode('purchase_cost') }
       : null,
     !costBreakdown.purchase_cost
       ? { level: 'info', title: '采购成本缺失', desc: '采购付款尚未形成采购成本台账。', action: businessActionForCode('purchase_cost') }
@@ -161,12 +162,13 @@ export default function FinancePage() {
       <div>
         <h1 className="text-2xl font-bold text-[var(--color-fg)]">财务护卫</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>利润汇总 · 资金监控 · 风险预警</p>
-        {platformAccountId && (
-          <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            当前从经营指挥台按店铺下钻：{platformAccountId}。最近台账与平台账单同步默认使用该店铺。
-          </p>
-        )}
       </div>
+      <StoreContextBanner
+        platformAccountId={platformAccountId}
+        statuses={platformStatuses}
+        currentModule="finance"
+        clearHref="/finance"
+      />
 
       <Tabs tabs={PERIOD_TABS} activeTab={period} onChange={(tabId) => setPeriod(tabId as FinancePeriod)} />
       <EvidenceBanner evidence={summaryEvidence} />
@@ -224,7 +226,7 @@ export default function FinancePage() {
 
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-[var(--color-fg)]">周期财务结构</h2>
+          <h2 className="font-semibold text-[var(--color-fg)]">统计日期区间财务结构</h2>
         </CardHeader>
         <CardContent>
           {summary?.entry_count ? (
@@ -249,7 +251,7 @@ export default function FinancePage() {
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <p className="mb-2 text-xs text-[var(--color-muted)]">成本拆分</p>
                 {Object.entries(costBreakdown).filter(([, value]) => Number(value || 0) > 0).length === 0 ? (
-                  <p className="py-6 text-center text-xs text-[var(--color-muted)]">当前周期未形成可拆分成本台账</p>
+                  <p className="py-6 text-center text-xs text-[var(--color-muted)]">当前筛选范围未形成可拆分成本台账</p>
                 ) : Object.entries(costBreakdown).filter(([, value]) => Number(value || 0) > 0).map(([key, value]) => (
                   <div key={key} className="mb-2 flex items-center justify-between rounded-lg bg-[var(--color-surface)] px-3 py-2 text-xs">
                     <span className="text-[var(--color-muted)]">{key}</span>
@@ -474,7 +476,7 @@ export default function FinancePage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(dataRisks.length ? dataRisks : [
-              { level: 'info', title: '台账数据完整', desc: '当前周期收入、成本和资金余额已具备基础判断条件。', action: businessActionForCode('finance_ledger_entries') },
+              { level: 'info', title: '台账数据完整', desc: '当前筛选范围收入、成本和资金余额已具备基础判断条件。', action: businessActionForCode('finance_ledger_entries') },
             ]).map((risk, i) => (
               <div key={i} className={`rounded-xl p-3 border text-sm ${
                 risk.level === 'medium' ? 'border-[var(--color-warning)] bg-[var(--color-warning-light)]' :

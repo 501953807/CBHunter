@@ -337,23 +337,29 @@ async def list_entry_type_options(db: AsyncSession, user_id: str) -> list[dict]:
     return options
 
 
-async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "daily") -> dict:
+async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "daily", platform_account_id: str | None = None) -> dict:
     """Summarize real ledger entries for a period."""
     start_at = _period_start(period)
     now = datetime.now(timezone.utc)
+    account = await _get_owned_platform_account(db, user_id, platform_account_id) if platform_account_id else None
+    entry_filters = [
+        FinanceLedgerEntry.user_id == user_id,
+        FinanceLedgerEntry.occurred_at >= start_at,
+        FinanceLedgerEntry.occurred_at <= now,
+    ]
+    future_filters = [
+        FinanceLedgerEntry.user_id == user_id,
+        FinanceLedgerEntry.occurred_at > now,
+    ]
+    if platform_account_id:
+        entry_filters.append(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
+        future_filters.append(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
     result = await db.execute(
-        select(FinanceLedgerEntry).where(
-            FinanceLedgerEntry.user_id == user_id,
-            FinanceLedgerEntry.occurred_at >= start_at,
-            FinanceLedgerEntry.occurred_at <= now,
-        )
+        select(FinanceLedgerEntry).where(*entry_filters)
     )
     entries = list(result.scalars().all())
     future_count = await db.scalar(
-        select(func.count(FinanceLedgerEntry.id)).where(
-            FinanceLedgerEntry.user_id == user_id,
-            FinanceLedgerEntry.occurred_at > now,
-        )
+        select(func.count(FinanceLedgerEntry.id)).where(*future_filters)
     )
     revenue_entries = [entry for entry in entries if entry.entry_type in REVENUE_TYPES]
     cost_entries = [
@@ -369,10 +375,10 @@ async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "dai
         net_profit = round(total_revenue - total_cost, 2)
         profit_margin = round((net_profit / total_revenue) * 100, 1) if total_revenue else None
 
-    cash_balance = await _latest_cash_balance(db, user_id)
+    cash_balance = await _latest_cash_balance(db, user_id, platform_account_id=platform_account_id)
     data_gaps = []
     if not entries:
-        data_gaps.append("finance_ledger_entries")
+        data_gaps.append("finance_ledger_entries.store_scope" if platform_account_id else "finance_ledger_entries")
     if entries and not revenue_entries:
         data_gaps.append("finance_ledger_entries.revenue")
     if entries and not cost_entries:
@@ -386,7 +392,7 @@ async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "dai
     if not any(entry.entry_type in {"platform_fee", "transaction_fee", "service_fee"} for entry in entries):
         data_gaps.append("finance_ledger_entries.platform_bill")
     if future_count:
-        data_gaps.append(f"{future_count} 条未来发生日期台账未计入当前周期")
+        data_gaps.append(f"{future_count} 条未来发生日期台账未计入当前筛选日期范围")
     return {
         "period": period,
         "total_revenue_rmb": total_revenue,
@@ -405,26 +411,35 @@ async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "dai
                     entry.id,
                     field=entry.entry_type,
                     label=entry.description or entry.entry_type,
-                    meta={"source_label": "财务台账", "route": "/finance"},
+                    meta={
+                        "source_label": "财务台账",
+                        "route": f"/finance?platform_account_id={platform_account_id}" if platform_account_id else "/finance",
+                        "platform_account_id": platform_account_id,
+                        "account_name": account.account_name if account else None,
+                    },
                 )
                 for entry in entries[:20]
             ],
-            evidence_window=f"{period}:{start_at.isoformat()} 至 {now.isoformat()}",
-            confidence_reason="财务汇总只聚合已入库财务台账，不根据订单金额或成本率补造财务结论。",
+            evidence_window=f"{period}:{start_at.isoformat()} 至 {now.isoformat()}" + (f"；店铺={account.account_name}" if account else ""),
+            confidence_reason="财务汇总只聚合已入库财务台账，不根据订单金额或成本率补造财务结论；传入店铺时只统计该店铺绑定台账。",
             data_gaps=data_gaps,
         ),
     }
 
 
-async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "daily") -> dict:
+async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "daily", platform_account_id: str | None = None) -> dict:
     start_at = _period_start(period)
     now = datetime.now(timezone.utc)
+    account = await _get_owned_platform_account(db, user_id, platform_account_id) if platform_account_id else None
+    filters = [
+        FinanceLedgerEntry.user_id == user_id,
+        FinanceLedgerEntry.occurred_at >= start_at,
+        FinanceLedgerEntry.occurred_at <= now,
+    ]
+    if platform_account_id:
+        filters.append(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
     result = await db.execute(
-        select(FinanceLedgerEntry).where(
-            FinanceLedgerEntry.user_id == user_id,
-            FinanceLedgerEntry.occurred_at >= start_at,
-            FinanceLedgerEntry.occurred_at <= now,
-        )
+        select(FinanceLedgerEntry).where(*filters)
     )
     entries = list(result.scalars().all())
     by_order = _traceback_groups(entries, "order")
@@ -432,7 +447,7 @@ async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "d
     by_store = _traceback_groups(entries, "store")
     data_gaps = []
     if not entries:
-        data_gaps.append("finance_ledger_entries")
+        data_gaps.append("finance_ledger_entries.store_scope" if platform_account_id else "finance_ledger_entries")
     if entries and not any(entry.order_id for entry in entries):
         data_gaps.append("finance_ledger_entries.order_id")
     if entries and not any(entry.sourcing_item_id for entry in entries):
@@ -458,12 +473,18 @@ async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "d
                     entry.id,
                     field=entry.entry_type,
                     label=entry.description or entry.entry_type,
-                    meta={"route": "/finance", "order_id": entry.order_id, "sourcing_item_id": entry.sourcing_item_id},
+                    meta={
+                        "route": f"/finance?platform_account_id={platform_account_id}" if platform_account_id else "/finance",
+                        "order_id": entry.order_id,
+                        "sourcing_item_id": entry.sourcing_item_id,
+                        "platform_account_id": platform_account_id,
+                        "account_name": account.account_name if account else None,
+                    },
                 )
                 for entry in entries[:20]
             ],
-            evidence_window=f"{period}:{start_at.isoformat()} 至 {now.isoformat()}",
-            confidence_reason="财务回溯只按真实财务台账的订单、商品和店铺字段聚合；缺平台账单时显示缺口，不用订单金额补造利润。",
+            evidence_window=f"{period}:{start_at.isoformat()} 至 {now.isoformat()}" + (f"；店铺={account.account_name}" if account else ""),
+            confidence_reason="财务回溯只按真实财务台账的订单、商品和店铺字段聚合；传入店铺时只回溯该店铺绑定台账；缺平台账单时显示缺口，不用订单金额补造利润。",
             data_gaps=data_gaps,
         ),
     }
@@ -599,13 +620,16 @@ def _traceback_row(group_by: str, key: str, entries: list[FinanceLedgerEntry]) -
     return row
 
 
-async def _latest_cash_balance(db: AsyncSession, user_id: str) -> Optional[float]:
+async def _latest_cash_balance(db: AsyncSession, user_id: str, platform_account_id: str | None = None) -> Optional[float]:
+    filters = [
+        FinanceLedgerEntry.user_id == user_id,
+        FinanceLedgerEntry.entry_type == CASH_BALANCE_TYPE,
+    ]
+    if platform_account_id:
+        filters.append(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
     result = await db.execute(
         select(FinanceLedgerEntry.amount_rmb)
-        .where(
-            FinanceLedgerEntry.user_id == user_id,
-            FinanceLedgerEntry.entry_type == CASH_BALANCE_TYPE,
-        )
+        .where(*filters)
         .order_by(FinanceLedgerEntry.occurred_at.desc())
         .limit(1)
     )

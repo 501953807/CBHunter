@@ -10,10 +10,10 @@ import { filterPlatformsByCapability } from '../utils/platformCapabilities'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import type { PriceRecommendationData, PricingWorkbenchItem } from '../api/pricing'
 import type { ApiResponse } from '../types/common'
-import { SelectionBusinessPipeline } from '../components/shared/SelectionBusinessPipeline'
 import { businessActionForCode, labelBusinessCode } from '../utils/businessLabels'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PricingItemSelector } from '../features/pricing/PricingItemSelector'
+import { ContentListingStageRail } from '../features/content-planner/ContentListingStageRail'
 
 export default function SmartPricingPage() {
   const navigate = useNavigate()
@@ -64,7 +64,9 @@ export default function SmartPricingPage() {
       setSelectedStoreId('')
       return
     }
-    setSelectedStoreId(item.store_options[0]?.id || '')
+    const overrideStoreId = item.listing_store_override?.store_id || ''
+    const defaultStoreId = item.store_options.some(store => store.id === overrideStoreId) ? overrideStoreId : item.store_options[0]?.id || ''
+    setSelectedStoreId(defaultStoreId)
     setSourcePrice(String(item.source_price_rmb))
     setPlatform(item.platform)
     setMarket(item.market)
@@ -118,7 +120,7 @@ export default function SmartPricingPage() {
 
   return (
     <div className="space-y-6 page-enter">
-      <SelectionBusinessPipeline />
+      <ContentListingStageRail />
       <PageHeader title="智能定价" description="成本 + 费率 + 利润 = 自动推荐最优售价" />
       <EvidenceBanner evidence={evidence} />
 

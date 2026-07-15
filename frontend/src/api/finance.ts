@@ -146,13 +146,13 @@ export type FinanceEntryTypeOption = {
   source: 'dictionary' | 'history'
 }
 
-export async function getFinanceSummary(period: FinancePeriod) {
-  const res = await client.get<ApiResponse<FinanceSummary>>('/finance/summary', { params: { period } })
+export async function getFinanceSummary(period: FinancePeriod, params?: { platform_account_id?: string }) {
+  const res = await client.get<ApiResponse<FinanceSummary>>('/finance/summary', { params: { period, ...params } })
   return res.data
 }
 
-export async function getFinanceTraceback(period: FinancePeriod) {
-  const res = await client.get<ApiResponse<FinanceTraceback>>('/finance/traceback', { params: { period } })
+export async function getFinanceTraceback(period: FinancePeriod, params?: { platform_account_id?: string }) {
+  const res = await client.get<ApiResponse<FinanceTraceback>>('/finance/traceback', { params: { period, ...params } })
   return res.data
 }
 

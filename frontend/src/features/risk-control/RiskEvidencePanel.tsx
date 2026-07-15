@@ -18,12 +18,13 @@ export function RiskEvidencePanel({ risk, audits, onOpen }: Props) {
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-[var(--color-fg)]">{risk.title}</p>
             <p className="mt-1 text-xs text-[var(--color-muted)]">{risk.detail}</p>
+            <p className="mt-2 text-[11px] text-[var(--color-muted)]">预计影响：{risk.estimated_impact}</p>
             <p className="mt-2 text-[11px] text-[var(--color-muted)]">
               类型 {risk.type_label || risk.type} · 状态 {statusText(risk.status)}{risk.assigned_to ? ` · 负责人 ${risk.assigned_to}` : ''}{risk.updated_at ? ` · 更新 ${formatTime(risk.updated_at)}` : ''}
             </p>
-            {risk.due_at && (
+            {(risk.due_at || risk.response_deadline_at) && (
               <p className={risk.is_overdue ? 'mt-1 text-[11px] text-[var(--color-danger)]' : 'mt-1 text-[11px] text-[var(--color-muted)]'}>
-                预计处理 {formatTime(risk.due_at)}{risk.is_overdue ? ' · 已逾期' : ''}
+                预计处理 {formatTime(risk.due_at || risk.response_deadline_at || '')} · 剩余处理：{risk.remaining_time_label}{risk.is_overdue ? ' · 已逾期' : ''}
               </p>
             )}
           </div>
@@ -32,14 +33,14 @@ export function RiskEvidencePanel({ risk, audits, onOpen }: Props) {
           </button>
         </div>
       </div>
-      <InfoText label="证据窗口" value={risk.evidence_window || '待补充证据窗口'} />
+      <InfoText label="数据范围" value={risk.evidence_window || '待补充数据范围'} />
       <div>
-        <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">证据卡</p>
+        <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">关联业务记录</p>
         <div className="grid gap-2 md:grid-cols-2">
           {risk.source_refs.length === 0 ? (
             <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
               <Badge variant="warning">来源待补</Badge>
-              <p className="mt-2 text-[11px] text-[var(--color-muted)]">当前风险缺少可追溯来源记录，请先补齐真实业务数据。</p>
+              <p className="mt-2 text-[11px] text-[var(--color-muted)]">当前风险缺少可追溯业务记录，请先补齐真实业务数据。</p>
             </div>
           ) : risk.source_refs.slice(0, 10).map((ref) => (
             <RiskEvidenceCard key={`${ref.type}-${ref.id}`} refItem={ref} />
@@ -59,7 +60,7 @@ function RiskEvidenceCard({ refItem }: { refItem: RiskControlRisk['source_refs']
         {refItem.meta?.route && <span className="text-[11px] text-[var(--color-primary)]">可下钻</span>}
       </div>
       <p className="mt-2 truncate text-xs font-semibold text-[var(--color-fg)]">{refItem.label || '业务记录'}</p>
-      <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">原始记录编号：{refItem.id}</p>
+      <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">业务记录编号：{refItem.id}</p>
     </div>
   )
 }

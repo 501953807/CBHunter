@@ -1,4 +1,4 @@
-import { AlertTriangle, Boxes, Brain, Database, DollarSign, GitBranch, ShoppingCart, Sparkles, WalletCards } from 'lucide-react'
+import { AlertTriangle, Boxes, DollarSign, ShoppingCart, Sparkles, Store, WalletCards } from 'lucide-react'
 import type { CockpitData } from '../../types/cockpit'
 
 function amount(value: number | null) {
@@ -7,9 +7,16 @@ function amount(value: number | null) {
 
 export function CockpitMetricStrip({ data, onNavigate }: { data: CockpitData; onNavigate: (route: string) => void }) {
   const finance = data.sections.finance.metrics
-  const gaps = Object.values(data.sections).reduce((sum, section) => sum + section.gaps.length, 0)
   const metrics = [
-    { label: '近30天订单', value: String(data.sections.orders.metrics.order_count), sub: `${data.sections.reports.metrics.today_orders} 今日`, icon: ShoppingCart, route: '/orders' },
+    {
+      label: '平台店铺',
+      value: `${data.sections.store_matrix.metrics.active_store_count}/${data.sections.store_matrix.metrics.store_count}`,
+      sub: `${data.sections.store_matrix.metrics.platform_count} 个平台 · ${data.sections.store_matrix.metrics.active_listings} Listing`,
+      icon: Store,
+      route: '/platforms',
+      warning: data.sections.store_matrix.metrics.store_count === 0,
+    },
+    { label: '最近30天订单', value: String(data.sections.orders.metrics.order_count), sub: `${data.sections.reports.metrics.today_orders} 今日`, icon: ShoppingCart, route: '/orders' },
     {
       label: '台账收入',
       value: amount(finance.total_revenue_rmb),
@@ -21,14 +28,10 @@ export function CockpitMetricStrip({ data, onNavigate }: { data: CockpitData; on
     { label: '净利润', value: amount(finance.net_profit_rmb), sub: `毛利率 ${finance.profit_margin_pct == null ? '待补' : `${finance.profit_margin_pct}%`}`, icon: DollarSign, route: '/finance', danger: finance.net_profit_rmb != null && finance.net_profit_rmb < 0 },
     { label: '确认库存', value: String(data.sections.inventory.metrics.confirmed_stock), sub: `${data.sections.inventory.metrics.unknown_stock_listings} 个未知库存`, icon: Boxes, route: '/inventory-alerts', warning: data.sections.inventory.metrics.unknown_stock_listings > 0 },
     { label: '商品运营', value: String(data.sections.product_operations.metrics.diagnosed_listing_count), sub: `${data.sections.product_operations.metrics.pending_action_count} 待复盘 · ${data.sections.product_operations.metrics.reviewed_action_count} 已复盘`, icon: Sparkles, route: '/growth', warning: data.sections.product_operations.metrics.pending_action_count > 0 },
-    { label: '开放风险', value: String(data.sections.risk_summary.metrics.active_risk_count), sub: `高危 ${data.sections.risk_summary.metrics.critical} · 警告 ${data.sections.risk_summary.metrics.warning}`, icon: AlertTriangle, route: '/risk-control', danger: data.sections.risk_summary.metrics.critical > 0, warning: data.sections.risk_summary.metrics.warning > 0 },
-    { label: '链路阻塞', value: String(data.sections.flow_summary.metrics.blocked), sub: `${data.sections.flow_summary.metrics.ready}/${data.sections.flow_summary.metrics.stage_count} 阶段就绪`, icon: GitBranch, route: '/business-flow', danger: data.sections.flow_summary.metrics.blocked > 0, warning: data.sections.flow_summary.metrics.data_required > 0 },
-    { label: 'AI未读', value: String(data.sections.ai_suggestions.metrics.unread), sub: `${data.sections.ai_suggestions.metrics.critical_unread} 条紧急`, icon: Brain, route: '/ai-suggestions', danger: data.sections.ai_suggestions.metrics.critical_unread > 0 },
-    { label: '数据健康', value: data.data_status === 'ready' ? '已接入' : '待补', sub: `${gaps} 个缺口 · ${data.attention_count} 项待处理`, icon: Database, route: '/reports', warning: data.data_status !== 'ready' || gaps > 0 },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 2xl:grid-cols-9">
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 2xl:grid-cols-6">
       {metrics.map((item) => (
         <button
           key={item.label}

@@ -71,6 +71,21 @@ export interface PricingWorkbenchItem {
   market: string
   pricing_status: 'pricing_required' | 'price_confirmed'
   platform_requirements?: PlatformListingRequirements
+  listing_store_override?: {
+    schema?: string
+    store_id?: string | null
+    store_label?: string | null
+    title?: string | null
+    price?: string | null
+    currency?: string | null
+    image_urls?: string[]
+    image_count?: number
+    sku_count?: number
+    has_logistics?: boolean
+    has_compliance?: boolean
+    promotion_note?: string | null
+    override_boundary?: string | null
+  }
   pricing_confirmation?: Record<string, unknown>
   pricing_inputs?: {
     cost_rmb?: number | null

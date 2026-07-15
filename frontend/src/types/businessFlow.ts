@@ -43,6 +43,8 @@ export interface BusinessFlowItem {
   evidence_window: string
   platform: string | null
   market: string | null
+  platform_account_id?: string | null
+  account_name?: string | null
   image_url?: string | null
   source_url?: string | null
   task_id: string | null
@@ -58,6 +60,7 @@ export type BusinessFlowBusItem = Pick<BusinessFlowItem,
   | 'evidence_summary' | 'evidence_completeness' | 'stage_key' | 'stage_name' | 'status' | 'route'
   | 'next_action_route' | 'source' | 'signal' | 'next_action' | 'gaps' | 'source_refs'
   | 'platform' | 'market' | 'image_url' | 'source_url' | 'task_id' | 'task_status' | 'assigned_to' | 'is_followed' | 'priority'
+  | 'platform_account_id' | 'account_name'
 >
 
 export interface BusinessFlowStageHealth {
@@ -104,6 +107,45 @@ export interface BusinessFlowOverview {
   current_username: string | null
   stages: BusinessFlowStage[]
   items: BusinessFlowItem[]
+  flow_stage_matrix: Array<{
+    key: string
+    label: string
+    route: string
+    object_count: number
+    blocked: number
+    data_required: number
+    ready: number
+    avg_wait_hours: number | null
+  }>
+  flow_store_matrix: Array<{
+    platform_account_id: string | null
+    account_name: string
+    platform: string
+    market: string | null
+    object_count: number
+    blocked: number
+    data_required: number
+    ready: number
+  }>
+  flow_platform_matrix: Array<{
+    platform: string
+    object_count: number
+    blocked: number
+    data_required: number
+    ready: number
+  }>
+  comparison: {
+    current: { items: number; blocked: number; data_required: number; ready: number }
+    previous: { items: number; blocked: number; data_required: number; ready: number } | null
+    last_year: { items: number; blocked: number; data_required: number; ready: number } | null
+    rates: {
+      items_mom_pct: number | null
+      items_yoy_pct: number | null
+      blocked_mom_pct: number | null
+      blocked_yoy_pct: number | null
+    }
+    windows: { current: string; previous: string; last_year: string }
+  }
   stage_health: BusinessFlowStageHealth[]
   product_pipeline: BusinessFlowPipelineLane[]
   pending_queue: BusinessFlowBusItem[]

@@ -147,7 +147,7 @@ export default function GrowthEnginePage() {
             <BarChart3 className="w-4 h-4 text-[var(--color-primary)]" />
             <h2 className="font-semibold text-[var(--color-fg)]">商品运营诊断</h2>
           </div>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">按 Listing 已同步或导入的近30天指标生成诊断，不把缺失平台 Open API 指标当作 0。</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">按 Listing 已同步或导入的最近30天指标生成诊断，不把缺失平台 Open API 指标当作 0。</p>
         </CardHeader>
         <CardContent>
           {loading ? (

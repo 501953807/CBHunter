@@ -9,6 +9,10 @@ export interface RiskControlRisk {
   status: 'pending' | 'processing' | 'closed' | 'ignored'
   detail: string
   route: string
+  estimated_impact: string
+  response_deadline_at: string | null
+  remaining_time_label: string
+  sla_hours: number | null
   evidence_window: string
   source_refs: CockpitSourceRef[]
   assigned_to: string | null
@@ -17,6 +21,10 @@ export interface RiskControlRisk {
   note: string | null
   closed_at: string | null
   updated_at: string | null
+  platform?: string | null
+  platform_account_id?: string | null
+  account_name?: string | null
+  market?: string | null
 }
 
 export interface RiskControlOverview {
@@ -51,6 +59,37 @@ export interface RiskControlOverview {
     warning: number; processing: number; closed: number; total: number
     heat_level: 'critical' | 'warning' | 'data_required' | 'clear'
   }>
+  risk_store_matrix: Array<{
+    platform_account_id: string | null
+    account_name: string
+    platform: string
+    market: string | null
+    critical: number
+    warning: number
+    processing: number
+    overdue: number
+    total: number
+  }>
+  risk_platform_matrix: Array<{
+    platform: string
+    critical: number
+    warning: number
+    processing: number
+    overdue: number
+    total: number
+  }>
+  comparison: {
+    current: { active: number; critical: number; warning: number; events: number }
+    previous: { active: number; critical: number; warning: number; events: number }
+    last_year: { active: number; critical: number; warning: number; events: number }
+    rates: {
+      active_mom_pct: number | null
+      active_yoy_pct: number | null
+      critical_mom_pct: number | null
+      critical_yoy_pct: number | null
+    }
+    windows: { current: string; previous: string; last_year: string }
+  }
   ai_recommendations: Array<{
     risk_id: string; title: string; type: string; severity: RiskControlRisk['severity']
     recommendation: string; route: string; source_refs: CockpitSourceRef[]

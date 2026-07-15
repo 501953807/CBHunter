@@ -53,8 +53,8 @@ export function ProductSellerWorkbench({
       <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
           <div>
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">商品后台列表</h3>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">按卖家后台方式集中查看商品、平台字段、成本、状态和可执行动作。</p>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">基础商品资料列表</h3>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">作为跨平台、跨店铺 Listing 的基础版本，集中维护图片、平台字段、成本、重量和可执行动作。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {statusBuckets(products, productStatuses).map(item => (
@@ -205,7 +205,7 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
         <BusinessObjectActionBar
           description="围绕当前商品进入编辑、内容制作或平台刊登，保持同一业务对象连续处理。"
           actions={[
-            { label: '编辑商品主数据', description: '补图片、类目、成本、重量和平台属性。', onClick: () => onEdit(product.id) },
+            { label: '编辑基础商品资料', description: '补图片、类目、成本、重量和平台属性。', onClick: () => onEdit(product.id) },
             { label: '进入内容制作', description: '补标题、卖点、图片处理和视频脚本。', href: `/content?product_id=${product.id}` },
             { label: '创建 Listing 草稿', description: '进入批量刊登并带入当前商品。', onClick: () => onPublish(product.id) },
           ]}

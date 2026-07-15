@@ -82,9 +82,9 @@ async def get_quota_usage(
         data=usage,
         status="ready" if usage else "data_required",
         source_refs=[source_ref("quota_usage", f"{item['feature_code']}:{item['period_key']}", label=item["feature_code"]) for item in usage],
-        evidence_window="当前计费周期额度用量",
+        evidence_window="当前计费区间额度用量",
         confidence_reason="仅展示已实际计量的额度使用记录。",
-        data_gaps=[] if usage else ["当前周期暂无额度消耗记录"],
+        data_gaps=[] if usage else ["当前计费区间暂无额度消耗记录"],
     )
 
 

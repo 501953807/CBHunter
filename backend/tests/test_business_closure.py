@@ -124,7 +124,9 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
                     stock=12,
                     status="active",
                     images=["https://img.example.com/a1.jpg"],
-                    platform_data={"source": "platform_product_sync"},
+                    variations=[{"sku": "SKU-SYNCED-A-RED", "stock": 6}, {"sku": "SKU-SYNCED-A-BLUE", "stock": 6}],
+                    shipping_config={"weight_g": 350},
+                    platform_data={"source": "platform_product_sync", "attribute_values": {"材质": "帆布", "颜色": "红色"}},
                     last_synced_at=datetime.now(timezone.utc),
                 ),
                 PlatformListing(
@@ -156,6 +158,15 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
         assert items[0]["media_readiness"]["min_platform_images"] == 5
         assert items[0]["media_readiness"]["missing_image_count"] == 4
         assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
+        item_a = next(item for item in items if item["platform_product_id"] == "SP-A-001")
+        assert item_a["store_override_summary"]["relation_label"] == "基础商品 → 店铺 Listing 实例"
+        assert item_a["store_override_summary"]["isolation_note"] == "店铺覆盖字段不回写基础商品版本"
+        assert item_a["store_override_summary"]["title_overridden"] is True
+        assert item_a["store_override_summary"]["images_overridden"] is True
+        assert item_a["store_override_summary"]["price_stock_overridden"] is True
+        assert item_a["store_override_summary"]["variation_count"] == 2
+        assert item_a["store_override_summary"]["platform_attribute_count"] == 2
+        assert item_a["store_override_summary"]["logistics_configured"] is True
 
     asyncio.run(run_test())
 

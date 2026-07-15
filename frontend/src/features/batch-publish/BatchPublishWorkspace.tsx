@@ -13,9 +13,9 @@ import { BatchPublishPreviewStep } from './BatchPublishPreviewStep'
 import { BatchPublishResultStep } from './BatchPublishResultStep'
 import { EvidenceBanner } from '../../components/shared/EvidenceBanner'
 import type { ApiResponse } from '../../types/common'
-import { SelectionBusinessPipeline } from '../../components/shared/SelectionBusinessPipeline'
 import { ProfessionalWorkspaceFrame } from '../../components/shared/ProfessionalWorkspaceFrame'
 import { BusinessObjectActionBar } from '../../components/shared/BusinessObjectActionBar'
+import { ContentListingStageRail } from '../content-planner/ContentListingStageRail'
 
 type Step = 'select' | 'preview' | 'confirm'
 
@@ -251,15 +251,15 @@ export default function BatchPublishPage() {
 
   return (
     <div className="space-y-6 page-enter">
-      <SelectionBusinessPipeline />
+      <ContentListingStageRail />
       <ProfessionalWorkspaceFrame
         eyebrow="Listing Publish"
         title="批量刊登"
-        description="内容确认 + 定价确认后的发布就绪商品生成本地 Listing 草稿 · 三步完成"
+        description="以发布就绪商品队列为主，选择目标平台、店铺、市场后生成店铺级本地 Listing 草稿。"
         metrics={[
-          { label: '当前步骤', value: `Step ${step === 'select' ? '1' : step === 'preview' ? '2' : '3'}/3`, hint: step === 'select' ? '选择商品/平台/市场' : step === 'preview' ? '编辑并确认草稿' : '核验创建结果' },
+          { label: '发布队列', value: publishableItems.length, hint: '内容和定价已就绪' },
           { label: '已选商品', value: selectedItems.size, hint: '来源于发布队列或商品深链' },
-          { label: '草稿数量', value: drafts.length, hint: confirmedDrafts.size ? `已确认 ${confirmedDrafts.size}` : '预览后生成' },
+          { label: '目标店铺', value: selectedStores.size, hint: drafts.length ? `草稿 ${drafts.length} 个` : '必须显式选择' },
         ]}
         actions={<Badge variant="default">Step {step === 'select' ? '1' : step === 'preview' ? '2' : '3'}/3</Badge>}
       />

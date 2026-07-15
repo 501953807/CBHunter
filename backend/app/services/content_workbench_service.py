@@ -23,6 +23,7 @@ CONTENT_TASKS = (
     {"task_type": "image_edit_plan", "label": "图片处理建议", "requires_ai": True, "required_for_pricing": True},
     {"task_type": "video_script", "label": "视频脚本", "requires_ai": True, "required_for_pricing": True},
     {"task_type": "compliance_check", "label": "合规检查", "requires_ai": True, "required_for_pricing": True},
+    {"task_type": "listing_store_override", "label": "店铺 Listing 覆盖字段包", "requires_ai": False, "required_for_pricing": False},
     {"task_type": "enhanced_content", "label": "A+图文增强内容", "requires_ai": True, "required_for_pricing": False},
     {"task_type": "ad_creative", "label": "广告素材脚本", "requires_ai": True, "required_for_pricing": False},
     {"task_type": "influencer_brief", "label": "达人合作 Brief", "requires_ai": True, "required_for_pricing": False},

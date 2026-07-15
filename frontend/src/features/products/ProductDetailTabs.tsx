@@ -9,35 +9,19 @@ import { getProductListingMatrix, promoteListingToBaseVersion, updateListingOver
 import type { ProductListing, ProductVariant, ProductCompliance } from '../../types/product'
 import { logger } from '../../utils/logger'
 import { productImageSrc } from '../../utils/productImages'
+import {
+  CurrentListingInstanceCommandPanel,
+  ListingInlineSectionNavigator,
+  PlatformListingSellerPreview,
+  ProductListingEditOverview,
+  SectionHeading,
+  listingInstanceReadiness,
+  type ListingEditSectionKey,
+  type StoreListingEditForm,
+  type VariantEditRow,
+} from './ProductListingEditorChrome'
 
-type VariantEditRow = { sku: string; name: string; stock: string; price: string }
-type ListingEditSectionKey = 'basic' | 'detail' | 'sales' | 'media' | 'logistics' | 'attributes'
 type FieldEvidenceGap = { key: string; label: string; group: string; state: string }
-type StoreListingEditForm = {
-  title: string
-  description: string
-  price: string
-  stock: string
-  imagesText: string
-  videoUrl: string
-  sourceUrl: string
-  packageWeightG: string
-  packageLengthCm: string
-  packageWidthCm: string
-  packageHeightCm: string
-  logisticsNote: string
-  publishMode: 'immediate' | 'scheduled'
-  scheduledAt: string
-}
-
-const LISTING_EDIT_SECTIONS: Array<{ key: ListingEditSectionKey; label: string; note: string }> = [
-  { key: 'basic', label: '基础信息', note: '标题/店铺身份' },
-  { key: 'detail', label: '商品详情', note: '描述/卖点' },
-  { key: 'sales', label: '销售资料/SKU', note: '价格/库存/变体' },
-  { key: 'media', label: '媒体素材', note: '主图/辅图/视频' },
-  { key: 'logistics', label: '物流与发布', note: '重量/尺寸/边界' },
-  { key: 'attributes', label: '平台属性', note: '类目字段组' },
-]
 
 export function VariationsPanel({ variants, onChange }: { variants: ProductVariant[]; onChange: (items: ProductVariant[]) => void }) {
   const add = () => onChange([...variants, { sku: '', name: '', stock: 0 }])
@@ -113,6 +97,15 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
   const selectedListing = matrixInstances.find(item => item.id === selectedListingId) || matrixInstances[0] || null
   const masterImages = matrix?.product_master.images || []
   const selectedListingImageSet = new Set(editForm.imagesText.split('\n').map(item => item.trim()).filter(Boolean))
+  const selectedListingReadiness = selectedListing
+    ? listingInstanceReadiness(selectedListing, editForm, variantRows, selectedListingRequirements)
+    : null
+  const selectListingEditSection = (section: ListingEditSectionKey) => {
+    setListingEditSection(section)
+    window.setTimeout(() => {
+      document.getElementById(`listing-section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
 
   useEffect(() => {
     if (initialListingId && matrixInstances.some(item => item.id === initialListingId)) {
@@ -273,30 +266,36 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
             <Button size="sm" onClick={saveStoreOverride} disabled={savingOverride}>{savingOverride ? '保存中...' : '保存店铺覆盖'}</Button>
           </div>
         </div>
-        <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Listing 编辑分区">
-            {LISTING_EDIT_SECTIONS.map(section => {
-              const active = listingEditSection === section.key
-              return (
-                <button
-                  key={section.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setListingEditSection(section.key)}
-                  className={`rounded-lg border px-3 py-2 text-left text-xs transition ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary-text)]' : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] hover:border-[var(--color-primary)]'}`}
-                >
-                  <span className="block font-semibold">{section.label}</span>
-                  <span className="mt-0.5 block text-[11px]">{section.note}</span>
-                </button>
-              )
-            })}
-          </div>
-          <p className="mt-3 text-[11px] text-[var(--color-muted)]">平台规则对齐：TikTok：最多 9 张图；Shopee/妙手：图片、视频、物流、货源链接同一商品上下文维护；本系统保存的是当前店铺覆盖，不改商品主档与其他店铺。</p>
-        </div>
+        {selectedListingReadiness && (
+          <ProductListingEditOverview
+            listing={selectedListing}
+            master={matrix?.product_master}
+            form={editForm}
+            variantRows={variantRows}
+            readiness={selectedListingReadiness}
+            onSelectSection={selectListingEditSection}
+          />
+        )}
+        <CurrentListingInstanceCommandPanel
+          listing={selectedListing}
+          master={matrix?.product_master}
+          readiness={selectedListingReadiness || listingInstanceReadiness(selectedListing, editForm, variantRows, selectedListingRequirements)}
+          onSelectSection={selectListingEditSection}
+        />
+        <PlatformListingSellerPreview
+          listing={selectedListing}
+          master={matrix?.product_master}
+          form={editForm}
+          variantRows={variantRows}
+          requirements={selectedListingRequirements}
+          onSelectSection={selectListingEditSection}
+        />
+        <ListingInlineSectionNavigator activeSection={listingEditSection} onSelectSection={selectListingEditSection} />
 
-        {listingEditSection === 'basic' && (
-          <div className="grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
+        <div aria-label="当前 Listing 连续编辑分区" data-ui="listing-continuous-edit-sections" className="space-y-4">
+          <section id="listing-section-basic" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="基础信息" note="店铺标题、货源链接和当前平台店铺身份。" />
+            <div className="grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
             <div className="space-y-3">
               <Input label="店铺专属标题" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
               <Input label="货源链接" value={editForm.sourceUrl} onChange={e => setEditForm({ ...editForm, sourceUrl: e.target.value })} placeholder="如 1688、供应商或采集来源链接，仅保存到当前店铺 Listing" />
@@ -309,10 +308,11 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
               <p className="mt-1 text-xs text-[var(--color-muted)]">状态：{selectedListing.status}</p>
             </div>
           </div>
-        )}
+          </section>
 
-        {listingEditSection === 'detail' && (
-          <div className="space-y-3">
+          <section id="listing-section-detail" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="商品详情" note="描述、卖点和买家可见的商品说明集中维护。" />
+            <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">店铺专属描述</label>
               <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={5} className="block w-full rounded-lg border px-3 py-2 text-sm bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-fg)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]" />
@@ -322,10 +322,11 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
               <p className="mt-2">Listing 详情应围绕标题、卖点、材质、尺寸、使用场景、包装清单和售后说明组织；AI 文案优化后仍要落到当前店铺 Listing 实例，不能直接覆盖其他平台/店铺。</p>
             </div>
           </div>
-        )}
+          </section>
 
-        {listingEditSection === 'sales' && (
-          <div className="space-y-3">
+          <section id="listing-section-sales" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="销售资料/SKU" note="当前店铺售价、库存、SKU 和规格矩阵。" />
+            <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Input label="店铺售价" type="number" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} />
               <Input label="店铺库存" type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })} />
@@ -354,10 +355,11 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
               ))}
             </div>
           </div>
-        )}
+          </section>
 
-        {listingEditSection === 'media' && (
-          <div className="space-y-3">
+          <section id="listing-section-media" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="媒体素材" note="主图、辅图、店铺视频和主档图片复用。" />
+            <div className="space-y-3">
             <Input label="店铺视频 URL" value={editForm.videoUrl} onChange={e => setEditForm({ ...editForm, videoUrl: e.target.value })} placeholder="生成或采集的视频素材 URL；平台发布前按 TikTok/Shopee 规则复核格式和大小" />
             <div>
               <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">图片 URL（第一张主图，其余辅图）</label>
@@ -397,10 +399,11 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
               <p className="mt-2">当前页先管理 Listing 主图/辅图引用；图片编辑、视频翻译、AI 图生视频等制作动作从内容与刊登模块进入，生成后应回填到当前店铺 Listing。</p>
             </div>
           </div>
-        )}
+          </section>
 
-        {listingEditSection === 'logistics' && (
-          <div className="grid gap-3 xl:grid-cols-2">
+          <section id="listing-section-logistics" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="物流与发布" note="包裹重量、尺寸、本地发布计划和平台同步边界。" />
+            <div className="grid gap-3 xl:grid-cols-2">
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
               <p className="text-sm font-semibold text-[var(--color-fg)]">物流资料</p>
               <p className="mt-2 text-xs text-[var(--color-muted)]">商品主档重量：{matrix?.product_master.weight_g == null ? '待补' : `${matrix.product_master.weight_g}g`}</p>
@@ -435,10 +438,11 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
               <p className="mt-3 text-xs text-[var(--color-muted)]">当前保存只更新本地 Listing；平台 API 接通后，由平台刊登流程执行同步、更新或定时发布。</p>
             </div>
           </div>
-        )}
+          </section>
 
-        {listingEditSection === 'attributes' && (
-          <div className="rounded-lg border border-[var(--color-border)] p-3" aria-label="按三平台字段组编辑">
+          <section id="listing-section-attributes" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <SectionHeading title="平台属性" note="按 Shopee / TEMU / TikTok Shop 类目字段组补齐平台要求。" />
+            <div className="rounded-lg border border-[var(--color-border)] p-3" aria-label="按三平台字段组编辑">
               <div className="mb-3">
                 <p className="text-sm font-semibold text-[var(--color-fg)]">按三平台字段组编辑</p>
                 <p className="text-xs text-[var(--color-muted)]">根据当前 Listing 的 `field_groups` 渲染平台字段组编辑，不再要求手工猜属性 Key。</p>
@@ -449,7 +453,8 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
                 onChange={setSelectedListingRequirements}
               />
             </div>
-        )}
+          </section>
+        </div>
         <p className="mt-3 text-xs text-[var(--color-warning)]">保存后只写入当前 `PlatformListing.platform_data.listing_overrides` 和当前 Listing 字段；不会自动同步平台，也不会改商品主档。只有点击“生成新基础版本”才会把当前店铺 Listing 显式反哺为商品基础版本并写审计。</p>
         {saveMessage && <p className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">{saveMessage}</p>}
       </section>

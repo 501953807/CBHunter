@@ -16,7 +16,9 @@ import { ProductBulkToolbar } from '../features/products/ProductBulkToolbar'
 import { ProductSellerWorkbench } from '../features/products/ProductSellerWorkbench'
 import { PlatformStoreProductsPanel } from '../features/products/PlatformStoreProductsPanel'
 import { ProfessionalWorkspaceFrame } from '../components/shared/ProfessionalWorkspaceFrame'
+import { StoreContextBanner } from '../components/shared/StoreContextBanner'
 import { Tabs } from '../components/ui/Tabs'
+import { usePlatformStatuses } from '../hooks/usePlatforms'
 
 export default function ProductListPage() {
   const navigate = useNavigate()
@@ -34,9 +36,10 @@ export default function ProductListPage() {
   const [bulkStock, setBulkStock] = useState('')
   const [updatingPrice, setUpdatingPrice] = useState(false)
   const [updatingStock, setUpdatingStock] = useState(false)
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'platform_store_products' ? 'platform_store_products' : 'master')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'master' ? 'master' : 'platform_store_products')
   const initialPlatform = searchParams.get('platform') || ''
   const initialPlatformAccountId = searchParams.get('platform_account_id') || ''
+  const platformStatusesQuery = usePlatformStatuses()
 
   const { data, isLoading, refetch } = useProductList({ status: status || undefined, search: search || undefined, page, page_size: 20 })
   const deleteMutation = useDeleteProduct()
@@ -145,8 +148,8 @@ export default function ProductListPage() {
     <div className="space-y-6">
       <ProfessionalWorkspaceFrame
         eyebrow="Product Console"
-        title="商品管理"
-        description="按卖家后台方式集中管理商品主数据、真实图片、三平台属性、成本重量、Listing 入口和机会诊断。"
+        title="平台店铺商品库"
+        description="优先管理 Shopee、TEMU、TikTok Shop 各店铺同步或本地创建的 Listing 实例；基础商品资料只作为跨店铺复用底座。"
         metrics={[
           { label: '当前列表', value: products.length, hint: pagination ? `共 ${pagination.total} 条` : '等待数据加载' },
           { label: '已选择', value: selectedIds.size, hint: '可批量定价或进入刊登' },
@@ -184,13 +187,20 @@ export default function ProductListPage() {
       />
 
       <EvidenceBanner evidence={data} />
+      <StoreContextBanner
+        platformAccountId={initialPlatformAccountId}
+        platform={initialPlatform}
+        statuses={platformStatusesQuery.data?.data || []}
+        currentModule="products"
+        clearHref="/products?tab=platform_store_products"
+      />
 
       <Tabs
         activeTab={activeTab}
         onChange={setActiveTab}
         tabs={[
-          { id: 'master', label: '商品主档', count: pagination?.total },
           { id: 'platform_store_products', label: '平台店铺商品' },
+          { id: 'master', label: '基础商品资料', count: pagination?.total },
         ]}
       />
 

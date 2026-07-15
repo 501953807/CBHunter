@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -37,10 +37,14 @@ router = APIRouter(prefix="/finance", tags=["finance"])
 @router.get("/summary", response_model=ApiResponse)
 async def finance_summary(
     period: str = Query("daily", pattern=r"^(daily|weekly|monthly)$"),
+    platform_account_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    summary = await get_finance_summary(db, current_user.id, period)
+    try:
+        summary = await get_finance_summary(db, current_user.id, period, platform_account_id=platform_account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ApiResponse(
         data=FinanceSummaryResponse(**summary),
         status=summary["data_status"],
@@ -54,10 +58,14 @@ async def finance_summary(
 @router.get("/traceback", response_model=ApiResponse)
 async def finance_traceback(
     period: str = Query("daily", pattern=r"^(daily|weekly|monthly)$"),
+    platform_account_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    traceback = await get_finance_traceback(db, current_user.id, period)
+    try:
+        traceback = await get_finance_traceback(db, current_user.id, period, platform_account_id=platform_account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ApiResponse(
         data=FinanceTracebackResponse(**traceback),
         status=traceback["data_status"],
