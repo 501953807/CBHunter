@@ -65,7 +65,7 @@ function RiskDispositionMatrix({ data, onNavigate }: Props) {
               <span>活跃 {item.active_count}</span>
               <span>高危 {item.critical}</span>
               <span>逾期 {item.overdue}</span>
-              <span>{item.status === 'data_required' ? '证据待补' : item.status === 'attention' ? '需处置' : '清晰'}</span>
+              <span>{item.status === 'data_required' ? '资料待补' : item.status === 'attention' ? '需处置' : '清晰'}</span>
             </span>
           </button>
         ))}

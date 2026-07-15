@@ -12,8 +12,19 @@ export interface PromotionCampaignItem {
   discount_value?: number | null
   original_price?: number | null
   promotion_price?: number | null
+  discount_amount?: number | null
   stock_limit?: number | null
   status: string
+}
+
+export interface PromotionPriceSummary {
+  priced_item_count: number
+  original_price_total: number
+  promotion_price_total: number
+  discount_amount_total: number
+  avg_discount_pct?: number | null
+  source: string
+  note: string
 }
 
 export interface PromotionCampaign {
@@ -34,6 +45,7 @@ export interface PromotionCampaign {
   stack_rule?: string | null
   source: string
   product_count: number
+  price_summary: PromotionPriceSummary
   items: PromotionCampaignItem[]
 }
 

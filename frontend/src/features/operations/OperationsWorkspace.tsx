@@ -29,7 +29,7 @@ export default function OperationsWorkspace() {
   const toast = useToast()
   const confirmAction = useConfirm()
   const [searchParams] = useSearchParams()
-  const requestedType = searchParams.get('type') || ''
+  const requestedType = searchParams.get('record_type') || searchParams.get('type') || ''
   const { platforms, markets } = useConfig()
   const [records, setRecords] = useState<OperationRecord[]>([])
   const [evidence, setEvidence] = useState<ApiResponse<OperationRecord[]> | null>(null)
@@ -56,7 +56,7 @@ export default function OperationsWorkspace() {
   useEffect(() => { load() }, [requestedType])
 
   const save = async () => {
-    if (!form.record_type || !form.status || !form.name.trim() || !form.counterparty.trim() || Number(form.planned_amount_rmb) <= 0) return
+    if (!form.record_type || !form.status || !form.name.trim() || !form.counterparty.trim() || hasInvalidPlannedAmount(form)) return
     if (editingId && originalAmounts) {
       const nextPlanned = form.planned_amount_rmb === '' ? null : Number(form.planned_amount_rmb)
       const nextActual = form.actual_amount_rmb === '' ? null : Number(form.actual_amount_rmb)
@@ -130,7 +130,8 @@ export default function OperationsWorkspace() {
   const linkedCount = records.filter(record => record.ledger_entry_id).length
   const label = (items: { id: string; label: string }[], id: string) => items.find(item => item.id === id)?.label || id
   const temporaryName = isTemporaryRecordName(form.name)
-  const formIncomplete = !form.record_type || !form.status || !form.name.trim() || !form.counterparty.trim() || Number(form.planned_amount_rmb) <= 0 || temporaryName
+  const plannedAmountInvalid = hasInvalidPlannedAmount(form)
+  const formIncomplete = !form.record_type || !form.status || !form.name.trim() || !form.counterparty.trim() || plannedAmountInvalid || temporaryName
 
   return (
     <div className="space-y-6">
@@ -161,7 +162,7 @@ export default function OperationsWorkspace() {
           <div className="flex gap-2">
             <Button onClick={save} disabled={saving || formIncomplete}><Plus className="w-4 h-4 mr-1" />{saving ? '保存中' : '保存记录'}</Button>
             {editingId && <Button variant="outline" onClick={() => { setEditingId(null); setOriginalAmounts(null); setForm(emptyForm) }}>取消编辑</Button>}
-            {(!form.name.trim() || !form.counterparty.trim() || Number(form.planned_amount_rmb) <= 0) && <span className="text-xs text-[var(--color-muted)] self-center">请填写记录名称、合作方/回款方和大于 0 的计划金额</span>}
+            {(!form.name.trim() || !form.counterparty.trim() || plannedAmountInvalid) && <span className="text-xs text-[var(--color-muted)] self-center">{plannedAmountHint(form)}</span>}
             {temporaryName && <span className="text-xs text-[var(--color-danger)] self-center">记录名称疑似临时编辑或测试残留，请填写真实业务名称</span>}
           </div>
         </CardContent>
@@ -196,4 +197,22 @@ function SummaryCard({ icon: Icon, label, value }: { icon: React.ElementType; la
 function isTemporaryRecordName(value: string) {
   const name = value.trim()
   return name.endsWith('-测试') || ['修改后的', '仅名称无其他必填', '自动化测试'].some(pattern => name.includes(pattern))
+}
+
+function allowsZeroBudgetOperationRecord(recordType: string) {
+  return recordType === 'listing_optimization'
+}
+
+function hasInvalidPlannedAmount(form: typeof emptyForm) {
+  if (form.planned_amount_rmb === '') return true
+  const amount = Number(form.planned_amount_rmb)
+  if (Number.isNaN(amount) || amount < 0) return true
+  return amount === 0 && !allowsZeroBudgetOperationRecord(form.record_type)
+}
+
+function plannedAmountHint(form: typeof emptyForm) {
+  if (allowsZeroBudgetOperationRecord(form.record_type)) {
+    return '请填写记录名称、合作方/回款方；0 预算 Listing 优化动作允许保存且不会自动生成财务流水'
+  }
+  return '请填写记录名称、合作方/回款方和大于 0 的计划金额'
 }

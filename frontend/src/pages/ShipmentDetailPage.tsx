@@ -9,9 +9,12 @@ import { Select } from '../components/ui/Select'
 import { Skeleton } from '../components/shared/LoadingSkeleton'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import { useShipment, useCreateShipment, useUpdateShipment } from '../hooks/useShipments'
+import { useOrder } from '../hooks/useOrders'
 import { useToast } from '../components/ui/Toast'
 import { useConfig } from '../hooks/useConfig'
 import { getStatusMeta, toDomainOptions, withAllOption } from '../utils/domainOptions'
+import type { OrderDetail } from '../types/order'
+import type { Shipment } from '../types/shipment'
 
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -27,6 +30,9 @@ export default function ShipmentDetailPage() {
   const updateMutation = useUpdateShipment()
 
   const shipment = data?.data
+  const orderContextId = isNew ? (orderIdFromQuery || '') : (shipment?.order_id || '')
+  const orderContextQuery = useOrder(orderContextId)
+  const orderContext = orderContextQuery.data?.data || null
 
   const [form, setForm] = useState({
     order_id: orderIdFromQuery || '',
@@ -66,6 +72,17 @@ export default function ShipmentDetailPage() {
       setForm(prev => ({ ...prev, status: shipment_statuses[0].id }))
     }
   }, [form.status, isNew, shipment_statuses])
+
+  useEffect(() => {
+    if (!isNew || !orderContext) return
+    const address = orderContext.shipping_address || {}
+    setForm(prev => ({
+      ...prev,
+      destination_market: prev.destination_market || shippingAddressValue(address, 'market') || shippingAddressValue(address, 'country_code'),
+      destination_city: prev.destination_city || shippingAddressValue(address, 'city'),
+      destination_address: prev.destination_address || shippingAddressValue(address, 'address') || shippingAddressValue(address, 'full_address'),
+    }))
+  }, [isNew, orderContext])
 
   if (!isNew && isLoading) {
     return (
@@ -162,6 +179,17 @@ export default function ShipmentDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {isNew && (
+            <OrderShipmentContextPanel
+              order={orderContext}
+              loading={orderContextQuery.isLoading}
+              orderId={orderIdFromQuery || form.order_id}
+              onBackToOrder={() => {
+                const target = orderContext?.id || orderIdFromQuery || form.order_id
+                if (target) navigate(`/orders/${target}`)
+              }}
+            />
+          )}
           <Card>
             <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">物流信息</h2></CardHeader>
             <CardContent>
@@ -223,6 +251,13 @@ export default function ShipmentDetailPage() {
             </CardContent>
           </Card>
 
+          {displayShipment && (
+            <ShipmentStatusLifecycle
+              shipment={displayShipment}
+              statusOptions={shipment_statuses}
+            />
+          )}
+
           {/* Tracking Timeline */}
           {displayShipment && (
             <Card>
@@ -258,8 +293,17 @@ export default function ShipmentDetailPage() {
           <div className="space-y-4">
             <Card>
               <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">关联订单</h2></CardHeader>
-              <CardContent>
-                <p className="text-sm text-[var(--color-muted)] font-mono">{displayShipment.order_id}</p>
+              <CardContent className="space-y-3">
+                <div className="grid gap-2">
+                  <ContextMetric label="订单号" value={displayShipment.order_number || displayShipment.order_id} />
+                  <ContextMetric label="平台/店铺" value={`${displayShipment.platform?.toUpperCase() || '--'} · ${displayShipment.platform_account_name || '店铺待补'}`} />
+                  <ContextMetric label="买家" value={displayShipment.buyer_name || '买家待补'} />
+                  <ContextMetric
+                    label="平台发货时限"
+                    value={displayShipment.fulfillment_deadline_at ? new Date(displayShipment.fulfillment_deadline_at).toLocaleString('zh-CN') : '待平台同步'}
+                    tone={displayShipment.fulfillment_exception?.severity === 'critical' ? 'danger' : displayShipment.fulfillment_exception?.severity === 'warning' ? 'warning' : 'default'}
+                  />
+                </div>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -275,4 +319,187 @@ export default function ShipmentDetailPage() {
       </div>
     </div>
   )
+}
+
+function ShipmentStatusLifecycle({
+  shipment,
+  statusOptions,
+}: {
+  shipment: Shipment
+  statusOptions: { id: string; label: string; variant?: string }[]
+}) {
+  const options = statusOptions.length > 0 ? statusOptions : [{ id: shipment.status, label: shipment.status }]
+  const statusIds = new Set(options.map(item => item.id))
+  const timeline = statusIds.has(shipment.status)
+    ? options
+    : [...options, { id: shipment.status, label: `未配置状态：${shipment.status}` }]
+  const activeIndex = timeline.findIndex(item => item.id === shipment.status)
+  const activeLabel = getStatusMeta(statusOptions, shipment.status).label
+  const deadlineLabel = shipment.fulfillment_deadline_at
+    ? new Date(shipment.fulfillment_deadline_at).toLocaleString('zh-CN')
+    : '平台发货时限待同步'
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-[var(--color-fg)]">物流状态轨迹</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              基于系统物流状态字典展示当前履约阶段；承运商真实轨迹在下方“物流追踪”单独展示。
+            </p>
+          </div>
+          <Badge variant={getStatusMeta(statusOptions, shipment.status).variant}>{activeLabel}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <ContextMetric label="当前状态" value={activeLabel} tone={shipment.status === 'exception' ? 'danger' : 'default'} />
+          <ContextMetric label="运单号" value={shipment.tracking_number || '运单号待补'} tone={shipment.tracking_number ? 'default' : 'warning'} />
+          <ContextMetric
+            label="平台发货时限"
+            value={deadlineLabel}
+            tone={shipment.fulfillment_exception?.severity === 'critical' ? 'danger' : shipment.fulfillment_exception?.severity === 'warning' ? 'warning' : 'default'}
+          />
+        </div>
+        <div className="overflow-x-auto" aria-label="物流状态字典轨迹">
+          <div className="flex min-w-max items-start gap-2 pb-1">
+            {timeline.map((item, index) => {
+              const isActive = index === activeIndex
+              const isDone = activeIndex >= 0 && index < activeIndex
+              const nodeColor = isActive ? 'var(--color-primary)' : isDone ? 'var(--color-success)' : 'var(--color-border)'
+              return (
+                <div key={item.id} className="flex min-w-[120px] flex-1 items-start">
+                  <div className="flex flex-col items-center">
+                    <span
+                      className="grid h-8 w-8 place-items-center rounded-full border text-xs font-semibold"
+                      style={{
+                        borderColor: nodeColor,
+                        background: isActive ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                        color: isActive || isDone ? nodeColor : 'var(--color-muted)',
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="mt-2 max-w-[110px] text-center text-xs font-medium text-[var(--color-fg)]">{item.label}</span>
+                    <span className="mt-1 text-[11px] text-[var(--color-muted)]">{isActive ? '当前阶段' : isDone ? '已推进' : '待推进'}</span>
+                  </div>
+                  {index < timeline.length - 1 && (
+                    <div className="mt-4 h-px min-w-[48px] flex-1" style={{ background: isDone ? 'var(--color-success)' : 'var(--color-border)' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        {activeIndex < 0 && (
+          <p className="rounded-2xl border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3 text-xs text-[var(--color-warning)]">
+            当前物流状态未在统一字典中配置，请到设置中心业务字典补齐后再继续使用。
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function OrderShipmentContextPanel({
+  order,
+  loading,
+  orderId,
+  onBackToOrder,
+}: {
+  order: OrderDetail | null
+  loading: boolean
+  orderId: string
+  onBackToOrder: () => void
+}) {
+  if (loading) {
+    return <Skeleton className="h-40 w-full" />
+  }
+  if (!order) {
+    return (
+      <Card>
+        <CardContent className="pt-4">
+          <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-4 text-sm text-[var(--color-muted)]">
+            订单发货上下文待补：{orderId ? `未能读取订单 ${orderId}` : '请先从订单详情或履约异常队列进入新建物流。'}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+  const exception = order.fulfillment_exception || {}
+  const firstReason = (exception.reasons || [])[0]
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary)]">Order Fulfillment Context</p>
+            <h2 className="mt-1 font-semibold text-[var(--color-fg)]">订单发货上下文</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">创建物流前先核对订单、平台发货时限、买家地址、物流缺口和对账状态。</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onBackToOrder}>返回订单详情</Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <ContextMetric label="订单号" value={order.order_number || order.platform_order_id} />
+          <ContextMetric label="平台/店铺" value={`${order.platform.toUpperCase()} · ${order.source === 'manual' ? '手工订单' : '平台订单'}`} />
+          <ContextMetric label="订单金额" value={`${order.currency} ${order.total.toFixed(2)}`} />
+          <ContextMetric label="商品件数" value={`${order.items?.length || 0} 项`} />
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <ContextMetric label="平台发货时限" value={order.fulfillment_deadline_at ? new Date(order.fulfillment_deadline_at).toLocaleString('zh-CN') : '待平台同步'} tone={exception.status === 'shipping_overdue' ? 'danger' : exception.status === 'shipping_due_soon' ? 'warning' : 'default'} />
+          <ContextMetric label="现有物流渠道" value={order.logistics_channel || '待补'} tone={order.logistics_channel ? 'default' : 'warning'} />
+          <ContextMetric label="履约异常" value={firstReason || fulfillmentStatusLabel(exception.status)} tone={exception.severity === 'critical' ? 'danger' : exception.severity === 'warning' ? 'warning' : 'default'} />
+        </div>
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <p className="text-xs text-[var(--color-muted)]">买家与收货地址</p>
+          <p className="mt-1 text-sm font-medium text-[var(--color-fg)]">{order.buyer_name || '买家待补'}</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">{shippingAddressText(order.shipping_address)}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ContextMetric({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value?: string | null
+  tone?: 'default' | 'warning' | 'danger'
+}) {
+  const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
+      <p className="mt-1 line-clamp-2 text-sm font-semibold" style={{ color }}>{value || '待补'}</p>
+    </div>
+  )
+}
+
+function shippingAddressValue(address: Record<string, unknown>, key: string): string {
+  const value = address[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function shippingAddressText(address?: Record<string, unknown> | null): string {
+  if (!address) return '收货地址待平台同步'
+  const parts = ['country', 'province', 'state', 'city', 'district', 'address', 'full_address']
+    .map(key => shippingAddressValue(address, key))
+    .filter(Boolean)
+  return parts.length ? Array.from(new Set(parts)).join(' / ') : '收货地址待补'
+}
+
+function fulfillmentStatusLabel(value?: string | null) {
+  if (value === 'shipping_overdue') return '发货超期'
+  if (value === 'shipping_due_soon') return '临近时限'
+  if (value === 'after_sales_open') return '售后处理中'
+  if (value === 'logistics_missing') return '物流待补'
+  if (value === 'sync_required') return '同步待补'
+  if (value === 'clear') return '正常'
+  return '待确认'
 }

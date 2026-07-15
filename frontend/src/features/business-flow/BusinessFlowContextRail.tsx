@@ -139,12 +139,15 @@ export function BusinessFlowContextRail({ item, actions, onNavigate, onReload }:
       <Panel title="来源记录" icon={<Box className="h-4 w-4" />}>
         {item.source_refs.length === 0 ? (
           <p className="text-xs text-[var(--color-muted)]">来源记录待补。</p>
-        ) : item.source_refs.slice(0, 5).map((ref) => (
-          <button key={`${ref.type}-${ref.id}`} onClick={() => ref.meta?.route && onNavigate(ref.meta.route)} className="mb-1.5 flex w-full items-center justify-between gap-2 rounded-md bg-[var(--color-bg)] px-2 py-1.5 text-left text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)]">
-            <span className="truncate">{ref.meta?.source_label || ref.type} · {ref.label || ref.id}</span>
-            {ref.meta?.route && <ExternalLink className="h-3 w-3 shrink-0" />}
-          </button>
-        ))}
+        ) : item.source_refs.slice(0, 5).map((ref) => {
+          const route = buildSourceRefRoute(ref, item)
+          return (
+            <button key={`${ref.type}-${ref.id}`} onClick={() => route && onNavigate(route)} className="mb-1.5 flex w-full items-center justify-between gap-2 rounded-md bg-[var(--color-bg)] px-2 py-1.5 text-left text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)]">
+              <span className="truncate">{ref.meta?.source_label || ref.type} · {ref.label || ref.id}</span>
+              {route && <ExternalLink className="h-3 w-3 shrink-0" />}
+            </button>
+          )
+        })}
       </Panel>
 
       <Panel title="下一步动作" icon={<CircleAlert className="h-4 w-4" />}>
@@ -237,6 +240,30 @@ function evidenceText(value: BusinessFlowBusItem['evidence_completeness'][keyof 
   if (value === 'stale') return '需刷新'
   if (value === 'low_confidence') return '低置信'
   return '待补资料'
+}
+
+function buildSourceRefRoute(ref: BusinessFlowBusItem['source_refs'][number], item: BusinessFlowBusItem) {
+  if (!ref.meta?.route) return ''
+  const objectRefs = item.object_refs.some((objectRef) => objectRef.type === ref.type && objectRef.id === ref.id)
+    ? item.object_refs
+    : [...item.object_refs, { type: ref.type, id: ref.id, label: ref.label || ref.id }]
+  return buildObjectRoute(ref.meta.route, {
+    id: ref.id,
+    stage_key: stageKeyFromSourceRef(ref.type, item.stage_key),
+    work_item_id: item.work_item_id,
+    object_refs: objectRefs,
+    platform: item.platform,
+    market: item.market,
+  }, item)
+}
+
+function stageKeyFromSourceRef(type: string, fallback: string) {
+  if (type === 'product_discovery') return 'selection'
+  if (type === 'sourcing_item' || type === 'sourcing_supplier') return 'sourcing'
+  if (type === 'content_item' || type === 'content_asset') return 'content'
+  if (type === 'platform_listing') return 'listing'
+  if (type === 'order') return 'fulfillment'
+  return fallback
 }
 
 function eventText(action: string) {

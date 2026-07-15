@@ -204,6 +204,7 @@ async def list_ledger_entries(
     page_size: int = 50,
     entry_type: Optional[str] = None,
     platform_account_id: Optional[str] = None,
+    order_id: Optional[str] = None,
 ) -> tuple[list[FinanceLedgerEntry], int]:
     """List finance ledger entries with pagination."""
     query = select(FinanceLedgerEntry).where(FinanceLedgerEntry.user_id == user_id)
@@ -214,6 +215,9 @@ async def list_ledger_entries(
     if platform_account_id:
         query = query.where(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
         count_query = count_query.where(FinanceLedgerEntry.extra["platform_account_id"].as_string() == platform_account_id)
+    if order_id:
+        query = query.where(FinanceLedgerEntry.order_id == order_id)
+        count_query = count_query.where(FinanceLedgerEntry.order_id == order_id)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -393,6 +397,19 @@ async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "dai
         data_gaps.append("finance_ledger_entries.platform_bill")
     if future_count:
         data_gaps.append(f"{future_count} 条未来发生日期台账未计入当前筛选日期范围")
+    cost_breakdown = _cost_breakdown(cost_entries)
+    risk_signals = _finance_risk_signals(
+        entries=entries,
+        revenue_entries=revenue_entries,
+        cost_entries=cost_entries,
+        cost_breakdown=cost_breakdown,
+        total_revenue=total_revenue,
+        total_cost=total_cost,
+        net_profit=net_profit,
+        cash_balance=cash_balance,
+        platform_account_id=platform_account_id,
+        future_count=future_count or 0,
+    )
     return {
         "period": period,
         "total_revenue_rmb": total_revenue,
@@ -401,8 +418,9 @@ async def get_finance_summary(db: AsyncSession, user_id: str, period: str = "dai
         "profit_margin_pct": profit_margin,
         "cash_balance_rmb": cash_balance,
         "entry_count": len(entries),
-        "cost_breakdown": _cost_breakdown(cost_entries),
+        "cost_breakdown": cost_breakdown,
         "platform_settlement": _platform_settlement(entries),
+        "risk_signals": risk_signals,
         "data_status": "ready" if entries else "data_required",
         **evidence_payload(
             source_refs=[
@@ -508,6 +526,106 @@ def _cost_breakdown(entries: list[FinanceLedgerEntry]) -> dict[str, float]:
     for entry in entries:
         breakdown[entry.entry_type] = round(breakdown.get(entry.entry_type, 0) + entry.amount_rmb, 2)
     return breakdown
+
+
+def _finance_risk_signals(
+    *,
+    entries: list[FinanceLedgerEntry],
+    revenue_entries: list[FinanceLedgerEntry],
+    cost_entries: list[FinanceLedgerEntry],
+    cost_breakdown: dict[str, float],
+    total_revenue: float | None,
+    total_cost: float | None,
+    net_profit: float | None,
+    cash_balance: float | None,
+    platform_account_id: str | None,
+    future_count: int,
+) -> list[dict]:
+    """Build reusable finance risk signals from real ledger scope only."""
+    signals: list[dict] = []
+    scoped_suffix = f"&platform_account_id={platform_account_id}" if platform_account_id else ""
+
+    def add_signal(
+        code: str,
+        level: str,
+        title: str,
+        detail: str,
+        action_label: str,
+        entry_type: str,
+    ) -> None:
+        signals.append({
+            "code": code,
+            "level": level,
+            "title": title,
+            "detail": detail,
+            "action_label": action_label,
+            "action_route": f"/finance?entry_type={entry_type}{scoped_suffix}#finance-ledger",
+        })
+
+    if not entries or (entries and not revenue_entries):
+        add_signal(
+            "revenue_missing",
+            "medium",
+            "收入台账未入账",
+            "当前筛选范围没有销售收入台账记录，无法形成经营收入口径。",
+            "补录销售收入",
+            "sales_income",
+        )
+    if entries and total_cost is None:
+        add_signal(
+            "cost_missing",
+            "medium",
+            "成本台账不完整",
+            "当前筛选范围没有可汇总成本，净利润无法计算。",
+            "补录采购或物流成本",
+            "purchase_cost",
+        )
+    if entries and not cost_breakdown.get("purchase_cost"):
+        add_signal(
+            "purchase_cost_missing",
+            "info",
+            "采购成本缺失",
+            "采购付款尚未形成采购成本台账，商品利润会被高估。",
+            "补录采购成本",
+            "purchase_cost",
+        )
+    if entries and not any(entry.entry_type in {"platform_fee", "transaction_fee", "service_fee"} for entry in cost_entries):
+        add_signal(
+            "platform_bill_missing",
+            "info",
+            "平台费缺失",
+            "平台佣金、交易费或服务费尚未形成平台费用台账。",
+            "导入平台账单",
+            "platform_fee",
+        )
+    if cash_balance is None:
+        add_signal(
+            "cash_balance_missing",
+            "info",
+            "资金余额未录入",
+            "没有可用资金余额台账，无法判断采购安全线和回款压力。",
+            "补录资金余额",
+            "cash_balance",
+        )
+    if net_profit is not None and net_profit < 0:
+        add_signal(
+            "negative_profit",
+            "high",
+            "净利润为负",
+            f"当前筛选范围收入 {total_revenue or 0:.2f} 元、成本 {total_cost or 0:.2f} 元，净利润为 {net_profit:.2f} 元。",
+            "复核成本与定价",
+            "platform_fee",
+        )
+    if future_count:
+        add_signal(
+            "future_entries_excluded",
+            "info",
+            "未来日期台账未计入",
+            f"{future_count} 条未来发生日期台账未计入当前筛选日期范围。",
+            "复核发生日期",
+            "finance_ledger_entries",
+        )
+    return signals
 
 
 def _platform_settlement(entries: list[FinanceLedgerEntry]) -> dict:

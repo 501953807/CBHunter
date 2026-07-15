@@ -62,7 +62,7 @@ export default function GrowthEnginePage() {
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div>
-              <p className="text-xs text-[var(--color-muted)]">证据窗口</p>
+              <p className="text-xs text-[var(--color-muted)]">数据范围</p>
               <p className="mt-1 text-[var(--color-fg)]">{summary?.evidence_window || '等待趋势、竞品、利润和供应链数据'}</p>
             </div>
             <div>
@@ -120,7 +120,7 @@ export default function GrowthEnginePage() {
                   <p className="text-xs text-[var(--color-muted)] mt-2 line-clamp-2">
                     {item.recommendation || '等待更多经营数据校准建议'}
                   </p>
-                  <p className="text-[11px] text-[var(--color-muted)] mt-1">证据完整度 {item.evidence_completeness_pct}%</p>
+                  <p className="text-[11px] text-[var(--color-muted)] mt-1">资料完整度 {item.evidence_completeness_pct}%</p>
                   <div className="grid grid-cols-4 gap-1 mt-3">
                     {[
                       ['趋势', item.dimensions?.trend_strength],

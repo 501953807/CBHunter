@@ -44,6 +44,7 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
       page_size: 8,
       entry_type: initialEntryType || undefined,
       platform_account_id: initialPlatformAccountId || undefined,
+      order_id: initialOrderId || undefined,
     })
       .then(r => { setLedger(r.data || []); setEvidence(r) })
       .catch(e => logger.error('Load finance ledger failed', e))

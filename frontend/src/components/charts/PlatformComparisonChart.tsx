@@ -24,7 +24,7 @@ export function PlatformComparisonChart() {
       <CardContent>
         {result && (
           <div className="mb-3 rounded-md bg-[var(--color-bg)] px-3 py-2 text-[11px] text-[var(--color-muted)]">
-            证据窗口：{result.evidence_window} · 来源 {result.source_refs.length} 类
+            数据范围：{result.evidence_window} · 数据来源 {result.source_refs.length} 类
             {result.data_gaps.length > 0 && <span className="ml-2 text-[var(--color-warning)]">{result.data_gaps.map(labelBusinessCode).join('；')}</span>}
           </div>
         )}

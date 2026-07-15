@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.platform_account import PlatformAccount
 from app.models.sync_log import SyncLog
 from app.schemas.order import ManualOrderCreate, OrderStatusUpdate, OrderNoteUpdate
@@ -26,6 +27,10 @@ FEE_COMPONENT_LABELS = {
     "buyer_paid": "买家支付总额",
 }
 
+ORDER_FINANCE_REVENUE_TYPES = {"revenue", "sales_income", "refund_reversal", "receivable", "accounts_receivable", "receivable_collection"}
+ORDER_FINANCE_NON_PROFIT_TYPES = {"cash_balance", "platform_wallet_balance", "withdrawal"}
+ORDER_FINANCE_PLATFORM_BILL_TYPES = {"platform_fee", "transaction_fee", "service_fee", "tax_fee", "refund"}
+
 
 async def list_orders(
     db: AsyncSession,
@@ -36,6 +41,7 @@ async def list_orders(
     search: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    exceptions: bool = False,
     page: int = 1,
     page_size: int = 20,
 ):
@@ -68,10 +74,21 @@ async def list_orders(
     if end:
         query = query.where(Order.ordered_at < end + timedelta(days=1))
 
+    query = query.order_by(Order.ordered_at.desc())
+
+    if exceptions:
+        result = await db.execute(query)
+        all_orders = [
+            order for order in result.scalars().all()
+            if build_fulfillment_exception_context(order).get("status") != "clear"
+        ]
+        total = len(all_orders)
+        start_index = (page - 1) * page_size
+        return all_orders[start_index:start_index + page_size], total
+
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
 
-    query = query.order_by(Order.ordered_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
 
     result = await db.execute(query)
@@ -203,6 +220,91 @@ def build_order_fee_context(order: Order) -> dict:
         "after_sales_status": platform_data.get("after_sales_status") or "unknown",
         "financial_reconciliation_status": reconciliation_status,
     }
+
+
+async def build_order_finance_entry_context(db: AsyncSession, order: Order) -> dict:
+    result = await db.execute(
+        select(FinanceLedgerEntry)
+        .where(
+            FinanceLedgerEntry.user_id == order.user_id,
+            FinanceLedgerEntry.order_id == order.id,
+        )
+        .order_by(FinanceLedgerEntry.occurred_at.desc())
+    )
+    entries = list(result.scalars().all())
+    revenue_entries = [entry for entry in entries if entry.entry_type in ORDER_FINANCE_REVENUE_TYPES]
+    cost_entries = [
+        entry for entry in entries
+        if entry.entry_type not in ORDER_FINANCE_REVENUE_TYPES and entry.entry_type not in ORDER_FINANCE_NON_PROFIT_TYPES
+    ]
+    platform_bill_entries = [entry for entry in entries if entry.entry_type in ORDER_FINANCE_PLATFORM_BILL_TYPES]
+    refund_entries = [entry for entry in entries if entry.entry_type == "refund"]
+    data_gaps: list[str] = []
+
+    if not entries:
+        data_gaps.append("finance_ledger_entries")
+    if not revenue_entries:
+        data_gaps.append("finance_ledger_entries.revenue")
+    if not platform_bill_entries:
+        data_gaps.append("platform_bill")
+
+    revenue_rmb = _sum_ledger_amount(revenue_entries) if revenue_entries else None
+    cost_rmb = _sum_ledger_amount(cost_entries) if cost_entries else None
+    net_profit_rmb = round(revenue_rmb - cost_rmb, 2) if revenue_rmb is not None and cost_rmb is not None and not data_gaps else None
+    status = "ledger_ready" if entries and not data_gaps else "ledger_incomplete"
+    if not entries:
+        status = "ledger_missing"
+
+    actions = [
+        {
+            "code": "view_order_ledger",
+            "label": "查看订单财务流水",
+            "route": f"/finance?order_id={order.id}#finance-ledger",
+            "reason": "查看当前订单已关联的真实财务台账",
+        }
+    ]
+    if not revenue_entries:
+        actions.append({
+            "code": "record_sales_income",
+            "label": "补录销售收入",
+            "route": f"/finance?entry_type=sales_income&order_id={order.id}#finance-ledger",
+            "reason": "当前订单尚无销售收入台账，不能作为已入账收入",
+        })
+    if not platform_bill_entries:
+        actions.append({
+            "code": "replenish_platform_bill",
+            "label": "补录平台账单",
+            "route": f"/finance?entry_type=platform_fee&order_id={order.id}#finance-ledger",
+            "reason": "缺平台费用、交易费、税费或退款流水时不计算完整订单利润",
+        })
+
+    return {
+        "status": status,
+        "entry_count": len(entries),
+        "revenue_rmb": revenue_rmb,
+        "cost_rmb": cost_rmb,
+        "net_profit_rmb": net_profit_rmb,
+        "platform_bill_entry_count": len(platform_bill_entries),
+        "refund_rmb": _sum_ledger_amount(refund_entries) if refund_entries else 0,
+        "data_gaps": data_gaps,
+        "actions": actions,
+        "recent_entries": [
+            {
+                "id": entry.id,
+                "entry_type": entry.entry_type,
+                "amount_rmb": round(float(entry.amount_rmb or 0), 2),
+                "currency": entry.currency,
+                "description": entry.description,
+                "occurred_at": entry.occurred_at.isoformat() if entry.occurred_at else None,
+            }
+            for entry in entries[:5]
+        ],
+        "confidence_reason": "订单财务入账状态只统计已关联当前订单 ID 的真实财务台账；缺收入或平台账单时不推导完整利润。",
+    }
+
+
+def _sum_ledger_amount(entries: list[FinanceLedgerEntry]) -> float:
+    return round(sum(float(entry.amount_rmb or 0) for entry in entries), 2)
 
 
 def build_fulfillment_exception_context(order: Order, now: datetime | None = None) -> dict:
@@ -439,17 +541,113 @@ async def update_order_notes(db: AsyncSession, order: Order, req: OrderNoteUpdat
     return order
 
 
-async def get_order_stats(db: AsyncSession, user_id: str) -> dict:
+async def get_order_stats(db: AsyncSession, user_id: str, now: datetime | None = None) -> dict:
     store_ids = await list_accessible_store_ids_for_user_id(db, user_id)
     if not store_ids:
         return {}
     result = await db.execute(
-        select(Order.status, func.count(Order.id).label("count"))
+        select(Order)
+        .options(selectinload(Order.items))
         .where(Order.platform_account_id.in_(store_ids))
-        .group_by(Order.status)
     )
-    rows = result.all()
-    return {row.status: row.count for row in rows}
+    orders = list(result.scalars().all())
+    now = now or datetime.now(timezone.utc)
+    by_order_status: dict[str, int] = {}
+    by_fulfillment_status: dict[str, int] = {}
+    store_map: dict[str, dict] = {}
+    fulfillment = {
+        "pending_shipment": 0,
+        "shipped": 0,
+        "due_soon": 0,
+        "overdue": 0,
+        "logistics_missing": 0,
+        "after_sales_open": 0,
+        "sync_required": 0,
+        "missing_deadline": 0,
+        "data_gap_count": 0,
+    }
+    for order in orders:
+        by_order_status[order.status] = by_order_status.get(order.status, 0) + 1
+        if order.fulfillment_status:
+            by_fulfillment_status[order.fulfillment_status] = by_fulfillment_status.get(order.fulfillment_status, 0) + 1
+        if _is_shipped_order(order):
+            fulfillment["shipped"] += 1
+        elif _is_active_order(order):
+            fulfillment["pending_shipment"] += 1
+
+        exception = build_fulfillment_exception_context(order, now=now)
+        if exception["status"] == "shipping_due_soon":
+            fulfillment["due_soon"] += 1
+        if exception["status"] == "shipping_overdue":
+            fulfillment["overdue"] += 1
+        if "logistics_channel" in exception["data_gaps"]:
+            fulfillment["logistics_missing"] += 1
+        if "after_sales_resolution" in exception["data_gaps"]:
+            fulfillment["after_sales_open"] += 1
+        if "platform_order_sync" in exception["data_gaps"]:
+            fulfillment["sync_required"] += 1
+        if "fulfillment_deadline_at" in exception["data_gaps"]:
+            fulfillment["missing_deadline"] += 1
+        fulfillment["data_gap_count"] += len(exception["data_gaps"])
+
+        account = order.platform_account
+        key = order.platform_account_id
+        if key not in store_map:
+            store_map[key] = {
+                "platform_account_id": key,
+                "platform": account.platform if account else "",
+                "platform_account_name": account.account_name if account else "店铺未命名",
+                "total_orders": 0,
+                "pending_shipment": 0,
+                "shipped": 0,
+                "due_soon": 0,
+                "overdue": 0,
+            }
+        store = store_map[key]
+        store["total_orders"] += 1
+        if _is_shipped_order(order):
+            store["shipped"] += 1
+        elif _is_active_order(order):
+            store["pending_shipment"] += 1
+        if exception["status"] == "shipping_due_soon":
+            store["due_soon"] += 1
+        if exception["status"] == "shipping_overdue":
+            store["overdue"] += 1
+
+    return {
+        "total_orders": len(orders),
+        "by_order_status": by_order_status,
+        "by_fulfillment_status": by_fulfillment_status,
+        "fulfillment": fulfillment,
+        "store_breakdown": sorted(
+            store_map.values(),
+            key=lambda item: (item["overdue"], item["due_soon"], item["pending_shipment"], item["total_orders"]),
+            reverse=True,
+        ),
+        "data_gaps": _order_stats_data_gaps(fulfillment),
+        "confidence_reason": "订单履约总览直接聚合当前用户可访问店铺订单、平台发货时限、履约状态和同步缺口；缺失字段进入数据缺口，不推导平台时限。",
+    }
+
+
+def _is_shipped_order(order: Order) -> bool:
+    shipped_statuses = {"fulfilled", "shipped", "in_transit", "delivered", "completed", "done"}
+    return (order.status in shipped_statuses) or ((order.fulfillment_status or "") in shipped_statuses)
+
+
+def _is_active_order(order: Order) -> bool:
+    inactive_statuses = {"completed", "delivered", "cancelled", "refunded", "closed"}
+    return order.status not in inactive_statuses
+
+
+def _order_stats_data_gaps(fulfillment: dict) -> list[str]:
+    gaps = []
+    if fulfillment.get("missing_deadline"):
+        gaps.append("部分订单缺少平台发货时限")
+    if fulfillment.get("logistics_missing"):
+        gaps.append("部分订单缺少物流渠道")
+    if fulfillment.get("sync_required"):
+        gaps.append("部分订单缺少平台同步时间")
+    return gaps
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:

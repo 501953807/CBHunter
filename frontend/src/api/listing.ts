@@ -32,6 +32,19 @@ export interface PlatformListingRequirements {
   }
 }
 
+export interface ListingStoreOverrideSummary {
+  schema?: string
+  store_id?: string | null
+  store_label?: string | null
+  title?: string | null
+  image_count?: number
+  sku_count?: number
+  has_platform_attributes?: boolean
+  has_logistics?: boolean
+  has_compliance?: boolean
+  override_boundary?: string | null
+}
+
 export interface ListingInstanceMatrixItem {
   id: string
   product_id: string
@@ -108,6 +121,7 @@ export interface ListingWorkbenchItem {
   image_url?: string | null
   media_readiness?: MediaReadiness
   platform_requirements?: PlatformListingRequirements
+  listing_store_override?: ListingStoreOverrideSummary
   pricing_confirmation?: Record<string, unknown>
   lifecycle_status: string
   lifecycle_label: string
@@ -192,6 +206,7 @@ export interface BatchListingDraft {
   template_title: string
   template_description: string
   platform_requirements?: PlatformListingRequirements
+  listing_store_override?: ListingStoreOverrideSummary
   template_missing: boolean
   fee_missing: boolean
   status?: 'ready' | 'configuration_required' | 'data_required'

@@ -331,7 +331,7 @@ function LayerWorkGuide({ activeTab, syncStatus, platformCount }: { activeTab: s
 
 function LayerReadiness({ sources = [], syncStatus, platformCount }: { sources: any[]; syncStatus: any; platformCount: number }) {
   const definitions = [
-    { id: 'culture', label: '社交文娱影响', ready: sources.some(item => item.layer === 'culture'), detail: '小红书、Facebook、TikTok Creative Center；保存链接、截图、评论/收藏证据' },
+    { id: 'culture', label: '社交文娱影响', ready: sources.some(item => item.layer === 'culture'), detail: '小红书、Facebook、TikTok Creative Center；保存链接、截图、评论/收藏资料' },
     { id: 'trend', label: '流行趋势', ready: Boolean(syncStatus?.last_fetch_at), detail: syncStatus?.last_fetch_at ? `${syncStatus.total_keywords || 0} 个真实关键词` : 'Pinterest/Google Trends 待同步或待授权' },
     { id: 'platform', label: '销售平台', ready: platformCount > 0, detail: platformCount > 0 ? `${platformCount} 个平台字典可录入；扩展采集缺字段会标记缺口` : '缺少平台字典配置' },
     { id: 'supply', label: '供应渠道', ready: sources.some(item => item.layer === 'supply'), detail: '1688/供应商图文素材；上传图片并补齐价格、规格、起订量' },

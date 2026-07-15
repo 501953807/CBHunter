@@ -13,7 +13,10 @@ from app.models.user import User
 from app.schemas.risk_control import RiskStateUpdateRequest
 from app.services.audit_service import record_audit_event
 from app.services.cockpit_service import get_operating_cockpit
+from app.services.finance_service import get_finance_summary
+from app.services.inventory_alert_service import get_inventory_risk_workbench
 from app.services.risk_control_projection_service import build_risk_control_projections
+from app.services.risk_control_sales_risk_service import get_listing_sales_decline_risks
 
 RISK_CATEGORY_LIBRARY = [
     {"key": "account", "label": "账号安全风险", "route": "/platforms", "description": "平台授权、凭证、店铺可用性和同步阻断。"},
@@ -27,7 +30,12 @@ RISK_CATEGORY_LIBRARY = [
 
 async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
     cockpit = await get_operating_cockpit(db, user_id)
+    inventory_workbench = await get_inventory_risk_workbench(db, user_id)
+    finance_summary = await get_finance_summary(db, user_id, "monthly")
     risks = _build_risks(cockpit)
+    risks.extend(_inventory_workbench_risks(inventory_workbench))
+    risks.extend(_finance_signal_risks(finance_summary))
+    risks.extend(await get_listing_sales_decline_risks(db, user_id))
     risks = await _attach_risk_scope(db, cockpit, risks)
     states = await _load_states(db, user_id, [item["id"] for item in risks])
     risks = [_merge_state(item, states.get(item["id"])) for item in risks]
@@ -72,7 +80,13 @@ async def update_risk_event_state(
     request: RiskStateUpdateRequest,
 ) -> dict:
     cockpit = await get_operating_cockpit(db, current_user.id)
-    risk = next((item for item in _build_risks(cockpit) if item["id"] == risk_id), None)
+    inventory_workbench = await get_inventory_risk_workbench(db, current_user.id)
+    finance_summary = await get_finance_summary(db, current_user.id, "monthly")
+    risks = _build_risks(cockpit)
+    risks.extend(_inventory_workbench_risks(inventory_workbench))
+    risks.extend(_finance_signal_risks(finance_summary))
+    risks.extend(await get_listing_sales_decline_risks(db, current_user.id))
+    risk = next((item for item in risks if item["id"] == risk_id), None)
     if not risk:
         raise ValueError("risk_not_found")
 
@@ -264,6 +278,82 @@ def _build_risks(cockpit: dict) -> list[dict]:
             "response_deadline_at": response_deadline_at,
             "remaining_time_label": remaining_time_label,
             "sla_hours": sla_hours,
+        })
+    return risks
+
+
+def _inventory_workbench_risks(workbench: dict) -> list[dict]:
+    risks: list[dict] = []
+    for item in workbench.get("slow_moving", {}).get("items") or []:
+        listing_id = item.get("listing_id")
+        if not listing_id:
+            continue
+        stock = item.get("stock") or 0
+        views = item.get("views_30d") or 0
+        orders = item.get("orders_30d") or 0
+        capital = item.get("capital_rmb")
+        if capital is None:
+            continue
+        deadline = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
+        sla_hours, remaining_time_label = _deadline_snapshot(deadline)
+        risks.append({
+            "id": f"inventory:slow-capital:{listing_id}",
+            "type": "inventory",
+            "type_label": "库存/供货风险",
+            "title": f"{item.get('title') or item.get('sku') or 'Listing'} 滞销库存资金占用",
+            "listing_id": listing_id,
+            "product_id": item.get("product_id"),
+            "platform": item.get("platform"),
+            "platform_account_id": item.get("platform_account_id"),
+            "account_name": item.get("account_name"),
+            "market": item.get("market"),
+            "severity": "warning",
+            "status": "pending",
+            "detail": f"库存资金占用 ¥{_plain_amount(capital)}，当前库存 {int(stock)} 件，近30天浏览 {int(views)}、订单 {int(orders)}，请复核清仓、主图、标题、定价和平台属性。",
+            "route": item.get("route") or f"/growth?listing_id={listing_id}",
+            "evidence_window": "当前库存风险工作台：已确认库存、商品成本和近30天 Listing 运营指标",
+            "source_refs": [
+                {"type": "platform_listing", "id": listing_id, "label": item.get("sku"), "fields": ["stock", "performance", "platform_data"]},
+                {"type": "product", "id": item.get("product_id"), "label": item.get("sku"), "fields": ["cost_price"]},
+            ],
+            "data_gaps": [],
+            "estimated_impact": f"近30天浏览 {int(views)}、订单 {int(orders)}，库存 {int(stock)} 件，库存资金占用 ¥{_plain_amount(capital)}，可能造成库存积压和资金占用。",
+            "response_deadline_at": deadline,
+            "remaining_time_label": remaining_time_label,
+            "sla_hours": sla_hours,
+        })
+    return risks
+
+
+def _finance_signal_risks(finance_summary: dict) -> list[dict]:
+    risks: list[dict] = []
+    source_refs = finance_summary.get("source_refs") or []
+    evidence_window = finance_summary.get("evidence_window") or "当前真实财务台账范围"
+    for signal in finance_summary.get("risk_signals") or []:
+        code = signal.get("code")
+        if not code:
+            continue
+        deadline = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
+        sla_hours, remaining_time_label = _deadline_snapshot(deadline)
+        level = signal.get("level")
+        risks.append({
+            "id": f"finance:{code}",
+            "type": "currency",
+            "type_label": "汇率与利润风险",
+            "title": signal.get("title") or "财务风险",
+            "severity": "critical" if level == "high" else "warning",
+            "status": "pending",
+            "detail": signal.get("detail") or "财务台账风险待复核",
+            "route": signal.get("action_route") or "/finance",
+            "evidence_window": f"真实财务台账：{evidence_window}",
+            "source_refs": source_refs,
+            "data_gaps": finance_summary.get("data_gaps") or [],
+            "estimated_impact": signal.get("detail") or "财务台账缺口会影响收入、成本、利润、现金和平台账单判断。",
+            "response_deadline_at": deadline,
+            "remaining_time_label": remaining_time_label,
+            "sla_hours": sla_hours,
+            "action_label": signal.get("action_label") or "复核财务台账",
+            "finance_signal_code": code,
         })
     return risks
 

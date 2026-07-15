@@ -99,6 +99,7 @@ function CockpitStoreMatrixTable({ stores, onNavigate }: {
                 <div className="flex flex-col items-end gap-1">
                   <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/products?tab=platform_store_products&platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>查看店铺商品</button>
                   <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/orders?platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>查看订单</button>
+                  <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/shipments?platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>查看物流</button>
                   <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/finance?platform_account_id=${encodeURIComponent(store.id)}`)}>查看财务</button>
                 </div>
               </td>

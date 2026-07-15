@@ -112,6 +112,7 @@ export default function BatchPublishPage() {
     imageUrl: item.image_url,
     mediaReadiness: item.media_readiness,
     platformRequirements: item.platform_requirements,
+    listingStoreOverride: item.listing_store_override,
     targetPlatforms: item.platform ? [item.platform] : [],
     targetMarkets: item.market ? [item.market] : [],
     targetStoreIds: item.platform_account_id ? [item.platform_account_id] : [],

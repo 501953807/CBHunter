@@ -13,6 +13,10 @@ class ProductRecommendationResponse(BaseModel):
     category: Optional[str] = None
     product_name: str
     product_name_cn: str
+    image_url: Optional[str] = None
+    image_count: int = 0
+    source_url: Optional[str] = None
+    source_label: Optional[str] = None
     target_platform: str
     target_market: str
     demand_level: str
@@ -30,7 +34,7 @@ class ProductRecommendationResponse(BaseModel):
     seasonal: bool = False
     decision_level: str = "red"
     decision_label: str = "红灯：暂缓投入"
-    decision_action: str = "先补齐真实证据再进入内容制作和刊登。"
+    decision_action: str = "先补齐真实资料再进入内容制作和刊登。"
     source_refs: list[dict] = Field(default_factory=list)
     evidence_window: Optional[str] = None
     confidence_reason: Optional[str] = None

@@ -14,7 +14,7 @@ AI_TASK_TYPES = {
         "label": "选品决策分析",
         "required_capabilities": ["text", "analysis"],
         "requires_local_tool": False,
-        "output_contract": "结构化机会、风险和补证据建议",
+        "output_contract": "结构化机会、风险和补资料建议",
     },
     "image_understanding": {
         "label": "图片理解",
@@ -44,7 +44,7 @@ AI_TASK_TYPES = {
         "label": "风险摘要",
         "required_capabilities": ["text", "analysis"],
         "requires_local_tool": False,
-        "output_contract": "风险等级、影响对象、证据和处理建议",
+        "output_contract": "风险等级、影响对象、资料和处理建议",
     },
 }
 

@@ -62,7 +62,7 @@ def evaluate_readiness(counts: dict[str, int]) -> dict:
         "rule_gaps": rule_gaps,
         "required_actions": required_actions,
         "note": (
-            "规则决策使用真实证据评分；模型训练仅在历史结果达到最低样本量后才标记可用。"
+            "规则决策使用真实资料评分；模型训练仅在历史结果达到最低样本量后才标记可用。"
         ),
     }
 
@@ -191,7 +191,7 @@ def _score(
         signals.append(max(0, min(mean(margins) * 2, 100)))
         reasons.append("历史利润率")
     if not signals:
-        return 0, "仅有商品或供应链记录，尚无可评分的趋势、销量或利润证据"
+        return 0, "仅有商品或供应链记录，尚无可评分的趋势、销量或利润资料"
     return round(mean(signals)), "、".join(reasons)
 
 
@@ -201,13 +201,13 @@ def _decision(score: int, gaps: list[str]) -> dict:
         return {
             "decision_level": "green",
             "decision_label": "绿灯：进入打样/上架准备",
-            "decision_action": "优先补齐最后证据后推进内容制作、平台校验和试刊登。",
+            "decision_action": "优先补齐最后资料后推进内容制作、平台校验和试刊登。",
         }
     if score >= 45:
         return {
             "decision_level": "yellow",
             "decision_label": "黄灯：继续验证",
-            "decision_action": "补充缺失的趋势、竞品、1688供应或利润证据后再投入上架。",
+            "decision_action": "补充缺失的趋势、竞品、1688供应或利润资料后再投入上架。",
         }
     return {
         "decision_level": "red",
@@ -222,6 +222,60 @@ def _price_range(products: list[SupplyProduct]) -> Optional[str]:
         return None
     low, high = min(prices), max(prices)
     return f"¥{low:.2f}" if low == high else f"¥{low:.2f} - ¥{high:.2f}"
+
+
+def _source_label(source_type: str) -> str:
+    if source_type == "supply_product":
+        return "1688供应商品"
+    if source_type == "trending_product":
+        return "平台热卖商品"
+    return "候选商品"
+
+
+def _image_list(item: object) -> list[str]:
+    images = getattr(item, "images", None)
+    if not isinstance(images, list):
+        return []
+    return [str(image) for image in images if isinstance(image, str) and image.strip()]
+
+
+def _source_image(item: object) -> Optional[str]:
+    image = getattr(item, "source_image", None)
+    return image if isinstance(image, str) and image.strip() else None
+
+
+def _source_url(item: object) -> Optional[str]:
+    for field in ("product_url", "source_url", "listing_url"):
+        url = getattr(item, field, None)
+        if isinstance(url, str) and url.strip():
+            return url
+    return None
+
+
+def _media_context(
+    source_type: str,
+    source_item: object,
+    related_supply: list[SupplyProduct],
+    related_sourcing: list[SourcingItem],
+) -> dict:
+    images: list[str] = []
+    images.extend(_image_list(source_item))
+    for item in related_supply:
+        images.extend(_image_list(item))
+    for item in related_sourcing:
+        source_image = _source_image(item)
+        if source_image:
+            images.append(source_image)
+    unique_images = list(dict.fromkeys(images))
+    source_url = _source_url(source_item)
+    if not source_url:
+        source_url = next((_source_url(item) for item in related_supply + related_sourcing if _source_url(item)), None)
+    return {
+        "image_url": unique_images[0] if unique_images else None,
+        "image_count": len(unique_images),
+        "source_url": source_url,
+        "source_label": _source_label(source_type),
+    }
 
 
 async def build_recommendation_bundle(
@@ -314,19 +368,21 @@ async def build_recommendation_bundle(
         source_refs.extend(source_ref("sourcing_item", item.id) for item in related_sourcing[:5])
         gaps = []
         if not related_trends:
-            gaps.append("缺趋势证据")
+            gaps.append("缺趋势资料")
         if not related_competitors:
-            gaps.append("缺竞品证据")
+            gaps.append("缺竞品资料")
         if not related_supply:
-            gaps.append("缺1688供应证据")
+            gaps.append("缺1688供应资料")
         if not margins:
-            gaps.append("缺历史利润证据")
+            gaps.append("缺历史利润资料")
         decision = _decision(score, gaps)
+        media_context = _media_context(source_type, source_item, related_supply, related_sourcing)
 
         recommendation = {
             "category": item_category,
             "product_name": name,
             "product_name_cn": name,
+            **media_context,
             "target_platform": platform,
             "target_market": market,
             "score": score,

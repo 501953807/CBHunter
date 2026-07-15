@@ -195,7 +195,7 @@ def _score_keyword(kw: TrendKeyword, internal_products: dict, sourcing_signals: 
 
 def _level_label(score: int, missing_dimensions: list[str]) -> str:
     if len(missing_dimensions) >= 2:
-        return "证据不足"
+        return "资料不足"
     if score >= 75:
         return "高分信号"
     elif score >= 55:
@@ -237,12 +237,12 @@ def _generate_recommendation(o: dict) -> str:
     trend = dims["trend_detail"]
 
     parts = [
-        f"关键词「{o['keyword']}」在{o['market']}市场的可用证据得分{o['blue_ocean_score']}分",
-        f"证据完整度{o['evidence_completeness_pct']}%",
+        f"关键词「{o['keyword']}」在{o['market']}市场的可用资料得分{o['blue_ocean_score']}分",
+        f"资料完整度{o['evidence_completeness_pct']}%",
     ]
 
     if o["missing_dimensions"]:
-        parts.append(f"缺少{','.join(o['missing_dimensions'])}证据，暂不生成入场结论")
+        parts.append(f"缺少{','.join(o['missing_dimensions'])}资料，暂不生成入场结论")
     else:
         parts.append("请结合样品、平台规则和现金流进行人工决策")
 

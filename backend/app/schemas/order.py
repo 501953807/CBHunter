@@ -70,6 +70,7 @@ class OrderDetailResponse(BaseModel):
     fee_breakdown: dict = Field(default_factory=dict)
     platform_sync_review: dict = Field(default_factory=dict)
     fulfillment_exception: dict = Field(default_factory=dict)
+    finance_entry_context: dict = Field(default_factory=dict)
     notes: Optional[str] = None
     ordered_at: Optional[datetime] = None
     created_at: Optional[datetime] = None

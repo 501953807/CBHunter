@@ -23,8 +23,10 @@ export function useCreateShipment() {
   const toast = useToast()
   return useMutation({
     mutationFn: createShipment,
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['shipments'] })
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      if (result.data?.order_id) qc.invalidateQueries({ queryKey: ['order', result.data.order_id] })
       toast.addToast('success', '物流创建成功')
     },
     onError: () => toast.addToast('error', '创建物流失败'),
@@ -36,8 +38,10 @@ export function useUpdateShipment() {
   const toast = useToast()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => updateShipment(id, data),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['shipments'] })
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      if (result.data?.order_id) qc.invalidateQueries({ queryKey: ['order', result.data.order_id] })
       toast.addToast('success', '物流更新成功')
     },
     onError: () => toast.addToast('error', '更新物流失败'),

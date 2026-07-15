@@ -419,6 +419,7 @@ function PlatformStoreProductActionStrip({ item }: { item: PlatformStoreProduct 
 
 function buildStoreProductActions(item: PlatformStoreProduct): StoreProductAction[] {
   const listingRoute = `/products/${item.product_master.id}?tab=listings&listing_id=${item.id}`
+  const listingSectionRoute = (section: string) => `${listingRoute}&listing_section=${section}`
   const mediaReadiness = item.media_readiness || {}
   const capturedImages = mediaReadiness.captured_image_count ?? item.image_count
   const minPlatformImages = mediaReadiness.min_platform_images ?? 5
@@ -428,7 +429,7 @@ function buildStoreProductActions(item: PlatformStoreProduct): StoreProductActio
     actions.push({
       label: '补主图素材',
       detail: `当前 ${capturedImages}/${minPlatformImages} 张，进入图片槽位处理`,
-      route: `${listingRoute}#listing-section-media`,
+      route: listingSectionRoute('media'),
       severity: 'warning',
     })
   }
@@ -436,7 +437,7 @@ function buildStoreProductActions(item: PlatformStoreProduct): StoreProductActio
     actions.push({
       label: '补 SKU/规格',
       detail: '当前店铺 Listing 缺少 SKU 或变体规格',
-      route: `${listingRoute}#listing-section-sales`,
+      route: listingSectionRoute('sales'),
       severity: 'warning',
     })
   }
@@ -452,13 +453,13 @@ function buildStoreProductActions(item: PlatformStoreProduct): StoreProductActio
   actions.push({
     label: '编辑店铺 Listing',
     detail: '修改当前店铺实例，不回写其他店铺',
-    route: listingRoute,
+    route: listingSectionRoute('basic'),
     severity: actions.length ? 'primary' : 'success',
   })
   actions.push({
     label: '查看当前 Listing',
     detail: '核对标题、图片、价格、库存和平台属性',
-    route: `${listingRoute}#platform-listing-seller-preview`,
+    route: `${listingSectionRoute('media')}#platform-listing-seller-preview`,
     severity: actions.length ? 'primary' : 'success',
   })
 

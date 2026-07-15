@@ -446,6 +446,7 @@ export default function PromotionsPage() {
                   <th className="px-3 py-2">活动名称/ID</th>
                   <th className="px-3 py-2">所属店铺</th>
                   <th className="px-3 py-2">活动产品</th>
+                  <th className="px-3 py-2">活动效果</th>
                   <th className="px-3 py-2">状态/活动时间</th>
                   <th className="px-3 py-2">操作</th>
                 </tr>
@@ -464,6 +465,9 @@ export default function PromotionsPage() {
                     <td className="px-3 py-3">
                       <p className="text-[var(--color-fg)]">{item.product_count} 个产品参与</p>
                       <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">{item.items.map((entry) => entry.product_name).join('、') || '待添加商品'}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <PromotionEffectSummary campaign={item} />
                     </td>
                     <td className="px-3 py-3">
                       <Badge variant={item.status === 'active' || item.status === 'ongoing' ? 'success' : 'default'}>{item.status}</Badge>
@@ -489,6 +493,26 @@ export default function PromotionsPage() {
   )
 }
 
+function PromotionEffectSummary({ campaign }: { campaign: PromotionCampaign }) {
+  const summary = campaign.price_summary
+  if (!summary || summary.priced_item_count === 0) {
+    return (
+      <div aria-label="活动效果" className="text-xs text-[var(--color-muted)]">
+        <p>待补促销价</p>
+        <p className="mt-1">未生成成交效果，不用假数据填充。</p>
+      </div>
+    )
+  }
+  return (
+    <div aria-label="活动效果" className="space-y-1 text-xs">
+      <p className="font-medium text-[var(--color-fg)]">预计让利 {formatMoney(summary.discount_amount_total)}</p>
+      <p className="text-[var(--color-muted)]">原价 {formatMoney(summary.original_price_total)} → 促销 {formatMoney(summary.promotion_price_total)}</p>
+      <p className="text-[var(--color-muted)]">平均折扣 {summary.avg_discount_pct == null ? '待计算' : `${summary.avg_discount_pct.toFixed(2)}%`} · {summary.priced_item_count} 个商品有价格</p>
+      <p className="text-[11px] text-[var(--color-muted)]">{summary.note}</p>
+    </div>
+  )
+}
+
 function Field({ label, value, onChange, placeholder, type = 'text' }: {
   label: string
   value: string
@@ -508,6 +532,10 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
       />
     </label>
   )
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function PromotionCandidateCard({ item, selected, onToggle }: { item: PlatformStoreProduct; selected: boolean; onToggle: () => void }) {

@@ -1,11 +1,12 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
-import type { ManualOrderCreate, OrderListRow, OrderDetail } from '../types/order'
+import type { ManualOrderCreate, OrderListRow, OrderDetail, OrderFulfillmentStats } from '../types/order'
 
 export interface OrderListParams {
   status?: string
   platform?: string
   platform_account_id?: string
+  exceptions?: '1'
   search?: string
   page?: number
   page_size?: number
@@ -18,6 +19,11 @@ export async function getOrders(params?: OrderListParams) {
 
 export async function getOrder(id: string) {
   const res = await client.get<ApiResponse<OrderDetail>>(`/orders/${id}`)
+  return res.data
+}
+
+export async function getOrderStats() {
+  const res = await client.get<ApiResponse<OrderFulfillmentStats>>('/orders/stats')
   return res.data
 }
 

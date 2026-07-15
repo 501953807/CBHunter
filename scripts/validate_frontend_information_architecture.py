@@ -21,6 +21,7 @@ SETTINGS_WORKSPACE = (ROOT / "frontend/src/features/settings/SettingsWorkspace.t
 SETTINGS_ACCOUNT_PANELS = (ROOT / "frontend/src/features/settings/SettingsAccountPanels.tsx").read_text(encoding="utf-8")
 SETTINGS_SYSTEM_PANELS = (ROOT / "frontend/src/features/settings/SettingsSystemPanels.tsx").read_text(encoding="utf-8")
 HEADER = (ROOT / "frontend/src/components/layout/Header.tsx").read_text(encoding="utf-8")
+OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
 SCOUT_WORKSPACE = (ROOT / "frontend/src/features/scout-sources/ScoutSourcesWorkspace.tsx").read_text(encoding="utf-8")
 SCOUT_SOURCES_VIEW = (ROOT / "frontend/src/features/scout-sources/ScoutSourcesView.tsx").read_text(encoding="utf-8")
 SIGNAL_FUNNEL_OVERVIEW = (ROOT / "frontend/src/features/scout-sources/SignalFunnelOverview.tsx").read_text(encoding="utf-8")
@@ -42,9 +43,12 @@ RISK_CONTROL_WORKSPACE = (ROOT / "frontend/src/features/risk-control/RiskControl
 RISK_SIGNAL_BOARD = (ROOT / "frontend/src/features/risk-control/RiskSignalBoard.tsx").read_text(encoding="utf-8")
 RISK_STORE_COMMAND_BOARD = (ROOT / "frontend/src/features/risk-control/RiskStoreCommandBoard.tsx").read_text(encoding="utf-8")
 RISK_EVIDENCE_PANEL = (ROOT / "frontend/src/features/risk-control/RiskEvidencePanel.tsx").read_text(encoding="utf-8")
+RISK_ACTION_PANEL = (ROOT / "frontend/src/features/risk-control/RiskActionPanel.tsx").read_text(encoding="utf-8")
+RISK_CONTROL_API = (ROOT / "frontend/src/api/riskControl.ts").read_text(encoding="utf-8")
 COCKPIT_WORKSPACE = (ROOT / "frontend/src/features/cockpit/CockpitWorkspace.tsx").read_text(encoding="utf-8")
 COCKPIT_CENTER_SUMMARY = (ROOT / "frontend/src/features/cockpit/CockpitCenterSummaryPanels.tsx").read_text(encoding="utf-8")
 COCKPIT_STORE_COMMAND_BOARD = (ROOT / "frontend/src/features/cockpit/CockpitStoreCommandBoard.tsx").read_text(encoding="utf-8")
+COCKPIT_SCOPE_FILTERS = (ROOT / "frontend/src/features/cockpit/CockpitScopeFilters.tsx").read_text(encoding="utf-8")
 COCKPIT_SIDEBAR = (ROOT / "frontend/src/features/cockpit/CockpitSidebar.tsx").read_text(encoding="utf-8")
 COCKPIT_TYPES = (ROOT / "frontend/src/types/cockpit.ts").read_text(encoding="utf-8")
 COCKPIT_COMMAND_WIDGETS = (ROOT / "frontend/src/features/cockpit/CockpitCommandWidgets.tsx").read_text(encoding="utf-8")
@@ -75,6 +79,8 @@ CONTENT_PUBLISH_GUIDE = (ROOT / "frontend/src/features/content-planner/ContentPu
 CONTENT_PRODUCT_QUEUE = (ROOT / "frontend/src/features/content-planner/ContentProductQueue.tsx").read_text(encoding="utf-8")
 CONTENT_TASK_MATRIX = (ROOT / "frontend/src/features/content-planner/ContentTaskMatrix.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_PREVIEW = (ROOT / "frontend/src/features/batch-publish/BatchPublishPreviewStep.tsx").read_text(encoding="utf-8")
+BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH = ROOT / "frontend/src/features/batch-publish/StoreOverridePreviewPanel.tsx"
+BATCH_PUBLISH_OVERRIDE_PREVIEW = BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH.read_text(encoding="utf-8") if BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH.exists() else ""
 BATCH_PUBLISH_QUEUE = (ROOT / "frontend/src/features/batch-publish/ListingDraftQueue.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_COMPLETENESS = (ROOT / "frontend/src/features/batch-publish/ListingCompletenessPanel.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_RESULT = (ROOT / "frontend/src/features/batch-publish/BatchPublishResultStep.tsx").read_text(encoding="utf-8")
@@ -93,22 +99,38 @@ PRODUCT_LIST_PAGE = (ROOT / "frontend/src/pages/ProductListPage.tsx").read_text(
 PRODUCT_BULK_TOOLBAR = (ROOT / "frontend/src/features/products/ProductBulkToolbar.tsx").read_text(encoding="utf-8")
 ORDER_LIST_PAGE = (ROOT / "frontend/src/pages/OrderListPage.tsx").read_text(encoding="utf-8")
 ORDER_DETAIL_PAGE = (ROOT / "frontend/src/pages/OrderDetailPage.tsx").read_text(encoding="utf-8")
+SHIPMENT_LIST_PAGE = (ROOT / "frontend/src/pages/ShipmentListPage.tsx").read_text(encoding="utf-8")
+SHIPMENT_DETAIL_PAGE = (ROOT / "frontend/src/pages/ShipmentDetailPage.tsx").read_text(encoding="utf-8")
 AFTER_SALES_PAGE = (ROOT / "frontend/src/pages/AfterSalesPage.tsx").read_text(encoding="utf-8")
 ORDER_SERVICE = (ROOT / "backend/app/services/order_service.py").read_text(encoding="utf-8")
+ORDER_API = (ROOT / "backend/app/api/v1/orders.py").read_text(encoding="utf-8")
+SHIPMENT_SERVICE = (ROOT / "backend/app/services/shipment_service.py").read_text(encoding="utf-8")
 SYNC_SERVICE_BACKEND = (ROOT / "backend/app/services/sync_service.py").read_text(encoding="utf-8")
 SYNC_BACKEND_API = (ROOT / "backend/app/api/v1/sync.py").read_text(encoding="utf-8")
 ORDERS_API = (ROOT / "frontend/src/api/orders.ts").read_text(encoding="utf-8")
+ORDER_TYPES = (ROOT / "frontend/src/types/order.ts").read_text(encoding="utf-8")
+SHIPMENTS_API = (ROOT / "frontend/src/api/shipments.ts").read_text(encoding="utf-8")
+USE_ORDERS_HOOK = (ROOT / "frontend/src/hooks/useOrders.ts").read_text(encoding="utf-8")
+USE_SYNC_HOOK = (ROOT / "frontend/src/hooks/useSync.ts").read_text(encoding="utf-8")
 RISK_CONTROL_SERVICE = (ROOT / "backend/app/services/risk_control_service.py").read_text(encoding="utf-8")
+RISK_CONTROL_SALES_RISK_SERVICE = (ROOT / "backend/app/services/risk_control_sales_risk_service.py").read_text(encoding="utf-8")
 FINANCE_PAGE = (ROOT / "frontend/src/pages/FinancePage.tsx").read_text(encoding="utf-8")
 FINANCE_API = (ROOT / "frontend/src/api/finance.ts").read_text(encoding="utf-8")
 FINANCE_LEDGER_PANEL = (ROOT / "frontend/src/features/finance/FinanceLedgerPanel.tsx").read_text(encoding="utf-8")
 FINANCE_SERVICE = (ROOT / "backend/app/services/finance_service.py").read_text(encoding="utf-8")
+FINANCE_SCHEMA = (ROOT / "backend/app/schemas/finance.py").read_text(encoding="utf-8")
 FINANCE_BACKEND_API = (ROOT / "backend/app/api/v1/finance.py").read_text(encoding="utf-8")
 GROWTH_ENGINE_PAGE = (ROOT / "frontend/src/pages/GrowthEnginePage.tsx").read_text(encoding="utf-8")
 OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
 COMPETITOR_MONITOR_PAGE = (ROOT / "frontend/src/pages/CompetitorMonitorPage.tsx").read_text(encoding="utf-8")
 AUDIT_LOG_TAB = (ROOT / "frontend/src/pages/settings/AuditLogTab.tsx").read_text(encoding="utf-8")
+INVENTORY_ALERT_WORKSPACE = (ROOT / "frontend/src/features/inventory-alerts/InventoryAlertWorkspace.tsx").read_text(encoding="utf-8")
 INVENTORY_ALERT_PANELS = (ROOT / "frontend/src/features/inventory-alerts/InventoryAlertPanels.tsx").read_text(encoding="utf-8")
+INVENTORY_ALERT_API = (ROOT / "frontend/src/api/inventoryAlerts.ts").read_text(encoding="utf-8")
+INVENTORY_ALERT_HOOKS = (ROOT / "frontend/src/hooks/useInventoryAlerts.ts").read_text(encoding="utf-8")
+SYNC_HOOKS = (ROOT / "frontend/src/hooks/useSync.ts").read_text(encoding="utf-8")
+INVENTORY_ALERT_BACKEND_API = (ROOT / "backend/app/api/v1/inventory_alerts.py").read_text(encoding="utf-8")
+INVENTORY_RISK_ACTION_SERVICE = (ROOT / "backend/app/services/inventory_risk_action_service.py").read_text(encoding="utf-8")
 SETTINGS_BILLING_PANEL = (ROOT / "frontend/src/features/settings/SettingsBillingPanel.tsx").read_text(encoding="utf-8")
 OPERATIONS_API = (ROOT / "frontend/src/api/operations.ts").read_text(encoding="utf-8")
 PROMOTIONS_PAGE = (ROOT / "frontend/src/pages/PromotionsPage.tsx").read_text(encoding="utf-8")
@@ -151,6 +173,13 @@ def native_confirm_usages() -> list[str]:
 
 def validate() -> list[str]:
     errors: list[str] = []
+    for root_name in ("frontend/src", "backend/app"):
+        for path in (ROOT / root_name).rglob("*"):
+            if path.suffix not in {".ts", ".tsx", ".py"}:
+                continue
+            content = path.read_text(encoding="utf-8")
+            if "证据" in content:
+                errors.append(f"user-facing Chinese terminology must use data/source/material wording instead of evidence wording: {path.relative_to(ROOT)}")
 
     ui_scheme_section = IMPLEMENTATION_PLAN.split("#### 6.7.7.1 三套可实施 UI 页面方案", 1)[-1].split("### 6.7.8 新增实施任务", 1)[0]
     for required in (
@@ -375,6 +404,12 @@ def validate() -> list[str]:
     for required in ("业务流程总分看板", "业务流程卡点总览", "业务处理总览", "当前瓶颈", "卡点率", "待补关键资料", "业务处理动作", "data-ui=\"flow-hero\"", "业务对象范围对比", "业务核心判断条", "业务核心判断", "链路卡点率", "当前瓶颈阶段", "下一步动作", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "统计日期范围", "环比日期范围", "同比日期范围", "默认最近30个自然日", "向前紧邻${days}天", "去年同日期${days}天", "业务对象对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "八阶段卡点矩阵", "平台业务对象分布", "平台对象占比", "店铺卡点热力", "推进结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺业务推进结构", "信号收集", "候选验证", "选品决策", "Listing 制作", "定价策略", "平台刊登", "BarChart", "PieChart", "comparisonRangeLabel"):
         if required not in business_flow_board_with_range_util:
             errors.append(f"business monitor V5 board must expose total/breakdown/stage charts: {required}")
+    business_flow_service_content = (ROOT / "backend/app/services/business_flow_service.py").read_text(encoding="utf-8")
+    business_flow_projection_content = (ROOT / "backend/app/services/business_flow_projection_service.py").read_text(encoding="utf-8")
+    business_flow_dwell_content = business_flow_board_with_range_util + BUSINESS_FLOW_V2 + business_flow_service_content + business_flow_projection_content
+    for required in ("avg_wait_label", "max_wait_item", "平均停留", "最长停留", "stage_dwell_stats", "stage_dwell", "阶段停留对比"):
+        if required not in business_flow_dwell_content:
+            errors.append(f"business flow monitor must expose real stage dwell time and longest waiting object: {required}")
     for forbidden in ("业务对象周期对比", "业务对象窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "label=\"业务对象\"", "label=\"卡点对象\"", "label=\"待补资料\""):
         if forbidden in BUSINESS_FLOW_COMMAND_BOARD:
             errors.append(f"business monitor must not use vague period/object labels: {forbidden}")
@@ -385,7 +420,7 @@ def validate() -> list[str]:
         errors.append("business monitor stage ribbon must not regress to large card-like stage blocks")
     if "aria-label=\"业务处理阶段\"" not in BUSINESS_FLOW_V2:
         errors.append("business monitor stage spine must expose an accessible workflow label")
-    business_flow_content = f"{BUSINESS_FLOW_V2}\n{BUSINESS_FLOW_CONTEXT_RAIL}\n{BUSINESS_FLOW_ROUTES}"
+    business_flow_content = f"{BUSINESS_FLOW_V2}\n{BUSINESS_FLOW_CONTEXT_RAIL}\n{BUSINESS_FLOW_COMMAND_BOARD}\n{BUSINESS_FLOW_ROUTES}"
     if "item.image_url" not in business_flow_content:
         errors.append("business monitor must show real product images for item-level workflow context")
     for required in ("item.account_name", "店铺待定位"):
@@ -393,9 +428,11 @@ def validate() -> list[str]:
             errors.append(f"business monitor item queue must expose platform/store ownership: {required}")
     if "查看货源" not in business_flow_content:
         errors.append("business monitor context rail must expose the source product link when available")
-    for required in ("buildObjectRoute(item.next_action_route, item)", "candidate_id", "product_id", "content_item_id"):
+    for required in ("buildObjectRoute(item.next_action_route, item)", "buildObjectRoute(primaryAction.route, primaryAction)", "buildSourceRefRoute", "candidate_id", "product_id", "content_item_id", "sourcing_item_id", "order_id"):
         if required not in business_flow_content:
             errors.append(f"business monitor context rail must carry current object into downstream route: {required}")
+    if "onNavigate(ref.meta.route)" in BUSINESS_FLOW_CONTEXT_RAIL:
+        errors.append("business monitor source refs must not navigate directly without object route enrichment")
     if "nextRoute.startsWith('/products/')" not in BUSINESS_FLOW_ROUTES:
         errors.append("business flow route builder must preserve product detail routes without rewriting them as publish routes")
     for required in ("业务链路空状态", "补充真实业务对象", "EmptyFlowState"):
@@ -417,6 +454,12 @@ def validate() -> list[str]:
     for forbidden in ("风险周期对比", "风险窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "label=\"活跃风险\"", "label=\"高危风险\""):
         if forbidden in RISK_STORE_COMMAND_BOARD:
             errors.append(f"risk control must not use vague period/risk labels: {forbidden}")
+    for forbidden in ("当前周期", "上一周期", "当前30天", "上一30天"):
+        if forbidden in RISK_CONTROL_SALES_RISK_SERVICE:
+            errors.append(f"sales decline risk backend must use explicit 30-day range labels: {forbidden}")
+    for required in ("前一连续30天", "近30天", "Listing performance 近30天与前一连续30天真实平台指标"):
+        if required not in RISK_CONTROL_SALES_RISK_SERVICE:
+            errors.append(f"sales decline risk backend must expose concrete comparison ranges: {required}")
     for required in ("RadarChart", "Radar", "PolarGrid", "PolarAngleAxis", "PolarRadiusAxis", "风险类型雷达图"):
         if required not in RISK_STORE_COMMAND_BOARD:
             errors.append(f"risk control V5 board must render a real radar chart for risk categories: {required}")
@@ -457,12 +500,15 @@ def validate() -> list[str]:
     for forbidden in ("经营周期对比", "经营窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "周期财务结构", "本期订单", "本期收入", "本期净利润"):
         if forbidden in COCKPIT_STORE_COMMAND_BOARD:
             errors.append(f"operating cockpit must not use vague period wording: {forbidden}")
-    for required in ("店铺贡献排行", "店铺商品", "订单", "财务", "收入待同步", "last_sync_at", "未同步"):
+    for required in ("店铺贡献排行", "店铺商品", "订单", "物流", "财务", "复核店铺物流", "/shipments?platform_account_id=", "收入待同步", "last_sync_at", "未同步"):
         if required not in COCKPIT_STORE_COMMAND_BOARD:
             errors.append(f"operating cockpit store board must expose store-level table and drilldowns: {required}")
     for required in ("店铺资金分布", "投入/成本", "绑定台账", "ledger_entry_count", "revenue_rmb", "cost_rmb", "net_profit_rmb", "只统计明确绑定店铺的财务台账"):
         if required not in COCKPIT_STORE_COMMAND_BOARD + COCKPIT_TYPES:
             errors.append(f"operating cockpit store board must expose per-store finance breakdown: {required}")
+    for required in ("aria-label=\"经营日期快捷窗口\"", "buildOperatingDateShortcuts", "week_to_date", "month_to_date", "quarter_to_date", "本周", "本月", "本季度", "formatDateLocal", "onApply(cleanFilters(next))"):
+        if required not in COCKPIT_SCOPE_FILTERS:
+            errors.append(f"operating cockpit scope filters must expose explicit week/month/quarter date shortcuts: {required}")
     for forbidden in ("风险摘要", "链路摘要", "报表异常", "AI 运营建议", "CockpitHealthRadar", "经营健康雷达"):
         if forbidden in COCKPIT_WORKSPACE:
             errors.append(f"operating cockpit main workspace must not promote non-operating summaries as primary sections: {forbidden}")
@@ -500,10 +546,10 @@ def validate() -> list[str]:
     for forbidden in ("const PAGE_TABS", "<Tabs tabs={PAGE_TABS}", "label: \"趋势热点\"", "label: \"图片选品\"", "label: \"热卖商品\"", "label: \"选品推荐\"", "label: \"选品库\""):
         if forbidden in TREND_DISCOVERY_WORKSPACE:
             errors.append(f"candidate validation must not expose separated top-level tool tabs: {forbidden}")
-    for required in ("CandidatePoolTable", "aria-label=\"候选商品池主表\"", "selectedRecommendationId", "候选详情侧栏", "资料完整度"):
+    for required in ("CandidatePoolTable", "aria-label=\"候选商品池主表\"", "selectedRecommendationId", "候选详情侧栏", "资料完整度", "商品图", "候选素材", "查看来源"):
         if required not in RECOMMENDATION_EVIDENCE_PANEL:
             errors.append(f"trend candidate page must use a compact product-pool table instead of stacked cards: {required}")
-    for required in ("2xl:grid-cols-[minmax(0,1fr)_320px]", "2xl:sticky", "min-w-[760px]"):
+    for required in ("2xl:grid-cols-[minmax(0,1fr)_320px]", "2xl:sticky", "min-w-[860px]"):
         if required not in RECOMMENDATION_EVIDENCE_PANEL:
             errors.append(f"trend candidate page must protect the product-pool table from collapsing beside the floating rail: {required}")
     for required in ("useNavigate", "/product-selection?candidate_id=", "platform=", "market=", "进入选品决策"):
@@ -737,6 +783,12 @@ def validate() -> list[str]:
         "aria-label=\"规格合规校验面板\"",
         "confirmCompliance",
         "saveContentTaskVersion(product.id, 'compliance_check'",
+        "getContentTaskMatrix(product.id)",
+        "parseListingOverridePayload",
+        "saveSpecificationOverride",
+        "saveContentTaskVersion(product.id, 'listing_store_override'",
+        "confirmContentTaskVersion(product.id, 'listing_store_override'",
+        "保存规格到店铺覆盖草稿",
         "复制规格字段包",
     ):
         if required not in LISTING_SPECIFICATION_EDITOR:
@@ -832,6 +884,12 @@ def validate() -> list[str]:
     for required in ("aria-label=\"发布门禁总览\"", "PublishGateCard", "PublishGateStack", "aria-label=\"发布门禁状态\"", "publishReadiness", "图片门禁", "字段门禁", "目标归属"):
         if required not in BATCH_PUBLISH_SELECT:
             errors.append(f"batch publish select step must expose publish gate summary and row diagnostics: {required}")
+    for required in ("listingStoreOverride", "ListingOverrideSummary", "aria-label=\"店铺覆盖字段摘要\"", "未保存店铺覆盖草稿", "SKU", "属性", "物流", "合规"):
+        if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
+            errors.append(f"batch publish select step must carry store override summary into publish gates: {required}")
+    for required in ("StoreOverridePreviewPanel", "aria-label=\"发布预览店铺覆盖来源\"", "店铺覆盖版本", "SKU/变体来源", "物流来源", "合规来源", "平台属性来源", "未使用店铺覆盖版本", "listing_store_override"):
+        if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
+            errors.append(f"batch publish preview must expose store override source/status before draft creation: {required}")
     if "Array.from(selectedPlatforms)[0]" in BATCH_PUBLISH_SELECT:
         errors.append("batch publish select step must not inspect only the first selected platform for field requirements")
     if "ProductBulkToolbar" not in PRODUCT_EDIT_PAGE and "ProductBulkToolbar" not in PRODUCT_LIST_PAGE:
@@ -841,6 +899,37 @@ def validate() -> list[str]:
     for required in ("batchUpdateStock", "stockValue", "onApplyStock", "批量设置店铺库存"):
         if required not in PRODUCT_LIST_PAGE + PRODUCT_BULK_TOOLBAR + PRODUCTS_API:
             errors.append(f"product selected toolbar must support batch store listing stock updates: {required}")
+    inventory_alert_content = INVENTORY_ALERT_WORKSPACE + INVENTORY_ALERT_PANELS + INVENTORY_ALERT_API + INVENTORY_ALERT_HOOKS + SYNC_HOOKS + INVENTORY_ALERT_BACKEND_API + INVENTORY_RISK_ACTION_SERVICE
+    for required in (
+        "InventoryRiskWorkbench",
+        "/inventory-alerts/risk-workbench",
+        "getInventoryRiskWorkbench",
+        "useInventoryRiskWorkbench",
+        "InventoryRiskWorkbenchSnapshot",
+        "aria-label=\"库存风险处理工作台\"",
+        "data-ui=\"inventory-risk-workbench\"",
+        "库存资金占用",
+        "缺货风险",
+        "滞销风险",
+        "发货超期风险",
+        "库存风险处理队列",
+        "buildInventoryRiskLanes",
+        "buildInventoryRiskActions",
+        "查看店铺商品",
+        "复核订单履约",
+        "复核运营诊断",
+        "createInventorySlowMovingOperationAction",
+        "useCreateInventorySlowMovingOperationAction",
+        "滞销 Listing 运营动作",
+        "生成运营台账动作",
+        "/inventory-alerts/risk-workbench/slow-moving/",
+        "inventory_risk_action_service",
+        "triggerProductSync",
+        "同步平台商品库存",
+        "平台商品同步未完成",
+    ):
+        if required not in inventory_alert_content:
+            errors.append(f"inventory alerts must expose platform/store inventory risk workbench: {required}")
     for required in ("基础商品资料列表", "状态诊断", "平台字段诊断", "PlatformFieldGroupSummary", "创建 Listing"):
         if required not in PRODUCT_SELLER_WORKBENCH:
             errors.append(f"product seller workbench must keep seller-console operation element: {required}")
@@ -884,8 +973,8 @@ def validate() -> list[str]:
     ):
         if required not in PLATFORM_STORE_PRODUCTS_PANEL:
             errors.append(f"platform store product rows must expose row-level next actions and diagnostics: {required}")
-    store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
-    for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"finance\""):
+    store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + SHIPMENT_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
+    for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺物流", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"shipments\"", "currentModule=\"finance\""):
         if required not in store_context_content:
             errors.append(f"store drilldown context must persist across product/order/finance pages: {required}")
     for required in ("mediaReadinessLabel", "平台图片要求", "媒体缺口", "主档图片"):
@@ -907,7 +996,7 @@ def validate() -> list[str]:
     ):
         if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API + SYNC_SERVICE_BACKEND:
             errors.append(f"platform store product rows must expose product-master to listing-instance relation and store overrides: {required}")
-    for required in ("编辑店铺 Listing", "?tab=listings", "listing_id=", "product_master.id"):
+    for required in ("编辑店铺 Listing", "?tab=listings", "listing_id=", "listing_section=", "product_master.id"):
         if required not in PLATFORM_STORE_PRODUCTS_PANEL:
             errors.append(f"platform store products must provide direct listing edit context: {required}")
     for required in ("getPlatformStoreProducts", "triggerProductSync", "platform_products_open_api", "不生成模拟商品"):
@@ -948,9 +1037,17 @@ def validate() -> list[str]:
             errors.append(f"batch publish deep-linked products must explain draft pricing source before preview: {required}")
     if "platform_attrs" not in PRODUCT_EDIT_PAGE or "ProductPlatformAttributesPanel" not in PRODUCT_EDIT_PAGE:
         errors.append("product edit page must expose platform-specific product attributes")
-    for required in ("useSearchParams", "initialTab", "setActiveTab(initialTab)"):
+    for required in ("ProductEditObjectOverview", "aria-label=\"商品编辑对象总览\"", "data-ui=\"product-edit-object-overview\"", "基础商品版本", "店铺 Listing 实例", "发布准备度", "仅用当前商品真实字段判断", "不回写污染其他店铺"):
         if required not in PRODUCT_EDIT_PAGE:
-            errors.append(f"product detail page must open requested tab from route parameter: {required}")
+            errors.append(f"product detail page must show current product object overview before edit sections: {required}")
+    for required in ("useSearchParams", "initialTab", "initialListingSection", "ProductEditSectionNav", "aria-label=\"商品编辑字段快速定位\"", "ProductEditSection", "scrollIntoView", "product-section-${initialTab}"):
+        if required not in PRODUCT_EDIT_PAGE:
+            errors.append(f"product detail page must use route-driven quick定位 and continuous sections: {required}")
+    for forbidden in ("<Tabs tabs={FORM_TABS}", "setActiveTab(initialTab)", "activeTab === 'basic'", "activeTab === 'listings'"):
+        if forbidden in PRODUCT_EDIT_PAGE:
+            errors.append(f"product detail page must not split one product into mutually exclusive tabs: {forbidden}")
+    if "图片”页签" in PRODUCT_DETAIL_TABS:
+        errors.append("product listing panel must refer to product image section, not image tab")
     for required in ("发布计划", "平台未尝试发布", "listingPublishPlanText"):
         if required not in PRODUCT_DETAIL_TABS:
             errors.append(f"product listing panel must expose local publish plan and platform publish boundary: {required}")
@@ -973,6 +1070,9 @@ def validate() -> list[str]:
         "aria-label=\"当前 Listing 连续编辑分区\"",
         "data-ui=\"listing-continuous-edit-sections\"",
         "scrollIntoView",
+        "initialSection",
+        "listing_section",
+        "requestedSection",
         "listing-section-basic",
         "listing-section-detail",
         "listing-section-sales",
@@ -1015,6 +1115,9 @@ def validate() -> list[str]:
     for required in ("促销活动", "活动名称/ID", "所属店铺", "活动产品", "添加产品", "修改折扣", "一个活动归属于一个平台店铺，可以包含多个参与商品"):
         if required not in promotion_module_content:
             errors.append(f"promotion module must expose seller-center campaign list semantics: {required}")
+    for required in ("活动效果", "PromotionEffectSummary", "price_summary", "discount_amount_total", "original_price_total", "promotion_price_total", "promotion_campaign_items", "平台 Open API 未接通前不代表真实成交效果"):
+        if required not in promotion_module_content:
+            errors.append(f"promotion module must expose local promotion price impact without fake platform performance: {required}")
     for required in ("PromotionCreateFormState", "showCreate", "handleCreateCampaign", "选择参与商品", "selectedListingIds", "createPromotionCampaign", "getPlatformStoreProducts"):
         if required not in promotion_module_content:
             errors.append(f"promotion module must support local campaign creation with multiple listings: {required}")
@@ -1119,18 +1222,57 @@ def validate() -> list[str]:
     for required in ("补录平台账单", "entry_type=platform_fee", "order_id=${order.id}"):
         if required not in ORDER_DETAIL_PAGE:
             errors.append(f"order detail platform bill gap must deep-link to finance ledger replenishment: {required}")
+    for required in ("财务入账状态", "finance_entry_context", "OrderFinanceEntryPanel", "关联流水", "销售收入", "订单净利", "view_order_ledger", "record_sales_income", "build_order_finance_entry_context", "FinanceLedgerEntry.order_id == order.id"):
+        if required not in ORDER_DETAIL_PAGE + ORDER_TYPES + ORDER_SERVICE:
+            errors.append(f"order detail must expose real finance ledger posting context: {required}")
+    for required in ("order_id: Optional[str] = None", "FinanceLedgerEntry.order_id == order_id", "order_id: initialOrderId || undefined"):
+        if required not in FINANCE_API + FINANCE_SERVICE + FINANCE_LEDGER_PANEL:
+            errors.append(f"finance ledger must support order-level drilldown filtering: {required}")
     for required in ("同步复盘", "platform_sync_status", "平台同步复盘", "platform_sync_review", "最近店铺订单同步"):
         if required not in ORDER_LIST_PAGE + ORDER_DETAIL_PAGE:
             errors.append(f"orders pages must expose platform order sync review context: {required}")
+    for required in ("useTriggerSync", "同步当前店铺订单", "syncMutation.mutate(order.platform_account_id)", "syncMutation.isPending", "qc.invalidateQueries({ queryKey: ['order'] })"):
+        if required not in ORDER_DETAIL_PAGE + USE_SYNC_HOOK:
+            errors.append(f"order detail must provide a real store order sync action from sync review: {required}")
     for required in ("platform_account_id", "platformAccountId", "StoreContextBanner", "currentModule=\"orders\"", "store-context-banner"):
         if required not in ORDER_LIST_PAGE + ORDERS_API + STORE_CONTEXT_BANNER:
             errors.append(f"orders page must keep cockpit store drilldown filter context: {required}")
     for required in ("履约异常", "履约异常复盘", "fulfillment_exception", "shipping_overdue", "异常处理动作闭环", "create_shipment", "review_after_sales", "replenish_platform_bill"):
         if required not in ORDER_LIST_PAGE + ORDER_DETAIL_PAGE + ORDER_SERVICE:
             errors.append(f"orders pages must expose fulfillment exception queue context: {required}")
+    for required in ("exceptions: exceptionMode ? '1' : undefined", "exceptions: bool = Query(False", "exceptions: bool = False", "build_fulfillment_exception_context(order).get(\"status\") != \"clear\"", "当前筛选范围没有履约异常订单"):
+        if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_API + ORDER_SERVICE:
+            errors.append(f"orders exception filter must use fulfillment exception context instead of order status: {required}")
+    for required in ("RelatedShipmentsPanel", "关联物流记录", "useShipmentList", "order_id", "新增物流", "本地物流渠道"):
+        if required not in ORDER_DETAIL_PAGE + SHIPMENTS_API:
+            errors.append(f"order detail must show related shipment records: {required}")
+    for required in ("订单履约运营总览", "OrderFulfillmentOverview", "useOrderStats", "/orders/stats", "pending_shipment", "due_soon", "overdue", "store_breakdown", "缺失字段进入数据缺口"):
+        if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_SERVICE + USE_ORDERS_HOOK:
+            errors.append(f"orders page must expose fulfillment operating overview: {required}")
     for required in ("useOrder", "order.after_sales_status", "履约异常原因", "不生成模拟售后记录"):
         if required not in AFTER_SALES_PAGE:
             errors.append(f"after-sales page must show linked order context without fake platform tickets: {required}")
+    for required in ("AfterSalesFulfillmentAnalysis", "售后履约分析", "退款/扣款台账", "finance_entry_context", "entry_type=refund", "平台售后单", "接口待接入", "不生成模拟售后记录"):
+        if required not in AFTER_SALES_PAGE:
+            errors.append(f"after-sales page must analyze fulfillment and finance context without fake after-sales tickets: {required}")
+    for required in ("OrderShipmentContextPanel", "订单发货上下文", "useOrder(orderContextId)", "平台发货时限", "买家与收货地址", "返回订单详情", "shippingAddressText"):
+        if required not in SHIPMENT_DETAIL_PAGE:
+            errors.append(f"shipment creation page must carry order fulfillment context: {required}")
+    for required in ("ShipmentStatusLifecycle", "物流状态轨迹", "物流状态字典轨迹", "基于系统物流状态字典", "承运商真实轨迹", "当前阶段", "已推进", "待推进", "当前物流状态未在统一字典中配置"):
+        if required not in SHIPMENT_DETAIL_PAGE:
+            errors.append(f"shipment detail must show local shipment status lifecycle separately from carrier tracking events: {required}")
+    for required in ("平台/店铺", "order_number", "buyer_name", "fulfillment_deadline_at", "platform_account_name", "平台时限待同步"):
+        if required not in SHIPMENT_LIST_PAGE + SHIPMENT_DETAIL_PAGE + SHIPMENT_SERVICE:
+            errors.append(f"shipment pages must expose platform-store-order context: {required}")
+    for required in ("platform_account_id", "platformAccountId", "StoreContextBanner", "currentModule=\"shipments\"", "店铺物流"):
+        if required not in SHIPMENT_LIST_PAGE + SHIPMENTS_API + SHIPMENT_SERVICE + STORE_CONTEXT_BANNER:
+            errors.append(f"shipment list must keep platform store drilldown filters: {required}")
+    for required in ("_sync_order_local_shipment_context", "local_shipment_context", "logistics_channel_source", "tracking_number_source", "local_shipment"):
+        if required not in SHIPMENT_SERVICE:
+            errors.append(f"shipment service must mirror real local shipment context back to order fulfillment: {required}")
+    for required in ("_advance_order_status_from_shipment", "terminal_statuses", "ready_to_ship", "order.status = \"shipped\"", "order.status = \"delivered\""):
+        if required not in SHIPMENT_SERVICE:
+            errors.append(f"shipment service must safely advance non-terminal order status from local shipment: {required}")
     for required in ("fulfillment_exception", "/orders?exceptions=1", "物流时效风险", "estimated_impact", "response_deadline_at", "remaining_time_label", "sla_hours"):
         if required not in RISK_CONTROL_SERVICE:
             errors.append(f"risk control must reuse order fulfillment exception context: {required}")
@@ -1140,6 +1282,21 @@ def validate() -> list[str]:
     for required in ("traffic-no-order", "traffic_no_order", "views_30d", "orders_30d", "listing_id", "Listing/定价/主图失效"):
         if required not in RISK_CONTROL_SERVICE:
             errors.append(f"risk control must generate concrete listing no-sales operating risks from product operations: {required}")
+    for required in ("business:sales-decline", "previous_orders_30d", "previous_sales_amount_30d", "orders_30d", "sales_amount_30d", "销售急剧下滑"):
+        if required not in RISK_CONTROL_SERVICE + RISK_CONTROL_SALES_RISK_SERVICE:
+            errors.append(f"risk control must generate concrete listing sales-decline risks only from real platform comparison metrics: {required}")
+    for required in ("get_finance_summary", "_finance_signal_risks", "finance:{code}", "真实财务台账", "finance_signal_code", "action_label"):
+        if required not in RISK_CONTROL_SERVICE:
+            errors.append(f"risk control must convert backend finance risk_signals into risk events: {required}")
+    for required in ("operation-action", "createRiskOperationAction", "生成运营台账动作", "operationSaving"):
+        if required not in RISK_CONTROL_API + RISK_CONTROL_WORKSPACE + RISK_ACTION_PANEL:
+            errors.append(f"risk control must create operation ledger actions from concrete risk events: {required}")
+    for required in ("record_type", "searchParams.get('record_type')", "listOperationRecords(requestedType"):
+        if required not in OPERATIONS_WORKSPACE:
+            errors.append(f"operations workspace must accept risk-control record_type deep links: {required}")
+    for required in ("allowsZeroBudgetOperationRecord", "listing_optimization", "0 预算 Listing 优化动作"):
+        if required not in OPERATIONS_WORKSPACE:
+            errors.append(f"operations workspace must allow zero-budget listing optimization records from risk/product diagnostics: {required}")
     for required in ("initialOrderId", "order_id", "关联订单ID"):
         if required not in FINANCE_LEDGER_PANEL + FINANCE_PAGE:
             errors.append(f"finance ledger panel must accept order_id from query for platform bill replenishment: {required}")
@@ -1163,6 +1320,9 @@ def validate() -> list[str]:
     for required in ("Open API 同步", "syncPlatformBills", "/finance/platform-bills/sync", "账单API待接入", "Open API 暂不可用"):
         if required not in FINANCE_PAGE + FINANCE_API:
             errors.append(f"finance page must expose truthful platform bill Open API sync workflow: {required}")
+    for required in ("risk_signals", "FinanceRiskSignal", "_finance_risk_signals", "收入台账未入账", "成本台账不完整", "平台费缺失", "资金余额未录入", "negative_profit", "action_route"):
+        if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_SCHEMA:
+            errors.append(f"finance risks must come from backend reusable summary signals, not local page heuristics: {required}")
     for required in ("商品运营诊断", "getProductOperationMetrics", "/operations/product-metrics", "conversion_rate_pct", "生成运营台账", "createProductOperationAction", "/operations/product-actions"):
         if required not in GROWTH_ENGINE_PAGE + OPERATIONS_API:
             errors.append(f"growth engine must expose product-level operation metrics and diagnostics: {required}")

@@ -368,7 +368,7 @@ def build_prompt(task_type: str, data: dict) -> str:
         "image_edit_plan": f"为商品主图/详情图制定处理建议。\n{base}\n输出背景、构图、尺寸、清晰度、文字遮挡和平台合规检查项。",
         "video_script": f"生成短视频脚本候选。\n{base}\n输出开场钩子、镜头顺序、口播/字幕、CTA 和风险提醒。",
         "compliance_check": f"检查跨境电商 Listing 合规风险。\n{base}\n输出禁限售、侵权、功效夸大、认证声明、图片文字和平台规则缺口。",
-        "enhanced_content": f"生成跨境电商 A+ 图文增强内容候选。\n{base}\n输出模块结构、图片需求、短文案和人工补证据项。",
+        "enhanced_content": f"生成跨境电商 A+ 图文增强内容候选。\n{base}\n输出模块结构、图片需求、短文案和人工补资料项。",
         "ad_creative": f"生成跨境电商广告素材脚本候选。\n{base}\n输出卖点角度、首屏钩子、素材画面、文案和投放前校验项。",
         "influencer_brief": f"生成达人合作 Brief 候选。\n{base}\n输出达人类型、拍摄要求、核心卖点、禁用表达、交付物和验收标准。",
     }

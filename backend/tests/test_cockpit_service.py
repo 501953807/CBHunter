@@ -18,6 +18,7 @@ from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.models.product import Product
 from app.models.sourcing_item import SourcingItem
+from app.models.sys_dict import SysDictItem
 from app.models.user import User
 from app.schemas.risk_control import RiskStateUpdateRequest
 from app.schemas.business_flow import (
@@ -35,6 +36,7 @@ from app.services.business_flow_task_service import (
     list_flow_task_events,
 )
 from app.services.cockpit_service import _window, get_operating_cockpit
+from app.services.risk_control_action_service import create_operation_record_from_risk
 from app.services.risk_control_service import get_risk_control_overview, get_risk_event_audit, update_risk_event_state
 
 
@@ -191,8 +193,9 @@ def test_cockpit_distinguishes_ledger_revenue_from_platform_orders(tmp_path):
         ref = cockpit["sections"]["finance"]["source_refs"][0]
         assert ref["label"] == "sales_income"
         assert ref["meta"]["source_label"] == "财务台账"
-        assert risks["assessment_status"] == "insufficient"
-        assert risks["metrics"]["pending"] == 0
+        assert risks["assessment_status"] == "attention"
+        assert risks["metrics"]["pending"] >= 1
+        assert any(item["id"].startswith("finance:") for item in risks["risks"])
         assert risks["gap_actions"]
 
     asyncio.run(run_test())
@@ -234,6 +237,11 @@ def test_cockpit_negative_profit_has_actionable_finance_gap(tmp_path):
         assert any(action["route"].startswith("/finance") for action in finance["actions"])
         assert any("净利润为负" in action["detail"] for action in risks["gap_actions"])
         assert any(action["route"] == "/finance?entry_type=platform_fee#finance-ledger" for action in risks["gap_actions"])
+        finance_risk = next(item for item in risks["risks"] if item["id"] == "finance:negative_profit")
+        assert finance_risk["type"] == "currency"
+        assert finance_risk["title"] == "净利润为负"
+        assert finance_risk["route"] == "/finance?entry_type=platform_fee#finance-ledger"
+        assert "真实财务台账" in finance_risk["evidence_window"]
 
     asyncio.run(run_test())
 
@@ -812,6 +820,131 @@ def test_business_flow_overview_exposes_product_bus_projections(tmp_path):
     asyncio.run(run_test())
 
 
+def test_business_flow_stage_matrix_exposes_real_dwell_time(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'flow-dwell-time.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            user = User(
+                id="flow-dwell-user",
+                username="flow_dwell",
+                email="flow-dwell@example.com",
+                hashed_password="x",
+                is_admin=True,
+            )
+            session.add_all([
+                user,
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="停留两天待刊登商品",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/two-days.html",
+                    source_price_rmb=18,
+                    pipeline_stage="listed",
+                    updated_at=now - timedelta(days=2),
+                ),
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="停留四天待刊登商品",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/four-days.html",
+                    source_price_rmb=21,
+                    pipeline_stage="listed",
+                    updated_at=now - timedelta(days=4),
+                ),
+            ])
+            await session.commit()
+
+            flow = await get_business_flow_overview(session, user.id, user)
+        await engine.dispose()
+
+        publish_stage = next(item for item in flow["flow_stage_matrix"] if item["key"] == "platform_publish")
+        assert publish_stage["object_count"] == 2
+        assert 70 <= publish_stage["avg_wait_hours"] <= 74
+        assert publish_stage["avg_wait_label"] == "约3天"
+        assert publish_stage["max_wait_item"]["name"] == "停留四天待刊登商品"
+        assert publish_stage["max_wait_item"]["wait_label"] == "约4天"
+
+        listing_health = next(item for item in flow["stage_health"] if item["stage_key"] == "listing")
+        assert listing_health["avg_wait_label"] == "约3天"
+        assert listing_health["max_wait_item"]["name"] == "停留四天待刊登商品"
+
+    asyncio.run(run_test())
+
+
+def test_business_flow_comparison_exposes_stage_dwell_mom(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'flow-dwell-comparison.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        previous_window_end = datetime.combine((now.date() - timedelta(days=30)), datetime.max.time(), tzinfo=timezone.utc)
+        async with sessions() as session:
+            user = User(
+                id="flow-dwell-comparison-user",
+                username="flow_dwell_comparison",
+                email="flow-dwell-comparison@example.com",
+                hashed_password="x",
+                is_admin=True,
+            )
+            session.add_all([
+                user,
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="当前停留两天待刊登商品",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/current-two-days.html",
+                    source_price_rmb=18,
+                    pipeline_stage="listed",
+                    updated_at=now - timedelta(days=2),
+                ),
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="当前停留四天待刊登商品",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/current-four-days.html",
+                    source_price_rmb=21,
+                    pipeline_stage="listed",
+                    updated_at=now - timedelta(days=4),
+                ),
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="上一范围停留一天商品A",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/previous-one-day-a.html",
+                    source_price_rmb=15,
+                    pipeline_stage="listed",
+                    updated_at=previous_window_end - timedelta(days=1),
+                ),
+                SourcingItem(
+                    user_id=user.id,
+                    product_name="上一范围停留一天商品B",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/previous-one-day-b.html",
+                    source_price_rmb=16,
+                    pipeline_stage="listed",
+                    updated_at=previous_window_end - timedelta(days=1),
+                ),
+            ])
+            await session.commit()
+
+            flow = await get_business_flow_overview(session, user.id, user)
+        await engine.dispose()
+
+        publish_dwell = next(item for item in flow["comparison"]["stage_dwell"] if item["key"] == "platform_publish")
+        assert publish_dwell["current"]["avg_wait_label"] == "约3天"
+        assert publish_dwell["previous"]["avg_wait_label"] == "约1天"
+        assert publish_dwell["last_year"]["avg_wait_hours"] is None
+        assert publish_dwell["rates"]["avg_wait_mom_pct"] == 200.0
+        assert publish_dwell["rates"]["avg_wait_yoy_pct"] is None
+
+    asyncio.run(run_test())
+
+
 def test_business_flow_listing_item_drills_into_product_listing_tab(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'flow-listing-product-route.db'}")
@@ -898,6 +1031,175 @@ def test_business_flow_empty_state_is_not_blocked_and_uses_supply_chain_label(tm
         assert all(stage["status"] == "data_required" for stage in flow["stages"])
         assert any(stage["key"] == "sourcing" and stage["name"] == "供应链/采购" for stage in flow["stages"])
         assert all(stage["name"] != "1688货源" for stage in flow["stages"])
+
+    asyncio.run(run_test())
+
+
+def test_risk_control_links_slow_inventory_capital_to_inventory_risk(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'slow-inventory-capital-risk.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(
+                user_id="slow-capital-user",
+                platform="tiktok_shop",
+                account_name="TikTok PH 店铺",
+                settings={"market": "PH"},
+            )
+            product = Product(
+                user_id="slow-capital-user",
+                sku="SKU-SLOW-CAPITAL",
+                name="防水收纳包",
+                cost_price=12,
+            )
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="slow-capital-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="Waterproof Organizer Bag",
+                price=29.9,
+                stock=15,
+                status="active",
+                performance={"views_30d": 200, "orders_30d": 0},
+                platform_data={"stock_status": "confirmed"},
+            )
+            session.add(listing)
+            await session.commit()
+            risks = await get_risk_control_overview(session, "slow-capital-user")
+        await engine.dispose()
+
+        inventory_risks = [
+            item for item in risks["risks"]
+            if item["id"] == f"inventory:slow-capital:{listing.id}"
+        ]
+        assert inventory_risks
+        risk = inventory_risks[0]
+        assert risk["type"] == "inventory"
+        assert risk["type_label"] == "库存/供货风险"
+        assert risk["listing_id"] == listing.id
+        assert risk["platform"] == "tiktok_shop"
+        assert risk["platform_account_id"] == account.id
+        assert risk["account_name"] == "TikTok PH 店铺"
+        assert risk["route"] == f"/growth?listing_id={listing.id}"
+        assert "库存资金占用 ¥180" in risk["detail"]
+        assert "近30天浏览 200、订单 0" in risk["estimated_impact"]
+        assert any(ref["type"] == "platform_listing" and ref["id"] == listing.id for ref in risk["source_refs"])
+
+    asyncio.run(run_test())
+
+
+def test_risk_control_flags_listing_sales_decline_from_real_platform_metrics(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'listing-sales-decline-risk.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(
+                user_id="sales-decline-user",
+                platform="shopee",
+                account_name="Shopee MY 店铺",
+                settings={"market": "MY"},
+            )
+            product = Product(user_id="sales-decline-user", sku="SKU-DROP", name="便携风扇")
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="sales-decline-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="Portable Fan MY",
+                price=19.9,
+                stock=33,
+                status="active",
+                performance={
+                    "orders_30d": 6,
+                    "previous_orders_30d": 30,
+                    "sales_amount_30d": 119.4,
+                    "previous_sales_amount_30d": 597,
+                },
+                platform_data={"stock_status": "confirmed"},
+            )
+            session.add(listing)
+            await session.commit()
+            risks = await get_risk_control_overview(session, "sales-decline-user")
+        await engine.dispose()
+
+        sales_risks = [
+            item for item in risks["risks"]
+            if item["id"] == f"business:sales-decline:{listing.id}"
+        ]
+        assert sales_risks
+        risk = sales_risks[0]
+        assert risk["type"] == "business"
+        assert risk["type_label"] == "店铺经营风险"
+        assert risk["severity"] == "critical"
+        assert risk["platform"] == "shopee"
+        assert risk["platform_account_id"] == account.id
+        assert risk["account_name"] == "Shopee MY 店铺"
+        assert risk["market"] == "MY"
+        assert risk["listing_id"] == listing.id
+        assert risk["route"] == f"/growth?listing_id={listing.id}"
+        assert "近30天订单从前一连续30天 30 降至近30天 6，下降 80.0%" in risk["detail"]
+        assert risk["evidence_window"] == "Listing performance 近30天与前一连续30天真实平台指标"
+        assert "流量衰减" in risk["estimated_impact"]
+        assert any(ref["type"] == "platform_listing" and ref["id"] == listing.id for ref in risk["source_refs"])
+
+    asyncio.run(run_test())
+
+
+def test_risk_event_can_create_operation_record_action(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'risk-to-operation.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            session.add_all([
+                SysDictItem(id="listing_optimization", type="operation_record_type", label="Listing 优化"),
+                SysDictItem(id="operation_pending", type="operation_record_status", label="待开始"),
+            ])
+            account = PlatformAccount(
+                user_id="risk-action-user",
+                platform="shopee",
+                account_name="Shopee SG 店铺",
+                settings={"market": "SG"},
+            )
+            product = Product(user_id="risk-action-user", sku="SKU-RISK-ACTION", name="风扇")
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="risk-action-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="Portable Fan SG",
+                price=19.9,
+                stock=20,
+                status="active",
+                performance={"orders_30d": 4, "previous_orders_30d": 20},
+            )
+            session.add(listing)
+            await session.commit()
+            risk_id = f"business:sales-decline:{listing.id}"
+            record = await create_operation_record_from_risk(session, "risk-action-user", risk_id)
+        await engine.dispose()
+
+        assert record.record_type == "listing_optimization"
+        assert record.status == "operation_pending"
+        assert record.planned_amount_rmb == 0
+        assert record.platform == "shopee"
+        assert record.market == "SG"
+        assert record.counterparty == "Shopee SG 店铺"
+        assert record.extra["source"] == "risk_control"
+        assert record.extra["risk_id"] == risk_id
+        assert record.extra["listing_id"] == listing.id
+        assert record.extra["platform_account_id"] == account.id
+        assert record.metrics["risk_type"] == "business"
+        assert "销售急剧下滑" in record.name
 
     asyncio.run(run_test())
 

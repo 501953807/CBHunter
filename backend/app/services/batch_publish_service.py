@@ -17,6 +17,15 @@ from app.services.listing_draft_asset_service import (
     platform_field_gaps_for_requirements,
     videos_from_attributes,
 )
+from app.services.listing_store_override_service import (
+    listing_store_override,
+    listing_store_override_summary,
+    merge_override_platform_attributes,
+    override_compliance,
+    override_logistics,
+    override_master_sku,
+    override_variants,
+)
 logger = logging.getLogger(__name__)
 async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]:
     from app.models.sourcing_item import SourcingItem
@@ -37,6 +46,9 @@ async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]
         gaps = _listing_readiness_gaps(item)
         if gaps:
             continue
+        listing_store_override_payload = listing_store_override(item)
+        platform_requirements = merge_platform_requirements(((item.extra_data or {}).get("platform_requirements") or {}).get(item.platform) or {}, item.platform, field_schemas)
+        platform_requirements = merge_override_platform_attributes(platform_requirements, listing_store_override_payload)
         items.append({
             **build_sourcing_work_item(
                 item,
@@ -55,7 +67,8 @@ async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]
             "market": item.market,
             "image_url": item.source_image,
             "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
-            "platform_requirements": merge_platform_requirements(((item.extra_data or {}).get("platform_requirements") or {}).get(item.platform) or {}, item.platform, field_schemas),
+            "platform_requirements": platform_requirements,
+            "listing_store_override": listing_store_override_summary(listing_store_override_payload),
             "pricing_confirmation": (item.extra_data or {}).get("pricing_confirmation") or {},
             "data_gaps": [],
         })
@@ -279,6 +292,7 @@ async def generate_listing_drafts(
                         "template_title": title,
                         "template_description": description,
                         "platform_requirements": platform_requirements,
+                        "listing_store_override": listing_store_override_summary(item.get("listing_store_override") or {}),
                         "template_missing": not bool(tpl or existing_listing),
                         "fee_missing": not bool(fee),
                         "status": status,
@@ -537,6 +551,14 @@ async def generate_listing_assist(db: AsyncSession, draft: dict) -> dict:
 
 
 def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
+    listing_store_override_payload = listing_store_override(item)
+    override_logistics_payload = override_logistics(listing_store_override_payload)
+    platform_requirements = merge_platform_requirements_map((item.extra_data or {}).get("platform_requirements") or {}, field_schemas)
+    if item.platform and item.platform in platform_requirements:
+        platform_requirements[item.platform] = merge_override_platform_attributes(
+            platform_requirements[item.platform],
+            listing_store_override_payload,
+        )
     return {
         "source_type": "sourcing",
         "source_id": item.id,
@@ -551,16 +573,17 @@ def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
         "target_platform": item.platform,
         "target_market": item.market,
         "readiness_gaps": _listing_readiness_gaps(item),
-        "platform_requirements": merge_platform_requirements_map((item.extra_data or {}).get("platform_requirements") or {}, field_schemas),
+        "platform_requirements": platform_requirements,
+        "listing_store_override": listing_store_override_payload,
         "images": [item.source_image] if item.source_image else [],
         "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
-        "master_sku": None,
+        "master_sku": override_master_sku(listing_store_override_payload),
         "brand": None,
-        "weight_g": None,
-        "dimensions": None,
-        "variants": [],
+        "weight_g": override_logistics_payload.get("weight_g"),
+        "dimensions": override_logistics_payload.get("dimensions"),
+        "variants": override_variants(listing_store_override_payload),
         "videos": videos_from_attributes(item.extra_data or {}),
-        "compliance": (item.extra_data or {}).get("compliance") or {},
+        "compliance": override_compliance(listing_store_override_payload) or (item.extra_data or {}).get("compliance") or {},
     }
 
 
@@ -678,6 +701,8 @@ def _store_payload(account) -> dict:
         "shop_id": account.shop_id,
         "market": settings.get("market"),
     }
+
+
 def _listing_readiness_gaps(item) -> list[str]:
     from app.services.content_workbench_service import REQUIRED_CONTENT_GAPS
 

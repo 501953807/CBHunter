@@ -1,5 +1,6 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
+import type { OperationRecord } from './operations'
 import type { RiskAuditItem, RiskControlOverview, RiskControlRisk, RiskStateUpdateRequest } from '../types/riskControl'
 
 export async function getRiskControlOverview() {
@@ -14,5 +15,10 @@ export async function updateRiskControlState(riskId: string, payload: RiskStateU
 
 export async function getRiskControlAudit(riskId: string) {
   const response = await client.get<ApiResponse<RiskAuditItem[]>>(`/risk-control/events/${encodeURIComponent(riskId)}/audit`)
+  return response.data
+}
+
+export async function createRiskOperationAction(riskId: string) {
+  const response = await client.post<ApiResponse<OperationRecord>>(`/risk-control/events/${encodeURIComponent(riskId)}/operation-action`)
   return response.data
 }

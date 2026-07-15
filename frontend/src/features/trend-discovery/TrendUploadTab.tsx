@@ -48,7 +48,7 @@ export function UploadTab({ data, setData, preview, setPreview, uploading, setUp
     e.stopPropagation()
     const ok = await confirmAction({
       title: '删除选品图片',
-      message: '确认删除这张待处理选品图片？删除后对应图片分析、候选证据和待确认记录将被移除。',
+      message: '确认删除这张待处理选品图片？删除后对应图片分析、候选资料和待确认记录将被移除。',
       confirmText: '确认删除图片',
       tone: 'danger',
     })

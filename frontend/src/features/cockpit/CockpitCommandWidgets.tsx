@@ -123,7 +123,7 @@ export function buildActionQueue(data: CockpitData): ActionItem[] {
   s.ai_suggestions.items.filter((item) => item.severity === 'critical').forEach((item) => queue.push({
     key: `ai-${item.id}`,
     title: `AI 建议：${item.title}`,
-    detail: item.confidence_reason || item.evidence_window || '等待补充建议证据',
+    detail: item.confidence_reason || item.evidence_window || '等待补充建议资料',
     level: 'info',
     route: '/ai-suggestions',
     sourceRefs: item.source_refs,

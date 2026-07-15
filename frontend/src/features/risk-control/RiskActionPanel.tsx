@@ -6,12 +6,14 @@ interface Props {
   risk: RiskControlRisk
   saving: boolean
   taskSaving: boolean
+  operationSaving: boolean
   onOpen: () => void
   onCreateBusinessTask: () => void
+  onCreateOperationAction: () => void
   onStateChange: (status: RiskControlRisk['status'], note?: string, dueAt?: string | null) => void
 }
 
-export function RiskActionPanel({ risk, saving, taskSaving, onOpen, onCreateBusinessTask, onStateChange }: Props) {
+export function RiskActionPanel({ risk, saving, taskSaving, operationSaving, onOpen, onCreateBusinessTask, onCreateOperationAction, onStateChange }: Props) {
   const [note, setNote] = useState('')
   const [dueAt, setDueAt] = useState('')
   const nextAction = risk.status === 'pending'
@@ -54,6 +56,9 @@ export function RiskActionPanel({ risk, saving, taskSaving, onOpen, onCreateBusi
         </button>
         <button onClick={onCreateBusinessTask} disabled={taskSaving} className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] transition hover:border-[var(--color-primary)] disabled:opacity-50">
           {taskSaving ? '生成中' : '生成业务任务'} <ArrowRight className="h-3 w-3" />
+        </button>
+        <button onClick={onCreateOperationAction} disabled={operationSaving} className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] transition hover:border-[var(--color-primary)] disabled:opacity-50">
+          {operationSaving ? '生成中' : '生成运营台账动作'} <ArrowRight className="h-3 w-3" />
         </button>
       </div>
     </div>

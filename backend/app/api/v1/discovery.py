@@ -755,7 +755,7 @@ def _trend_fetch_response(result: dict) -> ApiResponse:
         "next_actions": [
             "确认 Google Trends 可访问或已配置可用网络环境",
             "如需 Pinterest 自动同步，先在设置中心配置 Pinterest 凭证",
-            "无法自动采集时，可在流行趋势页手工录入公开链接、截图或趋势摘要作为证据",
+            "无法自动采集时，可在流行趋势页手工录入公开链接、截图或趋势摘要作为资料",
         ],
     }
     payload = data_required(

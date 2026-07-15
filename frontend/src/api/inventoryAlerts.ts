@@ -1,6 +1,7 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
-import type { InventoryAlertRule, InventoryAlertLog, AlertStats } from '../types/inventoryAlert'
+import type { OperationRecord } from './operations'
+import type { InventoryAlertRule, InventoryAlertLog, AlertStats, InventoryRiskWorkbenchSnapshot } from '../types/inventoryAlert'
 
 export type InventoryCheckResult = {
   checked: boolean
@@ -59,5 +60,17 @@ export async function clearAlert(alertId: string) {
 
 export async function getAlertStats() {
   const res = await client.get<ApiResponse<AlertStats>>('/inventory-alerts/stats')
+  return res.data
+}
+
+export async function getInventoryRiskWorkbench() {
+  const res = await client.get<ApiResponse<InventoryRiskWorkbenchSnapshot>>('/inventory-alerts/risk-workbench')
+  return res.data
+}
+
+export async function createInventorySlowMovingOperationAction(listingId: string) {
+  const res = await client.post<ApiResponse<OperationRecord>>(
+    `/inventory-alerts/risk-workbench/slow-moving/${encodeURIComponent(listingId)}/operation-action`,
+  )
   return res.data
 }

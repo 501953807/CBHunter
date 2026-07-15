@@ -96,9 +96,10 @@ function CandidatePoolTable({
   return (
     <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
-        <table aria-label="候选商品池主表" className="w-full min-w-[760px] text-left text-xs">
+        <table aria-label="候选商品池主表" className="w-full min-w-[860px] text-left text-xs">
           <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
             <tr>
+              <th className="px-3 py-2 font-medium">商品图</th>
               <th className="px-3 py-2 font-medium">候选商品</th>
               <th className="px-3 py-2 font-medium">目标平台/市场</th>
               <th className="px-3 py-2 font-medium">需求</th>
@@ -119,10 +120,25 @@ function CandidatePoolTable({
                   onClick={() => onSelect(item.work_item_id)}
                   className={active ? 'border-t border-[var(--color-border)] bg-[var(--color-primary-light)]' : 'border-t border-[var(--color-border)] transition hover:bg-[var(--color-bg)]'}
                 >
+                  <td className="px-3 py-3">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.product_name}
+                        className="h-12 w-12 rounded-lg border border-[var(--color-border)] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] text-[10px] leading-4 text-[var(--color-muted)]">
+                        待采集图片
+                      </div>
+                    )}
+                  </td>
                   <td className="max-w-[240px] px-3 py-3">
                     <button className="block w-full text-left" onClick={() => onSelect(item.work_item_id)}>
                       <span className="block truncate font-semibold text-[var(--color-fg)]">{item.product_name}</span>
-                      <span className="mt-1 block truncate text-[11px] text-[var(--color-muted)]">{item.lifecycle_label || item.work_item_id}</span>
+                      <span className="mt-1 block truncate text-[11px] text-[var(--color-muted)]">
+                        {item.source_label || item.lifecycle_label || item.work_item_id} · 图片 {item.image_count || 0} 张
+                      </span>
                     </button>
                   </td>
                   <td className="px-3 py-3 text-[var(--color-muted)]">{item.target_platform || '平台待选'} / {item.target_market || '市场待选'}</td>
@@ -161,8 +177,33 @@ function CandidateDetailSidebar({ item, onDecide }: { item: ProductRecommendatio
   const summary = evidenceSummary(item)
   const keywords = safeTextList(item.keywords)
   const listingTips = safeTextList(item.listing_tips)
+  const media = item.product_context?.media
   return (
     <aside className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:sticky 2xl:top-24 2xl:self-start" aria-label="候选详情侧栏">
+      <div className="mb-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        {item.image_url ? (
+          <img src={item.image_url} alt={item.product_name} className="h-40 w-full object-cover" />
+        ) : (
+          <div className="flex h-32 items-center justify-center text-xs text-[var(--color-muted)]">
+            待采集真实商品图片
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border)] px-3 py-2 text-[11px]">
+          <span className="text-[var(--color-muted)]">
+            候选素材：{media?.source_label || item.source_label || '来源待确认'} · 图片 {media?.image_count ?? item.image_count ?? 0} 张
+          </span>
+          {(media?.source_url || item.source_url) && (
+            <a
+              href={media?.source_url || item.source_url || '#'}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-[var(--color-primary)] hover:underline"
+            >
+              查看来源
+            </a>
+          )}
+        </div>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">

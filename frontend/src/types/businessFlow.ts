@@ -53,6 +53,7 @@ export interface BusinessFlowItem {
   is_followed: boolean
   priority: 'low' | 'normal' | 'high' | 'urgent' | null
   task_note: string | null
+  updated_at?: string | null
 }
 
 export type BusinessFlowBusItem = Pick<BusinessFlowItem,
@@ -60,7 +61,7 @@ export type BusinessFlowBusItem = Pick<BusinessFlowItem,
   | 'evidence_summary' | 'evidence_completeness' | 'stage_key' | 'stage_name' | 'status' | 'route'
   | 'next_action_route' | 'source' | 'signal' | 'next_action' | 'gaps' | 'source_refs'
   | 'platform' | 'market' | 'image_url' | 'source_url' | 'task_id' | 'task_status' | 'assigned_to' | 'is_followed' | 'priority'
-  | 'platform_account_id' | 'account_name'
+  | 'platform_account_id' | 'account_name' | 'updated_at'
 >
 
 export interface BusinessFlowStageHealth {
@@ -77,6 +78,10 @@ export interface BusinessFlowStageHealth {
   next_action: string
   data_gaps: string[]
   source_refs: CockpitSourceRef[]
+  avg_wait_hours: number | null
+  avg_wait_label: string
+  max_wait_hours: number | null
+  max_wait_item: BusinessFlowWaitItem | null
 }
 
 export interface BusinessFlowPipelineLane {
@@ -88,6 +93,27 @@ export interface BusinessFlowPipelineLane {
   data_required_count: number
   route: string
   items: BusinessFlowBusItem[]
+  avg_wait_hours: number | null
+  avg_wait_label: string
+  max_wait_hours: number | null
+  max_wait_item: BusinessFlowWaitItem | null
+}
+
+export interface BusinessFlowWaitItem {
+  id: string
+  type: string
+  name: string
+  work_item_id: string
+  wait_hours: number
+  wait_label: string
+  route: string
+}
+
+export interface BusinessFlowWaitStats {
+  avg_wait_hours: number | null
+  avg_wait_label: string
+  max_wait_hours: number | null
+  max_wait_item: BusinessFlowWaitItem | null
 }
 
 export interface BusinessFlowNextAction {
@@ -116,6 +142,9 @@ export interface BusinessFlowOverview {
     data_required: number
     ready: number
     avg_wait_hours: number | null
+    avg_wait_label: string
+    max_wait_hours: number | null
+    max_wait_item: BusinessFlowWaitItem | null
   }>
   flow_store_matrix: Array<{
     platform_account_id: string | null
@@ -144,6 +173,18 @@ export interface BusinessFlowOverview {
       blocked_mom_pct: number | null
       blocked_yoy_pct: number | null
     }
+    stage_dwell: Array<{
+      key: string
+      label: string
+      route: string
+      current: BusinessFlowWaitStats
+      previous: BusinessFlowWaitStats
+      last_year: BusinessFlowWaitStats
+      rates: {
+        avg_wait_mom_pct: number | null
+        avg_wait_yoy_pct: number | null
+      }
+    }>
     windows: { current: string; previous: string; last_year: string }
   }
   stage_health: BusinessFlowStageHealth[]

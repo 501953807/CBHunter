@@ -19,6 +19,7 @@ from app.models.fee_template import FeeTemplate
 from app.models.inventory_alert import InventoryAlertRule
 from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.listing_template import ListingTemplate
+from app.models.operation_record import OperationRecord
 from app.models.order import Order
 from app.models.shipment import Shipment
 from app.models.product_discovery import ProductDiscovery
@@ -26,11 +27,13 @@ from app.models.sourcing_item import SourcingItem
 from app.models.supply_product import SupplyProduct
 from app.models.trend_keyword import TrendKeyword
 from app.models.trending_product import TrendingProduct
+from app.models.sys_dict import SysDictItem
 from app.services.batch_publish_service import confirm_publish, generate_listing_assist, generate_listing_drafts, list_publish_ready_items
 from app.services.content_workbench_service import REQUIRED_CONTENT_GAPS
 from app.services.dashboard_service import get_dashboard_summary
 from app.services.discovery_service import analyze_discovery
-from app.services.inventory_alert_service import check_inventory
+from app.services.inventory_alert_service import check_inventory, get_inventory_risk_workbench
+from app.services.inventory_risk_action_service import create_operation_record_from_inventory_slow_moving
 from app.services.listing_instance_service import get_product_listing_matrix, promote_listing_to_base_version, update_listing_overrides
 from app.services.promotion_service import (
     add_promotion_campaign_items,
@@ -47,8 +50,9 @@ from app.api.v1.products import router as products_router
 from app.services.sync_service import SyncService
 from app.integrations.base import PlatformProduct
 from app.integrations.factory import PlatformClientFactory
-from app.services.shipment_service import update_shipment
-from app.schemas.shipment import ShipmentUpdate
+from app.services.order_service import build_order_list_context
+from app.services.shipment_service import create_shipment, get_shipment_order_contexts, list_shipments, update_shipment
+from app.schemas.shipment import ShipmentCreate, ShipmentUpdate
 
 
 def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
@@ -871,8 +875,14 @@ def test_promotion_campaign_is_independent_and_contains_multiple_listings(tmp_pa
         assert created["name"] == "Shopee 七月分类折扣"
         assert created["store"]["account_name"] == "Shopee A"
         assert created["product_count"] == 2
+        assert created["price_summary"]["priced_item_count"] == 2
+        assert created["price_summary"]["original_price_total"] == 108
+        assert created["price_summary"]["promotion_price_total"] == 84
+        assert created["price_summary"]["discount_amount_total"] == 24
+        assert created["items"][0]["discount_amount"] is not None
         assert {item["platform_listing_id"] for item in created["items"]} == {listing_a.id, listing_b.id}
         assert campaigns[0]["items"][0]["product_name"] in {"促销商品A", "促销商品B"}
+        assert campaigns[0]["price_summary"]["source"] == "promotion_campaign_items"
         assert "promotion_config" not in (listing_a_after.platform_data or {}).get("listing_overrides", {})
 
     asyncio.run(run_test())
@@ -1646,7 +1656,24 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
             task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
             for task_type, _label in REQUIRED_CONTENT_GAPS
         }
+        content_tasks["listing_store_override"] = {
+            "confirmed_version": 1,
+            "versions": [{
+                "version": 1,
+                "content": """{
+                  "schema": "listing_store_override.v1",
+                  "store_id": "store-shopee-my",
+                  "store_label": "Shopee MY 主店",
+                  "title": "Shopee MY 覆盖标题",
+                  "skus": [{"seller_sku": "BAG-MY-BEIGE", "variation": "米色", "price": "39", "stock": "12"}],
+                  "platform_attributes_note": "{\\"类目\\": \\"女包\\", \\"品牌\\": \\"No Brand\\", \\"材质\\": \\"草编\\", \\"重量\\": \\"320g\\", \\"category\\": \\"bags\\", \\"brand\\": \\"No Brand\\", \\"seller_sku\\": \\"BAG-MY-BEIGE\\", \\"风格\\": \\"通勤\\"}",
+                  "logistics_note": "{\\"weight\\": \\"320\\", \\"length\\": \\"28\\", \\"width\\": \\"12\\", \\"height\\": \\"22\\"}",
+                  "compliance_note": "禁限售复核通过"
+                }""",
+            }],
+        }
         async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee MY 主店", is_active=True)
             ready = SourcingItem(
                 user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
                 product_name="可刊登商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
@@ -1679,10 +1706,28 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
                 product_name="未定价商品", platform="shopee", market="MY", pipeline_stage="decision_passed",
                 extra_data={"content_tasks": content_tasks},
             )
-            session.add_all([ready, no_content, no_price])
+            session.add_all([
+                account,
+                ready,
+                no_content,
+                no_price,
+                ListingTemplate(user_id="user-a", name="Shopee 模板", platform="shopee", template_data={"title_template": "{{product_name}}"}, is_default=True),
+                FeeTemplate(platform="shopee", market="MY", commission_pct=8, transaction_fee_pct=2, tech_service_pct=1, is_active=True),
+            ])
             await session.commit()
 
             items = await list_publish_ready_items(session, "user-a")
+            drafts = await generate_listing_drafts(
+                db=session,
+                user_id="user-a",
+                sourcing_item_ids=[ready.id],
+                product_ids=[],
+                platforms=["shopee"],
+                markets=["MY"],
+                pricing_mode="cost_based",
+                target_profit_pct=20,
+                platform_account_ids=[account.id],
+            )
         await engine.dispose()
 
         assert len(items) == 1
@@ -1700,10 +1745,23 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         required_attributes = set(items[0]["platform_requirements"]["required_attributes"])
         assert {"类目", "品牌", "材质", "重量"}.issubset(required_attributes)
         assert {"category", "brand", "seller_sku"}.issubset(required_attributes)
+        assert items[0]["listing_store_override"]["store_label"] == "Shopee MY 主店"
+        assert items[0]["listing_store_override"]["title"] == "Shopee MY 覆盖标题"
+        assert items[0]["listing_store_override"]["sku_count"] == 1
+        assert items[0]["listing_store_override"]["has_logistics"] is True
+        assert items[0]["listing_store_override"]["has_compliance"] is True
         assert items[0]["media_readiness"]["captured_image_count"] == 1
         assert items[0]["media_readiness"]["missing_image_count"] == 4
         assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
         assert items[0]["data_gaps"] == []
+        assert drafts[0]["sku_plan"]["variants"][0]["sku"] == "BAG-MY-BEIGE"
+        assert drafts[0]["logistics"]["weight_g"] == 320
+        assert drafts[0]["logistics"]["dimensions"]["length_cm"] == 28
+        assert drafts[0]["compliance"]["restricted_check_status"] == "passed"
+        assert drafts[0]["platform_requirements"]["attribute_values"]["seller_sku"] == "BAG-MY-BEIGE"
+        assert drafts[0]["listing_store_override"]["store_label"] == "Shopee MY 主店"
+        assert drafts[0]["listing_store_override"]["sku_count"] == 1
+        assert drafts[0]["listing_store_override"]["has_platform_attributes"] is True
 
     asyncio.run(run_test())
 
@@ -1934,6 +1992,123 @@ def test_inventory_scan_uses_active_confirmed_stock_listing(tmp_path):
     asyncio.run(run_test())
 
 
+def test_inventory_risk_workbench_uses_real_cost_stock_and_deadline_data(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'inventory-risk.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", is_active=True)
+            product = Product(user_id="user-a", sku="SKU-RISK", name="真实库存风险商品", cost_price=10)
+            no_cost_product = Product(user_id="user-a", sku="SKU-NOCOST", name="缺成本商品", cost_price=None)
+            session.add_all([account, product, no_cost_product])
+            await session.flush()
+            session.add_all([
+                PlatformListing(
+                    user_id="user-a", product_id=product.id, platform_account_id=account.id,
+                    title="真实库存风险商品", price=28, stock=6, status="active",
+                    performance={"views_30d": 120, "orders_30d": 0},
+                    platform_data={"stock_status": "confirmed"},
+                ),
+                PlatformListing(
+                    user_id="user-a", product_id=no_cost_product.id, platform_account_id=account.id,
+                    title="缺成本商品", price=18, stock=4, status="active",
+                    performance={"views_30d": 0, "orders_30d": 0},
+                    platform_data={"stock_status": "confirmed"},
+                ),
+                InventoryAlertRule(
+                    user_id="user-a", product_id=product.id, sku=product.sku,
+                    product_name=product.name, safety_stock=8, severity="warning",
+                ),
+                Order(
+                    user_id="user-a",
+                    platform_account_id=account.id,
+                    platform_order_id="ORDER-RISK-1",
+                    order_number="ORDER-RISK-1",
+                    status="paid",
+                    total=28,
+                    currency="CNY",
+                    fulfillment_status="pending",
+                    platform_data={"fulfillment_deadline_at": "2026-01-01T00:00:00+00:00"},
+                    ordered_at=datetime(2025, 12, 31, tzinfo=timezone.utc),
+                ),
+            ])
+            await session.commit()
+            await check_inventory(session, "user-a")
+            workbench = await get_inventory_risk_workbench(
+                session, "user-a", now=datetime(2026, 1, 2, tzinfo=timezone.utc)
+            )
+        await engine.dispose()
+
+        assert workbench["capital"]["total_rmb"] == 60
+        assert workbench["capital"]["missing_cost_count"] == 1
+        assert "product.cost_price:SKU-NOCOST" in workbench["data_gaps"]
+        assert workbench["slow_moving"]["count"] == 1
+        assert workbench["fulfillment_overdue"]["count"] == 1
+        assert any(action["label"] == "复核发货超期订单" for action in workbench["actions"])
+
+    asyncio.run(run_test())
+
+
+def test_inventory_slow_moving_risk_can_create_operation_record_action(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'inventory-risk-operation-action.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            session.add_all([
+                SysDictItem(id="listing_optimization", type="operation_record_type", label="Listing 优化"),
+                SysDictItem(id="operation_pending", type="operation_record_status", label="待开始"),
+            ])
+            account = PlatformAccount(
+                user_id="user-a",
+                platform="shopee",
+                account_name="Shopee A店",
+                is_active=True,
+                settings={"market": "MY"},
+            )
+            product = Product(user_id="user-a", sku="SKU-SLOW", name="滞销库存商品", cost_price=12)
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="user-a",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="滞销库存商品 MY",
+                price=29,
+                stock=5,
+                status="active",
+                performance={"views_30d": 160, "orders_30d": 0},
+                platform_data={"stock_status": "confirmed"},
+            )
+            session.add(listing)
+            await session.commit()
+
+            record = await create_operation_record_from_inventory_slow_moving(session, "user-a", listing.id)
+            rows = (await session.execute(select(OperationRecord).where(OperationRecord.user_id == "user-a"))).scalars().all()
+        await engine.dispose()
+
+        assert len(rows) == 1
+        assert record.record_type == "listing_optimization"
+        assert record.status == "operation_pending"
+        assert record.planned_amount_rmb == 0
+        assert record.platform == "shopee"
+        assert record.market == "MY"
+        assert record.counterparty == "Shopee A店"
+        assert record.extra["source"] == "inventory_risk_workbench"
+        assert record.extra["risk_type"] == "slow_moving_listing"
+        assert record.extra["listing_id"] == listing.id
+        assert record.extra["product_id"] == product.id
+        assert record.extra["platform_account_id"] == account.id
+        assert record.metrics["capital_rmb"] == 60
+        assert record.metrics["views_30d"] == 160
+        assert record.metrics["orders_30d"] == 0
+
+    asyncio.run(run_test())
+
+
 def test_shipment_update_persists_method_and_real_cost_ledger(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'shipment.db'}")
@@ -1978,6 +2153,173 @@ def test_shipment_update_persists_method_and_real_cost_ledger(tmp_path):
     asyncio.run(run_test())
 
 
+def test_creating_shipment_updates_order_local_fulfillment_context(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'shipment-order-context.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A 店", is_active=True)
+            session.add(account)
+            await session.flush()
+            order = Order(
+                user_id="user-a",
+                platform_account_id=account.id,
+                platform_order_id="ORDER-LOCAL-SHIP",
+                order_number="ORDER-LOCAL-SHIP",
+                status="ready_to_ship",
+                total=99,
+                currency="MYR",
+                fulfillment_status="pending_pickup",
+                ordered_at=datetime.now(timezone.utc),
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": "2026-07-16T10:00:00+00:00",
+                },
+            )
+            session.add(order)
+            await session.commit()
+
+            shipment = await create_shipment(
+                session,
+                "user-a",
+                ShipmentCreate(
+                    order_id=order.id,
+                    carrier="Shopee Xpress",
+                    shipping_method="standard",
+                    tracking_number="SPX-001",
+                    status="draft",
+                ),
+            )
+            context = build_order_list_context(order)
+            status_after_draft = order.status
+            await update_shipment(
+                session,
+                "user-a",
+                shipment,
+                ShipmentUpdate(status="shipped", tracking_number="SPX-001"),
+            )
+        await engine.dispose()
+
+        assert shipment.order_id == order.id
+        assert order.platform_data["local_shipment_context"]["shipment_id"] == shipment.id
+        assert order.platform_data["local_shipment_context"]["source"] == "local_shipment"
+        assert order.platform_data["logistics_channel"] == "Shopee Xpress"
+        assert order.platform_data["tracking_number"] == "SPX-001"
+        assert context["logistics_channel"] == "Shopee Xpress"
+        assert "logistics_channel" not in context["fulfillment_exception"]["data_gaps"]
+        assert "物流渠道待补" not in context["fulfillment_exception"]["reasons"]
+        assert status_after_draft == "ready_to_ship"
+        assert order.status == "shipped"
+        assert order.fulfillment_status == "shipped"
+
+    asyncio.run(run_test())
+
+
+def test_shipment_context_exposes_platform_store_order_deadline(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'shipment-context.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="tiktok", account_name="TikTok SG 店", is_active=True)
+            session.add(account)
+            await session.flush()
+            order = Order(
+                user_id="user-a",
+                platform_account_id=account.id,
+                platform_order_id="TT-SHIP-001",
+                order_number="TT-SHIP-001",
+                status="ready_to_ship",
+                buyer_name="真实买家",
+                total=188,
+                currency="SGD",
+                fulfillment_status="pending_pickup",
+                ordered_at=datetime.now(timezone.utc),
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": "2026-07-16T10:00:00+00:00",
+                },
+            )
+            session.add(order)
+            await session.flush()
+            shipment = Shipment(
+                user_id="user-a",
+                platform_account_id=account.id,
+                order_id=order.id,
+                carrier="J&T",
+                status="draft",
+            )
+            session.add(shipment)
+            await session.commit()
+
+            contexts = await get_shipment_order_contexts(session, "user-a", [shipment])
+        await engine.dispose()
+
+        context = contexts[shipment.id]
+        assert context["platform"] == "tiktok"
+        assert context["platform_account_name"] == "TikTok SG 店"
+        assert context["order_number"] == "TT-SHIP-001"
+        assert context["buyer_name"] == "真实买家"
+        assert context["fulfillment_deadline_at"] == "2026-07-16T10:00:00+00:00"
+        assert context["fulfillment_exception"]["status"] in {"shipping_overdue", "shipping_due_soon", "logistics_missing", "sync_required", "clear"}
+
+    asyncio.run(run_test())
+
+
+def test_shipment_list_filters_exact_platform_store(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'shipment-store-filter.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            store_a = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A 店", is_active=True)
+            store_b = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee B 店", is_active=True)
+            session.add_all([store_a, store_b])
+            await session.flush()
+            order_a = Order(
+                user_id="user-a", platform_account_id=store_a.id, platform_order_id="ORDER-A",
+                order_number="ORDER-A", status="shipped", total=100, currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+            )
+            order_b = Order(
+                user_id="user-a", platform_account_id=store_b.id, platform_order_id="ORDER-B",
+                order_number="ORDER-B", status="shipped", total=120, currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+            )
+            session.add_all([order_a, order_b])
+            await session.flush()
+            session.add_all([
+                Shipment(user_id="user-a", platform_account_id=store_a.id, order_id=order_a.id, carrier="J&T", status="draft"),
+                Shipment(user_id="user-a", platform_account_id=store_b.id, order_id=order_b.id, carrier="J&T", status="draft"),
+            ])
+            await session.commit()
+
+            shipments, total = await list_shipments(
+                session,
+                "user-a",
+                platform="shopee",
+                platform_account_id=store_a.id,
+            )
+            order_shipments, order_total = await list_shipments(
+                session,
+                "user-a",
+                order_id=order_b.id,
+            )
+        await engine.dispose()
+
+        assert total == 1
+        assert shipments[0].platform_account_id == store_a.id
+        assert shipments[0].order_id == order_a.id
+        assert order_total == 1
+        assert order_shipments[0].order_id == order_b.id
+
+    asyncio.run(run_test())
+
+
 def test_discovery_without_trend_evidence_keeps_score_unknown(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'discovery.db'}")
@@ -1986,7 +2328,7 @@ def test_discovery_without_trend_evidence_keeps_score_unknown(tmp_path):
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
             discovery = ProductDiscovery(
-                user_id="user-a", product_name="无趋势证据商品", category="bags", market="MY",
+                user_id="user-a", product_name="无趋势资料商品", category="bags", market="MY",
             )
             session.add(discovery)
             await session.commit()

@@ -5,7 +5,6 @@ import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
-import { Tabs } from '../components/ui/Tabs'
 import { useProduct, useCreateProduct, useUpdateProduct } from '../hooks/useProducts'
 import { useToast } from '../components/ui/Toast'
 import { Skeleton } from '../components/shared/LoadingSkeleton'
@@ -16,8 +15,9 @@ import { CompliancePanel, ListingsPanel, VariationsPanel } from '../features/pro
 import type { ProductCompliance, ProductVariant } from '../types/product'
 import { ProductImagesPanel } from '../features/products/ProductImagesPanel'
 import { ProductPlatformAttributesPanel, type PlatformRequirementsByPlatform } from '../features/products/ProductPlatformAttributesPanel'
+import { productImageSrc } from '../utils/productImages'
 
-const FORM_TABS = [
+const FORM_SECTIONS = [
   { id: 'basic', label: '基本信息' },
   { id: 'variations', label: '规格' },
   { id: 'compliance', label: '合规资料' },
@@ -33,6 +33,7 @@ export default function ProductEditPage() {
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || ''
   const initialListingId = searchParams.get('listing_id') || ''
+  const initialListingSection = searchParams.get('listing_section') || ''
   const toast = useToast()
   const createMutation = useCreateProduct()
   const updateMutation = useUpdateProduct()
@@ -41,7 +42,7 @@ export default function ProductEditPage() {
   const { data: productData, isLoading } = useProduct(id || '')
   const product = productData?.data
 
-  const [activeTab, setActiveTab] = useState('basic')
+  const [activeSection, setActiveSection] = useState('basic')
   const [nameError, setNameError] = useState('')
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [compliance, setCompliance] = useState<ProductCompliance>({})
@@ -85,24 +86,29 @@ export default function ProductEditPage() {
   }, [form.status, isNew, product_statuses])
 
   useEffect(() => {
-    if (initialTab && FORM_TABS.some(tab => tab.id === initialTab)) setActiveTab(initialTab)
+    if (initialTab && FORM_SECTIONS.some(section => section.id === initialTab)) {
+      setActiveSection(initialTab)
+      window.requestAnimationFrame(() => {
+        document.getElementById(`product-section-${initialTab}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
   }, [initialTab])
 
   const handleSave = async () => {
     if (!form.name.trim()) {
       setNameError('商品名称不能为空')
-      setActiveTab('basic')
+      focusSection('basic')
       toast.addToast('error', '请输入商品名称')
       return
     }
     if (isAutomationTestProductName(form.name)) {
       setNameError('商品名称疑似自动化测试残留，请填写真实商品名称')
-      setActiveTab('basic')
+      focusSection('basic')
       toast.addToast('error', '请填写真实商品名称')
       return
     }
     if (variants.some(item => !item.sku.trim() || !item.name.trim()) || new Set(variants.map(item => item.sku.trim())).size !== variants.length) {
-      setActiveTab('variations')
+      focusSection('variations')
       toast.addToast('error', '规格 SKU 与名称必填，且 SKU 不能重复')
       return
     }
@@ -138,6 +144,14 @@ export default function ProductEditPage() {
   }
 
   const productNameInvalid = isAutomationTestProductName(form.name)
+  const currentImages = imageText.split('\n').map(item => item.trim()).filter(Boolean)
+  const listingCount = product?.listings?.length || 0
+  const listingPlatforms = Array.from(new Set((product?.listings || []).map(listing => listing.platform).filter(Boolean)))
+  const platformFieldCount = countPlatformFields(platformRequirements)
+  const focusSection = (sectionId: string) => {
+    setActiveSection(sectionId)
+    document.getElementById(`product-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   if (!isNew && isLoading) {
     return (
@@ -172,12 +186,26 @@ export default function ProductEditPage() {
 
       {!isNew && <EvidenceBanner evidence={productData} />}
 
-      <Tabs tabs={FORM_TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <ProductEditObjectOverview
+        isNew={isNew}
+        name={form.name}
+        sku={form.sku}
+        status={form.status}
+        costPrice={form.cost_price}
+        weightG={form.weight_g}
+        imageUrls={currentImages}
+        variantCount={variants.length}
+        platformFieldCount={platformFieldCount}
+        listingCount={listingCount}
+        listingPlatforms={listingPlatforms}
+        onFocus={focusSection}
+      />
 
-      <Card>
-        <CardContent className="pt-6">
-          {activeTab === 'basic' && (
-            <div className="max-w-2xl space-y-5">
+      <ProductEditSectionNav activeSection={activeSection} onFocus={focusSection} />
+
+      <div className="space-y-4">
+        <ProductEditSection id="basic" title="基本信息" summary="维护基础商品版本的 SKU、名称、成本、重量和内部备注。">
+          <div className="max-w-2xl space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="SKU"
@@ -246,37 +274,175 @@ export default function ProductEditPage() {
                 />
               </div>
             </div>
-          )}
+        </ProductEditSection>
 
-          {activeTab === 'variations' && (
-            <VariationsPanel variants={variants} onChange={setVariants} />
-          )}
+        <ProductEditSection id="variations" title="规格 / SKU" summary="维护基础商品规格。店铺 Listing 的价格、库存、平台 SKU 覆盖在下方平台 Listing 实例中处理。">
+          <VariationsPanel variants={variants} onChange={setVariants} />
+        </ProductEditSection>
 
-          {activeTab === 'compliance' && <CompliancePanel value={compliance} onChange={setCompliance} />}
+        <ProductEditSection id="compliance" title="合规资料" summary="维护基础商品可复用的合规资料；店铺或平台差异在 Listing 实例中覆盖。">
+          <CompliancePanel value={compliance} onChange={setCompliance} />
+        </ProductEditSection>
 
-          {activeTab === 'platform_attrs' && (
-            <ProductPlatformAttributesPanel
-              platforms={platforms}
-              fieldGroups={platform_product_field_groups}
-              value={platformRequirements}
-              onChange={setPlatformRequirements}
-            />
-          )}
+        <ProductEditSection id="platform_attrs" title="平台属性基础要求" summary="维护基础商品层可复用的平台属性资料；具体店铺类目差异在平台 Listing 实例中继续核对。">
+          <ProductPlatformAttributesPanel
+            platforms={platforms}
+            fieldGroups={platform_product_field_groups}
+            value={platformRequirements}
+            onChange={setPlatformRequirements}
+          />
+        </ProductEditSection>
 
-          {activeTab === 'images' && (
-            <ProductImagesPanel productId={id} imageText={imageText} onChange={setImageText} />
-          )}
+        <ProductEditSection id="images" title="商品图片素材" summary="商品主档图片统一入库，店铺 Listing 可从主档图片中选择并形成独立覆盖。">
+          <ProductImagesPanel productId={id} imageText={imageText} onChange={setImageText} />
+        </ProductEditSection>
 
-          {activeTab === 'listings' && (
-            <ListingsPanel productId={id} listings={product?.listings || []} initialListingId={initialListingId} />
+        <ProductEditSection id="listings" title="平台 Listing 实例" summary="同一基础商品在不同平台、店铺内形成独立 Listing 实例；编辑店铺级标题、图片、SKU、价格、物流和平台属性时不污染基础商品。">
+          {!isNew ? (
+            <ListingsPanel productId={id} listings={product?.listings || []} initialListingId={initialListingId} initialSection={initialListingSection} />
+          ) : (
+            <p className="rounded-lg border border-dashed border-[var(--color-border)] p-5 text-sm text-[var(--color-muted)]">先保存基础商品，再创建或同步平台店铺 Listing 实例。</p>
           )}
+        </ProductEditSection>
+      </div>
+    </div>
+  )
+}
+
+function ProductEditObjectOverview({
+  isNew,
+  name,
+  sku,
+  status,
+  costPrice,
+  weightG,
+  imageUrls,
+  variantCount,
+  platformFieldCount,
+  listingCount,
+  listingPlatforms,
+  onFocus,
+}: {
+  isNew: boolean
+  name: string
+  sku: string
+  status: string
+  costPrice: string
+  weightG: string
+  imageUrls: string[]
+  variantCount: number
+  platformFieldCount: number
+  listingCount: number
+  listingPlatforms: string[]
+  onFocus: (sectionId: string) => void
+}) {
+  const mainImage = imageUrls[0]
+  const readiness = [
+    { label: '基础资料', ready: Boolean(name.trim() && sku.trim()), target: 'basic' },
+    { label: 'SKU/规格', ready: variantCount > 0, target: 'variations' },
+    { label: '商品图片', ready: imageUrls.length >= 5, target: 'images' },
+    { label: '平台字段', ready: platformFieldCount > 0, target: 'platform_attrs' },
+    { label: '店铺 Listing', ready: listingCount > 0, target: 'listings' },
+  ]
+  return (
+    <section aria-label="商品编辑对象总览" data-ui="product-edit-object-overview" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="grid gap-4 xl:grid-cols-[120px_minmax(0,1fr)_320px]">
+        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+          {mainImage ? (
+            <img src={productImageSrc(mainImage)} alt={name || '商品主图'} className="h-28 w-full object-cover" />
+          ) : (
+            <div className="grid h-28 place-items-center px-3 text-center text-xs text-[var(--color-muted)]">待补真实商品主图</div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate text-lg font-semibold text-[var(--color-fg)]">{name || '未命名基础商品'}</h2>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">{isNew ? '待保存基础商品版本' : '基础商品版本'}</span>
+          </div>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            基础商品资料作为跨平台/跨店铺复用底座；店铺级标题、图片、SKU、价格、库存、物流和平台属性在“平台 Listing 实例”中独立覆盖，不回写污染其他店铺。
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <ProductOverviewMetric label="基础 SKU" value={sku || '待生成'} />
+            <ProductOverviewMetric label="状态" value={status || '待选择'} />
+            <ProductOverviewMetric label="成本价" value={costPrice ? `¥${costPrice}` : '待补'} warning={!costPrice} />
+            <ProductOverviewMetric label="重量" value={weightG ? `${weightG}g` : '待补'} warning={!weightG} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onFocus('images')} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">商品图片素材 {imageUrls.length}</button>
+            <button type="button" onClick={() => onFocus('variations')} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">SKU/规格 {variantCount}</button>
+            <button type="button" onClick={() => onFocus('listings')} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">店铺 Listing 实例 {listingCount}</button>
+          </div>
+        </div>
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <p className="text-sm font-semibold text-[var(--color-fg)]">发布准备度</p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">仅用当前商品真实字段判断，不用默认值补齐。</p>
+          <div className="mt-3 space-y-2">
+            {readiness.map(item => (
+              <button key={item.label} type="button" onClick={() => onFocus(item.target)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left text-xs hover:border-[var(--color-primary)]">
+                <span className="text-[var(--color-muted)]">{item.label}</span>
+                <span className={item.ready ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>{item.ready ? '已具备' : '待补'}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-[var(--color-muted)]">
+            覆盖平台：{listingPlatforms.length ? listingPlatforms.join(' / ') : '待创建店铺 Listing'}
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ProductOverviewMetric({ label, value, warning }: { label: string; value: string; warning?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+      <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
+      <p className={warning ? 'mt-1 truncate text-sm font-semibold text-[var(--color-warning)]' : 'mt-1 truncate text-sm font-semibold text-[var(--color-fg)]'}>{value}</p>
+    </div>
+  )
+}
+
+function ProductEditSectionNav({ activeSection, onFocus }: { activeSection: string; onFocus: (sectionId: string) => void }) {
+  return (
+    <nav aria-label="商品编辑字段快速定位" className="sticky top-16 z-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap gap-2">
+        {FORM_SECTIONS.map(section => (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => onFocus(section.id)}
+            className={`rounded-lg border px-3 py-2 text-xs transition ${activeSection === section.id ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}`}
+          >
+            {section.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
+function ProductEditSection({ id, title, summary, children }: { id: string; title: string; summary: string; children: React.ReactNode }) {
+  return (
+    <section id={`product-section-${id}`} aria-label={title} className="scroll-mt-32">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-[var(--color-fg)]">{title}</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">{summary}</p>
+          </div>
+          {children}
         </CardContent>
       </Card>
-    </div>
+    </section>
   )
 }
 
 function isAutomationTestProductName(value: string) {
   const name = value.trim()
   return name.endsWith('-测试') || ['自动化测试', '仅名称无其他必填', '修改后的'].some(pattern => name.includes(pattern))
+}
+
+function countPlatformFields(requirements: PlatformRequirementsByPlatform) {
+  return Object.values(requirements).reduce((sum, item) => sum + Object.keys(item.attribute_values || {}).length, 0)
 }

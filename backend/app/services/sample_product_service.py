@@ -218,7 +218,7 @@ async def _ensure_supplier(db: AsyncSession, user_id: str, item: SourcingItem, s
     db.add(SourcingSupplier(
         user_id=user_id, sourcing_item_id=item.id, supplier_name=sample["supplier"], supplier_url=item.source_url,
         product_image=sample_image(sample), purchase_price_rmb=sample["cost"], shipping_estimate_rmb=3.2,
-        moq=sample["moq"], notes="验证样本供应商，用于供应交叉验证和候选商品证据完整度检查。",
+        moq=sample["moq"], notes="验证样本供应商，用于供应交叉验证和候选商品资料完整度检查。",
         rating=sample["supplier_rating"], is_preferred=True, quality_score=82, delivery_score=78,
         price_score=84, communication_score=80, certification_score=72, overall_score=79.2,
     ))

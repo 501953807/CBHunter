@@ -7,6 +7,7 @@ import { ComparisonRangeCards } from '../../components/shared/ComparisonRangeCar
 import { MetricStackBar } from '../../components/shared/MetricStackBar'
 import type { BusinessFlowOverview } from '../../types/businessFlow'
 import { comparisonRangeLabel } from '../../utils/comparisonRange'
+import { buildObjectRoute } from './businessFlowRoutes'
 
 interface Props {
   data: BusinessFlowOverview
@@ -31,6 +32,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
     { period: comparisonRangeLabel('previous', data.comparison.windows.previous), window: data.comparison.windows.previous, items: data.comparison.previous?.items ?? 0, blocked: data.comparison.previous?.blocked ?? 0, dataRequired: data.comparison.previous?.data_required ?? 0 },
     { period: comparisonRangeLabel('lastYear', data.comparison.windows.last_year), window: data.comparison.windows.last_year, items: data.comparison.last_year?.items ?? 0, blocked: data.comparison.last_year?.blocked ?? 0, dataRequired: data.comparison.last_year?.data_required ?? 0 },
   ]
+  const stageDwellRows = [...data.comparison.stage_dwell].sort((a, b) => (b.current.avg_wait_hours ?? -1) - (a.current.avg_wait_hours ?? -1))
   const currentWindow = data.comparison.windows.current || '业务日期范围待补'
   const bottleneckStage = [...stageRows].sort((a, b) => ((b.blocked + b.data_required) - (a.blocked + a.data_required)))[0]
   const primaryAction = data.next_actions.find((action) => action.primary) || data.next_actions[0]
@@ -39,6 +41,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
     : null
   const topBlockedStore = [...data.flow_store_matrix].sort((a, b) => ((b.blocked + b.data_required) - (a.blocked + a.data_required)))[0]
   const flowPriority = blockedRate == null ? '待形成' : blockedRate > 30 ? '立即疏通' : blockedRate > 10 ? '今日处理' : '正常推进'
+  const primaryActionRoute = primaryAction ? buildObjectRoute(primaryAction.route, primaryAction) : '/business-flow'
 
   return (
     <section aria-label="业务流程总分看板" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)]">
@@ -75,7 +78,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
               业务监控台首屏只回答处理问题：链路卡在哪、缺什么资料、哪个店铺对象最多、下一步应该进入选品、Listing、定价、刊登还是订单履约。
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <FlowHeroMetric label="当前瓶颈" value={bottleneckStage ? bottleneckStage.label : '待定位'} detail={bottleneckStage ? `阻塞 ${bottleneckStage.blocked} · 待补 ${bottleneckStage.data_required} · 对象 ${bottleneckStage.object_count}` : '暂无阶段矩阵数据'} tone={bottleneckStage && (bottleneckStage.blocked + bottleneckStage.data_required) > 0 ? 'warning' : 'primary'} />
+              <FlowHeroMetric label="当前瓶颈" value={bottleneckStage ? bottleneckStage.label : '待定位'} detail={bottleneckStage ? `阻塞 ${bottleneckStage.blocked} · 待补 ${bottleneckStage.data_required} · 平均停留 ${bottleneckStage.avg_wait_label}` : '暂无阶段矩阵数据'} tone={bottleneckStage && (bottleneckStage.blocked + bottleneckStage.data_required) > 0 ? 'warning' : 'primary'} />
               <FlowHeroMetric label="卡点率" value={blockedRate == null ? '待形成' : `${blockedRate}%`} detail={`业务对象 ${data.comparison.current.items} · 卡点 ${data.comparison.current.blocked} · 待补资料 ${data.comparison.current.data_required}`} tone={blockedRate == null ? 'warning' : blockedRate > 30 ? 'danger' : blockedRate > 10 ? 'warning' : 'primary'} />
               <FlowHeroMetric label="待补关键资料" value={`${data.comparison.current.data_required} 项`} detail={topBlockedStore ? `${topBlockedStore.account_name} 需优先处理` : '暂无店铺卡点归属'} tone={data.comparison.current.data_required > 0 ? 'warning' : 'primary'} />
             </div>
@@ -93,7 +96,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
               <FlowHeroAction
                 label={primaryAction ? primaryAction.label : '进入处理总线'}
                 detail={primaryAction ? primaryAction.reason : '查看当前业务对象和下一步动作'}
-                onClick={() => onNavigate(primaryAction?.route || '/business-flow')}
+                onClick={() => onNavigate(primaryActionRoute)}
               />
               <FlowHeroAction
                 label="进入当前瓶颈阶段"
@@ -145,7 +148,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
             label: '当前瓶颈阶段',
             value: bottleneckStage ? bottleneckStage.label : '待定位',
             insight: bottleneckStage
-              ? `${bottleneckStage.object_count} 个对象中，阻塞 ${bottleneckStage.blocked}、待补 ${bottleneckStage.data_required}；应直接进入该阶段补资料或处理卡点。`
+              ? `${bottleneckStage.object_count} 个对象中，阻塞 ${bottleneckStage.blocked}、待补 ${bottleneckStage.data_required}、平均停留 ${bottleneckStage.avg_wait_label}；应直接进入该阶段补资料或处理卡点。`
               : '当前没有阶段矩阵数据，无法定位链路瓶颈。',
             tone: bottleneckStage && (bottleneckStage.blocked + bottleneckStage.data_required) > 0 ? 'warning' : 'success',
             actionLabel: bottleneckStage ? '进入瓶颈阶段' : '补充业务对象',
@@ -157,7 +160,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
             insight: primaryAction ? primaryAction.reason : '系统暂未生成可执行动作；需要补齐商品、Listing、订单或运营记录。',
             tone: primaryAction ? 'primary' : 'warning',
             actionLabel: primaryAction ? primaryAction.label : '去选品入口',
-            onAction: () => onNavigate(primaryAction?.route || '/scout'),
+            onAction: () => onNavigate(primaryAction ? buildObjectRoute(primaryAction.route, primaryAction) : '/scout'),
           },
         ]}
       />
@@ -188,6 +191,38 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
       </div>
 
       <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-fg)]">阶段停留对比</p>
+            <p className="mt-1 text-[11px] text-[var(--color-muted)]">按真实业务对象更新时间计算当前、环比、同比平均停留，定位哪个阶段正在拖慢上架链路。</p>
+          </div>
+          <Badge variant="outline">统计日期范围 / 环比日期范围 / 同比日期范围</Badge>
+        </div>
+        <div className="grid gap-2 lg:grid-cols-4">
+          {stageDwellRows.map((stage) => (
+            <button
+              key={stage.key}
+              type="button"
+              onClick={() => onNavigate(stage.route)}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--color-fg)]">{stage.label}</p>
+                <span className="text-[11px] text-[var(--color-muted)]">{formatComparisonRate(stage.rates.avg_wait_mom_pct)}</span>
+              </div>
+              <p className="mt-2 text-xl font-bold text-[var(--color-fg)]">{stage.current.avg_wait_label}</p>
+              <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+                环比 {stage.previous.avg_wait_label} · 同比 {stage.last_year.avg_wait_label}
+              </p>
+              <p className="mt-2 truncate text-[11px] text-[var(--color-muted)]" title={stage.current.max_wait_item?.name || ''}>
+                最长停留 {stage.current.max_wait_item ? `${stage.current.max_wait_item.wait_label} · ${stage.current.max_wait_item.name}` : '待形成'}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-[var(--color-fg)]">八阶段卡点矩阵</p>
           <span className="text-[11px] text-[var(--color-muted)]">信号收集 → 候选验证 → 选品决策 → Listing 制作 → 定价策略 → 平台刊登 → 订单履约 → 运营优化</span>
@@ -204,6 +239,10 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
                 </div>
                 <p className={blocked ? 'mt-1.5 text-[11px] text-[var(--color-warning)]' : 'mt-1.5 text-[11px] text-[var(--color-muted)]'}>
                   {stage.object_count} 对象 · 卡点 {blocked}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--color-muted)]">平均停留 {stage.avg_wait_label}</p>
+                <p className="mt-0.5 truncate text-[11px] text-[var(--color-muted)]" title={stage.max_wait_item?.name || ''}>
+                  最长停留 {stage.max_wait_item ? `${stage.max_wait_item.wait_label} · ${stage.max_wait_item.name}` : '待形成'}
                 </p>
               </button>
             )
@@ -352,6 +391,11 @@ function SummaryTile({ icon, label, value, sub, danger }: { icon: ReactNode; lab
 function RateText({ mom, yoy }: { mom: number | null; yoy: number | null }) {
   if (mom == null && yoy == null) return <span>环比/同比待业务对象时间序列补齐</span>
   return <span>环比 {mom ?? '待补'}% · 同比 {yoy ?? '待补'}%</span>
+}
+
+function formatComparisonRate(value: number | null) {
+  if (value == null) return '环比待补'
+  return value > 0 ? `环比 +${value}%` : `环比 ${value}%`
 }
 
 function EmptyChart({ text }: { text: string }) {

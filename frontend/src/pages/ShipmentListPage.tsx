@@ -1,26 +1,34 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Select } from '../components/ui/Select'
 import { DataTable } from '../components/shared/DataTable'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
+import { StoreContextBanner } from '../components/shared/StoreContextBanner'
 import { useShipmentList } from '../hooks/useShipments'
 import { useConfig } from '../hooks/useConfig'
+import { usePlatformStatuses } from '../hooks/usePlatforms'
 import type { Column } from '../components/shared/DataTable'
 import type { Shipment } from '../types/shipment'
 import { getStatusMeta, toDomainOptions, withAllOption } from '../utils/domainOptions'
 
 export default function ShipmentListPage() {
   const navigate = useNavigate()
-  const { carriers = [], shipment_statuses = [] } = useConfig()
+  const [searchParams] = useSearchParams()
+  const { carriers = [], shipment_statuses = [], platforms = [] } = useConfig()
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
   const [carrier, setCarrier] = useState('')
+  const [platform, setPlatform] = useState(searchParams.get('platform') || '')
+  const platformAccountId = searchParams.get('platform_account_id') || ''
+  const platformStatusesQuery = usePlatformStatuses()
 
   const { data, isLoading } = useShipmentList({
     status: status || undefined,
     carrier: carrier || undefined,
+    platform: platform || undefined,
+    platform_account_id: platformAccountId || undefined,
     page,
     page_size: 20,
   })
@@ -29,6 +37,11 @@ export default function ShipmentListPage() {
   const pagination = data?.meta ?? undefined
   const carrierOptions = carriers.map(item => ({ value: item.label, label: item.label }))
   const shipmentStatusOptions = toDomainOptions(shipment_statuses)
+  const platformLabelMap = new Map(platforms.map(item => [item.id, item.label]))
+  const platformOptions = [
+    { value: '', label: '全部平台' },
+    ...platforms.map(item => ({ value: item.id, label: item.label })),
+  ]
 
   const columns: Column<Shipment>[] = [
     {
@@ -43,6 +56,22 @@ export default function ShipmentListPage() {
       key: 'carrier',
       header: '承运商',
       width: '100px',
+    },
+    {
+      key: 'platform',
+      header: '平台/店铺',
+      width: '150px',
+      render: (row) => (
+        <div>
+          <span
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+          >
+            {platformLabelMap.get(row.platform || '') || row.platform?.toUpperCase() || '--'}
+          </span>
+          <p className="mt-1 line-clamp-1 text-[11px] text-[var(--color-muted)]">{row.platform_account_name || '店铺待补'}</p>
+        </div>
+      ),
     },
     {
       key: 'status',
@@ -67,7 +96,27 @@ export default function ShipmentListPage() {
     {
       key: 'order_id',
       header: '关联订单',
-      render: (row) => <span className="text-xs text-[var(--color-muted)] font-mono">{row.order_id.slice(0, 8)}...</span>,
+      render: (row) => (
+        <div>
+          <p className="font-mono text-sm text-[var(--color-fg)]">{row.order_number || `${row.order_id.slice(0, 8)}...`}</p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">{row.buyer_name || '买家待补'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'fulfillment_deadline_at',
+      header: '发货时限',
+      width: '160px',
+      render: (row) => (
+        <div>
+          <Badge variant={shipmentFulfillmentVariant(row.fulfillment_exception?.severity)}>
+            {row.fulfillment_exception?.status === 'shipping_overdue' ? '已超期' : row.fulfillment_exception?.status === 'shipping_due_soon' ? '临近时限' : '履约跟踪'}
+          </Badge>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            {row.fulfillment_deadline_at ? new Date(row.fulfillment_deadline_at).toLocaleString('zh-CN') : '平台时限待同步'}
+          </p>
+        </div>
+      ),
     },
     {
       key: 'created_at',
@@ -89,6 +138,13 @@ export default function ShipmentListPage() {
       <Card>
         <CardContent className="pt-4">
           <EvidenceBanner evidence={data} compact />
+          <StoreContextBanner
+            platformAccountId={platformAccountId}
+            platform={platform}
+            statuses={platformStatusesQuery.data?.data || []}
+            currentModule="shipments"
+            clearHref="/shipments"
+          />
           <div className="flex items-center gap-3 mb-4">
             <Select
               options={withAllOption('全部状态', shipmentStatusOptions)}
@@ -101,6 +157,12 @@ export default function ShipmentListPage() {
               value={carrier}
               onChange={(v) => { setCarrier(v); setPage(1) }}
               className="w-36"
+            />
+            <Select
+              options={platformOptions}
+              value={platform}
+              onChange={(v) => { setPlatform(v); setPage(1) }}
+              className="w-32"
             />
           </div>
 
@@ -118,4 +180,11 @@ export default function ShipmentListPage() {
       </Card>
     </div>
   )
+}
+
+function shipmentFulfillmentVariant(value?: string | null) {
+  if (value === 'critical') return 'danger'
+  if (value === 'warning') return 'warning'
+  if (value === 'clear') return 'success'
+  return 'outline'
 }

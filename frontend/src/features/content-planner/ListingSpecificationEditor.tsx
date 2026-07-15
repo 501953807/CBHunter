@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Clipboard, PackageCheck } from 'lucide-react'
 import type { ContentWorkbenchItem } from '../../api/content'
-import { confirmContentTaskVersion, saveContentTaskVersion } from '../../api/content'
+import { confirmContentTaskVersion, getContentTaskMatrix, saveContentTaskVersion } from '../../api/content'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import type { ToastContextType } from '../../components/ui/Toast'
@@ -24,14 +24,41 @@ type LogisticsDraft = {
   shippingSla: string
 }
 
+type ListingOverridePayload = {
+  schema?: string
+  product_id?: string
+  product_name?: string
+  base_platform?: string | null
+  base_market?: string | null
+  store_id?: string | null
+  store_label?: string | null
+  override_boundary?: string
+  title?: string
+  short_description?: string
+  long_description?: string
+  price?: string
+  currency?: string
+  image_urls?: string[]
+  video_url?: string
+  skus?: { seller_sku?: string; variation?: string; price?: string; stock?: string }[]
+  platform_attributes_note?: string
+  logistics_note?: string
+  compliance_note?: string
+  promotion_note?: string
+}
+
 const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]'
 
 export function ListingSpecificationEditor({
   product,
+  storeId,
+  storeLabel,
   toast,
   onGenerated,
 }: {
   product: ContentWorkbenchItem | null
+  storeId: string
+  storeLabel: string
   toast: ToastContextType
   onGenerated: () => void
 }) {
@@ -39,14 +66,43 @@ export function ListingSpecificationEditor({
   const [skuDrafts, setSkuDrafts] = useState<SkuDraft[]>([{ sku: '', variation: '', price: '', stock: '' }])
   const [logistics, setLogistics] = useState<LogisticsDraft>({ weight: '', length: '', width: '', height: '', packageType: '', shippingSla: '' })
   const [complianceText, setComplianceText] = useState('')
+  const [existingOverride, setExistingOverride] = useState<ListingOverridePayload | null>(null)
+  const [storedOverrideVersion, setStoredOverrideVersion] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     setRequirements(product?.platform_requirements)
     setSkuDrafts([{ sku: '', variation: '', price: '', stock: '' }])
     setLogistics({ weight: '', length: '', width: '', height: '', packageType: '', shippingSla: '' })
     setComplianceText((product?.platform_requirements?.compliance || []).join('\n'))
-  }, [product?.id])
+    setExistingOverride(null)
+    setStoredOverrideVersion(null)
+    if (!product?.id) return
+    getContentTaskMatrix(product.id)
+      .then(response => {
+        if (cancelled) return
+        const task = response.data?.tasks.find(item => item.task_type === 'listing_store_override')
+        const version = task?.latest_version
+        const parsed = parseListingOverridePayload(version?.content || '')
+        if (!parsed) return
+        const sameStore = !storeId || !parsed.store_id || parsed.store_id === storeId
+        if (!sameStore) return
+        setExistingOverride(parsed)
+        setStoredOverrideVersion(version?.version || null)
+        const parsedSkus = normalizeSkuDrafts(parsed.skus)
+        if (parsedSkus.length) setSkuDrafts(parsedSkus)
+        const parsedLogistics = parseLogisticsDraft(parsed.logistics_note || '')
+        if (parsedLogistics) setLogistics(parsedLogistics)
+        if (parsed.compliance_note) setComplianceText(parsed.compliance_note)
+      })
+      .catch((error: any) => {
+        logger.error('Load specification listing override failed', error)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [product?.id, storeId])
 
   const requiredAttrs = requirements?.required_attributes || []
   const values = requirements?.attribute_values || {}
@@ -100,6 +156,50 @@ export function ListingSpecificationEditor({
     }
   }
 
+  const saveSpecificationOverride = async () => {
+    if (!product?.id) {
+      toast.addToast('error', '请先选择内容商品')
+      return
+    }
+    setSaving(true)
+    try {
+      const payload: ListingOverridePayload = {
+        ...(existingOverride || {}),
+        schema: 'listing_store_override.v1',
+        product_id: product.id,
+        product_name: product.product_name,
+        base_platform: product.target_platform,
+        base_market: product.target_market,
+        store_id: storeId || existingOverride?.store_id || null,
+        store_label: storeLabel || existingOverride?.store_label || '店铺待选择',
+        override_boundary: '仅用于当前店铺 Listing 实例，不回写基础商品版本，也不影响其他平台/店铺实例。',
+        skus: skuDrafts
+          .map(row => ({
+            seller_sku: row.sku.trim(),
+            variation: row.variation.trim(),
+            price: row.price.trim(),
+            stock: row.stock.trim(),
+          }))
+          .filter(row => row.seller_sku || row.variation || row.price || row.stock),
+        platform_attributes_note: JSON.stringify(requirements?.attribute_values || {}, null, 2),
+        logistics_note: JSON.stringify(logistics, null, 2),
+        compliance_note: complianceText.trim(),
+      }
+      const saved = await saveContentTaskVersion(product.id, 'listing_store_override', JSON.stringify(payload, null, 2), 'manual')
+      const version = saved.data?.version
+      if (version) await confirmContentTaskVersion(product.id, 'listing_store_override', version)
+      setExistingOverride(payload)
+      setStoredOverrideVersion(version || null)
+      toast.addToast('success', '规格字段已保存到店铺 Listing 覆盖草稿')
+      onGenerated()
+    } catch (error: any) {
+      logger.error('Save listing specification override failed', error)
+      toast.addToast('error', error?.response?.data?.detail || '规格字段保存失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section aria-label="Listing SKU 属性物流合规工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
@@ -114,6 +214,7 @@ export function ListingSpecificationEditor({
           <div className="flex flex-wrap gap-2">
             <Badge variant={completion >= 75 ? 'success' : 'warning'}>规格完整度 {completion}%</Badge>
             <Badge variant={fieldReady ? 'success' : 'warning'}>平台字段缺 {missingAttrs.length}</Badge>
+            <Badge variant={storedOverrideVersion ? 'success' : 'outline'}>{storedOverrideVersion ? `已回读覆盖 v${storedOverrideVersion}` : '未保存覆盖'}</Badge>
           </div>
         </div>
       </div>
@@ -188,6 +289,9 @@ export function ListingSpecificationEditor({
           <Button className="w-full" onClick={confirmCompliance} disabled={!product || !complianceText.trim() || saving}>
             <CheckCircle2 className="mr-1 h-4 w-4" />确认合规检查
           </Button>
+          <Button className="w-full" onClick={saveSpecificationOverride} disabled={!product || saving}>
+            <PackageCheck className="mr-1 h-4 w-4" />保存规格到店铺覆盖草稿
+          </Button>
           <Button className="w-full" variant="outline" onClick={copySpecificationPack} disabled={!product}>
             <Clipboard className="mr-1 h-4 w-4" />复制规格字段包
           </Button>
@@ -225,4 +329,45 @@ function SpecCheck({ label, ok, detail }: { label: string; ok: boolean; detail: 
 function hasValue(value: unknown) {
   if (Array.isArray(value)) return value.length > 0
   return value !== undefined && value !== null && String(value).trim() !== ''
+}
+
+function parseListingOverridePayload(content: string): ListingOverridePayload | null {
+  if (!content.trim()) return null
+  try {
+    const payload = JSON.parse(content) as ListingOverridePayload
+    return payload.schema === 'listing_store_override.v1' ? payload : null
+  } catch (error: any) {
+    logger.error('Parse listing override payload failed in specification editor', error)
+    return null
+  }
+}
+
+function normalizeSkuDrafts(value: ListingOverridePayload['skus']): SkuDraft[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(row => row && (row.seller_sku || row.variation || row.price || row.stock))
+    .map(row => ({
+      sku: row.seller_sku || '',
+      variation: row.variation || '',
+      price: row.price || '',
+      stock: row.stock || '',
+    }))
+}
+
+function parseLogisticsDraft(value: string): LogisticsDraft | null {
+  if (!value.trim()) return null
+  try {
+    const parsed = JSON.parse(value) as Partial<LogisticsDraft>
+    return {
+      weight: parsed.weight || '',
+      length: parsed.length || '',
+      width: parsed.width || '',
+      height: parsed.height || '',
+      packageType: parsed.packageType || '',
+      shippingSla: parsed.shippingSla || '',
+    }
+  } catch (error: any) {
+    logger.error('Parse logistics draft failed in specification editor', error)
+    return null
+  }
 }

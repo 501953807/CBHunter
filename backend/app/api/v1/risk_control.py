@@ -8,7 +8,10 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.api.v1.response_helpers import evidence_response
 from app.schemas.common import ApiResponse
+from app.schemas.operations import OperationRecordResponse
 from app.schemas.risk_control import RiskStateUpdateRequest
+from app.services.audit_service import record_audit_event
+from app.services.risk_control_action_service import create_operation_record_from_risk
 from app.services.risk_control_service import (
     get_risk_control_overview,
     get_risk_event_audit,
@@ -42,6 +45,25 @@ async def update_risk_state(
     return ApiResponse(data=data)
 
 
+@router.post("/events/{risk_id}/operation-action", response_model=ApiResponse, status_code=201)
+async def create_risk_operation_action(
+    risk_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await create_operation_record_from_risk(db, current_user.id, risk_id)
+    await record_audit_event(
+        db,
+        user=current_user,
+        action="create_risk_operation_action",
+        resource_type="operation_record",
+        resource_id=record.id,
+        new_value=_operation_snapshot(record),
+        detail=f"风险事件生成运营台账动作：{risk_id}",
+    )
+    return ApiResponse(data=OperationRecordResponse.model_validate(record))
+
+
 @router.get("/events/{risk_id}/audit", response_model=ApiResponse)
 async def list_risk_audit(
     risk_id: str,
@@ -49,3 +71,16 @@ async def list_risk_audit(
     db: AsyncSession = Depends(get_db),
 ):
     return ApiResponse(data=await get_risk_event_audit(db, current_user.id, risk_id))
+
+
+def _operation_snapshot(record) -> dict:
+    return {
+        "id": record.id,
+        "record_type": record.record_type,
+        "status": record.status,
+        "name": record.name,
+        "platform": record.platform,
+        "market": record.market,
+        "counterparty": record.counterparty,
+        "extra": record.extra,
+    }

@@ -168,7 +168,7 @@ def _merge_candidates(events: list[dict]) -> list[dict]:
                 for event in group
             ],
             "latest_signal": first,
-            "next_action": "进入选品决策" if not missing else f"补齐{missing[0]}证据",
+            "next_action": "进入选品决策" if not missing else f"补齐{missing[0]}资料",
             "next_action_route": "/product-selection" if not missing else "/scout/sources",
         })
     candidates.sort(key=lambda item: (item["evidence_summary"]["present"], item["latest_signal"]["captured_at"] or ""), reverse=True)
@@ -195,7 +195,7 @@ def _event(
         "source_id": source_id,
         "source_name": source_name,
         "captured_at": value.isoformat() if hasattr(value, "isoformat") else str(value),
-        "detail": detail or "待补充证据说明",
+        "detail": detail or "待补充资料说明",
         "route": route,
         "meta": meta or {},
     }

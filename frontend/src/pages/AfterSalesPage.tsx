@@ -1,9 +1,10 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { PackageX, Settings } from 'lucide-react'
-import { Card, CardContent } from '../components/ui/Card'
+import { Card, CardContent, CardHeader } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Skeleton } from '../components/shared/LoadingSkeleton'
 import { useOrder } from '../hooks/useOrders'
+import type { OrderDetail } from '../types/order'
 
 export default function AfterSalesPage() {
   const [searchParams] = useSearchParams()
@@ -41,6 +42,7 @@ export default function AfterSalesPage() {
           </CardContent>
         </Card>
       )}
+      {order && <AfterSalesFulfillmentAnalysis order={order} />}
       <Card>
         <CardContent className="py-12 text-center">
           <PackageX className="w-12 h-12 mx-auto text-[var(--color-muted)] mb-3" />
@@ -61,4 +63,86 @@ export default function AfterSalesPage() {
       </Card>
     </div>
   )
+}
+
+function AfterSalesFulfillmentAnalysis({ order }: { order: OrderDetail }) {
+  const exception = order.fulfillment_exception || {}
+  const finance = order.finance_entry_context || {}
+  const afterSalesOpen = Boolean(order.after_sales_status && !['none', 'no_after_sales', 'closed', 'resolved', 'completed'].includes(order.after_sales_status))
+  const refundAmount = finance.refund_rmb || 0
+  const actions = [
+    {
+      label: '返回订单详情记录处理结果',
+      route: `/orders/${order.id}`,
+      detail: '平台售后 API 未接通前，系统只承接跟进，不生成模拟退款/退货单。',
+    },
+    {
+      label: '补录退款或平台扣款',
+      route: `/finance?entry_type=refund&order_id=${order.id}#finance-ledger`,
+      detail: '只有真实平台账单或实际退款发生后才补录财务流水。',
+    },
+    {
+      label: '检查店铺售后接口配置',
+      route: `/platforms?platform_account_id=${order.platform_account_id}&sync_type=orders`,
+      detail: '确认当前店铺授权、订单同步和后续售后 API 接入状态。',
+    },
+  ]
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-[var(--color-fg)]">售后履约分析</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">基于订单售后状态、履约异常和已关联财务台账判断当前处理重点。</p>
+          </div>
+          <Badge variant={afterSalesOpen ? 'warning' : 'outline'}>{afterSalesOpen ? '售后待处理' : '未识别开放售后'}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <AnalysisMetric label="售后状态" value={order.after_sales_status || '未知'} tone={afterSalesOpen ? 'warning' : 'default'} />
+          <AnalysisMetric label="履约异常" value={fulfillmentStatusText(exception.status)} tone={exception.severity === 'critical' ? 'danger' : exception.severity === 'warning' ? 'warning' : 'default'} />
+          <AnalysisMetric label="退款/扣款台账" value={`¥${refundAmount.toFixed(2)}`} tone={refundAmount > 0 ? 'warning' : 'default'} />
+          <AnalysisMetric label="平台售后单" value="接口待接入" tone="warning" />
+        </div>
+        {(exception.reasons || []).length > 0 && (
+          <div className="rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3 text-xs text-[var(--color-warning)]">
+            <p className="font-medium">当前售后/履约处理依据</p>
+            {(exception.reasons || []).map(reason => <p key={reason} className="mt-1">• {reason}</p>)}
+          </div>
+        )}
+        <div className="grid gap-2 md:grid-cols-3">
+          {actions.map(action => (
+            <Link key={action.label} to={action.route} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left text-xs hover:border-[var(--color-primary)]">
+              <span className="font-medium text-[var(--color-primary)]">{action.label}</span>
+              <span className="mt-1 block text-[var(--color-muted)]">{action.detail}</span>
+            </Link>
+          ))}
+        </div>
+        <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
+          售后履约分析只使用当前订单字段和已入库财务台账。平台退款、退货、争议单接口未接通前，本页不生成模拟售后记录，也不把平台后台未确认事项写成系统事实。
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function AnalysisMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'danger' }) {
+  const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
+      <p className="mt-1 line-clamp-2 text-sm font-semibold" style={{ color }}>{value}</p>
+    </div>
+  )
+}
+
+function fulfillmentStatusText(value?: string | null) {
+  if (value === 'shipping_overdue') return '发货超期'
+  if (value === 'shipping_due_soon') return '临近时限'
+  if (value === 'after_sales_open') return '售后处理中'
+  if (value === 'logistics_missing') return '物流待补'
+  if (value === 'sync_required') return '同步待补'
+  if (value === 'clear') return '正常'
+  return '待确认'
 }

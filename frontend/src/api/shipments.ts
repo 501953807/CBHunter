@@ -5,6 +5,9 @@ import type { Shipment } from '../types/shipment'
 export interface ShipmentListParams {
   status?: string
   carrier?: string
+  platform?: string
+  platform_account_id?: string
+  order_id?: string
   page?: number
   page_size?: number
 }

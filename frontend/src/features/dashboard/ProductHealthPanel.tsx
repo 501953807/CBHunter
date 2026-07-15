@@ -29,7 +29,7 @@ export function ProductHealthPanel({ data }: { data: ProductClassData }) {
           </p>
         )}
         <div className="mb-3 rounded-md bg-[var(--color-bg)] px-3 py-2 text-[11px] text-[var(--color-muted)]">
-          证据窗口：{data.evidence_window} · 来源 {data.source_refs.length} 条
+          数据范围：{data.evidence_window} · 数据来源 {data.source_refs.length} 条
           {data.data_gaps.length > 0 && <span className="ml-2 text-[var(--color-warning)]">{data.data_gaps.map(labelBusinessCode).join('；')}</span>}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">

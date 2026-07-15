@@ -58,6 +58,7 @@ export interface OrderDetail {
   financial_reconciliation_status: string
   platform_sync_review: OrderPlatformSyncReview
   fulfillment_exception: OrderFulfillmentException
+  finance_entry_context: OrderFinanceEntryContext
   fee_breakdown: {
     components?: Array<{
       code: string
@@ -76,6 +77,32 @@ export interface OrderDetail {
   ordered_at?: string | null
   created_at?: string | null
   items: OrderItem[]
+}
+
+export interface OrderFinanceEntryContext {
+  status?: 'ledger_ready' | 'ledger_incomplete' | 'ledger_missing' | string
+  entry_count?: number
+  revenue_rmb?: number | null
+  cost_rmb?: number | null
+  net_profit_rmb?: number | null
+  platform_bill_entry_count?: number
+  refund_rmb?: number
+  data_gaps?: string[]
+  confidence_reason?: string
+  actions?: Array<{
+    code: string
+    label: string
+    route: string
+    reason?: string
+  }>
+  recent_entries?: Array<{
+    id: string
+    entry_type: string
+    amount_rmb: number
+    currency?: string
+    description?: string | null
+    occurred_at?: string | null
+  }>
 }
 
 export interface OrderFulfillmentException {
@@ -116,6 +143,35 @@ export interface OrderPlatformSyncReview {
   } | null
   message?: string
   data_gaps?: string[]
+}
+
+export interface OrderFulfillmentStats {
+  total_orders: number
+  by_order_status: Record<string, number>
+  by_fulfillment_status: Record<string, number>
+  fulfillment: {
+    pending_shipment: number
+    shipped: number
+    due_soon: number
+    overdue: number
+    logistics_missing: number
+    after_sales_open: number
+    sync_required: number
+    missing_deadline: number
+    data_gap_count: number
+  }
+  store_breakdown: Array<{
+    platform_account_id: string
+    platform: string
+    platform_account_name: string
+    total_orders: number
+    pending_shipment: number
+    shipped: number
+    due_soon: number
+    overdue: number
+  }>
+  data_gaps: string[]
+  confidence_reason?: string | null
 }
 
 export interface ManualOrderCreate {

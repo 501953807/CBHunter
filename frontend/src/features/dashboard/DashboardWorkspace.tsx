@@ -153,7 +153,7 @@ export default function DashboardPage() {
 
       {kpis && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-xs text-[var(--color-muted)] shadow-[var(--shadow-sm)]">
-          <span>经营指标证据：{kpis.evidence_window} · 来源 {kpis.source_refs.length} 类</span>
+          <span>经营指标数据范围：{kpis.evidence_window} · 数据来源 {kpis.source_refs.length} 类</span>
           {kpis.data_gaps.length > 0 && <span className="ml-2 text-[var(--color-warning)]">{kpis.data_gaps.map(labelBusinessCode).join('；')}</span>}
         </div>
       )}

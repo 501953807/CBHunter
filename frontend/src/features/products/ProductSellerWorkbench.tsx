@@ -246,7 +246,7 @@ function opportunityActions(row: ProductListRow) {
   const requirements = primaryRequirements(row)
   const missingFieldCount = missingPlatformFieldCount(requirements)
   const media = mediaReadinessForProduct(row)
-  if (!row.images?.length) actions.push({ id: 'image', title: '补商品图片', detail: '商品没有真实图片，Listing、内容制作和平台刊登都会缺少主图证据。', cta: '编辑图片', kind: 'edit' })
+  if (!row.images?.length) actions.push({ id: 'image', title: '补商品图片', detail: '商品没有真实图片，Listing、内容制作和平台刊登都会缺少主图资料。', cta: '编辑图片', kind: 'edit' })
   else if (media.missing > 0) actions.push({ id: 'media_readiness', title: '补平台图片素材', detail: `当前仅 ${media.captured} 张图，平台至少 5 张、建议 9 张；媒体缺口：${media.gaps.join('、')}。`, cta: '编辑图片', kind: 'edit' })
   if (!row.category_id) actions.push({ id: 'category', title: '补商品类目', detail: '缺少类目会影响 Shopee/TEMU/TikTok Shop 属性映射和刊登校验。', cta: '编辑类目', kind: 'edit' })
   if (row.cost_price == null || row.weight_g == null) actions.push({ id: 'cost_weight', title: '补成本/重量', detail: '成本和重量是定价、利润和物流判断的基础字段。', cta: '编辑成本重量', kind: 'edit' })

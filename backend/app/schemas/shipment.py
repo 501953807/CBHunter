@@ -36,6 +36,14 @@ class ShipmentResponse(BaseModel):
 
     id: str
     order_id: str
+    platform_account_id: Optional[str] = None
+    platform: Optional[str] = None
+    platform_account_name: Optional[str] = None
+    order_number: Optional[str] = None
+    order_status: Optional[str] = None
+    buyer_name: Optional[str] = None
+    fulfillment_deadline_at: Optional[str] = None
+    fulfillment_exception: Optional[dict] = None
     tracking_number: Optional[str] = None
     carrier: Optional[str] = None
     shipping_method: Optional[str] = None

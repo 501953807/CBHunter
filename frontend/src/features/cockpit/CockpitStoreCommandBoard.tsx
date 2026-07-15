@@ -124,6 +124,11 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
                 onClick={() => onNavigate(topStore ? `/orders?platform_account_id=${encodeURIComponent(topStore.id)}` : '/orders')}
               />
               <HeroAction
+                label="复核店铺物流"
+                detail={topStore ? `${topStore.name} 发货记录与物流状态` : '查看全部平台店铺物流'}
+                onClick={() => onNavigate(topStore ? `/shipments?platform_account_id=${encodeURIComponent(topStore.id)}&platform=${encodeURIComponent(topStore.platform)}` : '/shipments')}
+              />
+              <HeroAction
                 label="复核利润资金"
                 detail={topStore ? `${topStore.name} 收入、投入和净利` : '查看公司级财务利润'}
                 onClick={() => onNavigate(topStore ? `/finance?platform_account_id=${encodeURIComponent(topStore.id)}` : '/finance')}
@@ -343,6 +348,7 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
                         <div className="flex justify-end gap-2">
                           <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/products?tab=platform_store_products&platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>店铺商品</button>
                           <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/orders?platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>订单</button>
+                          <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/shipments?platform_account_id=${encodeURIComponent(store.id)}&platform=${encodeURIComponent(store.platform)}`)}>物流</button>
                           <button className="text-[var(--color-primary)] hover:underline" onClick={() => onNavigate(`/finance?platform_account_id=${encodeURIComponent(store.id)}`)}>财务</button>
                         </div>
                       </td>

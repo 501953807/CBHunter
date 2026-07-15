@@ -17,10 +17,12 @@ from app.schemas.inventory_alert import (
     InventoryAlertRuleResponse,
     InventoryAlertLogResponse,
 )
+from app.schemas.operations import OperationRecordResponse
 from app.services import inventory_alert_service
 from app.services import config_service
 from app.services.audit_service import record_audit_event
 from app.services.evidence_service import data_required, evidence_payload, source_ref
+from app.services.inventory_risk_action_service import create_operation_record_from_inventory_slow_moving
 
 router = APIRouter(prefix="/inventory-alerts", tags=["inventory-alerts"])
 
@@ -252,6 +254,59 @@ async def get_stats(
     )
 
 
+@router.get("/risk-workbench", response_model=ApiResponse)
+async def get_risk_workbench(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    workbench = await inventory_alert_service.get_inventory_risk_workbench(db, current_user.id)
+    source_refs = [
+        source_ref("inventory_alert_log", item["alert_id"], label=item["sku"])
+        for item in workbench["stockout"]["items"][:20]
+    ]
+    source_refs.extend(
+        source_ref("platform_listing", item["listing_id"], label=item["sku"])
+        for item in workbench["capital"]["items"][:20]
+    )
+    source_refs.extend(
+        source_ref("order", item["order_id"], label=item["order_number"])
+        for item in workbench["fulfillment_overdue"]["items"][:20]
+    )
+    has_signal = any((
+        workbench["stockout"]["count"],
+        workbench["capital"]["items"],
+        workbench["slow_moving"]["count"],
+        workbench["fulfillment_overdue"]["count"],
+    ))
+    return ApiResponse(
+        data=workbench,
+        status="ready" if has_signal else "data_required",
+        source_refs=source_refs,
+        evidence_window="当前可访问店铺的库存预警、在售 Listing 和未完成订单快照",
+        confidence_reason="库存资金只按已确认库存和商品成本价计算；滞销只按 Listing 30 天浏览/订单判断；发货风险只按平台发货时限判断。",
+        data_gaps=workbench["data_gaps"] or ([] if has_signal else ["库存预警、成本、运营或履约数据不足"]),
+    )
+
+
+@router.post("/risk-workbench/slow-moving/{listing_id}/operation-action", response_model=ApiResponse, status_code=201)
+async def create_slow_moving_operation_action(
+    listing_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    record = await create_operation_record_from_inventory_slow_moving(db, current_user.id, listing_id)
+    await record_audit_event(
+        db,
+        user=current_user,
+        action="create_inventory_risk_operation_action",
+        resource_type="operation_record",
+        resource_id=record.id,
+        new_value=_operation_snapshot(record),
+        detail=f"库存风险工作台生成运营台账动作：{listing_id}",
+    )
+    return ApiResponse(data=OperationRecordResponse.model_validate(record))
+
+
 async def _get_rule(db: AsyncSession, rule_id: str, user_id: str) -> Optional[InventoryAlertRule]:
     result = await db.execute(
         select(InventoryAlertRule).where(
@@ -312,4 +367,17 @@ def _alert_snapshot(log: InventoryAlertLog) -> dict:
         "threshold": log.threshold,
         "severity": log.severity,
         "status": log.status,
+    }
+
+
+def _operation_snapshot(record) -> dict:
+    return {
+        "id": record.id,
+        "record_type": record.record_type,
+        "status": record.status,
+        "name": record.name,
+        "platform": record.platform,
+        "market": record.market,
+        "counterparty": record.counterparty,
+        "extra": record.extra,
     }

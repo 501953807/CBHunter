@@ -7,6 +7,9 @@ export function buildObjectRoute(route: string, source: ObjectRouteSource, fallb
   const nextRoute = route || '/'
   const stageKey = source.stage_key || fallback?.stage_key || ''
   const productId = productRefId(source.object_refs || fallback?.object_refs) || ('id' in source ? source.id : fallback?.id) || ''
+  const sourcingItemId = refId(source.object_refs || fallback?.object_refs, 'sourcing_item') || (stageKey === 'sourcing' && 'id' in source ? source.id : fallback?.id) || ''
+  const orderId = refId(source.object_refs || fallback?.object_refs, 'order') || (stageKey === 'fulfillment' && 'id' in source ? source.id : fallback?.id) || ''
+  const listingId = refId(source.object_refs || fallback?.object_refs, 'platform_listing') || ''
   const contentItemId = ('id' in source ? source.id : fallback?.id) || productId
   const candidateId = source.work_item_id || fallback?.work_item_id || productId || contentItemId
   const platform = ('platform' in source ? source.platform : fallback?.platform) || fallback?.platform || ''
@@ -18,6 +21,9 @@ export function buildObjectRoute(route: string, source: ObjectRouteSource, fallb
   if (nextRoute.startsWith('/content') || stageKey === 'content') {
     return withParams(nextRoute, { product_id: productId || contentItemId })
   }
+  if (nextRoute.startsWith('/scout/sources') || stageKey === 'sourcing') {
+    return withParams(nextRoute, { sourcing_item_id: sourcingItemId || candidateId, platform, market })
+  }
   if (nextRoute.startsWith('/pricing') || stageKey === 'pricing') {
     return withParams(nextRoute, {
       content_item_id: contentItemId && contentItemId !== productId ? contentItemId : '',
@@ -28,13 +34,23 @@ export function buildObjectRoute(route: string, source: ObjectRouteSource, fallb
     return nextRoute
   }
   if (nextRoute.startsWith('/publish') || stageKey === 'listing') {
-    return withParams(nextRoute, { product_id: productId || contentItemId })
+    return withParams(nextRoute, { product_id: productId || contentItemId, listing_id: listingId })
+  }
+  if (nextRoute.startsWith('/orders') || stageKey === 'fulfillment') {
+    return withParams(nextRoute, { order_id: orderId || candidateId })
+  }
+  if (nextRoute.startsWith('/growth') || stageKey === 'optimization') {
+    return withParams(nextRoute, { product_id: productId, listing_id: listingId })
   }
   return nextRoute
 }
 
 function productRefId(refs?: Array<{ type: string; id: string }>) {
-  return refs?.find((ref) => ref.type === 'product')?.id || ''
+  return refId(refs, 'product')
+}
+
+function refId(refs: Array<{ type: string; id: string }> | undefined, type: string) {
+  return refs?.find((ref) => ref.type === type)?.id || ''
 }
 
 function withParams(route: string, params: Record<string, string>) {

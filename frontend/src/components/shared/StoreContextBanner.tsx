@@ -6,13 +6,14 @@ interface Props {
   platformAccountId: string
   platform?: string
   statuses?: PlatformIntegrationStatus[]
-  currentModule: 'products' | 'orders' | 'finance'
+  currentModule: 'products' | 'orders' | 'finance' | 'shipments'
   clearHref: string
 }
 
 const moduleLabel = {
   products: '平台店铺商品',
   orders: '店铺订单',
+  shipments: '店铺物流',
   finance: '店铺财务',
 }
 
@@ -30,6 +31,7 @@ export function StoreContextBanner({ platformAccountId, platform, statuses = [],
   const targets = [
     { key: 'products', label: '店铺商品', route: `/products?tab=platform_store_products&${baseQuery}` },
     { key: 'orders', label: '店铺订单', route: `/orders?${baseQuery}` },
+    { key: 'shipments', label: '店铺物流', route: `/shipments?${baseQuery}` },
     { key: 'finance', label: '店铺财务', route: `/finance?platform_account_id=${encodeURIComponent(platformAccountId)}` },
   ] as const
 

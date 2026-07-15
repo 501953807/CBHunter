@@ -200,6 +200,35 @@ def test_finance_summary_excludes_future_ledger_entries(tmp_path):
     asyncio.run(run_test())
 
 
+def test_finance_summary_exposes_backend_risk_signals(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-risk-signals.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            session.add_all([
+                FinanceLedgerEntry(user_id="finance-user", entry_type="sales_income", amount_rmb=300, occurred_at=now),
+                FinanceLedgerEntry(user_id="finance-user", entry_type="refund", amount_rmb=500, occurred_at=now),
+            ])
+            await session.commit()
+            summary = await get_finance_summary(session, "finance-user", "daily")
+        await engine.dispose()
+
+        risk_by_code = {signal["code"]: signal for signal in summary["risk_signals"]}
+
+        assert risk_by_code["negative_profit"]["level"] == "high"
+        assert risk_by_code["negative_profit"]["action_route"].startswith("/finance?")
+        assert risk_by_code["purchase_cost_missing"]["title"] == "采购成本缺失"
+        assert risk_by_code["platform_bill_missing"]["title"] == "平台费缺失"
+        assert risk_by_code["cash_balance_missing"]["title"] == "资金余额未录入"
+        assert "revenue_missing" not in risk_by_code
+        assert all(signal["action_label"] for signal in summary["risk_signals"])
+
+    asyncio.run(run_test())
+
+
 def test_finance_summary_exposes_platform_settlement_without_counting_wallet_as_profit(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-settlement.db'}")

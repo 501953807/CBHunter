@@ -88,7 +88,7 @@ async def blue_ocean_radar(
         "algorithm": {
             "name": "Blue Ocean Score",
             "formula": "可用维度按 Trend×0.30 + Profit×0.25 + Competition×0.25 + Supply×0.20 归一化",
-            "calibration_note": "缺失维度不按零分或满分处理，并单独返回证据完整度",
+            "calibration_note": "缺失维度不按零分或满分处理，并单独返回资料完整度",
         },
     }
     return evidence_response(payload)

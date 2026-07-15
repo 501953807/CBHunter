@@ -63,7 +63,7 @@ export function DashboardOperationalOverview({
                     <span className="text-[var(--color-muted)]">·</span>
                     <span className="text-[var(--color-accent)]">{opportunity.opportunity_level}</span>
                     <span className="text-[var(--color-muted)]">·</span>
-                    <span className="text-[var(--color-muted)]">证据 {opportunity.evidence_completeness_pct}%</span>
+                    <span className="text-[var(--color-muted)]">资料 {opportunity.evidence_completeness_pct}%</span>
                     <span className="text-[var(--color-muted)]">·</span>
                     <span className="text-[var(--color-success)]">
                       {opportunity.dimensions?.profit_detail?.avg_margin_pct == null

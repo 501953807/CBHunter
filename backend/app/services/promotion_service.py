@@ -165,8 +165,14 @@ async def _serialize_campaign(db: AsyncSession, campaign: PromotionCampaign, acc
         .where(PromotionCampaignItem.campaign_id == campaign.id)
         .order_by(PromotionCampaignItem.created_at.asc())
     )
-    items = [
-        {
+    items = []
+    for item, listing, product in result.all():
+        original_price = item.original_price
+        promotion_price = item.promotion_price
+        discount_amount = None
+        if original_price is not None and promotion_price is not None:
+            discount_amount = round(max(float(original_price) - float(promotion_price), 0), 2)
+        items.append({
             "id": item.id,
             "platform_listing_id": listing.id,
             "product_id": product.id,
@@ -177,11 +183,11 @@ async def _serialize_campaign(db: AsyncSession, campaign: PromotionCampaign, acc
             "discount_value": item.discount_value,
             "original_price": item.original_price,
             "promotion_price": item.promotion_price,
+            "discount_amount": discount_amount,
             "stock_limit": item.stock_limit,
             "status": item.status,
-        }
-        for item, listing, product in result.all()
-    ]
+        })
+    price_summary = _campaign_price_summary(items)
     return {
         "id": campaign.id,
         "name": campaign.name,
@@ -200,6 +206,7 @@ async def _serialize_campaign(db: AsyncSession, campaign: PromotionCampaign, acc
         "stack_rule": campaign.stack_rule,
         "source": campaign.source,
         "product_count": len(items),
+        "price_summary": price_summary,
         "items": items,
     }
 
@@ -296,3 +303,23 @@ def _optional_int(value: Any) -> int | None:
     if value in (None, ""):
         return None
     return int(value)
+
+
+def _campaign_price_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+    priced_items = [
+        item for item in items
+        if item.get("original_price") is not None and item.get("promotion_price") is not None
+    ]
+    original_total = round(sum(float(item["original_price"]) for item in priced_items), 2)
+    promotion_total = round(sum(float(item["promotion_price"]) for item in priced_items), 2)
+    discount_total = round(max(original_total - promotion_total, 0), 2)
+    avg_discount_pct = round((discount_total / original_total) * 100, 2) if original_total > 0 else None
+    return {
+        "priced_item_count": len(priced_items),
+        "original_price_total": original_total,
+        "promotion_price_total": promotion_total,
+        "discount_amount_total": discount_total,
+        "avg_discount_pct": avg_discount_pct,
+        "source": "promotion_campaign_items",
+        "note": "按当前活动参与 Listing 的原价与促销价计算；平台 Open API 未接通前不代表真实成交效果。",
+    }

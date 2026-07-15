@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Clock, Database, FileWarning, RefreshCw, ShieldCheck } from 'lucide-react'
 import { updateBusinessFlowTasks } from '../../api/businessFlow'
-import { getRiskControlAudit, getRiskControlOverview, updateRiskControlState } from '../../api/riskControl'
+import { createRiskOperationAction, getRiskControlAudit, getRiskControlOverview, updateRiskControlState } from '../../api/riskControl'
 import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
 import { Badge } from '../../components/ui/Badge'
 import type { RiskAuditItem, RiskControlOverview, RiskControlRisk } from '../../types/riskControl'
@@ -21,6 +21,7 @@ export default function RiskControlWorkspace() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [taskSaving, setTaskSaving] = useState(false)
+  const [operationSaving, setOperationSaving] = useState(false)
   const [audits, setAudits] = useState<RiskAuditItem[]>([])
   const [error, setError] = useState('')
 
@@ -102,6 +103,20 @@ export default function RiskControlWorkspace() {
       setError(e?.response?.data?.detail || e?.message || '风险生成业务任务失败')
     } finally {
       setTaskSaving(false)
+    }
+  }, [navigate])
+
+  const createOperationAction = useCallback(async (risk: RiskControlRisk) => {
+    setOperationSaving(true)
+    setError('')
+    try {
+      await createRiskOperationAction(risk.id)
+      navigate('/operations?record_type=listing_optimization')
+    } catch (e: any) {
+      logger.error('风险生成运营台账动作失败', e)
+      setError(e?.response?.data?.detail || e?.message || '风险生成运营台账动作失败')
+    } finally {
+      setOperationSaving(false)
     }
   }, [navigate])
 
@@ -225,7 +240,16 @@ export default function RiskControlWorkspace() {
             <>
               <RiskDispositionStatusCard risk={selected} />
               <div className="mt-4">
-                <RiskActionPanel risk={selected} saving={saving} taskSaving={taskSaving} onOpen={() => navigate(selected.route)} onCreateBusinessTask={() => createBusinessTask(selected)} onStateChange={(status, note, dueAt) => changeState(selected, status, note, dueAt)} />
+                <RiskActionPanel
+                  risk={selected}
+                  saving={saving}
+                  taskSaving={taskSaving}
+                  operationSaving={operationSaving}
+                  onOpen={() => navigate(selected.route)}
+                  onCreateBusinessTask={() => createBusinessTask(selected)}
+                  onCreateOperationAction={() => createOperationAction(selected)}
+                  onStateChange={(status, note, dueAt) => changeState(selected, status, note, dueAt)}
+                />
               </div>
             </>
           )}

@@ -13,11 +13,21 @@ export type FinanceSummary = {
   entry_count: number
   cost_breakdown: Record<string, number>
   platform_settlement: PlatformSettlementSummary
+  risk_signals?: FinanceRiskSignal[]
   data_status: 'ready' | 'data_required'
   source_refs?: Array<Record<string, unknown>>
   evidence_window?: string
   confidence_reason?: string
   data_gaps?: string[]
+}
+
+export type FinanceRiskSignal = {
+  code: string
+  level: 'info' | 'medium' | 'high' | string
+  title: string
+  detail: string
+  action_label: string
+  action_route: string
 }
 
 export type PlatformSettlementSummary = {
@@ -156,7 +166,7 @@ export async function getFinanceTraceback(period: FinancePeriod, params?: { plat
   return res.data
 }
 
-export async function listFinanceLedger(params?: { page?: number; page_size?: number; entry_type?: string; platform_account_id?: string }) {
+export async function listFinanceLedger(params?: { page?: number; page_size?: number; entry_type?: string; platform_account_id?: string; order_id?: string }) {
   const res = await client.get<ApiResponse<FinanceLedgerEntry[]>>('/finance/ledger', { params })
   return res.data
 }

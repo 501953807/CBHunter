@@ -58,7 +58,7 @@ export function ConfigQualitySettings({ toast }: { toast: any }) {
             <Metric label="巡检状态" value={quality?.status === 'ready' ? '可用' : '需补配置'} tone={quality?.status === 'ready' ? 'success' : 'warning'} />
             <Metric label="通过项" value={`${readyCount}/${checks.length}`} />
             <Metric label="配置缺口" value={`${gapCount}`} tone={gapCount > 0 ? 'warning' : 'success'} />
-            <Metric label="证据窗口" value={quality?.evidence_window || '当前系统配置快照'} />
+            <Metric label="数据范围" value={quality?.evidence_window || '当前系统配置快照'} />
           </div>
           <p className="text-xs mt-4" style={{ color: 'var(--color-muted)' }}>
             {quality?.confidence_reason || '配置巡检读取统一配置服务、店铺授权和套餐权益。'}

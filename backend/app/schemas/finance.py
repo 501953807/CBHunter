@@ -112,6 +112,15 @@ class PlatformSettlementSummary(BaseModel):
     order_reconciliation: OrderReconciliationSummary
 
 
+class FinanceRiskSignal(BaseModel):
+    code: str
+    level: str
+    title: str
+    detail: str
+    action_label: str
+    action_route: str
+
+
 class FinanceTracebackSummary(BaseModel):
     order_count: int
     product_count: int
@@ -180,4 +189,5 @@ class FinanceSummaryResponse(BaseModel):
     entry_count: int
     cost_breakdown: dict[str, float]
     platform_settlement: PlatformSettlementSummary
+    risk_signals: list[FinanceRiskSignal] = Field(default_factory=list)
     data_status: str

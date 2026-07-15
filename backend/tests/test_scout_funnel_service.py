@@ -98,7 +98,7 @@ def test_signal_funnel_marks_missing_downstream_evidence(tmp_path):
         candidate = result["candidates"][0]
         assert candidate["evidence_summary"]["present"] == 1
         assert candidate["missing_layers"] == ["流行趋势", "销售平台", "供应渠道"]
-        assert candidate["next_action"] == "补齐流行趋势证据"
+        assert candidate["next_action"] == "补齐流行趋势资料"
         assert candidate["next_action_route"] == "/scout/sources"
 
     asyncio.run(run_test())

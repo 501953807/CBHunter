@@ -4,9 +4,9 @@ import { PageHeader } from '../../components/shared/PageHeader'
 import { StatCard } from '../../components/shared/StatCard'
 import { Button } from '../../components/ui/Button'
 import { EvidenceBanner } from '../../components/shared/EvidenceBanner'
-import { useAlertStats } from '../../hooks/useInventoryAlerts'
+import { useAlertLogs, useAlertStats, useInventoryRiskWorkbench } from '../../hooks/useInventoryAlerts'
 import { AddRuleModal } from './AddRuleModal'
-import { CheckInventoryButton, HistoryTab, RulesTab } from './InventoryAlertPanels'
+import { CheckInventoryButton, HistoryTab, InventoryRiskWorkbench, RulesTab } from './InventoryAlertPanels'
 
 export default function InventoryAlertPage() {
   const [tab, setTab] = useState<'rules' | 'history'>('rules')
@@ -17,6 +17,8 @@ export default function InventoryAlertPage() {
 
   const stats = useAlertStats()
   const s = stats.data?.data
+  const openAlerts = useAlertLogs({ status: 'open', page: 1, page_size: 8 })
+  const riskWorkbench = useInventoryRiskWorkbench()
 
   return (
     <div className="space-y-6 page-enter">
@@ -42,6 +44,14 @@ export default function InventoryAlertPage() {
       </div>
 
       <EvidenceBanner evidence={stats.data} />
+
+      <InventoryRiskWorkbench
+        stats={s ?? undefined}
+        alerts={openAlerts.data?.data ?? []}
+        snapshot={riskWorkbench.data?.data ?? undefined}
+        evidence={riskWorkbench.data}
+        loading={openAlerts.isLoading || riskWorkbench.isLoading}
+      />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: 'var(--color-border)' }}>

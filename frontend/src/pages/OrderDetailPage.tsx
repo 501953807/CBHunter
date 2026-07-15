@@ -7,8 +7,12 @@ import { Button } from '../components/ui/Button'
 import { Skeleton } from '../components/shared/LoadingSkeleton'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import { useOrder, useUpdateOrderStatus, useUpdateOrderNotes } from '../hooks/useOrders'
+import { useShipmentList } from '../hooks/useShipments'
+import { useTriggerSync } from '../hooks/useSync'
 import { useConfig } from '../hooks/useConfig'
 import { getAllowedNextStatuses, getStatusMeta } from '../utils/domainOptions'
+import type { Shipment } from '../types/shipment'
+import type { OrderFinanceEntryContext } from '../types/order'
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -16,10 +20,17 @@ export default function OrderDetailPage() {
   const { data, isLoading } = useOrder(id || '')
   const statusMutation = useUpdateOrderStatus()
   const notesMutation = useUpdateOrderNotes()
+  const syncMutation = useTriggerSync()
   const { order_statuses = [] } = useConfig()
   const [notes, setNotes] = useState('')
 
   const order = data?.data
+  const shipmentListQuery = useShipmentList({
+    order_id: id || undefined,
+    page: 1,
+    page_size: 10,
+  })
+  const relatedShipments = shipmentListQuery.data?.data || []
 
   // Sync notes from loaded order (prevents overwriting with empty string on save)
   useEffect(() => {
@@ -138,6 +149,13 @@ export default function OrderDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          <RelatedShipmentsPanel
+            shipments={relatedShipments}
+            loading={shipmentListQuery.isLoading}
+            onCreate={() => navigate(`/shipments/new?order_id=${id}`)}
+            onOpen={(shipmentId) => navigate(`/shipments/${shipmentId}`)}
+          />
 
           <Card>
             <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">备注</h2></CardHeader>
@@ -288,8 +306,25 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
+          <OrderFinanceEntryPanel
+            context={order.finance_entry_context || {}}
+            onNavigate={navigate}
+          />
+
           <Card>
-            <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">平台同步复盘</h2></CardHeader>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-semibold text-[var(--color-fg)]">平台同步复盘</h2>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => syncMutation.mutate(order.platform_account_id)}
+                  disabled={syncMutation.isPending}
+                >
+                  {syncMutation.isPending ? '同步中...' : '同步当前店铺订单'}
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-[var(--color-muted)]">订单同步状态</span>
@@ -346,6 +381,152 @@ export default function OrderDetailPage() {
       </div>
     </div>
   )
+}
+
+function RelatedShipmentsPanel({
+  shipments,
+  loading,
+  onCreate,
+  onOpen,
+}: {
+  shipments: Shipment[]
+  loading: boolean
+  onCreate: () => void
+  onOpen: (shipmentId: string) => void
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-[var(--color-fg)]">关联物流记录</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">直接查看该订单已经创建的本地物流单、运单号、承运商和平台发货时限。</p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={onCreate}>新增物流</Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-20 w-full" />
+        ) : shipments.length > 0 ? (
+          <div className="space-y-2">
+            {shipments.map(shipment => (
+              <button
+                key={shipment.id}
+                type="button"
+                onClick={() => onOpen(shipment.id)}
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--color-fg)]">{shipment.tracking_number || '运单号待补'}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{shipment.carrier || '承运商待补'} · {shipment.shipping_method || '运输方式待补'}</p>
+                  </div>
+                  <Badge variant={shipment.fulfillment_exception?.severity === 'critical' ? 'danger' : shipment.fulfillment_exception?.severity === 'warning' ? 'warning' : 'outline'}>
+                    {shipment.status}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs text-[var(--color-muted)]">
+                  平台发货时限：{shipment.fulfillment_deadline_at ? new Date(shipment.fulfillment_deadline_at).toLocaleString('zh-CN') : '待平台同步'}
+                </p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-sm text-[var(--color-muted)]">
+            当前订单还没有本地物流记录。需要发货时请创建物流，创建后订单履约异常会自动承接本地物流渠道。
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function OrderFinanceEntryPanel({
+  context,
+  onNavigate,
+}: {
+  context: OrderFinanceEntryContext
+  onNavigate: (route: string) => void
+}) {
+  const gaps = context.data_gaps || []
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-[var(--color-fg)]">财务入账状态</h2>
+          <Badge variant={financeLedgerBadgeVariant(context.status)}>
+            {financeLedgerStatusLabel(context.status)}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <div className="grid gap-3 md:grid-cols-4">
+          <FinanceMetric label="关联流水" value={`${context.entry_count || 0} 条`} />
+          <FinanceMetric label="销售收入" value={context.revenue_rmb == null ? '待入账' : `¥${context.revenue_rmb.toFixed(2)}`} tone={context.revenue_rmb == null ? 'warning' : 'default'} />
+          <FinanceMetric label="费用/成本" value={context.cost_rmb == null ? '待补' : `¥${context.cost_rmb.toFixed(2)}`} tone={gaps.includes('platform_bill') ? 'warning' : 'default'} />
+          <FinanceMetric label="订单净利" value={context.net_profit_rmb == null ? '待核算' : `¥${context.net_profit_rmb.toFixed(2)}`} tone={context.net_profit_rmb != null && context.net_profit_rmb < 0 ? 'danger' : 'default'} />
+        </div>
+        {gaps.length > 0 && (
+          <div className="rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-2 text-xs text-[var(--color-warning)]">
+            入账缺口：{gaps.join('、')}。订单金额和费用字段不能替代真实财务台账。
+          </div>
+        )}
+        {(context.actions || []).length > 0 && (
+          <div className="grid gap-2 md:grid-cols-3">
+            {(context.actions || []).map(action => (
+              <button
+                key={action.code}
+                type="button"
+                onClick={() => onNavigate(action.route)}
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left text-xs hover:border-[var(--color-primary)]"
+              >
+                <span className="font-medium text-[var(--color-primary)]">{action.label}</span>
+                {action.reason && <span className="mt-1 block text-[var(--color-muted)]">{action.reason}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        {(context.recent_entries || []).length > 0 && (
+          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+            <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">最近订单财务流水</p>
+            <div className="space-y-1">
+              {(context.recent_entries || []).map(entry => (
+                <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="text-[var(--color-muted)]">{entry.description || entry.entry_type}</span>
+                  <span className="font-mono text-[var(--color-fg)]">¥{entry.amount_rmb.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {context.confidence_reason && <p className="text-xs text-[var(--color-muted)]">{context.confidence_reason}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+function FinanceMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'danger' }) {
+  const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
+  return (
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
+      <p className="mt-1 text-sm font-semibold" style={{ color }}>{value}</p>
+    </div>
+  )
+}
+
+function financeLedgerStatusLabel(value?: string | null) {
+  if (value === 'ledger_ready') return '已入账'
+  if (value === 'ledger_missing') return '未入账'
+  if (value === 'ledger_incomplete') return '入账待补'
+  return '待确认'
+}
+
+function financeLedgerBadgeVariant(value?: string | null) {
+  if (value === 'ledger_ready') return 'success'
+  if (value === 'ledger_missing' || value === 'ledger_incomplete') return 'warning'
+  return 'outline'
 }
 
 function reconciliationText(status: string) {

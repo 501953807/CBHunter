@@ -1,7 +1,7 @@
 """Manual order creation truthfulness and isolation tests."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -11,13 +11,16 @@ from app.models import all_models  # noqa: F401
 from app.models.platform_account import PlatformAccount
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.sync_log import SyncLog
 from app.schemas.order import ManualOrderCreate, ManualOrderItemCreate
 from app.services.order_service import (
     build_fulfillment_exception_context,
+    build_order_finance_entry_context,
     build_order_fee_context,
     build_order_list_context,
     create_manual_order,
+    get_order_stats,
     get_order_sync_reviews,
     list_orders,
 )
@@ -98,6 +101,63 @@ def test_order_list_can_filter_exact_platform_store(tmp_path):
         assert total == 1
         assert [order.order_number for order in orders] == ["A-001"]
         assert orders[0].platform_account_id == store_a.id
+
+    asyncio.run(run_test())
+
+
+def test_order_list_exception_filter_uses_fulfillment_context(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-exception-filter.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="order-user", platform="shopee", account_name="Shopee 店铺")
+            session.add(account)
+            await session.flush()
+            now = datetime.now(timezone.utc)
+            overdue = Order(
+                user_id="order-user",
+                platform_account_id=account.id,
+                platform_order_id="SP-OVERDUE",
+                order_number="SP-OVERDUE",
+                status="ready_to_ship",
+                total=88,
+                currency="MYR",
+                ordered_at=now - timedelta(days=1),
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": (now - timedelta(hours=2)).isoformat(),
+                },
+            )
+            clear = Order(
+                user_id="order-user",
+                platform_account_id=account.id,
+                platform_order_id="SP-CLEAR",
+                order_number="SP-CLEAR",
+                status="delivered",
+                fulfillment_status="delivered",
+                total=66,
+                currency="MYR",
+                ordered_at=now,
+                last_synced_at=now,
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": (now + timedelta(days=1)).isoformat(),
+                    "logistics_channel": "Shopee Xpress",
+                    "after_sales_status": "none",
+                },
+            )
+            session.add_all([overdue, clear])
+            await session.commit()
+
+            orders, total = await list_orders(session, "order-user", exceptions=True)
+
+        await engine.dispose()
+
+        assert total == 1
+        assert [order.order_number for order in orders] == ["SP-OVERDUE"]
+        assert build_fulfillment_exception_context(orders[0])["status"] == "shipping_overdue"
 
     asyncio.run(run_test())
 
@@ -252,6 +312,83 @@ def test_order_list_context_exposes_seller_backend_operational_fields(tmp_path):
     asyncio.run(run_test())
 
 
+def test_order_finance_entry_context_uses_linked_ledger_only(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-finance-context.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="finance-user", platform="shopee", account_name="Shopee 店铺")
+            session.add(account)
+            await session.flush()
+            order = Order(
+                user_id="finance-user",
+                platform_account_id=account.id,
+                platform_order_id="SP-FIN-001",
+                order_number="SP-FIN-001",
+                status="ready_to_ship",
+                total=120,
+                currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+            )
+            other_order = Order(
+                user_id="finance-user",
+                platform_account_id=account.id,
+                platform_order_id="SP-FIN-OTHER",
+                order_number="SP-FIN-OTHER",
+                status="ready_to_ship",
+                total=80,
+                currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+            )
+            session.add_all([order, other_order])
+            await session.flush()
+            session.add_all([
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=120,
+                    currency="CNY",
+                    order_id=order.id,
+                    description="订单销售收入",
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="platform_fee",
+                    amount_rmb=12,
+                    currency="CNY",
+                    order_id=order.id,
+                    description="订单平台费",
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=80,
+                    currency="CNY",
+                    order_id=other_order.id,
+                    description="其他订单销售收入",
+                ),
+            ])
+            await session.commit()
+            context = await build_order_finance_entry_context(session, order)
+            missing_context = await build_order_finance_entry_context(session, other_order)
+
+        await engine.dispose()
+
+        assert context["status"] == "ledger_ready"
+        assert context["entry_count"] == 2
+        assert context["revenue_rmb"] == 120
+        assert context["cost_rmb"] == 12
+        assert context["net_profit_rmb"] == 108
+        assert "platform_bill" not in context["data_gaps"]
+        assert missing_context["status"] == "ledger_incomplete"
+        assert missing_context["data_gaps"] == ["platform_bill"]
+        assert any(action["code"] == "replenish_platform_bill" for action in missing_context["actions"])
+
+    asyncio.run(run_test())
+
+
 def test_order_fulfillment_exception_context_flags_platform_deadline_after_sales_and_sync_gap(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-fulfillment-exception.db'}")
@@ -306,6 +443,88 @@ def test_order_fulfillment_exception_context_flags_platform_deadline_after_sales
         assert any(action["route"] == f"/orders/after-sales?order_id={order.id}" for action in context["actions"])
         assert any(action["route"] == f"/finance?entry_type=platform_fee&order_id={order.id}#finance-ledger" for action in context["actions"])
         assert list_context["fulfillment_exception"]["status"] == "shipping_overdue"
+
+    asyncio.run(run_test())
+
+
+def test_order_stats_exposes_fulfillment_operating_overview(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-fulfillment-stats.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime(2026, 7, 10, 12, 0, tzinfo=timezone.utc)
+        async with sessions() as session:
+            shopee = PlatformAccount(user_id="order-user", platform="shopee", account_name="Shopee MY 店")
+            tiktok = PlatformAccount(user_id="order-user", platform="tiktok", account_name="TikTok PH 店")
+            session.add_all([shopee, tiktok])
+            await session.flush()
+            session.add_all([
+                Order(
+                    user_id="order-user",
+                    platform_account_id=shopee.id,
+                    platform_order_id="SP-OVERDUE",
+                    order_number="SP-OVERDUE",
+                    status="ready_to_ship",
+                    total=120,
+                    currency="MYR",
+                    fulfillment_status="pending_pickup",
+                    ordered_at=now,
+                    platform_data={
+                        "source": "platform",
+                        "fulfillment_deadline_at": "2026-07-10T09:00:00+00:00",
+                    },
+                ),
+                Order(
+                    user_id="order-user",
+                    platform_account_id=shopee.id,
+                    platform_order_id="SP-DUE",
+                    order_number="SP-DUE",
+                    status="ready_to_ship",
+                    total=80,
+                    currency="MYR",
+                    fulfillment_status="pending_pickup",
+                    ordered_at=now,
+                    last_synced_at=now,
+                    platform_data={
+                        "source": "platform",
+                        "fulfillment_deadline_at": "2026-07-10T20:00:00+00:00",
+                        "logistics_channel": "Shopee Xpress",
+                    },
+                ),
+                Order(
+                    user_id="order-user",
+                    platform_account_id=tiktok.id,
+                    platform_order_id="TT-SHIPPED",
+                    order_number="TT-SHIPPED",
+                    status="shipped",
+                    total=60,
+                    currency="PHP",
+                    fulfillment_status="shipped",
+                    ordered_at=now,
+                    last_synced_at=now,
+                    platform_data={
+                        "source": "platform",
+                        "fulfillment_deadline_at": "2026-07-11T20:00:00+00:00",
+                        "logistics_channel": "TikTok Shop Logistics",
+                    },
+                ),
+            ])
+            await session.commit()
+            stats = await get_order_stats(session, "order-user", now=now)
+        await engine.dispose()
+
+        assert stats["total_orders"] == 3
+        assert stats["by_order_status"]["ready_to_ship"] == 2
+        assert stats["by_order_status"]["shipped"] == 1
+        assert stats["fulfillment"]["pending_shipment"] == 2
+        assert stats["fulfillment"]["shipped"] == 1
+        assert stats["fulfillment"]["overdue"] == 1
+        assert stats["fulfillment"]["due_soon"] == 1
+        assert stats["fulfillment"]["logistics_missing"] == 1
+        assert stats["store_breakdown"][0]["platform_account_name"] == "Shopee MY 店"
+        assert stats["store_breakdown"][0]["pending_shipment"] == 2
+        assert "缺失字段进入数据缺口" in stats["confidence_reason"]
 
     asyncio.run(run_test())
 

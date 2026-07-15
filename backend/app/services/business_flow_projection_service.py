@@ -1,5 +1,7 @@
 """Command-bus projections for the V2 business monitor."""
 
+from datetime import datetime, timezone
+
 
 def build_business_flow_projections(stages: list[dict], items: list[dict]) -> dict:
     stage_health = [_stage_health(stage, items) for stage in stages]
@@ -21,6 +23,7 @@ def _stage_health(stage: dict, items: list[dict]) -> dict:
     blocked_count = sum(1 for item in stage_items if item["status"] == "blocked")
     data_required_count = sum(1 for item in stage_items if item["status"] == "data_required")
     ready_count = sum(1 for item in stage_items if item["status"] == "ready")
+    dwell = stage_dwell_stats(stage_items)
     return {
         "stage_key": stage["key"],
         "label": stage["name"],
@@ -35,11 +38,13 @@ def _stage_health(stage: dict, items: list[dict]) -> dict:
         "next_action": stage["next_action"],
         "data_gaps": _unique_text([*(stage.get("gaps") or []), *[gap for item in stage_items for gap in item["gaps"]]]),
         "source_refs": stage.get("source_refs", []),
+        **dwell,
     }
 
 
 def _pipeline_lane(stage: dict, items: list[dict]) -> dict:
     stage_items = _stage_items(stage["key"], items)
+    dwell = stage_dwell_stats(stage_items)
     return {
         "stage_key": stage["key"],
         "label": stage["name"],
@@ -49,6 +54,7 @@ def _pipeline_lane(stage: dict, items: list[dict]) -> dict:
         "data_required_count": sum(1 for item in stage_items if item["status"] == "data_required"),
         "route": stage["route"],
         "items": [_queue_item(item) for item in stage_items[:6]],
+        **dwell,
     }
 
 
@@ -142,6 +148,7 @@ def _queue_item(item: dict) -> dict:
         "assigned_to": item["assigned_to"],
         "is_followed": item["is_followed"],
         "priority": item["priority"],
+        "updated_at": item.get("updated_at"),
     }
 
 
@@ -165,3 +172,64 @@ def _pending_sort_key(item: dict) -> tuple[int, int, str]:
 
 def _unique_text(values: list[str]) -> list[str]:
     return list(dict.fromkeys(value for value in values if value))
+
+
+def stage_dwell_stats(items: list[dict], reference_at: datetime | None = None) -> dict:
+    now = reference_at or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    waits = []
+    for item in items:
+        updated_at = _parse_datetime(item.get("updated_at"))
+        if not updated_at:
+            continue
+        hours = max((now - updated_at).total_seconds() / 3600, 0)
+        waits.append((hours, item))
+    if not waits:
+        return {
+            "avg_wait_hours": None,
+            "avg_wait_label": "更新时间待补",
+            "max_wait_hours": None,
+            "max_wait_item": None,
+        }
+    avg_hours = round(sum(hours for hours, _ in waits) / len(waits), 1)
+    max_hours, max_item = max(waits, key=lambda row: row[0])
+    max_hours = round(max_hours, 1)
+    return {
+        "avg_wait_hours": avg_hours,
+        "avg_wait_label": _wait_label(avg_hours),
+        "max_wait_hours": max_hours,
+        "max_wait_item": {
+            "id": max_item["id"],
+            "type": max_item["type"],
+            "name": max_item["name"],
+            "work_item_id": max_item["work_item_id"],
+            "wait_hours": max_hours,
+            "wait_label": _wait_label(max_hours),
+            "route": max_item["route"],
+        },
+    }
+
+
+def _parse_datetime(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _wait_label(hours: float) -> str:
+    if hours < 1:
+        return "不足1小时"
+    if hours < 24:
+        return f"约{round(hours)}小时"
+    days = max(round(hours / 24), 1)
+    return f"约{days}天"

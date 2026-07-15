@@ -13,6 +13,7 @@ interface Props {
 export function CockpitScopeFilters({ value, active, loading, onApply }: Props) {
   const config = useFullConfig()
   const [draft, setDraft] = useState<CockpitFilters>(value)
+  const dateShortcuts = useMemo(() => buildOperatingDateShortcuts(new Date()), [])
 
   useEffect(() => { setDraft(value) }, [value])
 
@@ -32,6 +33,15 @@ export function CockpitScopeFilters({ value, active, loading, onApply }: Props) 
     setDraft({})
     onApply({})
   }
+  const applyShortcut = (shortcut: OperatingDateShortcut) => {
+    const next = {
+      ...draft,
+      start_date: shortcut.startDate,
+      end_date: shortcut.endDate,
+    }
+    setDraft(next)
+    onApply(cleanFilters(next))
+  }
 
   return (
     <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
@@ -43,6 +53,29 @@ export function CockpitScopeFilters({ value, active, loading, onApply }: Props) 
             当前 {active.start_date} 至 {active.end_date} · 店铺 {active.store_count} 个
           </span>
         )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="经营日期快捷窗口">
+        {dateShortcuts.map((shortcut) => {
+          const activeShortcut = draft.start_date === shortcut.startDate && draft.end_date === shortcut.endDate
+          return (
+            <button
+              key={shortcut.key}
+              type="button"
+              onClick={() => applyShortcut(shortcut)}
+              disabled={loading}
+              className="rounded-full border px-3 py-1.5 text-left text-xs transition disabled:opacity-50"
+              style={{
+                borderColor: activeShortcut ? 'var(--color-primary)' : 'var(--color-border)',
+                background: activeShortcut ? 'var(--color-primary-light)' : 'var(--color-bg)',
+                color: activeShortcut ? 'var(--color-primary)' : 'var(--color-muted)',
+              }}
+              title={`${shortcut.label}：${shortcut.detail}`}
+            >
+              <span className="font-semibold">{shortcut.label}</span>
+              <span className="ml-1 text-[11px]">{shortcut.detail}</span>
+            </button>
+          )
+        })}
       </div>
       <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <ScopeInput label="开始日期" type="date" value={draft.start_date || ''} onChange={(start_date) => setDraft((prev) => ({ ...prev, start_date }))} />
@@ -75,6 +108,61 @@ export function CockpitScopeFilters({ value, active, loading, onApply }: Props) 
       </div>
     </section>
   )
+}
+
+interface OperatingDateShortcut {
+  key: 'week_to_date' | 'month_to_date' | 'quarter_to_date'
+  label: string
+  detail: string
+  startDate: string
+  endDate: string
+}
+
+function buildOperatingDateShortcuts(now: Date): OperatingDateShortcut[] {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const dayOfWeek = today.getDay()
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = addDays(today, -mondayOffset)
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1)
+  const endDate = formatDateLocal(today)
+
+  return [
+    {
+      key: 'week_to_date',
+      label: '本周',
+      detail: `${formatDateLocal(weekStart)} 至 ${endDate}`,
+      startDate: formatDateLocal(weekStart),
+      endDate,
+    },
+    {
+      key: 'month_to_date',
+      label: '本月',
+      detail: `${formatDateLocal(monthStart)} 至 ${endDate}`,
+      startDate: formatDateLocal(monthStart),
+      endDate,
+    },
+    {
+      key: 'quarter_to_date',
+      label: '本季度',
+      detail: `${formatDateLocal(quarterStart)} 至 ${endDate}`,
+      startDate: formatDateLocal(quarterStart),
+      endDate,
+    },
+  ]
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date)
+  copy.setDate(copy.getDate() + days)
+  return copy
+}
+
+function formatDateLocal(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function ScopeInput({ label, type, value, onChange }: { label: string; type: string; value: string; onChange: (value: string) => void }) {

@@ -96,7 +96,7 @@ def _recommendation(risk: dict) -> str:
     if risk["type"] == "logistics":
         return "进入订单履约核对发货、物流轨迹和售后风险。"
     if risk["type"] == "compliance":
-        return "人工核验来源证据，确认是否存在平台规则、IP 或竞品异常。"
+        return "人工核验来源资料，确认是否存在平台规则、IP 或竞品异常。"
     if risk["type"] == "business":
         return "复核店铺投入、选品、Listing、定价和投放策略，必要时暂停继续投入并转入经营复盘。"
     if risk["type"] == "account":

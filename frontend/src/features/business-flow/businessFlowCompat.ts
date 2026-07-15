@@ -16,6 +16,7 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
   const items = (Array.isArray(raw.items) ? raw.items : []).map(normalizeItem)
   const stageHealth = Array.isArray(raw.stage_health) ? raw.stage_health : buildStageHealth(stages, items)
   const productPipeline = Array.isArray(raw.product_pipeline) ? raw.product_pipeline : buildPipeline(stages, items)
+  const flowStageMatrix = Array.isArray(raw.flow_stage_matrix) ? raw.flow_stage_matrix : buildFlowStageMatrix(items)
   const emptySnapshot = { items: 0, blocked: 0, data_required: 0, ready: 0 }
   const pendingQueue = Array.isArray(raw.pending_queue) ? raw.pending_queue.map(normalizeItem) : items.filter((item: BusinessFlowBusItem) => item.status !== 'ready')
   const currentContext = raw.current_context ? normalizeItem(raw.current_context) : pendingQueue[0] || productPipeline.find((lane: BusinessFlowPipelineLane) => lane.items.length > 0)?.items[0] || null
@@ -25,7 +26,7 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
     current_username: raw.current_username ?? null,
     stages,
     items,
-    flow_stage_matrix: Array.isArray(raw.flow_stage_matrix) ? raw.flow_stage_matrix : buildFlowStageMatrix(items),
+    flow_stage_matrix: flowStageMatrix,
     flow_store_matrix: Array.isArray(raw.flow_store_matrix) ? raw.flow_store_matrix : [],
     flow_platform_matrix: Array.isArray(raw.flow_platform_matrix) ? raw.flow_platform_matrix : [],
     comparison: {
@@ -38,6 +39,9 @@ export function normalizeBusinessFlowOverview(input: BusinessFlowOverview | null
         blocked_mom_pct: raw.comparison?.rates?.blocked_mom_pct ?? null,
         blocked_yoy_pct: raw.comparison?.rates?.blocked_yoy_pct ?? null,
       },
+      stage_dwell: Array.isArray(raw.comparison?.stage_dwell)
+        ? raw.comparison.stage_dwell
+        : buildStageDwellComparison(flowStageMatrix),
       windows: {
         current: raw.comparison?.windows?.current || '',
         previous: raw.comparison?.windows?.previous || '',
@@ -81,6 +85,7 @@ function buildFlowStageMatrix(items: BusinessFlowBusItem[]): BusinessFlowOvervie
   ] as const
   return stages.map(([key, label, route]) => {
     const stageItems = items.filter((item) => v5StageKey(item) === key)
+    const dwell = buildDwellStats(stageItems)
     return {
       key,
       label,
@@ -89,9 +94,80 @@ function buildFlowStageMatrix(items: BusinessFlowBusItem[]): BusinessFlowOvervie
       blocked: stageItems.filter((item) => item.status === 'blocked').length,
       data_required: stageItems.filter((item) => item.status === 'data_required').length,
       ready: stageItems.filter((item) => item.status === 'ready').length,
-      avg_wait_hours: null,
+      ...dwell,
     }
   })
+}
+
+function buildStageDwellComparison(stageRows: BusinessFlowOverview['flow_stage_matrix']): BusinessFlowOverview['comparison']['stage_dwell'] {
+  const emptyWait = {
+    avg_wait_hours: null,
+    avg_wait_label: '更新时间待补',
+    max_wait_hours: null,
+    max_wait_item: null,
+  }
+  return stageRows.map((stage) => ({
+    key: stage.key,
+    label: stage.label,
+    route: stage.route,
+    current: {
+      avg_wait_hours: stage.avg_wait_hours,
+      avg_wait_label: stage.avg_wait_label,
+      max_wait_hours: stage.max_wait_hours,
+      max_wait_item: stage.max_wait_item,
+    },
+    previous: emptyWait,
+    last_year: emptyWait,
+    rates: {
+      avg_wait_mom_pct: null,
+      avg_wait_yoy_pct: null,
+    },
+  }))
+}
+
+function buildDwellStats(items: BusinessFlowBusItem[]) {
+  const now = Date.now()
+  const waitItems = items
+    .map((item) => {
+      if (!item.updated_at) return null
+      const updatedAt = new Date(item.updated_at).getTime()
+      if (Number.isNaN(updatedAt)) return null
+      const waitHours = Math.max(0, (now - updatedAt) / 3600000)
+      return { item, waitHours }
+    })
+    .filter((item): item is { item: BusinessFlowBusItem; waitHours: number } => Boolean(item))
+
+  if (!waitItems.length) {
+    return {
+      avg_wait_hours: null,
+      avg_wait_label: '更新时间待补',
+      max_wait_hours: null,
+      max_wait_item: null,
+    }
+  }
+
+  const avgWaitHours = waitItems.reduce((sum, current) => sum + current.waitHours, 0) / waitItems.length
+  const maxWait = waitItems.reduce((max, current) => (current.waitHours > max.waitHours ? current : max), waitItems[0])
+  return {
+    avg_wait_hours: avgWaitHours,
+    avg_wait_label: formatWaitLabel(avgWaitHours),
+    max_wait_hours: maxWait.waitHours,
+    max_wait_item: {
+      id: maxWait.item.id,
+      type: maxWait.item.type,
+      name: maxWait.item.name,
+      work_item_id: maxWait.item.work_item_id,
+      wait_hours: maxWait.waitHours,
+      wait_label: formatWaitLabel(maxWait.waitHours),
+      route: maxWait.item.next_action_route || maxWait.item.route,
+    },
+  }
+}
+
+function formatWaitLabel(waitHours: number) {
+  if (waitHours < 1) return '不足1小时'
+  if (waitHours < 24) return `约${Math.round(waitHours)}小时`
+  return `约${Math.round(waitHours / 24)}天`
 }
 
 function v5StageKey(item: BusinessFlowBusItem) {
@@ -157,12 +233,14 @@ function normalizeItem(item: any): BusinessFlowBusItem {
     assigned_to: item.assigned_to ?? null,
     is_followed: Boolean(item.is_followed),
     priority: item.priority ?? null,
+    updated_at: item.updated_at ?? null,
   }
 }
 
 function buildStageHealth(stages: BusinessFlowStage[], items: BusinessFlowBusItem[]): BusinessFlowStageHealth[] {
   return stages.map((stage) => {
     const stageItems = items.filter((item) => item.stage_key === stage.key)
+    const dwell = buildDwellStats(stageItems)
     return {
       stage_key: stage.key,
       label: stage.name,
@@ -177,6 +255,7 @@ function buildStageHealth(stages: BusinessFlowStage[], items: BusinessFlowBusIte
       next_action: stage.next_action,
       data_gaps: stage.gaps,
       source_refs: stage.source_refs,
+      ...dwell,
     }
   })
 }
@@ -184,6 +263,7 @@ function buildStageHealth(stages: BusinessFlowStage[], items: BusinessFlowBusIte
 function buildPipeline(stages: BusinessFlowStage[], items: BusinessFlowBusItem[]): BusinessFlowPipelineLane[] {
   return stages.map((stage) => {
     const laneItems = items.filter((item) => item.stage_key === stage.key)
+    const dwell = buildDwellStats(laneItems)
     return {
       stage_key: stage.key,
       label: stage.name,
@@ -193,6 +273,7 @@ function buildPipeline(stages: BusinessFlowStage[], items: BusinessFlowBusItem[]
       data_required_count: laneItems.filter((item) => item.status === 'data_required').length,
       route: stage.route,
       items: laneItems,
+      ...dwell,
     }
   })
 }

@@ -14,6 +14,10 @@ export interface ProductRecommendation {
   category: string | null
   product_name: string
   product_name_cn: string
+  image_url?: string | null
+  image_count?: number
+  source_url?: string | null
+  source_label?: string | null
   target_platform: string
   target_market: string
   demand_level: string
@@ -55,6 +59,12 @@ export interface ProductRecommendation {
     evidence: {
       source_ref_count: number
       evidence_window: string | null
+    }
+    media?: {
+      image_url?: string | null
+      image_count?: number
+      source_url?: string | null
+      source_label?: string | null
     }
   }
   experience_notes: {

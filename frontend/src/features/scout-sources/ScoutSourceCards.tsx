@@ -197,7 +197,7 @@ function SourceAccess({ source }: { source: any }) {
       </span>
       {source.authorization_required && <span className="text-[10px] text-[var(--color-warning)]">需官方授权</span>}
       {source.evidence_required?.length > 0 && (
-        <span className="text-[10px] text-[var(--color-muted)]">证据 {source.evidence_required.length} 项</span>
+        <span className="text-[10px] text-[var(--color-muted)]">资料 {source.evidence_required.length} 项</span>
       )}
     </div>
   )

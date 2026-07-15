@@ -23,6 +23,8 @@ type VideoPlan = {
 
 type ListingUnifiedEditorSectionsProps = {
   product: ContentWorkbenchItem | null
+  storeId: string
+  storeLabel: string
   mediaMode: 'all' | 'image' | 'video'
   renderPlanForm: () => ReactNode
   renderEmptyPlan: () => ReactNode
@@ -38,6 +40,8 @@ type ListingUnifiedEditorSectionsProps = {
 
 export function ListingUnifiedEditorSections({
   product,
+  storeId,
+  storeLabel,
   mediaMode,
   renderPlanForm,
   renderEmptyPlan,
@@ -107,7 +111,7 @@ export function ListingUnifiedEditorSections({
             title="SKU/属性/物流/合规"
             description="SKU/变体、平台属性、物流包装和合规检查在当前 Listing 草稿内准备，发布前再写入店铺 Listing 实例。"
           >
-            <ListingSpecificationEditor product={product} toast={toast} onGenerated={onGenerated} />
+            <ListingSpecificationEditor product={product} storeId={storeId} storeLabel={storeLabel} toast={toast} onGenerated={onGenerated} />
           </ListingEditorSection>
 
           <ListingEditorSection

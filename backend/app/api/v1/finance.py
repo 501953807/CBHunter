@@ -82,13 +82,16 @@ async def list_finance_ledger(
     page_size: int = Query(50, ge=1, le=200),
     entry_type: Optional[str] = None,
     platform_account_id: Optional[str] = None,
+    order_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    entries, total = await list_ledger_entries(db, current_user.id, page, page_size, entry_type, platform_account_id)
+    entries, total = await list_ledger_entries(db, current_user.id, page, page_size, entry_type, platform_account_id, order_id)
     gaps = [] if total else ["当前筛选下暂无财务流水"]
     if platform_account_id and not total:
         gaps = ["当前店铺暂无财务流水；可先同步或导入平台账单"]
+    if order_id and not total:
+        gaps = ["当前订单暂无财务流水；请按真实收款、平台账单或物流成本补录"]
     return ApiResponse(
         data=[FinanceLedgerResponse.model_validate(entry) for entry in entries],
         meta=PaginationMeta(

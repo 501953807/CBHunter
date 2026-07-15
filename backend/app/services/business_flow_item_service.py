@@ -97,6 +97,7 @@ def _discovery_item(item: ProductDiscovery) -> dict:
         ]),
         "进入选品列表继续验证" if gaps else "推进到品源匹配",
         gaps, [source_ref("product_discovery", item.id, label=item.product_name, meta={"route": "/scout"})], None, item.market,
+        updated_at=item.updated_at,
     )
 
 
@@ -119,7 +120,7 @@ def _sourcing_item(item: SourcingItem) -> dict:
         ]),
         "补齐货源与成本" if gaps else "推进到上架或运营",
         gaps, [source_ref("sourcing_item", item.id, label=item.product_name, meta={"route": "/scout/sources"})], item.platform, item.market,
-        image_url=item.source_image, source_url=item.source_url,
+        image_url=item.source_image, source_url=item.source_url, updated_at=item.updated_at,
     )
 
 
@@ -141,7 +142,7 @@ def _supply_item(item: SupplyProduct) -> dict:
         ]),
         "进入品源管理复核" if gaps else "加入选品或采购流程",
         gaps, [source_ref("supply_product", item.id, label=item.name, meta={"route": "/scout/sources"})], item.platform, item.market,
-        image_url=_first_image(item.images), source_url=item.product_url,
+        image_url=_first_image(item.images), source_url=item.product_url, updated_at=item.last_updated,
     )
 
 
@@ -164,6 +165,7 @@ def _listing_item(item: PlatformListing, product: Optional[Product] = None) -> d
         item.platform_data.get("market") if isinstance(item.platform_data, dict) else None,
         image_url=_first_image(item.images) or _first_image(product.images if product else None),
         source_url=item.listing_url,
+        updated_at=item.updated_at,
     )
     payload["platform_account_id"] = item.platform_account_id
     if product:
@@ -188,6 +190,7 @@ def _order_item(item: Order) -> dict:
         "处理订单履约与售后" if gaps else "进入运营复盘",
         gaps, [source_ref("order", item.id, label=item.order_number or item.platform_order_id, meta={"route": "/orders"})],
         item.platform_account.platform if item.platform_account else None, None,
+        updated_at=item.ordered_at,
     )
     payload["platform_account_id"] = item.platform_account_id
     payload["account_name"] = item.platform_account.account_name if item.platform_account else None
@@ -210,6 +213,7 @@ def _ai_item(item: AISuggestion) -> dict:
         ]),
         "查看运营建议和增长机会" if gaps else "评估是否采纳建议",
         gaps, item.source_refs or [source_ref("ai_suggestion", item.id, label=item.title, meta={"route": "/ai-suggestions"})], None, None,
+        updated_at=item.updated_at,
     )
 
 
@@ -228,6 +232,7 @@ def _item_payload(
     market: Optional[str],
     image_url: Optional[str] = None,
     source_url: Optional[str] = None,
+    updated_at=None,
 ) -> dict:
     payload = {
         "id": item_id,
@@ -252,6 +257,7 @@ def _item_payload(
         "account_name": None,
         "image_url": image_url,
         "source_url": source_url,
+        "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
     }
     return enrich_work_item_state(payload)
 

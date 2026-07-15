@@ -47,7 +47,7 @@ export function CompliancePanel({ value, onChange }: { value: ProductCompliance;
   </div>
 }
 
-export function ListingsPanel({ productId, listings, initialListingId = '' }: { productId?: string; listings: ProductListing[]; initialListingId?: string }) {
+export function ListingsPanel({ productId, listings, initialListingId = '', initialSection = '' }: { productId?: string; listings: ProductListing[]; initialListingId?: string; initialSection?: string }) {
   const navigate = useNavigate()
   const [matrix, setMatrix] = useState<ProductListingMatrix | null>(null)
   const [loadingMatrix, setLoadingMatrix] = useState(false)
@@ -95,6 +95,7 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
 
   const matrixInstances = matrix?.listing_instances || []
   const selectedListing = matrixInstances.find(item => item.id === selectedListingId) || matrixInstances[0] || null
+  const requestedSection = normalizeListingSectionParam(initialSection)
   const masterImages = matrix?.product_master.images || []
   const selectedListingImageSet = new Set(editForm.imagesText.split('\n').map(item => item.trim()).filter(Boolean))
   const selectedListingReadiness = selectedListing
@@ -138,8 +139,15 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
     setVariantRows(toVariantRows(selectedListing.variations || []))
     setSelectedListingRequirements(buildSelectedListingRequirements(selectedListing.platform_requirements, (selectedListing.listing_overrides || {}).platform_attributes))
     setSaveMessage('')
-    setListingEditSection('basic')
-  }, [selectedListing?.id])
+    setListingEditSection(requestedSection || 'basic')
+  }, [requestedSection, selectedListing?.id])
+
+  useEffect(() => {
+    if (!selectedListing || !requestedSection) return
+    window.setTimeout(() => {
+      document.getElementById(`listing-section-${requestedSection}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+  }, [requestedSection, selectedListing?.id])
 
   const saveStoreOverride = async () => {
     if (!selectedListing) return
@@ -292,7 +300,7 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
         />
         <ListingInlineSectionNavigator activeSection={listingEditSection} onSelectSection={selectListingEditSection} />
 
-        <div aria-label="当前 Listing 连续编辑分区" data-ui="listing-continuous-edit-sections" className="space-y-4">
+        <div aria-label="当前 Listing 连续编辑分区" data-ui="listing-continuous-edit-sections" data-route-param="listing_section" className="space-y-4">
           <section id="listing-section-basic" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <SectionHeading title="基础信息" note="店铺标题、货源链接和当前平台店铺身份。" />
             <div className="grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
@@ -374,7 +382,7 @@ export function ListingsPanel({ productId, listings, initialListingId = '' }: { 
                 <span className="text-xs text-[var(--color-muted)]">使用主档图片 {masterImages.filter(url => selectedListingImageSet.has(url)).length}/{masterImages.length}</span>
               </div>
               {masterImages.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">商品主档暂无已入库图片；请先到“图片”页签上传或采集图片入库。</p>
+                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">商品主档暂无已入库图片；请先到“图片”分区上传或采集图片入库。</p>
               ) : (
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   {masterImages.map((url, index) => {
@@ -487,7 +495,7 @@ function ListingFieldEvidencePanel({ requirements, platform }: { requirements: P
     return (
       <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3" aria-label="平台字段补证队列">
         <p className="text-xs font-semibold text-[var(--color-fg)]">平台字段补证队列</p>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">字段证据状态：当前 {platform.toUpperCase()} Listing 字段未标记待补证。发布前仍需按目标店铺类目、平台后台校验和官方接口返回复核。</p>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">字段资料状态：当前 {platform.toUpperCase()} Listing 字段未标记待补证。发布前仍需按目标店铺类目、平台后台校验和官方接口返回复核。</p>
       </div>
     )
   }
@@ -497,7 +505,7 @@ function ListingFieldEvidencePanel({ requirements, platform }: { requirements: P
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-[var(--color-fg)]">平台字段补证队列</p>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">字段证据状态：{platform.toUpperCase()} 当前类目仍有 {totalGapCount} 个字段需要补证，不能把未实测字段冒充为平台强规则。</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">字段资料状态：{platform.toUpperCase()} 当前类目仍有 {totalGapCount} 个字段需要补证，不能把未实测字段冒充为平台强规则。</p>
         </div>
         <Badge variant="warning">补证后再发布</Badge>
       </div>
@@ -575,6 +583,11 @@ function toVariantRows(items: Array<Record<string, unknown>>): VariantEditRow[] 
 
 function updateVariantRow(index: number, patch: Partial<VariantEditRow>, rows: VariantEditRow[], setRows: (rows: VariantEditRow[]) => void) {
   setRows(rows.map((row, i) => i === index ? { ...row, ...patch } : row))
+}
+
+function normalizeListingSectionParam(value: string): ListingEditSectionKey | '' {
+  const allowed: ListingEditSectionKey[] = ['basic', 'detail', 'sales', 'media', 'logistics', 'attributes']
+  return allowed.includes(value as ListingEditSectionKey) ? value as ListingEditSectionKey : ''
 }
 
 function buildSelectedListingRequirements(requirements: PlatformRequirementsLike | undefined, overrides: unknown): PlatformRequirementsLike {

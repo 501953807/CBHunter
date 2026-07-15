@@ -24,6 +24,17 @@ export interface PublishableItem {
     evidence_source?: string
   }
   platformRequirementsByPlatform?: Record<string, PlatformRequirementsLike>
+  listingStoreOverride?: {
+    store_id?: string | null
+    store_label?: string | null
+    title?: string | null
+    image_count?: number
+    sku_count?: number
+    has_platform_attributes?: boolean
+    has_logistics?: boolean
+    has_compliance?: boolean
+    override_boundary?: string | null
+  }
   targetPlatforms?: string[]
   targetMarkets?: string[]
   targetStoreIds?: string[]
@@ -111,6 +122,7 @@ export function BatchPublishSelectStep({
                   <th className="px-3 py-2">商品</th>
                   <th className="px-3 py-2">成本/售价</th>
                   <th className="px-3 py-2">目标归属</th>
+                  <th className="px-3 py-2">店铺覆盖</th>
                   <th className="px-3 py-2">阶段</th>
                   <th className="px-3 py-2">平台字段组</th>
                   <th className="px-3 py-2">状态</th>
@@ -170,6 +182,9 @@ export function BatchPublishSelectStep({
                       marketLabelMap={marketLabelMap}
                       storeLabelMap={storeLabelMap}
                     />
+                  </td>
+                  <td className="min-w-56 px-3 py-3">
+                    <ListingOverrideSummary override={item.listingStoreOverride} />
                   </td>
                   <td className="px-3 py-3 text-[var(--color-muted)]">{item.lifecycleLabel || '--'}</td>
                   <td className="min-w-72 px-3 py-3">
@@ -368,6 +383,36 @@ function PublishGateStack({ readiness, disabledReason }: { readiness: ReturnType
       <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '可试算' : '待补'} />
       <GatePill label="目标" ok={readiness.targetReady} detail={readiness.targetReady ? '已选' : '待选'} />
     </div>
+  )
+}
+
+function ListingOverrideSummary({ override }: { override?: PublishableItem['listingStoreOverride'] }) {
+  if (!override || !override.store_label) {
+    return (
+      <p className="rounded-lg border border-dashed border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]">
+        未保存店铺覆盖草稿
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px]" aria-label="店铺覆盖字段摘要">
+      <p className="font-semibold text-[var(--color-fg)]">{override.store_label}</p>
+      <p className="line-clamp-1 text-[var(--color-muted)]">{override.title || '标题沿用基础内容'}</p>
+      <div className="flex flex-wrap gap-1">
+        <MiniState label="SKU" ok={(override.sku_count || 0) > 0} value={`${override.sku_count || 0}`} />
+        <MiniState label="属性" ok={Boolean(override.has_platform_attributes)} value={override.has_platform_attributes ? '已补' : '待补'} />
+        <MiniState label="物流" ok={Boolean(override.has_logistics)} value={override.has_logistics ? '已补' : '待补'} />
+        <MiniState label="合规" ok={Boolean(override.has_compliance)} value={override.has_compliance ? '已补' : '待补'} />
+      </div>
+    </div>
+  )
+}
+
+function MiniState({ label, ok, value }: { label: string; ok: boolean; value: string }) {
+  return (
+    <span className={ok ? 'rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-[var(--color-success)]' : 'rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-[var(--color-warning)]'}>
+      {label}:{value}
+    </span>
   )
 }
 

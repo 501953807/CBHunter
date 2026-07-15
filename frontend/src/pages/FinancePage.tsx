@@ -17,7 +17,6 @@ import { logger } from '../utils/logger'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import type { ApiResponse } from '../types/common'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { businessActionForCode } from '../utils/businessLabels'
 import { useConfig } from '../hooks/useConfig'
 import { usePlatformStatuses } from '../hooks/usePlatforms'
 import { StoreContextBanner } from '../components/shared/StoreContextBanner'
@@ -139,23 +138,7 @@ export default function FinancePage() {
   const costBreakdown = summary?.cost_breakdown || {}
   const settlement = summary?.platform_settlement
   const movementTotals = Object.entries(settlement?.movement_totals || {}).filter(([, value]) => Number(value || 0) > 0)
-  const dataRisks = [
-    summary?.total_revenue_rmb == null
-      ? { level: 'medium', title: '收入台账未入账', desc: '当前筛选范围没有销售收入台账记录。', action: businessActionForCode('sales_income') }
-      : null,
-    totalCost == null
-      ? { level: 'medium', title: '成本台账不完整', desc: '当前筛选范围没有可汇总成本，净利润无法计算。', action: businessActionForCode('purchase_cost') }
-      : null,
-    !costBreakdown.purchase_cost
-      ? { level: 'info', title: '采购成本缺失', desc: '采购付款尚未形成采购成本台账。', action: businessActionForCode('purchase_cost') }
-      : null,
-    !costBreakdown.platform_fee
-      ? { level: 'info', title: '平台费缺失', desc: '平台佣金/交易费尚未形成平台费用台账。', action: businessActionForCode('platform_fee') }
-      : null,
-    cashBalance == null
-      ? { level: 'info', title: '资金余额未录入', desc: '没有可用资金余额台账，无法判断采购安全线。', action: businessActionForCode('cash_balance') }
-      : null,
-  ].filter(Boolean) as { level: string; title: string; desc: string; action: { label: string; route: string } }[]
+  const dataRisks = summary?.risk_signals || []
 
   return (
     <div className="space-y-6">
@@ -476,7 +459,7 @@ export default function FinancePage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(dataRisks.length ? dataRisks : [
-              { level: 'info', title: '台账数据完整', desc: '当前筛选范围收入、成本和资金余额已具备基础判断条件。', action: businessActionForCode('finance_ledger_entries') },
+              { level: 'info', title: '台账数据完整', detail: '当前筛选范围收入、成本和资金余额已具备基础判断条件。', action_label: '查看财务台账', action_route: '/finance#finance-ledger' },
             ]).map((risk, i) => (
               <div key={i} className={`rounded-xl p-3 border text-sm ${
                 risk.level === 'medium' ? 'border-[var(--color-warning)] bg-[var(--color-warning-light)]' :
@@ -490,9 +473,9 @@ export default function FinancePage() {
                   }`} />
                   <span className="font-medium text-[var(--color-fg)]">{risk.title}</span>
                 </div>
-                <p className="text-xs text-[var(--color-muted)]">{risk.desc}</p>
-                <button onClick={() => navigate(risk.action.route)} className="mt-1 inline-block text-left text-[11px] text-[var(--color-primary)]">
-                  对策：{risk.action.label}
+                <p className="text-xs text-[var(--color-muted)]">{risk.detail}</p>
+                <button onClick={() => navigate(risk.action_route)} className="mt-1 inline-block text-left text-[11px] text-[var(--color-primary)]">
+                  对策：{risk.action_label}
                 </button>
               </div>
             ))}

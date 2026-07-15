@@ -88,7 +88,7 @@ async def cross_validate(
             *[source_ref("shopee_search", item.get("keyword_1688"), meta={"market": market}) for item in complete],
         ]),
         evidence_window="本次 1688 建议词与 Shopee 搜索交叉采集窗口",
-        confidence_reason="交叉得分只组合可观测热度与竞争信号，仍需成本、利润和供应商证据。",
+        confidence_reason="交叉得分只组合可观测热度与竞争信号，仍需成本、利润和供应商资料。",
         data_gaps=[] if complete else ["缺少可同时验证的 1688 热度与 Shopee 竞争数据"],
     )
 

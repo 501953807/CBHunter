@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getOrders, getOrder, updateOrderStatus, updateOrderNotes } from '../api/orders'
+import { getOrders, getOrder, getOrderStats, updateOrderStatus, updateOrderNotes } from '../api/orders'
 import { useToast } from '../components/ui/Toast'
 import type { OrderListParams } from '../api/orders'
 
@@ -18,6 +18,13 @@ export function useOrder(id: string) {
   })
 }
 
+export function useOrderStats() {
+  return useQuery({
+    queryKey: ['orders', 'stats'],
+    queryFn: getOrderStats,
+  })
+}
+
 export function useUpdateOrderStatus() {
   const qc = useQueryClient()
   const toast = useToast()
@@ -25,6 +32,7 @@ export function useUpdateOrderStatus() {
     mutationFn: ({ id, status }: { id: string; status: string }) => updateOrderStatus(id, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['orders'] })
+      qc.invalidateQueries({ queryKey: ['orders', 'stats'] })
       toast.addToast('success', '订单状态更新成功')
     },
     onError: () => toast.addToast('error', '更新订单状态失败'),

@@ -198,6 +198,8 @@ export default function ContentPlannerPage() {
             <ListingCompositionBoard product={selectedProduct} changeTab={changeTab} />
             <ListingUnifiedEditorSections
               product={selectedProduct}
+              storeId={activeStore}
+              storeLabel={activeStoreLabel}
               mediaMode={tab === 'video' ? 'video' : tab === 'image' ? 'image' : 'all'}
               renderPlanForm={renderPlanForm}
               renderEmptyPlan={renderEmptyPlan}

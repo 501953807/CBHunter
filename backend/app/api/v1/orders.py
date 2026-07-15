@@ -12,7 +12,7 @@ from app.schemas.order import (
 )
 from app.schemas.common import ApiResponse
 from app.services.order_service import (
-    build_fulfillment_exception_context, build_order_fee_context, build_order_list_context, create_manual_order, get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
+    build_fulfillment_exception_context, build_order_fee_context, build_order_finance_entry_context, build_order_list_context, create_manual_order, get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
 )
 from app.services.audit_service import record_audit_event
 from app.services.evidence_service import source_ref
@@ -28,6 +28,7 @@ async def list_orders_endpoint(
     search: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    exceptions: bool = Query(False, description="Only orders with fulfillment exceptions"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -35,7 +36,7 @@ async def list_orders_endpoint(
 ):
     orders, total = await list_orders(
         db, current_user.id, status, platform, platform_account_id, search,
-        date_from, date_to, page, page_size
+        date_from, date_to, exceptions, page, page_size
     )
 
     data = []
@@ -50,6 +51,8 @@ async def list_orders_endpoint(
         data.append(d)
 
     gaps = [] if total else ["当前筛选范围没有可访问店铺的订单"]
+    if exceptions and not total:
+        gaps = ["当前筛选范围没有履约异常订单"]
     if platform_account_id and not total:
         gaps = ["当前店铺没有订单，或该店铺不在当前用户授权范围内"]
     return ApiResponse(
@@ -108,6 +111,7 @@ async def create_manual_order_endpoint(
     for key, value in build_order_fee_context(order).items():
         setattr(response, key, value)
     response.fulfillment_exception = build_fulfillment_exception_context(order)
+    response.finance_entry_context = await build_order_finance_entry_context(db, order)
     response.platform_sync_review = (await get_order_sync_reviews(db, [order])).get(order.id, {})
     return ApiResponse(
         data=response,
@@ -125,14 +129,14 @@ async def order_stats(
     db: AsyncSession = Depends(get_db),
 ):
     stats = await get_order_stats(db, current_user.id)
-    total = sum(stats.values())
+    total = stats.get("total_orders", 0) if isinstance(stats, dict) else 0
     return ApiResponse(
         data=stats,
         status="ready" if total else "data_required",
-        source_refs=[source_ref("order", field="status", label="授权店铺订单状态聚合")] if total else [],
+        source_refs=[source_ref("order", field="fulfillment", label="授权店铺订单履约状态聚合")] if total else [],
         evidence_window="当前全部可访问店铺订单",
-        confidence_reason="状态数量直接按当前用户可访问店铺订单聚合。",
-        data_gaps=[] if total else ["当前没有可用于状态统计的订单"],
+        confidence_reason=stats.get("confidence_reason") if isinstance(stats, dict) else "状态数量直接按当前用户可访问店铺订单聚合。",
+        data_gaps=stats.get("data_gaps", []) if total else ["当前没有可用于状态统计的订单"],
     )
 
 
@@ -154,6 +158,7 @@ async def get_order_endpoint(
     for key, value in fee_context.items():
         setattr(resp, key, value)
     resp.fulfillment_exception = build_fulfillment_exception_context(order)
+    resp.finance_entry_context = await build_order_finance_entry_context(db, order)
     resp.platform_sync_review = (await get_order_sync_reviews(db, [order])).get(order.id, {})
     gaps = []
     if not resp.items:

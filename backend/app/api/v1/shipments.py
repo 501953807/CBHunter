@@ -12,7 +12,7 @@ from app.schemas.shipment import (
 from app.schemas.common import ApiResponse
 from app.services.shipment_service import (
     list_shipments, get_shipment, create_shipment, update_shipment,
-    batch_create_shipments,
+    batch_create_shipments, get_shipment_order_contexts,
 )
 from app.services import config_service
 from app.services.audit_service import record_audit_event
@@ -25,17 +25,23 @@ router = APIRouter(prefix="/shipments", tags=["shipments"])
 async def list_shipments_endpoint(
     status: Optional[str] = Query(None),
     carrier: Optional[str] = Query(None),
+    platform: Optional[str] = Query(None),
+    platform_account_id: Optional[str] = Query(None),
+    order_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     shipments, total = await list_shipments(
-        db, current_user.id, status, carrier, page, page_size
+        db, current_user.id, status, carrier, platform, platform_account_id, order_id, page, page_size
     )
     gaps = [] if total else ["当前筛选范围没有物流记录"]
+    if platform_account_id and not total:
+        gaps = ["当前店铺没有物流记录，或该店铺不在当前用户授权范围内"]
+    contexts = await get_shipment_order_contexts(db, current_user.id, shipments)
     return ApiResponse(
-        data=[ShipmentResponse.model_validate(s) for s in shipments],
+        data=[_shipment_response(item, contexts.get(item.id, {})) for item in shipments],
         meta={
             "page": page,
             "page_size": page_size,
@@ -75,7 +81,7 @@ async def create_shipment_endpoint(
     if shipment.shipping_cost is None:
         gaps.append("物流单缺少实际运费")
     return ApiResponse(
-        data=ShipmentResponse.model_validate(shipment),
+        data=_shipment_response(shipment, (await get_shipment_order_contexts(db, current_user.id, [shipment])).get(shipment.id, {})),
         status="ready",
         source_refs=[
             source_ref("shipment", shipment.id, label=shipment.tracking_number or shipment.id),
@@ -109,7 +115,8 @@ async def batch_create(
         },
         detail="批量创建物流单",
     )
-    return ApiResponse(data=[ShipmentResponse.model_validate(s) for s in shipments])
+    contexts = await get_shipment_order_contexts(db, current_user.id, shipments)
+    return ApiResponse(data=[_shipment_response(item, contexts.get(item.id, {})) for item in shipments])
 
 
 @router.get("/{shipment_id}", response_model=ApiResponse)
@@ -121,7 +128,8 @@ async def get_shipment_endpoint(
     shipment = await get_shipment(db, current_user.id, shipment_id)
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
-    return ApiResponse(data=ShipmentResponse.model_validate(shipment))
+    context = (await get_shipment_order_contexts(db, current_user.id, [shipment])).get(shipment.id, {})
+    return ApiResponse(data=_shipment_response(shipment, context))
 
 
 @router.put("/{shipment_id}", response_model=ApiResponse)
@@ -152,7 +160,15 @@ async def update_shipment_endpoint(
         new_value=_shipment_snapshot(updated),
         detail="更新物流单",
     )
-    return ApiResponse(data=ShipmentResponse.model_validate(updated))
+    context = (await get_shipment_order_contexts(db, current_user.id, [updated])).get(updated.id, {})
+    return ApiResponse(data=_shipment_response(updated, context))
+
+
+def _shipment_response(shipment, context: dict) -> ShipmentResponse:
+    response = ShipmentResponse.model_validate(shipment)
+    for key, value in context.items():
+        setattr(response, key, value)
+    return response
 
 
 async def _validate_shipping_config(

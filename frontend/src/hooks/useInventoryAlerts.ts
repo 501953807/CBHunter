@@ -10,6 +10,8 @@ import {
   acknowledgeAlert,
   clearAlert,
   getAlertStats,
+  getInventoryRiskWorkbench,
+  createInventorySlowMovingOperationAction,
 } from '../api/inventoryAlerts'
 import { labelBusinessCode } from '../utils/businessLabels'
 
@@ -68,6 +70,7 @@ export function useCheckInventory() {
     onSuccess: (d) => {
       qc.invalidateQueries({ queryKey: ['inventory-alert-logs'] })
       qc.invalidateQueries({ queryKey: ['inventory-alert-stats'] })
+      qc.invalidateQueries({ queryKey: ['inventory-risk-workbench'] })
       if (d.data?.data_gaps?.length) {
         toast.addToast('warning', `库存扫描缺少数据：${d.data.data_gaps.map(labelBusinessCode).join('、')}`)
       } else {
@@ -93,6 +96,7 @@ export function useAcknowledgeAlert() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-alert-logs'] })
       qc.invalidateQueries({ queryKey: ['inventory-alert-stats'] })
+      qc.invalidateQueries({ queryKey: ['inventory-risk-workbench'] })
       toast.addToast('success', '已确认预警')
     },
     onError: () => toast.addToast('error', '操作失败'),
@@ -107,6 +111,7 @@ export function useClearAlert() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-alert-logs'] })
       qc.invalidateQueries({ queryKey: ['inventory-alert-stats'] })
+      qc.invalidateQueries({ queryKey: ['inventory-risk-workbench'] })
       toast.addToast('success', '已清除预警')
     },
     onError: () => toast.addToast('error', '操作失败'),
@@ -118,5 +123,27 @@ export function useAlertStats() {
     queryKey: ['inventory-alert-stats'],
     queryFn: () => getAlertStats(),
     refetchInterval: 30_000,
+  })
+}
+
+export function useInventoryRiskWorkbench() {
+  return useQuery({
+    queryKey: ['inventory-risk-workbench'],
+    queryFn: () => getInventoryRiskWorkbench(),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useCreateInventorySlowMovingOperationAction() {
+  const qc = useQueryClient()
+  const toast = useToast()
+  return useMutation({
+    mutationFn: createInventorySlowMovingOperationAction,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-risk-workbench'] })
+      qc.invalidateQueries({ queryKey: ['operation-records'] })
+      toast.addToast('success', '已生成库存风险运营台账动作')
+    },
+    onError: () => toast.addToast('error', '生成运营台账动作失败'),
   })
 }

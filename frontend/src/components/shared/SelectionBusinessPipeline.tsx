@@ -4,7 +4,7 @@ import { cn } from '../../utils/cn'
 
 const STEPS = [
   { path: '/scout/sources', label: '信号捕获', detail: '四层来源' },
-  { path: '/scout', label: '候选验证', detail: '归并与证据' },
+  { path: '/scout', label: '候选验证', detail: '归并与资料' },
   { path: '/profit', label: '选品决策', detail: '评分与决策门' },
   { path: '/content', label: '内容制作', detail: '标题图片视频' },
   { path: '/pricing', label: '定价校验', detail: '成本与利润' },

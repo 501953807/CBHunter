@@ -11,7 +11,7 @@ from app.models.sourcing_item import SourcingItem
 from app.models.supply_product import SupplyProduct
 from app.models.user import User
 from app.services.business_flow_item_service import get_flow_items
-from app.services.business_flow_projection_service import build_business_flow_projections
+from app.services.business_flow_projection_service import build_business_flow_projections, stage_dwell_stats
 from app.services.business_flow_task_service import list_flow_tasks, merge_task_into_item
 from app.services.business_work_item_service import enrich_work_item_state
 from app.services.cockpit_service import get_operating_cockpit
@@ -125,6 +125,11 @@ async def _flow_period_comparison(db: AsyncSession, user_id: str, cockpit: dict,
     previous = await _flow_snapshot_for_window(db, user_id, store_ids, previous_start, previous_end)
     last_year = await _flow_snapshot_for_window(db, user_id, store_ids, year_start, year_end)
     current = _flow_snapshot(current_items)
+    stage_dwell = await _flow_stage_dwell_comparison(
+        db, user_id, store_ids,
+        start, end, previous_start, previous_end, year_start, year_end,
+        datetime.now(timezone.utc),
+    )
     return {
         "current": current,
         "previous": previous,
@@ -135,12 +140,158 @@ async def _flow_period_comparison(db: AsyncSession, user_id: str, cockpit: dict,
             "blocked_mom_pct": _change_pct(current["blocked"], previous["blocked"]),
             "blocked_yoy_pct": _change_pct(current["blocked"], last_year["blocked"]),
         },
+        "stage_dwell": stage_dwell,
         "windows": {
             "current": f"{start.isoformat()} 至 {end.isoformat()}",
             "previous": f"{previous_start.isoformat()} 至 {previous_end.isoformat()}",
             "last_year": f"{year_start.isoformat()} 至 {year_end.isoformat()}",
         },
     }
+
+
+async def _flow_stage_dwell_comparison(
+    db: AsyncSession,
+    user_id: str,
+    store_ids: list[str],
+    current_start: "date",
+    current_end: "date",
+    previous_start: "date",
+    previous_end: "date",
+    year_start: "date",
+    year_end: "date",
+    current_reference_at: "datetime",
+) -> list[dict]:
+    from datetime import datetime, time, timezone
+
+    current_items = await _flow_items_for_window(db, user_id, store_ids, current_start, current_end)
+    previous_items = await _flow_items_for_window(db, user_id, store_ids, previous_start, previous_end)
+    year_items = await _flow_items_for_window(db, user_id, store_ids, year_start, year_end)
+    previous_reference_at = datetime.combine(previous_end, time.max, tzinfo=timezone.utc)
+    year_reference_at = datetime.combine(year_end, time.max, tzinfo=timezone.utc)
+
+    rows = []
+    for key, label, route in V5_FLOW_STAGES:
+        current = stage_dwell_stats([item for item in current_items if _v5_stage_key(item) == key], current_reference_at)
+        previous = stage_dwell_stats([item for item in previous_items if _v5_stage_key(item) == key], previous_reference_at)
+        last_year = stage_dwell_stats([item for item in year_items if _v5_stage_key(item) == key], year_reference_at)
+        rows.append({
+            "key": key,
+            "label": label,
+            "route": route,
+            "current": current,
+            "previous": previous,
+            "last_year": last_year,
+            "rates": {
+                "avg_wait_mom_pct": _change_pct(current["avg_wait_hours"], previous["avg_wait_hours"]),
+                "avg_wait_yoy_pct": _change_pct(current["avg_wait_hours"], last_year["avg_wait_hours"]),
+            },
+        })
+    return rows
+
+
+async def _flow_items_for_window(db: AsyncSession, user_id: str, store_ids: list[str], start: "date", end: "date") -> list[dict]:
+    from datetime import datetime, time, timezone
+
+    start_at = datetime.combine(start, time.min, tzinfo=timezone.utc)
+    end_at = datetime.combine(end, time.max, tzinfo=timezone.utc)
+    rows: list[dict] = []
+
+    discovery_rows = (await db.execute(
+        select(ProductDiscovery).where(
+            ProductDiscovery.user_id == user_id,
+            ProductDiscovery.updated_at >= start_at,
+            ProductDiscovery.updated_at <= end_at,
+        )
+    )).scalars().all()
+    rows.extend(_window_item(
+        item.id, "product_discovery", item.product_name or "未命名选品",
+        "listing" if item.status == "listed" else item.status if item.status == "sourcing" else "selection",
+        "/scout", item.updated_at,
+    ) for item in discovery_rows)
+
+    sourcing_rows = (await db.execute(
+        select(SourcingItem).where(
+            SourcingItem.user_id == user_id,
+            SourcingItem.is_active == True,  # noqa: E712
+            SourcingItem.updated_at >= start_at,
+            SourcingItem.updated_at <= end_at,
+        )
+    )).scalars().all()
+    rows.extend(_window_item(
+        item.id, "sourcing_item", item.product_name,
+        _window_sourcing_stage(item.pipeline_stage), "/scout/sources", item.updated_at,
+    ) for item in sourcing_rows)
+
+    supply_rows = (await db.execute(
+        select(SupplyProduct).where(
+            SupplyProduct.user_id == user_id,
+            SupplyProduct.is_active == True,  # noqa: E712
+            SupplyProduct.last_updated >= start_at,
+            SupplyProduct.last_updated <= end_at,
+        )
+    )).scalars().all()
+    rows.extend(_window_item(
+        item.id, "supply_product", item.name, "sourcing", "/scout/sources", item.last_updated,
+    ) for item in supply_rows)
+
+    if store_ids:
+        listing_rows = (await db.execute(
+            select(PlatformListing).where(
+                PlatformListing.platform_account_id.in_(store_ids),
+                PlatformListing.updated_at >= start_at,
+                PlatformListing.updated_at <= end_at,
+            )
+        )).scalars().all()
+        rows.extend(_window_item(
+            item.id, "platform_listing", item.title, "listing", "/publish", item.updated_at,
+        ) for item in listing_rows)
+
+        order_rows = (await db.execute(
+            select(Order).where(
+                Order.platform_account_id.in_(store_ids),
+                Order.ordered_at >= start_at,
+                Order.ordered_at <= end_at,
+            )
+        )).scalars().all()
+        rows.extend(_window_item(
+            item.id, "order", item.order_number or item.platform_order_id, "fulfillment", "/orders", item.ordered_at,
+        ) for item in order_rows)
+
+    ai_rows = (await db.execute(
+        select(AISuggestion).where(
+            AISuggestion.user_id == user_id,
+            AISuggestion.is_applied == False,  # noqa: E712
+            AISuggestion.is_dismissed == False,  # noqa: E712
+            AISuggestion.updated_at >= start_at,
+            AISuggestion.updated_at <= end_at,
+        )
+    )).scalars().all()
+    rows.extend(_window_item(
+        item.id, "ai_suggestion", item.title, "optimization", "/ai-suggestions", item.updated_at,
+    ) for item in ai_rows)
+    return rows
+
+
+def _window_item(item_id: str, item_type: str, name: str, stage_key: str, route: str, updated_at) -> dict:
+    return {
+        "id": item_id,
+        "type": item_type,
+        "name": name,
+        "work_item_id": f"{item_type}:{item_id}",
+        "stage_key": stage_key,
+        "route": route,
+        "updated_at": updated_at,
+    }
+
+
+def _window_sourcing_stage(pipeline_stage: str) -> str:
+    if pipeline_stage in ("listed", "listing"):
+        return "listing"
+    if pipeline_stage in ("active", "vmi"):
+        return "optimization"
+    if pipeline_stage in ("jit_testing", "jit_passed"):
+        return "fulfillment"
+    return "sourcing"
 
 
 async def _flow_snapshot_for_window(db: AsyncSession, user_id: str, store_ids: list[str], start: "date", end: "date") -> dict:
@@ -261,6 +412,7 @@ def _flow_stage_matrix(items: list[dict]) -> list[dict]:
     rows = []
     for key, label, route in V5_FLOW_STAGES:
         stage_items = [item for item in items if _v5_stage_key(item) == key]
+        dwell = stage_dwell_stats(stage_items)
         rows.append({
             "key": key,
             "label": label,
@@ -269,7 +421,7 @@ def _flow_stage_matrix(items: list[dict]) -> list[dict]:
             "blocked": sum(1 for item in stage_items if item["status"] == "blocked"),
             "data_required": sum(1 for item in stage_items if item["status"] == "data_required"),
             "ready": sum(1 for item in stage_items if item["status"] == "ready"),
-            "avg_wait_hours": None,
+            **dwell,
         })
     return rows
 
@@ -401,6 +553,7 @@ def _task_only_item(task) -> dict:
         "confidence_reason": "该节点来自业务任务池，保留风险/缺口生成任务后的可见性。",
         "platform": None,
         "market": None,
+        "updated_at": task.updated_at.isoformat() if task.updated_at else None,
     }
     return enrich_work_item_state(payload)
 
@@ -467,8 +620,8 @@ def _gap_action(key: str, gap: str) -> str:
     if "AI" in gap or "报表异常" in gap:
         return "前往运营增长复核建议"
     actions = {
-        "selection": "进入选品列表补齐证据",
-        "sourcing": "进入品源管理补齐证据",
+        "selection": "进入选品列表补齐资料",
+        "sourcing": "进入品源管理补齐资料",
         "content": "进入内容工厂补齐素材",
         "listing": "进入刊登模块处理阻塞",
         "fulfillment": "进入订单履约处理阻塞",
