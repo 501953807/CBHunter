@@ -50,3 +50,12 @@ output/
 
 # Serena
 .serena/
+
+# Project documentation (code-only repo on GitHub)
+docs/
+AGENTS.md
+CLAUDE.md
+README.md
+design-qa.md
+.env.example
+.mcp.json
