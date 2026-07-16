@@ -37,19 +37,19 @@ async def add_competitor(
     currency = data.get("currency", "")
 
     if not url:
-        raise HTTPException(400, "URL is required")
+        raise HTTPException(status_code=400, detail="URL is required")
     if not platform:
-        raise HTTPException(400, "Platform is required")
+        raise HTTPException(status_code=400, detail="Platform is required")
     from app.services.config_service import get_markets, get_platforms
     approved_platforms = {item["id"] for item in await get_platforms(db)}
     approved_markets = {item["id"]: item for item in await get_markets(db)}
     if platform not in approved_platforms:
-        raise HTTPException(400, "平台不在当前审批范围")
+        raise HTTPException(status_code=400, detail="平台不在当前审批范围")
     if market not in approved_markets:
-        raise HTTPException(400, "请选择已配置的东南亚市场")
+        raise HTTPException(status_code=400, detail="请选择已配置的东南亚市场")
     expected_currency = approved_markets[market].get("currency")
     if not currency or currency != expected_currency:
-        raise HTTPException(400, "币种必须与目标市场配置一致")
+        raise HTTPException(status_code=400, detail="币种必须与目标市场配置一致")
 
     existing_count = await db.scalar(
         select(func.count(CompetitorProduct.id)).where(
@@ -206,7 +206,7 @@ async def set_alert_rule(
     threshold = data.get("threshold", 0)
 
     if not competitor_id:
-        raise HTTPException(400, "competitor_id is required")
+        raise HTTPException(status_code=400, detail="competitor_id is required")
 
     stmt = select(CompetitorProduct).where(
         and_(CompetitorProduct.id == competitor_id, CompetitorProduct.user_id == current_user.id)
@@ -214,7 +214,7 @@ async def set_alert_rule(
     result = await db.execute(stmt)
     comp = result.scalar_one_or_none()
     if not comp:
-        raise HTTPException(404, "竞品不存在")
+        raise HTTPException(status_code=404, detail="竞品不存在")
 
     alert_rules = {
         "condition": condition,

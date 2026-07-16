@@ -9,6 +9,7 @@ from app.models.order import Order
 from app.models.product import Product
 from app.models.report_subscription import ReportSubscription
 from app.services.evidence_service import evidence_payload, source_ref
+from app.services.finance_service import get_finance_summary
 from app.services.store_access_service import list_accessible_store_ids_for_user_id
 from app.services.report_domain_metrics import aggregate_domain_metrics
 
@@ -113,6 +114,31 @@ async def detect_anomalies(db: AsyncSession, user_id: str) -> list[dict]:
                 "deviation_pct": round(cnt_dev, 1),
                 **_anomaly_evidence(today_orders, hist_orders, today_start, today_end),
             })
+
+    finance_summary = await get_finance_summary(
+        db,
+        user_id,
+        "daily",
+        start_at=today_start,
+        end_at=today_end,
+    )
+    for signal in finance_summary.get("risk_signals") or []:
+        anomalies.append({
+            "metric": "financial_risk",
+            "risk_code": signal.get("code"),
+            "title": signal.get("title") or "财务风险",
+            "expected": "无财务风险",
+            "actual": signal.get("title") or signal.get("code") or "财务风险",
+            "deviation_pct": 100,
+            "level": signal.get("level"),
+            "detail": signal.get("detail"),
+            "action_label": signal.get("action_label"),
+            "action_route": signal.get("action_route"),
+            "source_refs": finance_summary.get("source_refs") or [],
+            "evidence_window": f"今日财务台账风险：{finance_summary.get('evidence_window') or ''}",
+            "confidence_reason": "异常检测复用财务护卫后端 risk_signals，只基于真实财务台账生成财务异常。",
+            "data_gaps": finance_summary.get("data_gaps") or [],
+        })
 
     return anomalies
 
@@ -293,6 +319,19 @@ async def _build_report(
     )
     refs.extend(domains["source_refs"])
     data_gaps.extend(domains["data_gaps"])
+    financial_risk_signals = []
+    if db is not None:
+        report_start, report_end = _report_bounds(date_label, period)
+        finance_summary = await get_finance_summary(
+            db,
+            user_id,
+            period,
+            start_at=report_start,
+            end_at=report_end,
+        )
+        financial_risk_signals = finance_summary.get("risk_signals") or []
+        refs.extend(finance_summary.get("source_refs") or [])
+        data_gaps.extend(finance_summary.get("data_gaps") or [])
 
     return {
         "date": date_label,
@@ -315,15 +354,33 @@ async def _build_report(
         "by_market": by_market_list,
         "top_products": top_products,
         "anomalies": anomalies,
+        "financial_risk_signals": financial_risk_signals,
         "cross_domain": {key: domains[key] for key in ("finance", "fulfillment", "inventory")},
         "data_quality": {
             "cost_status": "complete" if cost_complete else "missing",
             "total_items": total_items,
             "costed_items": costed_items,
             "missing_cost_items": missing_cost_items,
+            "finance_risk_count": len(financial_risk_signals),
             "comparison_status": "ready" if previous_orders is not None else "not_evaluated",
         },
     }
+
+
+def _report_bounds(label: str, period: str) -> tuple[datetime, datetime]:
+    try:
+        start = (datetime.strptime(label, "%Y-%m") if period == "monthly" else datetime.fromisoformat(label)).replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        start = datetime.now(timezone.utc)
+    if period == "daily":
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, start + timedelta(days=1)
+    if period == "weekly":
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, start + timedelta(days=7)
+    start = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return start, next_month
 
 
 def _order_market(order: Order) -> str:

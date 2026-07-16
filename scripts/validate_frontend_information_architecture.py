@@ -120,6 +120,10 @@ FINANCE_LEDGER_PANEL = (ROOT / "frontend/src/features/finance/FinanceLedgerPanel
 FINANCE_SERVICE = (ROOT / "backend/app/services/finance_service.py").read_text(encoding="utf-8")
 FINANCE_SCHEMA = (ROOT / "backend/app/schemas/finance.py").read_text(encoding="utf-8")
 FINANCE_BACKEND_API = (ROOT / "backend/app/api/v1/finance.py").read_text(encoding="utf-8")
+REPORT_SERVICE = (ROOT / "backend/app/services/report_service.py").read_text(encoding="utf-8")
+REPORT_DISPLAY = (ROOT / "frontend/src/features/reports/ReportDisplay.tsx").read_text(encoding="utf-8")
+REPORT_PANELS = (ROOT / "frontend/src/features/reports/ReportsPanels.tsx").read_text(encoding="utf-8")
+REPORT_TYPES = (ROOT / "frontend/src/types/reports.ts").read_text(encoding="utf-8")
 GROWTH_ENGINE_PAGE = (ROOT / "frontend/src/pages/GrowthEnginePage.tsx").read_text(encoding="utf-8")
 OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
 COMPETITOR_MONITOR_PAGE = (ROOT / "frontend/src/pages/CompetitorMonitorPage.tsx").read_text(encoding="utf-8")
@@ -1309,7 +1313,7 @@ def validate() -> list[str]:
         "get_finance_summary(db, current_user.id, period, platform_account_id=platform_account_id)",
         "get_finance_traceback(db, current_user.id, period, platform_account_id=platform_account_id)",
         "FinanceLedgerEntry.extra[\"platform_account_id\"].as_string() == platform_account_id",
-        "_latest_cash_balance(db, user_id, platform_account_id=platform_account_id)",
+        "_latest_cash_balance(db, user_id, platform_account_id=platform_account_id, as_at=now)",
         "finance_ledger_entries.store_scope",
     ):
         if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_BACKEND_API:
@@ -1323,6 +1327,12 @@ def validate() -> list[str]:
     for required in ("risk_signals", "FinanceRiskSignal", "_finance_risk_signals", "收入台账未入账", "成本台账不完整", "平台费缺失", "资金余额未录入", "negative_profit", "action_route"):
         if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_SCHEMA:
             errors.append(f"finance risks must come from backend reusable summary signals, not local page heuristics: {required}")
+    for required in ("financial_risk_signals", "ReportFinancialRiskPanel", "报表财务风险", "get_finance_summary", "_report_bounds", "finance_risk_count", "ReportFinancialRiskSignal"):
+        if required not in REPORT_SERVICE + REPORT_DISPLAY + REPORT_TYPES:
+            errors.append(f"reports must reuse backend finance risk signals and display them in report output: {required}")
+    for required in ("financial_risk", "财务风险异常", "report-finance-anomaly-list", "financeRisks", "metricAnomalies", "action_route"):
+        if required not in REPORT_SERVICE + REPORT_PANELS + REPORT_TYPES:
+            errors.append(f"report anomaly detection must show finance risk anomalies separately from numeric deviations: {required}")
     for required in ("商品运营诊断", "getProductOperationMetrics", "/operations/product-metrics", "conversion_rate_pct", "生成运营台账", "createProductOperationAction", "/operations/product-actions"):
         if required not in GROWTH_ENGINE_PAGE + OPERATIONS_API:
             errors.append(f"growth engine must expose product-level operation metrics and diagnostics: {required}")

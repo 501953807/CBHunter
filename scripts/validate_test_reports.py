@@ -8,6 +8,8 @@ REPORT_DIR = Path(__file__).resolve().parents[1] / "docs" / "test-reports"
 
 
 def validate_reports() -> list[Path]:
+    if not REPORT_DIR.exists():
+        return []
     invalid_files = [
         path for path in sorted(REPORT_DIR.iterdir())
         if path.is_file() and path.suffix not in {".md", ".xml"}
@@ -38,4 +40,7 @@ def _validate_markdown_report(report: Path) -> None:
 
 if __name__ == "__main__":
     validated = validate_reports()
-    print(f"Validated {len(validated)} test reports")
+    if validated:
+        print(f"Validated {len(validated)} test reports")
+    else:
+        print("Skipped test report validation: docs/test-reports is local-only or absent")

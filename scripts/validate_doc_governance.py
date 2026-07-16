@@ -20,6 +20,13 @@ def validate_docs(root: Path | None = None) -> dict:
     progress = base / PROGRESS_DOC
     module = base / MODULE_DOC
     master = base / MASTER_PLAN_DOC
+    if not progress.exists() and not module.exists() and not master.exists():
+        return {
+            "checked": [],
+            "module_recent_dates": [],
+            "obsolete_docs_absent": [],
+            "skipped": True,
+        }
     _require_text(progress, ["更新时间：", "## 记录治理规则", "任务索引优先", "完成必须有证据"])
     _require_text(module, ["最后更新:", "## 文档维护规则", "模块表为当前状态权威", "变更记录按日期递增"])
     _require_text(master, [
@@ -74,4 +81,7 @@ def _recent_module_dates(path: Path) -> list[str]:
 
 if __name__ == "__main__":
     result = validate_docs()
-    print(f"Validated documentation governance: {', '.join(result['checked'])}")
+    if result.get("skipped"):
+        print("Skipped documentation governance: docs is local-only or absent")
+    else:
+        print(f"Validated documentation governance: {', '.join(result['checked'])}")

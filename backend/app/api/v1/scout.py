@@ -120,7 +120,7 @@ async def get_source_detail(source_id: str):
     """获取单个品源详情及操作指引."""
     src = get_scout_source(source_id)
     if not src:
-        raise HTTPException(404, "品源不存在")
+        raise HTTPException(status_code=404, detail="品源不存在")
     return ApiResponse(data=src)
 
 
@@ -155,7 +155,7 @@ async def capture_signal(
     """快速录入一条选品信号。趋势层的信号同步写入趋势热点关键词."""
     source = get_scout_source(req.source_id)
     if not source:
-        raise HTTPException(400, "无效的品源ID")
+        raise HTTPException(status_code=400, detail="无效的品源ID")
 
     source_name = source["name"]
     layer = source["layer"]
@@ -267,7 +267,7 @@ async def capture_signal(
 
         platform = req.platform or source.get("platform")
         if not platform:
-            raise HTTPException(400, "平台层信号缺少平台")
+            raise HTTPException(status_code=400, detail="平台层信号缺少平台")
         now = datetime.now(timezone.utc)
 
         product = TrendingProduct(
@@ -415,7 +415,7 @@ async def convert_signal_to_sourcing(
     """将信号转为选品库中的产品."""
     signal = await db_get_signal(db, signal_id, current_user.id)
     if not signal:
-        raise HTTPException(404, "信号不存在")
+        raise HTTPException(status_code=404, detail="信号不存在")
     old_value = _signal_snapshot(signal)
 
     from app.services.sourcing_service import create_item

@@ -314,6 +314,7 @@ async def import_product_image_url_endpoint(
 @router.get("/image-proxy")
 async def proxy_product_image_endpoint(
     url: str = Query(..., min_length=8, max_length=2048),
+    current_user: User = Depends(get_current_user),
 ):
     """Serve real external product images through the backend for display.
 

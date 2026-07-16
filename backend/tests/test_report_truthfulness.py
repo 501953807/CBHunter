@@ -3,11 +3,16 @@
 import asyncio
 from types import SimpleNamespace
 
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from app.database import Base
+from app.models import all_models  # noqa: F401
+from app.models.finance_ledger import FinanceLedgerEntry
 from app.services.product_analysis import classify_sourcing_items
 from datetime import datetime, timezone
 
 from app.services.report_delivery_service import is_subscription_due
-from app.services.report_service import _build_report, _detect_period_anomalies
+from app.services.report_service import _build_report, _detect_period_anomalies, detect_anomalies
 from app.api.v1.reports import _report_response
 
 
@@ -41,6 +46,55 @@ def test_report_does_not_turn_empty_period_into_zero_profit():
     assert report["summary"]["gross_profit"] is None
     assert report["summary"]["profit_margin_pct"] is None
     assert report["data_quality"]["missing_cost_items"] == 0
+
+
+def test_report_carries_backend_finance_risk_signals(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'report-finance-risks.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            occurred_at = datetime(2026, 6, 4, 8, tzinfo=timezone.utc)
+            session.add_all([
+                FinanceLedgerEntry(user_id="report-user", entry_type="sales_income", amount_rmb=100, occurred_at=occurred_at),
+                FinanceLedgerEntry(user_id="report-user", entry_type="refund", amount_rmb=150, occurred_at=occurred_at),
+            ])
+            await session.commit()
+            report = await _build_report(session, "report-user", [], "2026-06-04", "daily", [])
+        await engine.dispose()
+
+        signals = {item["code"]: item for item in report["financial_risk_signals"]}
+        assert signals["negative_profit"]["title"] == "净利润为负"
+        assert signals["negative_profit"]["action_route"] == "/finance?entry_type=platform_fee#finance-ledger"
+        assert report["data_quality"]["finance_risk_count"] >= 1
+
+    asyncio.run(run_test())
+
+
+def test_anomaly_detection_includes_finance_risk_signals(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'report-anomaly-finance-risks.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            now = datetime.now(timezone.utc)
+            session.add_all([
+                FinanceLedgerEntry(user_id="report-user", entry_type="sales_income", amount_rmb=80, occurred_at=now),
+                FinanceLedgerEntry(user_id="report-user", entry_type="refund", amount_rmb=120, occurred_at=now),
+            ])
+            await session.commit()
+            anomalies = await detect_anomalies(session, "report-user")
+        await engine.dispose()
+
+        finance = next(item for item in anomalies if item["metric"] == "financial_risk" and item["risk_code"] == "negative_profit")
+        assert finance["risk_code"] == "negative_profit"
+        assert finance["title"] == "净利润为负"
+        assert finance["action_route"] == "/finance?entry_type=platform_fee#finance-ledger"
+        assert finance["deviation_pct"] == 100
+
+    asyncio.run(run_test())
 
 
 def test_report_uses_explicit_market_and_real_previous_period_comparison():

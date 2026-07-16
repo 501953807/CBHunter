@@ -3,6 +3,8 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -35,6 +37,8 @@ def test_core_docs_have_governance_and_ordered_recent_changelog():
     validator = _load_validator()
 
     result = validator.validate_docs(ROOT)
+    if result.get("skipped"):
+        pytest.skip("docs are local-only and absent from the code repository")
 
     assert result["checked"] == [
         "docs/实施任务进度.md",
@@ -53,14 +57,24 @@ def test_test_reports_directory_contains_only_report_files():
     validator = _load_test_report_validator()
 
     reports = validator.validate_reports()
+    report_dir = ROOT / "docs" / "test-reports"
+    if not report_dir.exists():
+        assert reports == []
+        return
     invalid_files = [
         path.name
-        for path in (ROOT / "docs" / "test-reports").iterdir()
+        for path in report_dir.iterdir()
         if path.is_file() and path.suffix not in {".md", ".xml"}
     ]
 
-    assert len(reports) == 3
     assert invalid_files == []
+
+
+def test_project_docs_are_excluded_from_code_repository():
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    ignored = {line.strip() for line in gitignore if line.strip() and not line.startswith("#")}
+
+    assert {"docs/", "README.md", "AGENTS.md", "CLAUDE.md", ".env.example"}.issubset(ignored)
 
 
 def test_api_required_state_responses_keep_evidence_contract():

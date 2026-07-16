@@ -20,9 +20,24 @@ export interface TopProduct {
 
 export interface AnomalyItem {
   metric: string
-  expected: number
-  actual: number
+  expected: number | string
+  actual: number | string
   deviation_pct: number
+  risk_code?: string
+  title?: string
+  level?: string
+  detail?: string
+  action_label?: string
+  action_route?: string
+}
+
+export interface ReportFinancialRiskSignal {
+  code: string
+  level: 'info' | 'medium' | 'high' | string
+  title: string
+  detail: string
+  action_label: string
+  action_route: string
 }
 
 export interface Report {
@@ -33,6 +48,7 @@ export interface Report {
   by_market: PlatformBreakdown[]
   top_products: TopProduct[]
   anomalies: AnomalyItem[]
+  financial_risk_signals?: ReportFinancialRiskSignal[]
   source_refs?: Array<Record<string, unknown>>
   evidence_window?: string
   confidence_reason?: string
@@ -42,6 +58,7 @@ export interface Report {
     total_items: number
     costed_items: number
     missing_cost_items: number
+    finance_risk_count?: number
   }
 }
 

@@ -1,4 +1,4 @@
-import { Download, DollarSign, FileText, Percent, ShoppingCart, TrendingUp } from "lucide-react"
+import { AlertTriangle, Download, DollarSign, FileText, Percent, ShoppingCart, TrendingUp } from "lucide-react"
 import { StatCard } from "../../components/shared/StatCard"
 import { Card, CardContent } from "../../components/ui/Card"
 import { EmptyState } from "../../components/ui/EmptyState"
@@ -58,6 +58,7 @@ export function ReportSection({ report, loading }: { report: any; loading: boole
           {missingCostCount} 条订单商品缺采购成本，毛利润与利润率暂不计算。
         </div>
       )}
+      <ReportFinancialRiskPanel signals={r.financial_risk_signals ?? []} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <BarBreakdownChart title="平台营收分布" items={r.by_platform ?? []} nameField="platform" />
         <BarBreakdownChart title="市场营收分布" items={r.by_market ?? []} nameField="platform" />
@@ -136,6 +137,43 @@ function BarBreakdownChart({ title, items, nameField }: { title: string; items: 
   )
 }
 
+function ReportFinancialRiskPanel({ signals }: { signals: any[] }) {
+  if (!signals.length) return null
+  return (
+    <Card>
+      <CardContent>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-[var(--color-warning)]" />
+            <h4 className="text-sm font-semibold text-[var(--color-fg)]">报表财务风险</h4>
+          </div>
+          <span className="rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-[11px] text-[var(--color-warning)]">
+            {signals.length} 项需复核
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {signals.map((signal) => (
+            <div
+              key={signal.code}
+              className="rounded-xl border p-3 text-sm"
+              style={{
+                borderColor: signal.level === 'high' ? 'var(--color-danger)' : 'var(--color-warning)',
+                background: signal.level === 'high' ? 'var(--color-danger-light)' : 'var(--color-warning-light)',
+              }}
+            >
+              <p className="font-medium text-[var(--color-fg)]">{signal.title}</p>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">{signal.detail}</p>
+              <a href={signal.action_route} className="mt-2 inline-block text-xs text-[var(--color-primary)]">
+                对策：{signal.action_label}
+              </a>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function exportReportCsv(report: any) {
   const rows = buildReportRows(report)
   const csv = rows.map((row) => row.map(csvCell).join(',')).join('\n')
@@ -159,6 +197,7 @@ function buildReportRows(report: any) {
   ;(report.by_platform || []).forEach((item: any) => rows.push(['平台', item.platform || '未标记', item.orders ?? '', item.revenue ?? '', '']))
   ;(report.by_market || []).forEach((item: any) => rows.push(['市场', item.platform || '未标记', item.orders ?? '', item.revenue ?? '', '']))
   ;(report.top_products || []).forEach((item: any) => rows.push(['商品', item.name || '未命名商品', item.quantity ?? '', item.revenue ?? '', '']))
+  ;(report.financial_risk_signals || []).forEach((item: any) => rows.push(['财务风险', item.title || item.code || '', '', '', `${item.detail || ''}；对策：${item.action_label || ''}`]))
   return rows
 }
 

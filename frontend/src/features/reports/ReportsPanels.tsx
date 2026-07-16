@@ -77,6 +77,9 @@ export function AnomalyTab() {
       onError: () => setResult(null),
     })
   }
+  const anomalies = result?.anomalies ?? []
+  const financeRisks = anomalies.filter((item: any) => item.metric === 'financial_risk')
+  const metricAnomalies = anomalies.filter((item: any) => item.metric !== 'financial_risk')
 
   return (
     <Card>
@@ -95,36 +98,61 @@ export function AnomalyTab() {
 
         {!result ? (
           <EmptyState icon={<BarChart3 className="w-10 h-10" />} title="点击上方按钮开始检测" />
-        ) : (result.anomalies ?? []).length === 0 ? (
+        ) : anomalies.length === 0 ? (
           <EmptyState icon={<BarChart3 className="w-10 h-10" />} title="未检测到异常" description="当前数据与近期均值一致" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>指标</th>
-                  <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>预期值</th>
-                  <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>实际值</th>
-                  <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>偏差</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(result.anomalies ?? []).map((a: any, i: number) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td className="py-2 px-3" style={{ color: 'var(--color-fg)' }}>
-                      {a.metric === 'revenue' ? '营收' : a.metric === 'orders' ? '订单数' : a.metric}
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono" style={{ color: 'var(--color-muted)' }}>{a.expected}</td>
-                    <td className="py-2 px-3 text-right font-mono" style={{ color: 'var(--color-fg)' }}>{a.actual}</td>
-                    <td className="py-2 px-3 text-right">
-                      <Badge variant={a.deviation_pct > 50 ? 'danger' : 'warning'}>
-                        {a.deviation_pct}%
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {financeRisks.length > 0 && (
+              <div className="rounded-xl border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3" data-ui="report-finance-anomaly-list">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[var(--color-fg)]">财务风险异常</p>
+                  <Badge variant="warning">{financeRisks.length} 项</Badge>
+                </div>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {financeRisks.map((a: any) => (
+                    <div key={a.risk_code || a.title} className="rounded-lg bg-[var(--color-surface)] p-3">
+                      <p className="text-sm font-medium text-[var(--color-fg)]">{a.title || a.actual || a.risk_code}</p>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">{a.detail || '财务台账风险待复核'}</p>
+                      {a.action_route && (
+                        <a href={a.action_route} className="mt-2 inline-block text-xs text-[var(--color-primary)]">
+                          对策：{a.action_label || '前往财务处理'}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {metricAnomalies.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>指标</th>
+                      <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>预期值</th>
+                      <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>实际值</th>
+                      <th className="text-right py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>偏差</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metricAnomalies.map((a: any, i: number) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td className="py-2 px-3" style={{ color: 'var(--color-fg)' }}>
+                          {a.metric === 'revenue' ? '营收' : a.metric === 'orders' ? '订单数' : a.metric}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono" style={{ color: 'var(--color-muted)' }}>{a.expected}</td>
+                        <td className="py-2 px-3 text-right font-mono" style={{ color: 'var(--color-fg)' }}>{a.actual}</td>
+                        <td className="py-2 px-3 text-right">
+                          <Badge variant={a.deviation_pct > 50 ? 'danger' : 'warning'}>
+                            {a.deviation_pct}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

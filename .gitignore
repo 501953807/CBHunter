@@ -51,7 +51,7 @@ output/
 # Serena
 .serena/
 
-# Project documentation (code-only repo on GitHub)
+# Project documentation is local-only; GitHub is used for code control and must not publish project plans/reports.
 docs/
 AGENTS.md
 CLAUDE.md
