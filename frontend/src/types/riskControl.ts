@@ -13,6 +13,8 @@ export interface RiskControlRisk {
   response_deadline_at: string | null
   remaining_time_label: string
   sla_hours: number | null
+  sla_template_key?: string | null
+  sla_template_hours?: number | null
   evidence_window: string
   source_refs: CockpitSourceRef[]
   assigned_to: string | null
@@ -40,6 +42,7 @@ export interface RiskControlOverview {
     source_count: number
     category_count: number
   }
+  risk_sla_templates: Record<string, { critical: number; warning: number; info: number }>
   risk_categories: Array<{
     key: string
     label: string
@@ -77,6 +80,22 @@ export interface RiskControlOverview {
     processing: number
     overdue: number
     total: number
+  }>
+  location_gap_queue: Array<{
+    gap_key: 'platform' | 'store' | 'market' | string
+    label: string
+    action_label: string
+    route: string
+    risk_count: number
+    critical: number
+    warning: number
+    sample_risks: Array<{
+      id?: string | null
+      title?: string | null
+      type?: string | null
+      severity?: RiskControlRisk['severity'] | null
+      route?: string | null
+    }>
   }>
   comparison: {
     current: { active: number; critical: number; warning: number; events: number }

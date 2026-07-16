@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, BarChart3, Lightbulb, Sparkles } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -11,24 +12,18 @@ import { labelBusinessCode, uniqueBusinessActions } from '../utils/businessLabel
 
 export default function GrowthEnginePage() {
   const navigate = useNavigate()
-  const [summary, setSummary] = useState<BlueOceanResponse | null>(null)
-  const [productMetrics, setProductMetrics] = useState<ProductOperationMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
   const [creatingAction, setCreatingAction] = useState('')
   const [actionMessage, setActionMessage] = useState('')
-
-  useEffect(() => {
-    Promise.all([
-      getBlueOceanOpportunities({ limit: 9 }),
-      getProductOperationMetrics(),
-    ])
-      .then(([opportunityResponse, productMetricResponse]) => {
-        setSummary(opportunityResponse.data || null)
-        setProductMetrics(productMetricResponse.data || null)
-      })
-      .catch(e => logger.error('Load growth opportunities and product metrics failed', e))
-      .finally(() => setLoading(false))
-  }, [])
+  const growthOpportunityQuery = useQuery({
+    queryKey: ['growth-opportunities'],
+    queryFn: () => getBlueOceanOpportunities({ limit: 9 }),
+  })
+  const growthMetricsQuery = useQuery({
+    queryKey: ['growth-product-metrics'],
+    queryFn: getProductOperationMetrics,
+  })
+  const summary = growthOpportunityQuery.data?.data || null
+  const productMetrics = growthMetricsQuery.data?.data || null
 
   const opportunities = summary?.opportunities || []
   const dataGaps = summary?.data_gaps || []
@@ -60,6 +55,21 @@ export default function GrowthEnginePage() {
 
       <Card>
         <CardContent className="pt-4">
+          {growthOpportunityQuery.isError && (
+            <div
+              data-ui="growth-opportunity-error"
+              className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">增长机会加载失败，当前趋势、利润、竞争和供应链信号暂不可用。</span>
+              <button
+                type="button"
+                onClick={() => growthOpportunityQuery.refetch()}
+                className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+              >
+                重新加载增长机会
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div>
               <p className="text-xs text-[var(--color-muted)]">数据范围</p>
@@ -86,6 +96,8 @@ export default function GrowthEnginePage() {
         </CardContent>
       </Card>
 
+      <GrowthExperimentPanel opportunities={opportunities} productMetrics={productMetrics} />
+
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -94,7 +106,7 @@ export default function GrowthEnginePage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {growthOpportunityQuery.isLoading ? (
             <div className="skeleton-shimmer h-28 rounded-xl" />
           ) : opportunities.length === 0 ? (
             <EmptyState
@@ -150,7 +162,22 @@ export default function GrowthEnginePage() {
           <p className="mt-1 text-xs text-[var(--color-muted)]">按 Listing 已同步或导入的最近30天指标生成诊断，不把缺失平台 Open API 指标当作 0。</p>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {growthMetricsQuery.isError && (
+            <div
+              data-ui="growth-metrics-error"
+              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">商品运营指标加载失败，当前 Listing 表现、诊断机会和待复盘动作暂不可用。</span>
+              <button
+                type="button"
+                onClick={() => growthMetricsQuery.refetch()}
+                className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+              >
+                重新加载运营指标
+              </button>
+            </div>
+          )}
+          {growthMetricsQuery.isLoading ? (
             <div className="skeleton-shimmer h-28 rounded-xl" />
           ) : !productMetrics?.items?.length ? (
             <EmptyState
@@ -246,6 +273,45 @@ function MetricBox({ label, value }: { label: string; value: number }) {
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className="mt-1 text-lg font-semibold text-[var(--color-fg)]">{value}</p>
+    </div>
+  )
+}
+
+function GrowthExperimentPanel({ opportunities, productMetrics }: { opportunities: BlueOceanResponse['opportunities']; productMetrics: ProductOperationMetrics | null }) {
+  const experimentCandidates = opportunities.slice(0, 3)
+  const reviewed = productMetrics?.summary.reviewed_action_count ?? 0
+  const pending = productMetrics?.summary.pending_action_count ?? 0
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold text-[var(--color-fg)]">增长实验工作台</h2>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">把机会发现、实验管理、反馈学习和 A/B测试 放在一个闭环里；缺真实机会时不生成固定策略模板。</p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-4" data-ui="growth-ab-test-panel">
+          <GrowthExperimentCard title="机会发现" value={opportunities.length} detail="来自趋势、利润、竞争和供应链资料完整度。" />
+          <GrowthExperimentCard title="实验管理" value={experimentCandidates.length} detail="优先选择高分机会进入标题、主图、价格或投放实验。" />
+          <GrowthExperimentCard title="反馈学习" value={reviewed} detail={`待复盘动作 ${pending} 个；复盘结果会反哺商品运营诊断。`} />
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <p className="text-sm font-semibold text-[var(--color-fg)]">A/B测试</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <span className="rounded-lg bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">A 方案：当前 Listing</span>
+              <span className="rounded-lg bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">B 方案：待生成候选</span>
+            </div>
+            <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">实验发布前必须绑定商品、平台店铺、指标窗口和预算，不在本页假定实验成功。</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function GrowthExperimentCard({ title, value, detail }: { title: string; value: number; detail: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-sm font-semibold text-[var(--color-fg)]">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-[var(--color-primary)]">{value}</p>
+      <p className="mt-1 text-[11px] leading-5 text-[var(--color-muted)]">{detail}</p>
     </div>
   )
 }

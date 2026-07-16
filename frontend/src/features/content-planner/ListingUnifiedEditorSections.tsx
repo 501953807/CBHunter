@@ -71,6 +71,7 @@ export function ListingUnifiedEditorSections({
         <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
           不再通过 Tabs 切换同一个商品的 Listing 字段；文案、媒体、视频计划、标签和定价发布衔接在当前商品上下文里连续处理。
         </p>
+        <ContentListingCapabilityMap product={product} scriptsCount={scripts.length} hashtagsCount={hashtags.length} />
       </div>
 
       <div className="grid gap-0 xl:grid-cols-[180px_minmax(0,1fr)_240px]">
@@ -243,6 +244,78 @@ export function ListingUnifiedEditorSections({
         </aside>
       </div>
     </section>
+  )
+}
+
+function ContentListingCapabilityMap({
+  product,
+  scriptsCount,
+  hashtagsCount,
+}: {
+  product: ContentWorkbenchItem | null
+  scriptsCount: number
+  hashtagsCount: number
+}) {
+  const imageCount = product?.media_readiness?.captured_image_count ?? 0
+  const minImages = product?.media_readiness?.min_platform_images ?? 5
+  const titleReady = Boolean(product?.content_brief?.title)
+  const bulletsReady = Boolean(product?.content_brief?.bullets?.length)
+  const platformFieldCount = [
+    ...(product?.platform_requirements?.required_attributes || []),
+    ...(product?.platform_requirements?.content || []),
+    ...(product?.platform_requirements?.media || []),
+    ...(product?.platform_requirements?.compliance || []),
+  ].length
+  const capabilities = [
+    {
+      title: '标题生成',
+      detail: titleReady ? '已有标题候选，需按平台关键词和长度人工确认。' : '用 AI/五步法生成候选标题，再保存为内容任务版本。',
+      status: titleReady ? '有候选' : '待生成',
+    },
+    {
+      title: '描述编辑',
+      detail: bulletsReady ? '已有五点卖点候选，继续补长描述和关键词。' : '补五点卖点、材质、尺寸、场景、包装和售后说明。',
+      status: bulletsReady ? '卖点候选' : '待编辑',
+    },
+    {
+      title: '图片处理',
+      detail: `平台至少 ${minImages} 张图；当前 ${imageCount} 张，缺图时先补主图、辅图、尺寸图、场景图和细节图。`,
+      status: imageCount >= minImages ? '基础达标' : '待补图',
+    },
+    {
+      title: '视频脚本',
+      detail: '围绕当前商品生成 hook、镜头、脚本、CTA 和内容日历。',
+      status: scriptsCount ? `${scriptsCount} 条脚本` : '待生成',
+    },
+    {
+      title: 'A+内容',
+      detail: '沉淀长详情结构：品牌/场景/规格/对比/FAQ，不冒充平台已发布 A+ 页面。',
+      status: '待编排',
+    },
+    {
+      title: '平台差异字段校验',
+      detail: platformFieldCount ? `已识别 ${platformFieldCount} 个平台字段要求，需在规格区逐项补齐。` : '待从平台字段组读取类目属性、媒体、合规和物流要求。',
+      status: platformFieldCount ? '已识别' : '待补字段组',
+    },
+    {
+      title: 'AI辅助生成入口',
+      detail: 'AI 只能生成候选内容；标题、描述、图片、视频脚本必须人工确认后进入下游定价和刊登。',
+      status: hashtagsCount ? `${hashtagsCount} 个标签` : '候选生成',
+    },
+  ]
+
+  return (
+    <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4" data-ui="content-listing-capability-map">
+      {capabilities.map(item => (
+        <div key={item.title} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs font-semibold text-[var(--color-fg)]">{item.title}</p>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{item.status}</span>
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">{item.detail}</p>
+        </div>
+      ))}
+    </div>
   )
 }
 

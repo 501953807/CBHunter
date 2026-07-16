@@ -9,12 +9,15 @@ import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import { useOrderList, useOrderStats } from '../hooks/useOrders'
 import { useConfig } from '../hooks/useConfig'
 import type { Column } from '../components/shared/DataTable'
-import type { OrderFulfillmentStats, OrderListRow } from '../types/order'
+import type { ManualOrderCreate, ManualOrderImportResult, OrderFulfillmentStats, OrderListRow } from '../types/order'
 import { getStatusMeta, toDomainOptions, withAllOption } from '../utils/domainOptions'
 import { ManualOrderModal } from '../features/orders/ManualOrderModal'
 import { Plus } from 'lucide-react'
 import { StoreContextBanner } from '../components/shared/StoreContextBanner'
 import { usePlatformStatuses } from '../hooks/usePlatforms'
+import { importManualOrders } from '../api/orders'
+import { useToast } from '../components/ui/Toast'
+import { logger } from '../utils/logger'
 
 export default function OrderListPage() {
   const navigate = useNavigate()
@@ -26,10 +29,16 @@ export default function OrderListPage() {
   const platformAccountId = searchParams.get('platform_account_id') || ''
   const [exceptionMode, setExceptionMode] = useState(searchParams.get('exceptions') === '1')
   const [manualOpen, setManualOpen] = useState(false)
+  const [importHelpOpen, setImportHelpOpen] = useState(false)
+  const [importRows, setImportRows] = useState<ManualOrderCreate[]>([])
+  const [importFileName, setImportFileName] = useState('')
+  const [importResult, setImportResult] = useState<ManualOrderImportResult | null>(null)
+  const [importing, setImporting] = useState(false)
+  const toast = useToast()
   const platformStatusesQuery = usePlatformStatuses()
   const orderStatsQuery = useOrderStats()
 
-  const { data, isLoading, refetch } = useOrderList({
+  const orderListQuery = useOrderList({
     status: exceptionMode ? undefined : status || undefined,
     platform: platform || undefined,
     platform_account_id: platformAccountId || undefined,
@@ -38,6 +47,7 @@ export default function OrderListPage() {
     page_size: 20,
   })
 
+  const { data, isLoading, refetch } = orderListQuery
   const orders = data?.data ?? []
   const pagination = data?.meta ?? undefined
   const platformOptions = [
@@ -76,7 +86,7 @@ export default function OrderListPage() {
       key: 'source',
       header: '来源',
       width: '90px',
-      render: (row) => <Badge variant={row.source === 'manual' ? 'warning' : 'outline'}>{row.source === 'manual' ? '手工录入' : '平台数据'}</Badge>,
+      render: (row) => <Badge variant={row.source === 'manual' || row.source === 'manual_import' ? 'warning' : 'outline'}>{orderSourceLabel(row.source)}</Badge>,
     },
     {
       key: 'status',
@@ -175,18 +185,128 @@ export default function OrderListPage() {
           <h1 className="text-2xl font-bold text-[var(--color-fg)]">订单跟踪</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>跨平台统一订单管理</p>
         </div>
-        <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />手工创建订单</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setImportHelpOpen((value) => !value)}>CSV/Excel批量导入</Button>
+          <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />手工创建订单</Button>
+        </div>
       </div>
 
-      <OrderFulfillmentOverview
-        stats={orderStatsQuery.data?.data || null}
-        platformLabelMap={platformLabelMap}
-        onOpenExceptions={() => {
-          setExceptionMode(true)
-          setSearchParams(buildOrderSearchParams(true, platformAccountId, platform))
-          setPage(1)
-        }}
-      />
+      {importHelpOpen && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--color-fg)]">订单导入模板字段</h2>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">
+                  平台 Open API 未接通时，可先按模板整理 Shopee、TEMU、TikTok Shop 卖家后台导出的订单；当前支持 CSV 文件解析并写入本地订单，Excel 文件请先另存为 CSV 后导入。
+                </p>
+              </div>
+              <Badge variant={importRows.length ? 'success' : 'outline'}>
+                {importRows.length ? `已解析 ${importRows.length} 个订单` : 'CSV 本地导入'}
+              </Badge>
+            </div>
+            <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+              {[
+                'platform_account_id / merchant_order_number / ordered_at',
+                'buyer_name / shipping_address / logistics_channel / fulfillment_deadline_at',
+                'currency / total / shipping_fee / platform_fee / discount',
+                'payment_status / payment_method / fulfillment_status',
+                'items[].name / items[].sku / items[].quantity / items[].unit_price',
+                'notes / source_file / import_ref',
+              ].map((field) => (
+                <span key={field} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[var(--color-muted)]">
+                  {field}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <label className="text-xs font-medium text-[var(--color-fg)]">
+                  选择 CSV 文件
+                  <input
+                    className="mt-2 block w-full rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]"
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0]
+                      if (!file) return
+                      try {
+                        const text = await file.text()
+                        const parsed = parseManualOrderCsv(text)
+                        setImportRows(parsed)
+                        setImportFileName(file.name)
+                        setImportResult(null)
+                      } catch (error: any) {
+                        logger.error('parse manual order csv failed', error)
+                        toast.addToast('error', error?.message || 'CSV 解析失败，请检查表头和必填字段')
+                      }
+                    }}
+                  />
+                </label>
+                <Button
+                  disabled={!importRows.length || importing}
+                  onClick={async () => {
+                    if (!importRows.length) return
+                    setImporting(true)
+                    try {
+                      const response = await importManualOrders({
+                        rows: importRows,
+                        import_ref: `order-import-${Date.now()}`,
+                        source_file: importFileName || null,
+                      })
+                      setImportResult(response.data || null)
+                      refetch()
+                      orderStatsQuery.refetch()
+                      toast.addToast('success', `导入完成：新增 ${response.data?.created_count || 0} 单，跳过 ${response.data?.skipped_count || 0} 单`)
+                    } catch (error: any) {
+                      logger.error('import manual orders failed', error)
+                      toast.addToast('error', error?.response?.data?.detail || '订单导入失败')
+                    } finally {
+                      setImporting(false)
+                    }
+                  }}
+                >
+                  {importing ? '导入中...' : '提交导入'}
+                </Button>
+              </div>
+              {importResult && (
+                <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
+                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">接收 {importResult.received_count} 单</span>
+                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">新增 {importResult.created_count} 单</span>
+                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">跳过 {importResult.skipped_count} 单</span>
+                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">失败 {importResult.failed_count} 单</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {orderStatsQuery.isError ? (
+        <Card>
+          <CardContent className="pt-4">
+            <div
+              data-ui="order-stats-error"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">履约统计加载失败，无法判断当前平台/店铺的待发货、临近超期和售后风险。</span>
+              <Button size="sm" variant="secondary" onClick={() => orderStatsQuery.refetch()}>
+                重新加载履约统计
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <OrderFulfillmentOverview
+          stats={orderStatsQuery.data?.data || null}
+          platformLabelMap={platformLabelMap}
+          onOpenExceptions={() => {
+            setExceptionMode(true)
+            setSearchParams(buildOrderSearchParams(true, platformAccountId, platform))
+            setPage(1)
+          }}
+        />
+      )}
 
       <Card>
         <CardContent className="pt-4">
@@ -198,6 +318,17 @@ export default function OrderListPage() {
             currentModule="orders"
             clearHref="/orders"
           />
+          {orderListQuery.isError && (
+            <div
+              data-ui="order-list-error"
+              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">订单列表加载失败，当前筛选条件下的订单、履约异常和同步复盘暂不可用。</span>
+              <Button size="sm" variant="secondary" onClick={() => orderListQuery.refetch()}>
+                重新加载订单列表
+              </Button>
+            </div>
+          )}
           <div className="flex items-center gap-3 mb-4">
             <Select
               options={withAllOption('全部状态', orderStatusOptions)}
@@ -362,10 +493,125 @@ function buildOrderSearchParams(exceptionMode: boolean, platformAccountId: strin
   return params
 }
 
+function parseManualOrderCsv(csvText: string): ManualOrderCreate[] {
+  const rows = splitCsvRows(csvText.trim())
+  if (rows.length < 2) {
+    throw new Error('CSV 至少需要表头和一行订单数据')
+  }
+  const headers = rows[0].map((header) => header.trim())
+  const required = ['platform_account_id', 'merchant_order_number', 'ordered_at', 'currency', 'total', 'item_name', 'item_quantity', 'item_unit_price']
+  const missing = required.filter((field) => !headers.includes(field))
+  if (missing.length) {
+    throw new Error(`CSV 缺少必填字段：${missing.join(', ')}`)
+  }
+  const orders = new Map<string, ManualOrderCreate>()
+  rows.slice(1).forEach((values) => {
+    if (!values.some((value) => value.trim())) return
+    const row = Object.fromEntries(headers.map((header, index) => [header, values[index]?.trim() || ''])) as Record<string, string>
+    const key = `${row.platform_account_id}::${row.merchant_order_number}`
+    const item = {
+      name: row.item_name,
+      sku: row.item_sku || null,
+      quantity: toPositiveInt(row.item_quantity),
+      unit_price: toNonNegativeNumber(row.item_unit_price),
+    }
+    const existing = orders.get(key)
+    if (existing) {
+      existing.items.push(item)
+      return
+    }
+    orders.set(key, {
+      platform_account_id: row.platform_account_id,
+      merchant_order_number: row.merchant_order_number,
+      status: row.status || 'pending',
+      buyer_name: row.buyer_name || null,
+      shipping_address: row.shipping_address ? { raw: row.shipping_address, source: 'csv_import' } : null,
+      shipping_fee: toOptionalNumber(row.shipping_fee),
+      platform_fee: toOptionalNumber(row.platform_fee),
+      discount: toOptionalNumber(row.discount),
+      currency: (row.currency || 'CNY').toUpperCase(),
+      total: toNonNegativeNumber(row.total),
+      payment_status: row.payment_status || null,
+      payment_method: row.payment_method || null,
+      fulfillment_status: row.fulfillment_status || null,
+      fulfillment_deadline_at: row.fulfillment_deadline_at || null,
+      logistics_channel: row.logistics_channel || null,
+      ordered_at: row.ordered_at,
+      notes: row.notes || null,
+      items: [item],
+    })
+  })
+  return Array.from(orders.values())
+}
+
+function splitCsvRows(text: string): string[][] {
+  const rows: string[][] = []
+  let current = ''
+  let row: string[] = []
+  let inQuotes = false
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    const next = text[index + 1]
+    if (char === '"' && next === '"') {
+      current += '"'
+      index += 1
+      continue
+    }
+    if (char === '"') {
+      inQuotes = !inQuotes
+      continue
+    }
+    if (char === ',' && !inQuotes) {
+      row.push(current)
+      current = ''
+      continue
+    }
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') index += 1
+      row.push(current)
+      rows.push(row)
+      row = []
+      current = ''
+      continue
+    }
+    current += char
+  }
+  row.push(current)
+  rows.push(row)
+  return rows.filter((item) => item.some((value) => value.trim()))
+}
+
+function toOptionalNumber(value?: string) {
+  if (!value) return null
+  return toNonNegativeNumber(value)
+}
+
+function toNonNegativeNumber(value?: string) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 0) {
+    throw new Error(`数值字段不合法：${value || ''}`)
+  }
+  return number
+}
+
+function toPositiveInt(value?: string) {
+  const number = Number(value)
+  if (!Number.isInteger(number) || number < 1) {
+    throw new Error(`数量字段不合法：${value || ''}`)
+  }
+  return number
+}
+
 function orderListText(value?: string | null) {
   if (!value) return '待补'
   if (value === 'none') return '无'
   return value
+}
+
+function orderSourceLabel(value?: string | null) {
+  if (value === 'manual_import') return '批量导入'
+  if (value === 'manual') return '手工录入'
+  return '平台数据'
 }
 
 function reconciliationLabel(value?: string | null) {

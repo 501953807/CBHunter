@@ -114,7 +114,7 @@ async def admin_update_dict_item(
 ):
     old_item = await _get_sys_dict_item(db, item_id)
     if not old_item:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404)
     old_value = _sys_dict_snapshot(old_item)
     data = {
         k: v for k, v in {
@@ -127,7 +127,7 @@ async def admin_update_dict_item(
     }
     item = await update_sys_item(db, item_id, data)
     if not item:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404)
     await record_audit_event(
         db,
         user=admin,
@@ -149,11 +149,11 @@ async def admin_delete_dict_item(
 ):
     item = await _get_sys_dict_item(db, item_id)
     if not item:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404)
     old_value = _sys_dict_snapshot(item)
     ok = await delete_sys_item(db, item_id)
     if not ok:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404)
     await record_audit_event(
         db,
         user=admin,

@@ -188,7 +188,7 @@ def stage_dwell_stats(items: list[dict], reference_at: datetime | None = None) -
     if not waits:
         return {
             "avg_wait_hours": None,
-            "avg_wait_label": "更新时间待补",
+            "avg_wait_label": "--",
             "max_wait_hours": None,
             "max_wait_item": None,
         }

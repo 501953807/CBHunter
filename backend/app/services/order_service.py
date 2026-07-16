@@ -5,12 +5,12 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 
 from app.models.order import Order
-from app.models.order_item import OrderItem
 from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.platform_account import PlatformAccount
 from app.models.sync_log import SyncLog
-from app.schemas.order import ManualOrderCreate, OrderStatusUpdate, OrderNoteUpdate
-from app.integrations.status import PLATFORM_CONNECTORS, get_platform_connector_status
+from app.schemas.order import OrderStatusUpdate, OrderNoteUpdate
+from app.services.dictionary import get_all_dicts
+from app.services.order_manual_service import create_manual_order, import_manual_orders
 from app.services.store_access_service import list_accessible_store_ids_for_user_id
 
 
@@ -105,69 +105,6 @@ async def get_order(db: AsyncSession, order_id: str, user_id: str) -> Optional[O
         .where(Order.id == order_id, Order.platform_account_id.in_(store_ids))
     )
     return result.scalar_one_or_none()
-
-
-async def create_manual_order(
-    db: AsyncSession,
-    user_id: str,
-    request: ManualOrderCreate,
-) -> Order:
-    store_ids = await list_accessible_store_ids_for_user_id(db, user_id)
-    account = (await db.execute(select(PlatformAccount).where(
-        PlatformAccount.id == request.platform_account_id,
-        PlatformAccount.id.in_(store_ids),
-        PlatformAccount.is_active.is_(True),
-    ))).scalar_one_or_none()
-    if not account:
-        raise ValueError("platform_account_not_accessible")
-    if account.platform not in PLATFORM_CONNECTORS:
-        raise ValueError("platform_not_supported")
-    if get_platform_connector_status(account)["sync_ready"]:
-        raise ValueError("manual_order_disabled_for_connected_store")
-
-    manual_id = f"manual:{request.merchant_order_number.strip()}"
-    duplicate = await db.scalar(select(func.count(Order.id)).where(
-        Order.platform_account_id == account.id,
-        Order.platform_order_id == manual_id,
-    ))
-    if duplicate:
-        raise ValueError("manual_order_number_exists")
-
-    item_subtotal = round(sum(item.quantity * item.unit_price for item in request.items), 2)
-    order = Order(
-        user_id=user_id,
-        platform_account_id=account.id,
-        platform_order_id=manual_id,
-        order_number=request.merchant_order_number.strip(),
-        status=request.status,
-        buyer_name=request.buyer_name,
-        subtotal=item_subtotal,
-        total=request.total,
-        currency=request.currency.upper(),
-        notes=request.notes,
-        ordered_at=request.ordered_at,
-        platform_data={
-            "source": "manual",
-            "source_label": "手工录入",
-            "connector_status": get_platform_connector_status(account)["connection_status"],
-        },
-    )
-    db.add(order)
-    await db.flush()
-    db.add_all([
-        OrderItem(
-            order_id=order.id,
-            name=item.name.strip(),
-            sku=item.sku.strip() if item.sku else None,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            total_price=round(item.quantity * item.unit_price, 2),
-            platform_data={"source": "manual"},
-        )
-        for item in request.items
-    ])
-    await db.commit()
-    return await get_order(db, order.id, user_id)
 
 
 def build_order_fee_context(order: Order) -> dict:
@@ -528,10 +465,48 @@ def _fee_component(code: str, amount: float | None, currency: str, direction: st
 
 
 async def update_order_status(db: AsyncSession, order: Order, req: OrderStatusUpdate):
+    await _validate_order_status_transition(db, order.status, req)
+    old_status = order.status
+    transition_type = "manual_override" if req.manual_override else "state_machine"
     order.status = req.status
+    order.platform_data = {
+        **(order.platform_data or {}),
+        "status_history": [
+            *((order.platform_data or {}).get("status_history") or []),
+            {
+                "from": old_status,
+                "to": req.status,
+                "transition_type": transition_type,
+                "reason": req.reason or "",
+                "changed_at": datetime.now(timezone.utc).isoformat(),
+            },
+        ],
+    }
     await db.commit()
     await db.refresh(order)
     return order
+
+
+async def _validate_order_status_transition(db: AsyncSession, current_status: str, req: OrderStatusUpdate) -> None:
+    dictionaries = await get_all_dicts(db)
+    statuses = dictionaries.get("order_statuses") or []
+    status_by_id = {item.get("id"): item for item in statuses if item.get("id")}
+    if not status_by_id:
+        raise ValueError("order_status_dictionary_missing")
+    if req.status not in status_by_id:
+        raise ValueError("unknown_order_status")
+    if req.status == current_status:
+        return
+    if req.manual_override:
+        if not (req.reason or "").strip():
+            raise ValueError("manual_override_reason_required")
+        return
+    current = status_by_id.get(current_status)
+    if not current:
+        raise ValueError("current_order_status_unknown")
+    allowed_next = current.get("allowed_next") or []
+    if req.status not in allowed_next:
+        raise ValueError("invalid_order_status_transition")
 
 
 async def update_order_notes(db: AsyncSession, order: Order, req: OrderNoteUpdate):

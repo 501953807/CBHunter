@@ -88,6 +88,7 @@ export function BatchPublishSelectStep({
   const mediaBlockedRows = readinessRows.filter(row => !row.mediaReady).length
   const fieldBlockedRows = readinessRows.filter(row => !row.fieldReady).length
   const targetBlockedRows = readinessRows.filter(row => !row.targetReady).length
+  const previewDisabledReason = buildPreviewDisabledReason(loading, selectedItems, selectedPlatforms, selectedMarkets, selectedStores)
   const platformRequirementsForSelection = (item: PublishableItem) => {
     if (selectedPlatformsList.length === 0) {
       return [{ platform: '', label: '未选择平台', requirements: item.platformRequirements }]
@@ -101,7 +102,7 @@ export function BatchPublishSelectStep({
 
   return (
     <section aria-label="发布队列主工作台" className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <Card>
+      <Card id="target-store-panel">
         <CardContent className="space-y-4 pt-4">
           <div className="flex items-center gap-2 mb-3">
             <Package className="w-4 h-4 text-[var(--color-primary)]" />
@@ -152,14 +153,7 @@ export function BatchPublishSelectStep({
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex min-w-0 gap-2">
-                      {item.imageUrl && (
-                        <img
-                          src={productImageSrc(item.imageUrl)}
-                          alt={item.name}
-                          className="h-12 w-12 shrink-0 rounded-lg border object-cover"
-                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
-                        />
-                      )}
+                      {item.imageUrl && <PublishImageHoverPreview imageUrl={item.imageUrl} name={item.name} />}
                       <div className="min-w-0">
                         <p className="line-clamp-2 font-medium text-[var(--color-fg)]">{item.name || '未命名'}</p>
                         <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">{item.sourceType === 'product' ? '商品库' : '品源库'}</p>
@@ -190,15 +184,16 @@ export function BatchPublishSelectStep({
                   <td className="min-w-72 px-3 py-3">
                     <div className="space-y-2" aria-label="多平台字段组">
                       {requirementsBySelection.map(({ platform, label, requirements }) => (
-                        <div key={platform || 'unselected'} className="rounded-lg border border-[var(--color-border)] p-2">
-                          <p className="mb-1 text-[11px] font-semibold text-[var(--color-fg)]">{label}</p>
-                          <PlatformFieldGroupSummary requirements={requirements} compact maxGroups={2} />
-                        </div>
+                        <PlatformFieldGroupDisclosure
+                          key={platform || 'unselected'}
+                          label={label}
+                          requirements={requirements}
+                        />
                       ))}
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <PublishGateStack readiness={readiness} disabledReason={item.disabledReason} />
+                    <PublishGateStack item={item} readiness={readiness} disabledReason={item.disabledReason} />
                   </td>
                 </tr>
               )
@@ -323,6 +318,7 @@ export function BatchPublishSelectStep({
         <button
           onClick={onPreview}
           disabled={loading || selectedItems.size === 0 || selectedPlatforms.size === 0 || selectedMarkets.size === 0 || selectedStores.size === 0}
+          title={previewDisabledReason}
           className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
           style={{ background: 'var(--gradient-accent)' }}
         >
@@ -374,14 +370,58 @@ function PublishGateCard({ label, value, detail, ok }: { label: string; value: s
   )
 }
 
-function PublishGateStack({ readiness, disabledReason }: { readiness: ReturnType<typeof publishReadiness>; disabledReason?: string }) {
+function PublishImageHoverPreview({ imageUrl, name }: { imageUrl: string; name: string }) {
+  const src = productImageSrc(imageUrl)
+  return (
+    <div data-ui="publish-image-hover-preview" className="group relative h-12 w-12 shrink-0">
+      <img
+        src={src}
+        alt={name}
+        className="h-12 w-12 rounded-lg border object-cover"
+        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+      />
+      <div className="pointer-events-none absolute left-0 top-0 z-30 hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-lg)] group-hover:block">
+        <img
+          src={src}
+          alt={`${name} 放大预览`}
+          className="h-24 w-24 origin-top-left scale-100 rounded-lg object-cover transition-transform duration-150 group-hover:scale-[2.8]"
+        />
+      </div>
+    </div>
+  )
+}
+
+function PlatformFieldGroupDisclosure({ label, requirements }: { label: string; requirements?: PlatformRequirementsLike }) {
+  const requiredCount = requirements?.required_attributes?.length ?? 0
+  const groupCount = Array.isArray(requirements?.field_groups) ? requirements.field_groups.length : 0
+  return (
+    <details className="rounded-lg border border-[var(--color-border)] p-2" aria-label="字段组默认折叠">
+      <summary className="cursor-pointer list-none text-[11px] font-semibold text-[var(--color-fg)]">
+        <span className="inline-flex w-full items-center justify-between gap-2">
+          <span>{label}</span>
+          <span className={requiredCount ? 'text-[var(--color-warning)]' : 'text-[var(--color-muted)]'}>
+            {groupCount} 组 · 必填 {requiredCount}
+          </span>
+        </span>
+      </summary>
+      <div className="mt-2">
+        <PlatformFieldGroupSummary requirements={requirements} compact maxGroups={2} />
+      </div>
+    </details>
+  )
+}
+
+function PublishGateStack({ item, readiness, disabledReason }: { item: PublishableItem; readiness: ReturnType<typeof publishReadiness>; disabledReason?: string }) {
   if (disabledReason) return <span className="text-[var(--color-warning)]">{disabledReason}</span>
   return (
     <div className="grid gap-1" aria-label="发布门禁状态">
       <GatePill label="媒体" ok={readiness.mediaReady} detail={readiness.mediaLabel} />
+      {!readiness.mediaReady && <RepairAction href={repairHref(item, 'media')} label="补齐图片" />}
       <GatePill label="字段" ok={readiness.fieldReady} detail={readiness.missingAttrs.length ? `缺 ${readiness.missingAttrs.length}` : '通过'} />
+      {!readiness.fieldReady && <RepairAction href={repairHref(item, 'fields')} label="补齐字段" />}
       <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '可试算' : '待补'} />
       <GatePill label="目标" ok={readiness.targetReady} detail={readiness.targetReady ? '已选' : '待选'} />
+      {!readiness.targetReady && <RepairAction href="#target-store-panel" label="补齐目标" />}
     </div>
   )
 }
@@ -423,6 +463,37 @@ function GatePill({ label, ok, detail }: { label: string; ok: boolean; detail: s
       <span>{detail}</span>
     </span>
   )
+}
+
+function RepairAction({ href, label }: { href: string; label: string }) {
+  return (
+    <a href={href} className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--color-primary)] px-2 py-0.5 text-[11px] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]">
+      {label}<ArrowRight className="h-3 w-3" />
+    </a>
+  )
+}
+
+function repairHref(item: PublishableItem, section: 'media' | 'fields') {
+  const targetSection = section === 'media' ? 'media' : 'attributes'
+  if (item.sourceType === 'product') {
+    return `/products/${encodeURIComponent(item.id)}/edit?listing_section=${targetSection}`
+  }
+  return `/content?sourcing_item_id=${encodeURIComponent(item.id)}&listing_section=${targetSection}`
+}
+
+function buildPreviewDisabledReason(
+  loading: boolean,
+  selectedItems: Set<string>,
+  selectedPlatforms: Set<string>,
+  selectedMarkets: Set<string>,
+  selectedStores: Set<string>,
+) {
+  if (loading) return '正在生成预览'
+  if (selectedItems.size === 0) return '请选择至少一个商品'
+  if (selectedPlatforms.size === 0) return '请选择至少一个目标平台'
+  if (selectedMarkets.size === 0) return '请选择至少一个目标市场'
+  if (selectedStores.size === 0) return '请选择至少一个目标店铺'
+  return '生成 Listing 预览'
 }
 
 function hasAttributeValue(value: unknown) {

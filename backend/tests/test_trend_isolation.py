@@ -10,7 +10,7 @@ from app.models import all_models  # noqa: F401
 from app.models.captured_keyword import CapturedKeyword
 from app.models.trend_keyword import TrendKeyword
 from app.models.user import User
-from app.api.v1.discovery import list_trends
+from app.api.v1.discovery_trends import list_trends
 from app.services.captured_keyword_service import delete_captured_keyword, get_captured_keywords
 from app.services.trend_persistence import replace_trend_data
 from app.services.trend_service import delete_trend_keyword, get_trends_by_category

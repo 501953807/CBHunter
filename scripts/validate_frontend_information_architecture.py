@@ -125,6 +125,7 @@ REPORT_DISPLAY = (ROOT / "frontend/src/features/reports/ReportDisplay.tsx").read
 REPORT_PANELS = (ROOT / "frontend/src/features/reports/ReportsPanels.tsx").read_text(encoding="utf-8")
 REPORT_TYPES = (ROOT / "frontend/src/types/reports.ts").read_text(encoding="utf-8")
 GROWTH_ENGINE_PAGE = (ROOT / "frontend/src/pages/GrowthEnginePage.tsx").read_text(encoding="utf-8")
+AI_SUGGESTIONS_PAGE = (ROOT / "frontend/src/pages/AISuggestionsPage.tsx").read_text(encoding="utf-8")
 OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
 COMPETITOR_MONITOR_PAGE = (ROOT / "frontend/src/pages/CompetitorMonitorPage.tsx").read_text(encoding="utf-8")
 AUDIT_LOG_TAB = (ROOT / "frontend/src/pages/settings/AuditLogTab.tsx").read_text(encoding="utf-8")
@@ -605,6 +606,11 @@ def validate() -> list[str]:
     for required in ("useSearchParams", "content_item_id", "initialProductId", "matchesPricingProduct"):
         if required not in SMART_PRICING_PAGE:
             errors.append(f"pricing page must auto-select content item from route parameter: {required}")
+    for required in ("useQuery", "queryKey: ['pricing-workbench']", "pricingWorkbenchQuery", "data-ui=\"pricing-workbench-error\"", "重新加载定价队列"):
+        if required not in SMART_PRICING_PAGE:
+            errors.append(f"AUDIT-P2-03 pricing page must use React Query boundary and visible workbench error state: {required}")
+    if "getPricingWorkbench" not in PRICING_API or "client.get<ApiResponse<PricingWorkbench>>" not in PRICING_API:
+        errors.append("AUDIT-P2-03 pricing workbench must stay behind api/pricing.ts encapsulation")
     for required in ("nextRoute.startsWith('/pricing')", "content_item_id", "product_id: productId || contentItemId"):
         if required not in BUSINESS_FLOW_ROUTES:
             errors.append(f"business flow route builder must carry product_id into pricing route: {required}")
@@ -826,6 +832,9 @@ def validate() -> list[str]:
     for required in ("aria-label=\"内容商品队列分页\"", "queuePage", "visibleItems", "getPageSize", "上一页", "下一页"):
         if required not in CONTENT_PRODUCT_QUEUE:
             errors.append(f"content product queue must paginate dense listing workbench items: {required}")
+    for required in ("useQuery", "contentWorkbenchQuery", "queryKey: ['content-workbench']", "data-ui=\"content-workbench-error\"", "重新加载内容商品队列"):
+        if required not in CONTENT_PRODUCT_QUEUE:
+            errors.append(f"AUDIT-P2-03 content product queue must use React Query and visible error recovery: {required}")
     if "证据 {item.evidence_summary.present}" in CONTENT_PRODUCT_QUEUE:
         errors.append("content product queue must use user-facing 资料 wording instead of 证据 in the product list")
     for page_name, page_content in (
@@ -947,6 +956,12 @@ def validate() -> list[str]:
     for required in ("平台店铺商品", "PlatformStoreProductsPanel", "平台商品同步", "店铺归属", "平台店铺商品库", "基础商品资料", "searchParams.get('tab') === 'master'"):
         if required not in PRODUCT_LIST_PAGE + PLATFORM_STORE_PRODUCTS_PANEL:
             errors.append(f"product module must expose platform store product inventory: {required}")
+    for required in ("productListQuery", "productListQuery.isError", "data-ui=\"product-list-error\"", "重新加载商品列表"):
+        if required not in PRODUCT_LIST_PAGE:
+            errors.append(f"AUDIT-P2-03 product list page must expose visible React Query error recovery: {required}")
+    for required in ("productsQuery.isError", "data-ui=\"platform-store-products-error\"", "重新加载平台店铺商品"):
+        if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+            errors.append(f"AUDIT-P2-03 platform store products panel must expose visible React Query error recovery: {required}")
     for required in ("aria-label=\"平台店铺商品库总览\"", "SummaryCard", "覆盖店铺", "图片不足", "SKU/规格"):
         if required not in PLATFORM_STORE_PRODUCTS_PANEL:
             errors.append(f"platform store products must expose store/listing summary cards: {required}")
@@ -1253,6 +1268,9 @@ def validate() -> list[str]:
     for required in ("订单履约运营总览", "OrderFulfillmentOverview", "useOrderStats", "/orders/stats", "pending_shipment", "due_soon", "overdue", "store_breakdown", "缺失字段进入数据缺口"):
         if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_SERVICE + USE_ORDERS_HOOK:
             errors.append(f"orders page must expose fulfillment operating overview: {required}")
+    for required in ("orderListQuery", "orderStatsQuery.isError", "data-ui=\"order-list-error\"", "data-ui=\"order-stats-error\"", "重新加载订单列表", "重新加载履约统计"):
+        if required not in ORDER_LIST_PAGE:
+            errors.append(f"AUDIT-P2-03 orders page must expose visible React Query error recovery: {required}")
     for required in ("useOrder", "order.after_sales_status", "履约异常原因", "不生成模拟售后记录"):
         if required not in AFTER_SALES_PAGE:
             errors.append(f"after-sales page must show linked order context without fake platform tickets: {required}")
@@ -1318,6 +1336,19 @@ def validate() -> list[str]:
     ):
         if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_BACKEND_API:
             errors.append(f"finance store drilldown must filter summary, traceback and cash balance, not only ledger rows: {required}")
+    for required in (
+        "useQuery",
+        "financeSummaryQuery",
+        "financeTracebackQuery",
+        "queryKey: ['finance-summary'",
+        "queryKey: ['finance-traceback'",
+        "data-ui=\"finance-summary-error\"",
+        "data-ui=\"finance-traceback-error\"",
+        "重新加载财务汇总",
+        "重新加载利润回溯",
+    ):
+        if required not in FINANCE_PAGE:
+            errors.append(f"AUDIT-P2-03 finance page must use React Query boundaries and visible error recovery: {required}")
     for required in ("平台账单批量导入", "importPlatformBills", "/finance/platform-bills/import", "import_ref 用于去重"):
         if required not in FINANCE_PAGE + FINANCE_API:
             errors.append(f"finance page must expose platform bill batch import workflow: {required}")
@@ -1336,6 +1367,59 @@ def validate() -> list[str]:
     for required in ("商品运营诊断", "getProductOperationMetrics", "/operations/product-metrics", "conversion_rate_pct", "生成运营台账", "createProductOperationAction", "/operations/product-actions"):
         if required not in GROWTH_ENGINE_PAGE + OPERATIONS_API:
             errors.append(f"growth engine must expose product-level operation metrics and diagnostics: {required}")
+    for required in (
+        "useQuery",
+        "growthOpportunityQuery",
+        "growthMetricsQuery",
+        "queryKey: ['growth-opportunities']",
+        "queryKey: ['growth-product-metrics']",
+        "data-ui=\"growth-opportunity-error\"",
+        "data-ui=\"growth-metrics-error\"",
+        "重新加载增长机会",
+        "重新加载运营指标",
+    ):
+        if required not in GROWTH_ENGINE_PAGE:
+            errors.append(f"AUDIT-P2-03 growth engine must use React Query boundaries and visible error recovery: {required}")
+    for required in (
+        "reportDailyQuery",
+        "reportWeeklyQuery",
+        "reportMonthlyQuery",
+        "reportSubscriptionsQuery",
+        "data-ui=\"report-daily-error\"",
+        "data-ui=\"report-weekly-error\"",
+        "data-ui=\"report-monthly-error\"",
+        "data-ui=\"report-subscriptions-error\"",
+        "重新加载日报",
+        "重新加载周报",
+        "重新加载月报",
+        "重新加载订阅",
+    ):
+        if required not in REPORT_PANELS:
+            errors.append(f"AUDIT-P2-03 reports center must expose visible React Query error recovery: {required}")
+    for required in (
+        "aiSuggestionsQuery",
+        "aiSuggestionsQuery.isError",
+        "data-ui=\"ai-suggestions-error\"",
+        "重新加载 AI 建议",
+    ):
+        if required not in AI_SUGGESTIONS_PAGE:
+            errors.append(f"AUDIT-P2-03 AI suggestions page must expose visible React Query error recovery: {required}")
+    for required in (
+        "competitorDashboardQuery",
+        "competitorDashboardQuery.isError",
+        "data-ui=\"competitor-dashboard-error\"",
+        "重新加载竞品监控",
+    ):
+        if required not in COMPETITOR_MONITOR_PAGE:
+            errors.append(f"AUDIT-P2-03 competitor monitor page must expose visible React Query error recovery: {required}")
+    for required in (
+        "auditLogsQuery",
+        "auditLogsQuery.isError",
+        "data-ui=\"audit-log-error\"",
+        "重新加载审计日志",
+    ):
+        if required not in AUDIT_LOG_TAB:
+            errors.append(f"AUDIT-P2-03 audit log tab must expose visible React Query error recovery: {required}")
 
     return errors
 

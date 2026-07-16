@@ -18,6 +18,7 @@ from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.models.product import Product
 from app.models.sourcing_item import SourcingItem
+from app.models.system_config import SystemConfig
 from app.models.sys_dict import SysDictItem
 from app.models.user import User
 from app.schemas.risk_control import RiskStateUpdateRequest
@@ -37,13 +38,59 @@ from app.services.business_flow_task_service import (
 )
 from app.services.cockpit_service import _window, get_operating_cockpit
 from app.services.risk_control_action_service import create_operation_record_from_risk
-from app.services.risk_control_service import get_risk_control_overview, get_risk_event_audit, update_risk_event_state
+from app.services.risk_control_service import _risk_location_gap_queue, get_risk_control_overview, get_risk_event_audit, update_risk_event_state
 
 
 def test_cockpit_window_displays_inclusive_end_date():
     start = datetime(2026, 6, 15, tzinfo=timezone.utc)
     end_exclusive = datetime(2026, 7, 15, tzinfo=timezone.utc)
     assert _window(start, end_exclusive) == "2026-06-15T00:00:00+00:00 至 2026-07-14T23:59:59.999999+00:00"
+
+
+def test_risk_location_gap_queue_merges_unlocated_platform_store_market():
+    queue = _risk_location_gap_queue([
+        {
+            "id": "risk-no-platform",
+            "title": "缺平台风险",
+            "type": "business",
+            "severity": "warning",
+            "platform": "待定位平台",
+            "account_name": "待定位店铺",
+            "market": None,
+            "route": "/finance",
+        },
+        {
+            "id": "risk-no-store",
+            "title": "缺店铺风险",
+            "type": "currency",
+            "severity": "critical",
+            "platform": "shopee",
+            "platform_account_id": None,
+            "account_name": "待定位店铺",
+            "market": "MY",
+            "route": "/orders",
+        },
+        {
+            "id": "risk-no-market",
+            "title": "缺市场风险",
+            "type": "inventory",
+            "severity": "warning",
+            "platform": "tiktok",
+            "platform_account_id": "store-1",
+            "account_name": "TikTok 店铺",
+            "market": "unknown",
+            "route": "/products",
+        },
+    ])
+
+    assert [item["gap_key"] for item in queue] == ["platform", "store", "market"]
+    assert queue[0]["risk_count"] == 1
+    assert queue[0]["action_label"] == "补齐平台归属"
+    assert queue[0]["route"] == "/platforms"
+    assert queue[1]["action_label"] == "补齐店铺归属"
+    assert queue[1]["critical"] == 1
+    assert queue[2]["action_label"] == "补齐目标市场"
+    assert queue[2]["sample_risks"][0]["title"] == "缺市场风险"
 
 
 def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):
@@ -1230,6 +1277,7 @@ def test_risk_control_persists_handling_state_and_audit(tmp_path):
 
             overview = await get_risk_control_overview(session, user.id)
             risk_id = overview["risks"][0]["id"]
+            pending_risk = overview["risks"][0]
             radar_inventory = next(item for item in overview["risk_radar"] if item["key"] == "inventory")
             heatmap_inventory = next(item for item in overview["risk_heatmap"] if item["category"] == "inventory")
             updated = await update_risk_event_state(
@@ -1250,6 +1298,11 @@ def test_risk_control_persists_handling_state_and_audit(tmp_path):
 
         assert updated["status"] == "processing"
         assert overview["assessment_status"] == "attention"
+        assert overview["risk_sla_templates"]["inventory"]["critical"] == 24
+        assert pending_risk["response_deadline_at"]
+        assert pending_risk["sla_template_key"] == "inventory"
+        assert 0 < pending_risk["sla_hours"] <= 24
+        assert pending_risk["remaining_time_label"].startswith("剩余")
         assert radar_inventory["active_count"] == 1
         assert radar_inventory["critical"] == 1
         assert radar_inventory["score"] > 0
@@ -1266,5 +1319,47 @@ def test_risk_control_persists_handling_state_and_audit(tmp_path):
         assert "补货完成" in refreshed["review_records"][0]["note"]
         assert audit and audit[0]["action"] == "risk_closed"
         assert audit[0]["resource_id"] == risk_id
+
+    asyncio.run(run_test())
+
+
+def test_risk_control_reads_sla_templates_from_system_config(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'risk-sla-config.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            user = User(id="risk-sla-user", username="admin", email="risk-sla@example.com", hashed_password="x")
+            product = Product(user_id=user.id, sku="SKU-SLA", name="SLA商品")
+            session.add_all([user, product])
+            await session.flush()
+            rule = InventoryAlertRule(
+                user_id=user.id, product_id=product.id, sku="SKU-SLA",
+                product_name="SLA商品", safety_stock=10, severity="critical",
+            )
+            session.add(rule)
+            await session.flush()
+            session.add_all([
+                InventoryAlertLog(
+                    rule_id=rule.id, user_id=user.id, product_id=product.id, sku="SKU-SLA",
+                    product_name="SLA商品", current_stock=1, threshold=10,
+                    severity="critical", status="open",
+                ),
+                SystemConfig(
+                    key="risk.sla_templates",
+                    label="风险 SLA 模板",
+                    value='{"inventory":{"critical":8,"warning":48,"info":96},"business":{"critical":24,"warning":72,"info":120}}',
+                ),
+            ])
+            await session.commit()
+
+            overview = await get_risk_control_overview(session, user.id)
+        await engine.dispose()
+
+        risk = next(item for item in overview["risks"] if item["type"] == "inventory")
+        assert overview["risk_sla_templates"]["inventory"]["critical"] == 8
+        assert risk["sla_template_key"] == "inventory"
+        assert 0 < risk["sla_hours"] <= 8
 
     asyncio.run(run_test())

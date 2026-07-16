@@ -45,9 +45,9 @@ async def radar_search(
 ):
     """Search Shopee for keyword competition data."""
     if not keywords:
-        raise HTTPException(400, "请提供至少一个关键词")
+        raise HTTPException(status_code=400, detail="请提供至少一个关键词")
     if len(keywords) > 20:
-        raise HTTPException(400, "单次最多分析 20 个关键词")
+        raise HTTPException(status_code=400, detail="单次最多分析 20 个关键词")
 
     results = await search_shopee_keywords(db, keywords, market)
     usable = [item for item in results if not item.get("error")]
@@ -175,7 +175,7 @@ async def create_or_update_fee(
                 new_value={"template": template, "missing_field": field},
                 detail="智能引擎费率模板保存失败：缺少必填字段",
             )
-            raise HTTPException(400, f"缺少必填字段: {field}")
+            raise HTTPException(status_code=400, detail=f"缺少必填字段: {field}")
 
     existing_result = await db.execute(
         select(FeeTemplate).where(
@@ -197,7 +197,7 @@ async def create_or_update_fee(
             new_value={"template": template, "error": str(exc)},
             detail="智能引擎费率模板保存失败：配置不完整",
         )
-        raise HTTPException(400, str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await record_audit_event(
         db,
         user=admin,

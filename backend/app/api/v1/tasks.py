@@ -85,7 +85,7 @@ async def toggle_task(
     scheduler = _get_scheduler()
     job = scheduler.get_job(task_id)
     if not job:
-        raise HTTPException(404, f"任务 '{task_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"任务 '{task_id}' 不存在")
     old_enabled = job.next_run_time is not None
 
     if req.enabled:
@@ -117,11 +117,11 @@ async def update_task_trigger(
 ):
     """Update an interval task trigger."""
     if req.interval_seconds < 60 or req.interval_seconds > 31 * 24 * 60 * 60:
-        raise HTTPException(400, "任务间隔必须在 60 秒至 31 天之间")
+        raise HTTPException(status_code=400, detail="任务间隔必须在 60 秒至 31 天之间")
     scheduler = _get_scheduler()
     job = scheduler.get_job(task_id)
     if not job:
-        raise HTTPException(404, f"任务 '{task_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"任务 '{task_id}' 不存在")
     old_trigger = str(job.trigger)
     scheduler.reschedule_job(task_id, trigger="interval", seconds=req.interval_seconds)
     logger.info("Task '%s' interval updated to %s seconds", task_id, req.interval_seconds)
@@ -148,7 +148,7 @@ async def trigger_task(
     scheduler = _get_scheduler()
     job = scheduler.get_job(task_id)
     if not job:
-        raise HTTPException(404, f"任务 '{task_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"任务 '{task_id}' 不存在")
 
     try:
         await job.func()
@@ -174,7 +174,7 @@ async def trigger_task(
             new_value={"status": "failed", "error": str(e)},
             detail="手工执行后台任务失败",
         )
-        raise HTTPException(500, f"任务执行失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"任务执行失败: {str(e)}")
 
 
 @router.get("/logs", response_model=ApiResponse)
@@ -210,4 +210,4 @@ async def get_task_logs(
         )
     except Exception as exc:
         logger.error("Task log query failed: %s", exc)
-        raise HTTPException(500, "后台任务日志读取失败") from exc
+        raise HTTPException(status_code=500, detail="后台任务日志读取失败") from exc

@@ -101,17 +101,3 @@ app.add_middleware(
 app.include_router(api_router)
 app.include_router(health_router)
 register_exception_handlers(app)
-
-
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "data": None,
-            "meta": None,
-            "error": {"code": "INTERNAL_ERROR", "message": "服务器内部错误，请稍后重试"},
-        },
-    )

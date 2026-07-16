@@ -47,6 +47,7 @@ output/
 .claude/
 .codex/
 .agents/
+.codegraph/
 
 # Serena
 .serena/
@@ -56,6 +57,14 @@ docs/
 AGENTS.md
 CLAUDE.md
 README.md
+README
+README*.md
 design-qa.md
 .env.example
 .mcp.json
+*说明*.md
+*方案*.md
+*规划*.md
+*报告*.md
+*审计*.md
+*测试*.md

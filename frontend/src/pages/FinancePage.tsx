@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, TrendingDown, AlertTriangle, ShieldCheck, Wallet, Banknote } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '../components/ui/Card'
 import { Tabs } from '../components/ui/Tabs'
@@ -8,14 +9,11 @@ import {
   importPlatformBills,
   syncPlatformBills,
   type FinancePeriod,
-  type FinanceSummary,
-  type FinanceTraceback,
   type PlatformBillImportRecord,
 } from '../api/finance'
 import { FinanceLedgerPanel } from '../features/finance/FinanceLedgerPanel'
 import { logger } from '../utils/logger'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
-import type { ApiResponse } from '../types/common'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfig } from '../hooks/useConfig'
 import { usePlatformStatuses } from '../hooks/usePlatforms'
@@ -28,15 +26,46 @@ const PERIOD_TABS = [
   { id: 'monthly', label: '月报' },
 ]
 
+const PLATFORM_BILL_JSON_EXAMPLE = JSON.stringify([
+  {
+    import_ref: 'MS-BILL-ORDER-001',
+    entry_type: 'sales_income',
+    amount_rmb: 218.5,
+    order_id: 'ORDER-SG-20260716-001',
+    platform: 'tiktok_shop',
+    market: 'SG',
+    account_name: 'SG 主店',
+    product_name: '旅行收纳洗漱包',
+    description: 'TikTok Shop 订单收入',
+  },
+  {
+    import_ref: 'MS-BILL-FEE-001',
+    entry_type: 'platform_fee',
+    amount_rmb: 18.2,
+    order_id: 'ORDER-SG-20260716-001',
+    platform: 'tiktok_shop',
+    market: 'SG',
+    account_name: 'SG 主店',
+    description: '平台佣金和交易费',
+  },
+  {
+    import_ref: 'MS-BILL-CASH-001',
+    entry_type: 'cash_balance',
+    amount_rmb: 12680,
+    platform: 'tiktok_shop',
+    market: 'SG',
+    account_name: 'SG 主店',
+    description: '卖家钱包可用资金余额',
+  },
+], null, 2)
+
 export default function FinancePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const platformAccountId = searchParams.get('platform_account_id') || ''
+  const initialEntryType = searchParams.get('entry_type') || ''
+  const isCashBalancePrefill = initialEntryType === 'cash_balance'
   const [period, setPeriod] = useState<FinancePeriod>('daily')
-  const [summary, setSummary] = useState<FinanceSummary | null>(null)
-  const [traceback, setTraceback] = useState<FinanceTraceback | null>(null)
-  const [summaryEvidence, setSummaryEvidence] = useState<ApiResponse<FinanceSummary> | null>(null)
-  const [tracebackEvidence, setTracebackEvidence] = useState<ApiResponse<FinanceTraceback> | null>(null)
   const [billImportText, setBillImportText] = useState('')
   const [billImportMessage, setBillImportMessage] = useState('')
   const [billImporting, setBillImporting] = useState(false)
@@ -46,23 +75,22 @@ export default function FinancePage() {
   const { finance_entry_types, platforms, markets } = useConfig()
   const platformStatusQuery = usePlatformStatuses()
   const platformStatuses = platformStatusQuery.data?.data || []
-
-  useEffect(() => {
-    getFinanceSummary(period, { platform_account_id: platformAccountId || undefined })
-      .then(r => { setSummary(r.data || null); setSummaryEvidence(r) })
-      .catch(e => logger.error('Load finance summary failed', e))
-    getFinanceTraceback(period, { platform_account_id: platformAccountId || undefined })
-      .then(r => { setTraceback(r.data || null); setTracebackEvidence(r) })
-      .catch(e => logger.error('Load finance traceback failed', e))
-  }, [period, platformAccountId])
+  const financeSummaryQuery = useQuery({
+    queryKey: ['finance-summary', period, platformAccountId],
+    queryFn: () => getFinanceSummary(period, { platform_account_id: platformAccountId || undefined }),
+  })
+  const financeTracebackQuery = useQuery({
+    queryKey: ['finance-traceback', period, platformAccountId],
+    queryFn: () => getFinanceTraceback(period, { platform_account_id: platformAccountId || undefined }),
+  })
+  const summary = financeSummaryQuery.data?.data || null
+  const traceback = financeTracebackQuery.data?.data || null
+  const summaryEvidence = financeSummaryQuery.data || null
+  const tracebackEvidence = financeTracebackQuery.data || null
 
   const reloadSummary = () => {
-    getFinanceSummary(period, { platform_account_id: platformAccountId || undefined })
-      .then(r => { setSummary(r.data || null); setSummaryEvidence(r) })
-      .catch(e => logger.error('Reload finance summary failed', e))
-    getFinanceTraceback(period, { platform_account_id: platformAccountId || undefined })
-      .then(r => { setTraceback(r.data || null); setTracebackEvidence(r) })
-      .catch(e => logger.error('Reload finance traceback failed', e))
+    financeSummaryQuery.refetch().catch(e => logger.error('Reload finance summary failed', e))
+    financeTracebackQuery.refetch().catch(e => logger.error('Reload finance traceback failed', e))
   }
 
   const handlePlatformBillImport = async () => {
@@ -130,6 +158,11 @@ export default function FinancePage() {
     }
   }
 
+  const fillBillImportExample = () => {
+    setBillImportText(PLATFORM_BILL_JSON_EXAMPLE)
+    setBillImportMessage('已填入平台账单 JSON 示例，请按真实平台导出数据修改后再导入。')
+  }
+
   const totalRevenue = summary?.total_revenue_rmb ?? null
   const totalCost = summary?.total_cost_rmb ?? null
   const netProfit = summary?.net_profit_rmb ?? null
@@ -139,6 +172,12 @@ export default function FinancePage() {
   const settlement = summary?.platform_settlement
   const movementTotals = Object.entries(settlement?.movement_totals || {}).filter(([, value]) => Number(value || 0) > 0)
   const dataRisks = summary?.risk_signals || []
+  const financeTrendPoints = [
+    { label: '收入趋势', value: totalRevenue ?? 0, tone: 'var(--color-success)' },
+    { label: '成本趋势', value: totalCost ?? 0, tone: 'var(--color-danger)' },
+    { label: '利润趋势', value: netProfit ?? 0, tone: netProfit != null && netProfit < 0 ? 'var(--color-danger)' : 'var(--color-primary)' },
+    { label: '资金趋势', value: cashBalance ?? 0, tone: 'var(--color-info)' },
+  ]
 
   return (
     <div className="space-y-6">
@@ -155,6 +194,21 @@ export default function FinancePage() {
 
       <Tabs tabs={PERIOD_TABS} activeTab={period} onChange={(tabId) => setPeriod(tabId as FinancePeriod)} />
       <EvidenceBanner evidence={summaryEvidence} />
+      {financeSummaryQuery.isError && (
+        <div
+          data-ui="finance-summary-error"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+        >
+          <span className="text-[var(--color-danger)]">财务汇总加载失败，当前收入、成本、净利润和资金余额暂不可用。</span>
+          <button
+            type="button"
+            onClick={() => financeSummaryQuery.refetch()}
+            className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+          >
+            重新加载财务汇总
+          </button>
+        </div>
+      )}
 
       {/* Profit Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -206,6 +260,12 @@ export default function FinancePage() {
           </CardContent>
         </Card>
       </div>
+
+      <FinanceTrendSnapshot
+        periodLabel={PERIOD_TABS.find(item => item.id === period)?.label || '当前筛选'}
+        points={financeTrendPoints}
+        hasData={Boolean(summary?.entry_count)}
+      />
 
       <Card>
         <CardHeader>
@@ -259,6 +319,21 @@ export default function FinancePage() {
         </CardHeader>
         <CardContent>
           <EvidenceBanner evidence={tracebackEvidence} compact />
+          {financeTracebackQuery.isError && (
+            <div
+              data-ui="finance-traceback-error"
+              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">利润回溯加载失败，当前订单、商品和店铺利润拆解暂不可用。</span>
+              <button
+                type="button"
+                onClick={() => financeTracebackQuery.refetch()}
+                className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+              >
+                重新加载利润回溯
+              </button>
+            </div>
+          )}
           <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               ['订单', traceback?.summary.order_count ?? 0],
@@ -306,10 +381,15 @@ export default function FinancePage() {
 
       <FinanceLedgerPanel
         onLedgerChanged={reloadSummary}
-        initialEntryType={searchParams.get('entry_type') || ''}
+        initialEntryType={initialEntryType}
         initialOrderId={searchParams.get('order_id') || ''}
         initialPlatformAccountId={platformAccountId}
       />
+      {isCashBalancePrefill && (
+        <p className="rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-4 py-3 text-xs text-[var(--color-primary)]">
+          当前已定位到“补录资金余额”场景，真实台账补录表单已预填 entry_type=cash_balance；请录入对应平台店铺钱包或公司现金余额。
+        </p>
+      )}
 
       <Card>
         <CardHeader>
@@ -336,6 +416,21 @@ export default function FinancePage() {
                 <li>2. order_id、sourcing_item_id、account_name 用于订单、商品、店铺利润回溯。</li>
                 <li>3. entry_type 支持平台费、交易费、退款、提现、供应商付款和物流成本。</li>
               </ul>
+              <div className="mt-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-medium text-[var(--color-fg)]">平台账单 JSON 示例</p>
+                  <button
+                    type="button"
+                    onClick={fillBillImportExample}
+                    className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-primary)] hover:border-[var(--color-primary)]"
+                  >
+                    一键填入示例
+                  </button>
+                </div>
+                <pre className="mt-2 max-h-24 overflow-auto rounded bg-[var(--color-bg)] p-2 text-[10px] leading-relaxed text-[var(--color-muted)]">
+                  {PLATFORM_BILL_JSON_EXAMPLE}
+                </pre>
+              </div>
               <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
                 <p className="text-[11px] font-medium text-[var(--color-fg)]">Open API 同步</p>
                 <select
@@ -496,6 +591,82 @@ function financeEntryLabel(options: { id: string; label: string }[], key: string
 
 function labelFor(options: { id: string; label: string }[], key: string | null) {
   return key ? options.find(item => item.id === key)?.label || key : ''
+}
+
+function FinanceTrendSnapshot({
+  periodLabel,
+  points,
+  hasData,
+}: {
+  periodLabel: string
+  points: { label: string; value: number; tone: string }[]
+  hasData: boolean
+}) {
+  const maxAbs = Math.max(...points.map(point => Math.abs(point.value)), 1)
+  const chartWidth = 360
+  const chartHeight = 148
+  const step = chartWidth / Math.max(points.length - 1, 1)
+  const polyline = points
+    .map((point, index) => {
+      const x = index * step
+      const y = chartHeight - 20 - (Math.abs(point.value) / maxAbs) * (chartHeight - 44)
+      return `${x},${y}`
+    })
+    .join(' ')
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold text-[var(--color-fg)]">财务趋势快照</h2>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">
+          以{periodLabel}真实台账汇总展示收入趋势、成本趋势、利润趋势和资金趋势；未入账时保持空态，不补造趋势。
+        </p>
+      </CardHeader>
+      <CardContent>
+        {hasData ? (
+          <div data-ui="finance-trend-chart" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="财务趋势快照图" className="h-44 w-full overflow-visible">
+                {[0, 1, 2, 3].map((line) => (
+                  <line key={line} x1="0" x2={chartWidth} y1={20 + line * 34} y2={20 + line * 34} stroke="var(--color-border)" strokeDasharray="4 6" />
+                ))}
+                <polyline points={polyline} fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                {points.map((point, index) => {
+                  const x = index * step
+                  const y = chartHeight - 20 - (Math.abs(point.value) / maxAbs) * (chartHeight - 44)
+                  return (
+                    <g key={point.label}>
+                      <circle cx={x} cy={y} r="5" fill={point.tone} />
+                      <text x={x} y={chartHeight - 2} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} fill="var(--color-muted)" fontSize="11">
+                        {point.label.replace('趋势', '')}
+                      </text>
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+            <div className="space-y-2">
+              {points.map(point => (
+                <div key={point.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-[var(--color-fg)]">{point.label}</span>
+                    <span style={{ color: point.tone }}>{formatMoney(point.value)}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full bg-[var(--color-border)]">
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(Math.abs(point.value) / maxAbs * 100, point.value ? 4 : 0)}%`, background: point.tone }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-sm text-[var(--color-muted)]">
+            暂无真实财务台账，收入趋势、成本趋势、利润趋势和资金趋势不展示模拟数据。
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 type TracebackRow = {

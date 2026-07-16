@@ -177,10 +177,38 @@ export interface OrderFulfillmentStats {
 export interface ManualOrderCreate {
   platform_account_id: string
   merchant_order_number: string
+  status?: string
   buyer_name?: string | null
+  shipping_address?: Record<string, unknown> | null
+  shipping_fee?: number | null
+  platform_fee?: number | null
+  discount?: number | null
   currency: string
   total: number
+  payment_status?: string | null
+  payment_method?: string | null
+  fulfillment_status?: string | null
+  fulfillment_deadline_at?: string | null
+  logistics_channel?: string | null
   ordered_at: string
   notes?: string | null
   items: { name: string; sku?: string | null; quantity: number; unit_price: number }[]
+}
+
+export interface ManualOrderImportRequest {
+  rows: ManualOrderCreate[]
+  import_ref?: string | null
+  source_file?: string | null
+}
+
+export interface ManualOrderImportResult {
+  import_ref?: string | null
+  source_file?: string | null
+  received_count: number
+  created_count: number
+  skipped_count: number
+  failed_count: number
+  created_order_ids: string[]
+  skipped: Array<{ row: number; merchant_order_number: string; reason: string }>
+  failed: Array<{ row: number; merchant_order_number: string; reason: string }>
 }

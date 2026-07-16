@@ -9,7 +9,6 @@ from sqlalchemy import func, select
 from app.database import get_db
 from app.dependencies import get_current_user, require_admin
 from app.models.user import User
-from app.models.fee_template import FeeTemplate
 from app.schemas.common import ApiResponse
 from app.services.provider_service import list_providers, create_provider, update_provider, delete_provider, save_user_config
 from app.services.ai_task_matrix_service import get_ai_task_matrix
@@ -79,7 +78,7 @@ async def change_password(
 ):
     from app.services.auth_service import verify_password, hash_password
     if not verify_password(req.old_password, current_user.hashed_password):
-        raise HTTPException(400, "当前密码错误")
+        raise HTTPException(status_code=400, detail="当前密码错误")
     current_user.hashed_password = hash_password(req.new_password)
     db.add(current_user)
     await db.commit()
@@ -92,254 +91,6 @@ async def change_password(
         detail="用户修改自己的登录密码",
     )
     return ApiResponse(data={"message": "Password changed"})
-
-
-# ========== Fee Rates — editable DB-backed table ==========
-
-
-class FeeRateItem(BaseModel):
-    id: str
-    commission: float
-    transaction: float
-    tech: float
-    low_value_tax: float
-
-
-@router.get("/fee-rates", response_model=ApiResponse)
-async def get_fee_rates(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """返回费率表（读取 fee_templates，不注入默认费率）."""
-    result = await db.execute(select(FeeTemplate).where(FeeTemplate.is_active == True))
-    platform_labels = {
-        item["id"]: item["label"]
-        for item in await config_service.get_platforms(db)
-    }
-    grouped: dict[str, list[dict]] = {}
-    flat: list[dict] = []
-    for fee in result.scalars().all():
-        raw_rates = [fee.commission_pct, fee.transaction_fee_pct, fee.tech_service_pct, fee.vat_pct]
-        item = {
-            "id": f"{fee.platform}_{fee.market}",
-            "platform": platform_labels.get(fee.platform, fee.platform),
-            "market": fee.market,
-            "commission": fee.commission_pct / 100 if fee.commission_pct is not None else None,
-            "transaction": fee.transaction_fee_pct / 100 if fee.transaction_fee_pct is not None else None,
-            "tech": fee.tech_service_pct / 100 if fee.tech_service_pct is not None else None,
-            "low_value_tax": fee.vat_pct / 100 if fee.vat_pct is not None else None,
-        }
-        total = sum(value for value in raw_rates if value is not None) / 100 if all(value is not None for value in raw_rates) else None
-        item["total"] = round(total, 4) if total is not None else None
-        item["total_pct"] = f"{total*100:.1f}%" if total is not None else None
-        grouped.setdefault(item["platform"], []).append(item)
-        flat.append(item)
-    gaps = [] if flat else ["暂无启用平台费率模板"]
-    if any(item["total"] is None for item in flat):
-        gaps.append("部分平台费率模板字段不完整")
-    return ApiResponse(
-        data={"grouped": grouped, "flat": flat},
-        status="ready" if flat and not gaps else "configuration_required",
-        source_refs=[source_ref("fee_template", item["id"], label=f"{item['platform']}/{item['market']}") for item in flat],
-        evidence_window="当前启用平台费率模板",
-        confidence_reason="费率直接读取数据库配置；未知费率保持为空，不按 0% 处理。",
-        data_gaps=gaps,
-    )
-
-
-@router.put("/fee-rates", response_model=ApiResponse)
-async def update_fee_rate(
-    req: FeeRateItem,
-    admin: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """更新某条费率（保存到 fee_templates 表）."""
-    # Validate: all fee rates must be 0-1 (0% to 100%)
-    for k in ("commission", "transaction", "tech", "low_value_tax"):
-        v = getattr(req, k)
-        if v < 0 or v > 1:
-            raise HTTPException(400, f"{k} 值必须介于 0-1 之间（当前: {v}）")
-
-    platform, market = req.id.split("_", 1) if "_" in req.id else ("", "")
-    if not platform or not market:
-        raise HTTPException(400, "费率ID必须为 platform_market 格式")
-    result = await db.execute(
-        select(FeeTemplate).where(FeeTemplate.platform == platform, FeeTemplate.market == market)
-    )
-    fee = result.scalar_one_or_none()
-    old_value = _fee_snapshot(fee)
-    if not fee:
-        fee = FeeTemplate(platform=platform, market=market, is_active=True)
-        db.add(fee)
-    fee.commission_pct = req.commission * 100
-    fee.transaction_fee_pct = req.transaction * 100
-    fee.tech_service_pct = req.tech * 100
-    fee.vat_pct = req.low_value_tax * 100
-    fee.notes = "settings"
-    await db.commit()
-    await record_audit_event(
-        db,
-        user=admin,
-        action="fee_rate_update",
-        resource_type="fee_template",
-        resource_id=req.id,
-        old_value=old_value,
-        new_value=_fee_snapshot(fee),
-        detail="设置中心更新平台费率",
-    )
-    return ApiResponse(data={"message": "费率已更新"})
-
-
-def _fee_snapshot(fee: Optional[FeeTemplate]) -> Optional[dict]:
-    if not fee:
-        return None
-    return {
-        "platform": fee.platform,
-        "market": fee.market,
-        "commission_pct": fee.commission_pct,
-        "transaction_fee_pct": fee.transaction_fee_pct,
-        "tech_service_pct": fee.tech_service_pct,
-        "vat_pct": fee.vat_pct,
-        "is_active": fee.is_active,
-    }
-
-
-# ========== Cloud Warehouse / 货代管理 ==========
-
-class WarehouseItem(BaseModel):
-    id: Optional[str] = None
-    name: str
-    city: str = ""
-    address: str
-    contact: str = ""
-    fee_per_parcel: Optional[float] = None
-    is_default: bool = False
-    service_type: str
-    market_scope: str = ""
-    integration_status: str
-    inventory_sync_mode: str
-
-
-@router.get("/warehouses", response_model=ApiResponse)
-async def list_warehouses(current_user: User = Depends(get_current_user)):
-    settings = current_user.settings or {}
-    warehouses = settings.get("warehouses", [])
-    return ApiResponse(
-        data=warehouses,
-        status="ready" if warehouses else "configuration_required",
-        source_refs=[source_ref("warehouse", item.get("id"), label=item.get("name")) for item in warehouses],
-        evidence_window="当前用户云仓/货代配置",
-        confidence_reason="列表只读取当前用户保存的仓库地址与实际处理费。",
-        data_gaps=[] if warehouses else ["暂无云仓或货代配置"],
-    )
-
-
-@router.post("/warehouses", response_model=ApiResponse)
-async def create_warehouse(
-    req: WarehouseItem,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    import uuid
-    await _validate_warehouse_item(db, req)
-    settings = current_user.settings or {}
-    warehouses = settings.get("warehouses", [])
-    new_wh = req.model_dump()
-    new_wh["id"] = str(uuid.uuid4())[:8]
-    if req.is_default:
-        for wh in warehouses:
-            wh["is_default"] = False
-    warehouses.append(new_wh)
-    settings["warehouses"] = warehouses
-    current_user.settings = settings
-    db.add(current_user)
-    await db.commit()
-    await record_audit_event(
-        db,
-        user=current_user,
-        action="warehouse_create",
-        resource_type="warehouse",
-        resource_id=new_wh["id"],
-        new_value=new_wh,
-        detail="新增云仓/货代配置",
-    )
-    return ApiResponse(data=new_wh)
-
-
-@router.put("/warehouses/{wh_id}", response_model=ApiResponse)
-async def update_warehouse(
-    wh_id: str,
-    req: WarehouseItem,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    await _validate_warehouse_item(db, req)
-    settings = current_user.settings or {}
-    warehouses = settings.get("warehouses", [])
-    old_value = None
-    for wh in warehouses:
-        if wh.get("id") == wh_id:
-            old_value = dict(wh)
-            update_data = req.model_dump()
-            update_data["id"] = wh_id
-            if update_data.pop("is_default", False):
-                for w in warehouses:
-                    w["is_default"] = False
-            wh.update(update_data)
-            break
-    settings["warehouses"] = warehouses
-    current_user.settings = settings
-    db.add(current_user)
-    await db.commit()
-    await record_audit_event(
-        db,
-        user=current_user,
-        action="warehouse_update",
-        resource_type="warehouse",
-        resource_id=wh_id,
-        old_value=old_value,
-        new_value=next((w for w in warehouses if w.get("id") == wh_id), None),
-        detail="更新云仓/货代配置",
-    )
-    return ApiResponse(data={"message": "Updated"})
-
-
-@router.delete("/warehouses/{wh_id}", response_model=ApiResponse)
-async def delete_warehouse(
-    wh_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    settings = current_user.settings or {}
-    warehouses = settings.get("warehouses", [])
-    old_value = next((w for w in warehouses if w.get("id") == wh_id), None)
-    settings["warehouses"] = [w for w in warehouses if w.get("id") != wh_id]
-    current_user.settings = settings
-    db.add(current_user)
-    await db.commit()
-    await record_audit_event(
-        db,
-        user=current_user,
-        action="warehouse_delete",
-        resource_type="warehouse",
-        resource_id=wh_id,
-        old_value=old_value,
-        detail="删除云仓/货代配置",
-    )
-    return ApiResponse(data={"message": "Deleted"})
-
-
-async def _validate_warehouse_item(db: AsyncSession, req: WarehouseItem) -> None:
-    dicts = await config_service.get_all_config(db)
-    checks = [
-        ("warehouse_service_types", req.service_type, "仓储服务类型"),
-        ("warehouse_integration_statuses", req.integration_status, "仓储 API 状态"),
-        ("warehouse_inventory_sync_modes", req.inventory_sync_mode, "库存同步方式"),
-    ]
-    for dict_key, value, label in checks:
-        allowed = {item.get("id") for item in dicts.get(dict_key, [])}
-        if value not in allowed:
-            raise HTTPException(status_code=400, detail=f"{label}不在统一字典中")
 
 
 # ========== AI Provider (数据库管理) ==========
@@ -404,7 +155,7 @@ async def add_provider(
 ):
     """管理员新增自定义 Provider。"""
     if not req.id:
-        raise HTTPException(400, "Provider ID 不能为空")
+        raise HTTPException(status_code=400, detail="Provider ID 不能为空")
     p = await create_provider(db, req.model_dump())
     await record_audit_event(
         db,
@@ -428,7 +179,7 @@ async def edit_provider(
     """管理员编辑 Provider。"""
     p = await update_provider(db, provider_id, req.model_dump(exclude_unset=True, exclude={"id"}))
     if not p:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404)
     await record_audit_event(
         db,
         user=admin,
@@ -450,7 +201,7 @@ async def remove_provider(
     """管理员删除自定义 Provider（默认不可删）。"""
     ok = await delete_provider(db, provider_id)
     if not ok:
-        raise HTTPException(400, "默认 Provider 不可删除或不存在")
+        raise HTTPException(status_code=400, detail="默认 Provider 不可删除或不存在")
     await record_audit_event(
         db,
         user=admin,
@@ -695,7 +446,7 @@ async def update_pinterest_account(
 ):
     """保存 Pinterest 账号（邮箱 + 密码，加密 JSON 存储）。"""
     if not req.email or not req.password:
-        raise HTTPException(400, "邮箱和密码不能为空")
+        raise HTTPException(status_code=400, detail="邮箱和密码不能为空")
 
     value = json.dumps({"email": req.email, "password": req.password})
     encrypted = encrypt(value)
@@ -874,12 +625,12 @@ async def update_user_roles(
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(404, "用户不存在")
+        raise HTTPException(status_code=404, detail="用户不存在")
     old_value = {"role_ids": (await list_access_control_matrix(db))["user_roles"].get(user.id, [])}
     try:
         role_ids = await replace_user_roles(db, user, req.role_ids, admin)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
     await record_audit_event(
         db,
         user=admin,
@@ -903,12 +654,12 @@ async def update_user_store_access(
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(404, "用户不存在")
+        raise HTTPException(status_code=404, detail="用户不存在")
     old_value = {"store_ids": (await list_store_access_matrix(db))["user_stores"].get(user.id, [])}
     try:
         store_ids = await replace_user_store_access(db, user, req.store_ids, req.store_role)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
     await record_audit_event(
         db,
         user=admin,
@@ -963,7 +714,7 @@ async def create_user(
         )
         return ApiResponse(data={"username": user.username, "email": user.email, "message": "账号已创建"})
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/users/{username}", response_model=ApiResponse)
 async def update_user(
@@ -976,7 +727,7 @@ async def update_user(
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(404, "用户不存在")
+        raise HTTPException(status_code=404, detail="用户不存在")
     old_value = {"display_name": user.display_name, "email": user.email}
     if "display_name" in data:
         user.display_name = data["display_name"]
@@ -1003,11 +754,11 @@ async def delete_user(
 ):
     """Delete a user account."""
     if username == admin.username:
-        raise HTTPException(400, "不能删除自己")
+        raise HTTPException(status_code=400, detail="不能删除自己")
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(404, "用户不存在")
+        raise HTTPException(status_code=404, detail="用户不存在")
     old_value = {"username": user.username, "email": user.email, "is_admin": user.is_admin}
     user_id = user.id
     await db.delete(user)
@@ -1034,7 +785,7 @@ async def change_user_password(
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(404, "用户不存在")
+        raise HTTPException(status_code=404, detail="用户不存在")
     user.hashed_password = hash_password(req.password)
     await db.commit()
     await record_audit_event(
@@ -1088,11 +839,11 @@ async def add_dict(
 ):
     """Add a dictionary item."""
     if dict_type not in DICT_TYPE_TO_DB_TYPE:
-        raise HTTPException(400, "不支持的字典类型")
+        raise HTTPException(status_code=400, detail="不支持的字典类型")
     try:
         item = await add_dict_item(db, dict_type, data)
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await record_audit_event(
         db,
         user=admin,
@@ -1114,15 +865,15 @@ async def update_dict(
 ):
     """Update a dictionary item."""
     if dict_type not in DICT_TYPE_TO_DB_TYPE:
-        raise HTTPException(400, "不支持的字典类型")
+        raise HTTPException(status_code=400, detail="不支持的字典类型")
     existing = await _get_settings_dict_item(db, dict_type, item_id)
     if not existing:
-        raise HTTPException(404, "字典项不存在")
+        raise HTTPException(status_code=404, detail="字典项不存在")
     old_value = _settings_dict_snapshot(existing)
     try:
         item = await update_dict_item(db, dict_type, item_id, data)
     except ValueError as exc:
-        raise HTTPException(404, str(exc)) from exc
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     await record_audit_event(
         db,
         user=admin,
@@ -1144,10 +895,10 @@ async def delete_dict(
 ):
     """Delete a dictionary item."""
     if dict_type not in DICT_TYPE_TO_DB_TYPE:
-        raise HTTPException(400, "不支持的字典类型")
+        raise HTTPException(status_code=400, detail="不支持的字典类型")
     existing = await _get_settings_dict_item(db, dict_type, item_id)
     if not existing:
-        raise HTTPException(404, "字典项不存在")
+        raise HTTPException(status_code=404, detail="字典项不存在")
     old_value = _settings_dict_snapshot(existing)
     await delete_dict_item(db, dict_type, item_id)
     await record_audit_event(

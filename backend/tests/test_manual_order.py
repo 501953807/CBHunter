@@ -12,16 +12,19 @@ from app.models.platform_account import PlatformAccount
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.finance_ledger import FinanceLedgerEntry
+from app.models.sys_dict import SysDictItem
 from app.models.sync_log import SyncLog
-from app.schemas.order import ManualOrderCreate, ManualOrderItemCreate
+from app.schemas.order import ManualOrderCreate, ManualOrderItemCreate, OrderStatusUpdate
 from app.services.order_service import (
     build_fulfillment_exception_context,
     build_order_finance_entry_context,
     build_order_fee_context,
     build_order_list_context,
+    import_manual_orders,
     create_manual_order,
     get_order_stats,
     get_order_sync_reviews,
+    update_order_status,
     list_orders,
 )
 
@@ -64,6 +67,93 @@ def test_manual_order_binds_store_marks_source_and_persists_items(tmp_path):
             })
             with pytest.raises(ValueError, match="platform_account_not_accessible"):
                 await create_manual_order(session, "manual-user", unauthorized)
+        await engine.dispose()
+
+    asyncio.run(run_test())
+
+
+def test_manual_order_import_writes_orders_items_and_audit_summary(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'manual-order-import.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="manual-user", platform="tiktok", account_name="TikTok 未接入店铺")
+            session.add(account)
+            await session.commit()
+
+            first = ManualOrderCreate(
+                platform_account_id=account.id,
+                merchant_order_number="IMPORT-001",
+                buyer_name="批量买家A",
+                shipping_address={"raw": "Manila, PH", "source": "csv_import"},
+                shipping_fee=2.5,
+                platform_fee=1.2,
+                discount=0.5,
+                currency="PHP",
+                total=51,
+                payment_status="paid",
+                fulfillment_status="pending_shipment",
+                logistics_channel="J&T Express",
+                ordered_at=datetime(2026, 7, 16, 10, 0, tzinfo=timezone.utc),
+                notes="首批导入",
+                items=[
+                    ManualOrderItemCreate(name="导入商品A", sku="SKU-A", quantity=2, unit_price=20),
+                    ManualOrderItemCreate(name="导入商品B", sku="SKU-B", quantity=1, unit_price=11),
+                ],
+            )
+            second = first.model_copy(update={"merchant_order_number": "IMPORT-002", "buyer_name": "批量买家B"})
+            result = await import_manual_orders(
+                session,
+                "manual-user",
+                [first, second],
+                import_ref="csv-20260716-a",
+                source_file="orders-20260716.csv",
+            )
+
+            assert result["created_count"] == 2
+            assert result["skipped_count"] == 0
+            assert result["failed_count"] == 0
+            assert result["import_ref"] == "csv-20260716-a"
+            assert result["source_file"] == "orders-20260716.csv"
+            assert len(result["created_order_ids"]) == 2
+
+            imported, total = await list_orders(session, "manual-user", page_size=10)
+            assert total == 2
+            assert {order.order_number for order in imported} == {"IMPORT-001", "IMPORT-002"}
+            assert imported[0].platform_data["source"] == "manual_import"
+            assert imported[0].platform_data["import_ref"] == "csv-20260716-a"
+            assert sum(len(order.items or []) for order in imported) == 4
+
+            duplicate = await import_manual_orders(
+                session,
+                "manual-user",
+                [first],
+                import_ref="csv-20260716-a-retry",
+                source_file="orders-20260716.csv",
+            )
+            assert duplicate["created_count"] == 0
+            assert duplicate["skipped_count"] == 1
+            assert duplicate["skipped"][0]["merchant_order_number"] == "IMPORT-001"
+
+            same_batch = first.model_copy(update={"merchant_order_number": "IMPORT-003"})
+            same_batch_duplicate = same_batch.model_copy(update={"buyer_name": "批量买家C-重复"})
+            same_batch_result = await import_manual_orders(
+                session,
+                "manual-user",
+                [same_batch, same_batch_duplicate],
+                import_ref="csv-20260716-b",
+                source_file="orders-20260716-b.csv",
+            )
+            assert same_batch_result["created_count"] == 1
+            assert same_batch_result["skipped_count"] == 1
+            assert same_batch_result["skipped"][0]["merchant_order_number"] == "IMPORT-003"
+
+            imported_after_duplicate, total_after_duplicate = await list_orders(session, "manual-user", page_size=10)
+            assert total_after_duplicate == 3
+            assert sum(1 for order in imported_after_duplicate if order.order_number == "IMPORT-003") == 1
+
         await engine.dispose()
 
     asyncio.run(run_test())
@@ -158,6 +248,84 @@ def test_order_list_exception_filter_uses_fulfillment_context(tmp_path):
         assert total == 1
         assert [order.order_number for order in orders] == ["SP-OVERDUE"]
         assert build_fulfillment_exception_context(orders[0])["status"] == "shipping_overdue"
+
+    asyncio.run(run_test())
+
+
+def test_order_status_update_uses_runtime_state_machine_and_manual_override(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-status-machine.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="order-user", platform="shopee", account_name="Shopee 店铺")
+            session.add(account)
+            await session.flush()
+            session.add_all([
+                SysDictItem(
+                    id="pending",
+                    type="order_status",
+                    label="待处理",
+                    sort_order=10,
+                    extra={"value": "pending", "allowed_next": ["processing", "cancelled"], "variant": "warning"},
+                ),
+                SysDictItem(
+                    id="processing",
+                    type="order_status",
+                    label="处理中",
+                    sort_order=20,
+                    extra={"value": "processing", "allowed_next": ["shipped", "cancelled"], "variant": "info"},
+                ),
+                SysDictItem(
+                    id="shipped",
+                    type="order_status",
+                    label="已发货",
+                    sort_order=30,
+                    extra={"value": "shipped", "allowed_next": ["delivered"], "variant": "info"},
+                ),
+                SysDictItem(
+                    id="delivered",
+                    type="order_status",
+                    label="已签收",
+                    sort_order=40,
+                    extra={"value": "delivered", "allowed_next": [], "variant": "success"},
+                ),
+            ])
+            order = Order(
+                user_id="order-user",
+                platform_account_id=account.id,
+                platform_order_id="SP-STATE-001",
+                order_number="SP-STATE-001",
+                status="pending",
+                total=88,
+                currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+                platform_data={"source": "manual"},
+            )
+            session.add(order)
+            await session.commit()
+
+            updated = await update_order_status(session, order, OrderStatusUpdate(status="processing"))
+            assert updated.status == "processing"
+            assert updated.platform_data["status_history"][-1]["transition_type"] == "state_machine"
+
+            with pytest.raises(ValueError, match="invalid_order_status_transition"):
+                await update_order_status(session, updated, OrderStatusUpdate(status="delivered"))
+
+            corrected = await update_order_status(
+                session,
+                updated,
+                OrderStatusUpdate(status="delivered", manual_override=True, reason="平台后台已签收，补录历史状态"),
+            )
+            assert corrected.status == "delivered"
+            last = corrected.platform_data["status_history"][-1]
+            assert last["transition_type"] == "manual_override"
+            assert last["reason"] == "平台后台已签收，补录历史状态"
+
+            with pytest.raises(ValueError, match="manual_override_reason_required"):
+                await update_order_status(session, corrected, OrderStatusUpdate(status="processing", manual_override=True))
+        await engine.dispose()
 
     asyncio.run(run_test())
 
@@ -306,7 +474,7 @@ def test_order_list_context_exposes_seller_backend_operational_fields(tmp_path):
             "financial_reconciliation_status": "bill_imported",
         }
         assert {key: context[key] for key in expected} == expected
-        assert context["fulfillment_exception"]["status"] in {"after_sales_open", "sync_required"}
+        assert context["fulfillment_exception"]["status"] in {"shipping_overdue", "after_sales_open", "sync_required"}
         assert "售后状态待处理：refund_requested" in context["fulfillment_exception"]["reasons"]
 
     asyncio.run(run_test())

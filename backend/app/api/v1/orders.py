@@ -8,11 +8,11 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.order import (
     OrderListResponse, OrderDetailResponse, OrderItemResponse,
-    ManualOrderCreate, OrderStatusUpdate, OrderNoteUpdate,
+    ManualOrderCreate, ManualOrderImportRequest, OrderStatusUpdate, OrderNoteUpdate,
 )
 from app.schemas.common import ApiResponse
 from app.services.order_service import (
-    build_fulfillment_exception_context, build_order_fee_context, build_order_finance_entry_context, build_order_list_context, create_manual_order, get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
+    build_fulfillment_exception_context, build_order_fee_context, build_order_finance_entry_context, build_order_list_context, create_manual_order, import_manual_orders, get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
 )
 from app.services.audit_service import record_audit_event
 from app.services.evidence_service import source_ref
@@ -123,6 +123,43 @@ async def create_manual_order_endpoint(
     )
 
 
+@router.post("/import", response_model=ApiResponse, status_code=201)
+async def import_manual_orders_endpoint(
+    req: ManualOrderImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await import_manual_orders(
+        db,
+        current_user.id,
+        req.rows,
+        import_ref=req.import_ref,
+        source_file=req.source_file,
+    )
+    await record_audit_event(
+        db,
+        user=current_user,
+        action="manual_order_import",
+        resource_type="order",
+        resource_id=req.import_ref or req.source_file or "manual_order_import",
+        new_value=result,
+        detail="平台 API 未接入期间批量导入订单",
+    )
+    status = "ready" if result["created_count"] else "data_required"
+    gaps = []
+    if result["failed_count"]:
+        gaps.append("部分订单导入失败，请按 failed 行修正后重新导入")
+    if result["skipped_count"]:
+        gaps.append("部分订单因店铺内订单号重复已跳过")
+    return ApiResponse(
+        data=result,
+        status=status,
+        evidence_window="批量导入时点",
+        confidence_reason="批量导入复用手工订单店铺授权、重复订单和商品明细写入规则；导入结果只代表本系统本地记录，不代表平台已同步。",
+        data_gaps=gaps,
+    )
+
+
 @router.get("/stats", response_model=ApiResponse)
 async def order_stats(
     current_user: User = Depends(get_current_user),
@@ -192,7 +229,17 @@ async def update_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     old_status = order.status
-    updated = await update_order_status(db, order, req)
+    try:
+        updated = await update_order_status(db, order, req)
+    except ValueError as exc:
+        messages = {
+            "order_status_dictionary_missing": "订单状态字典未配置，无法校验状态流转",
+            "unknown_order_status": "目标订单状态不存在",
+            "current_order_status_unknown": "当前订单状态未纳入状态字典，请使用人工更正并填写原因",
+            "invalid_order_status_transition": "订单状态不允许直接流转，请按状态机推进或使用人工更正并填写原因",
+            "manual_override_reason_required": "人工更正订单状态必须填写原因",
+        }
+        raise HTTPException(status_code=400, detail=messages.get(str(exc), str(exc))) from exc
     await record_audit_event(
         db,
         user=current_user,
@@ -200,8 +247,12 @@ async def update_status(
         resource_type="order",
         resource_id=order_id,
         old_value={"status": old_status},
-        new_value={"status": updated.status},
-        detail="更新订单状态",
+        new_value={
+            "status": updated.status,
+            "manual_override": req.manual_override,
+            "reason": req.reason,
+        },
+        detail="人工更正订单状态" if req.manual_override else "按状态机更新订单状态",
     )
     return ApiResponse(data=OrderDetailResponse.model_validate(updated))
 

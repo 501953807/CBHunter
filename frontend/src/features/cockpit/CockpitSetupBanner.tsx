@@ -56,6 +56,9 @@ export function CockpitSetupBanner({ onNavigate }: { onNavigate: (route: string)
           <button onClick={() => onNavigate('/platforms')} className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]">
             <Store className="h-3.5 w-3.5" /> 配置平台店铺
           </button>
+          <button onClick={() => onNavigate('/settings/fees')} className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)]">
+            配置费率与汇率
+          </button>
           <button onClick={() => onNavigate('/settings/quality')} className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-primary)] px-3 py-2 text-xs text-[var(--color-primary-text)] transition hover:-translate-y-0.5">
             <RefreshCw className="h-3.5 w-3.5" /> 查看配置巡检 <ArrowRight className="h-3.5 w-3.5" />
           </button>

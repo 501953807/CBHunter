@@ -166,6 +166,7 @@ function SignalLayerPrimaryTabs({
           const Icon = layer.icon
           return (
             <button
+              id={`scout-layer-${layer.id}`}
               key={layer.id}
               type="button"
               role="tab"

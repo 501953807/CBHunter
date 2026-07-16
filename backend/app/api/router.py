@@ -18,11 +18,14 @@ from app.api.v1.sourcing import router as sourcing_router
 from app.api.v1.import_data import router as import_router
 from app.api.v1.product_analysis import router as product_analysis_router
 from app.api.v1.discovery import router as discovery_router
+from app.api.v1.discovery_trends import router as discovery_trends_router
 from app.api.v1.dictionary import router as dictionary_router
 from app.api.v1.scout import router as scout_router
 from app.api.v1.scout_supply import router as scout_supply_router
 from app.api.v1.scout_trending import router as scout_trending_router
 from app.api.v1.settings import router as settings_router
+from app.api.v1.settings_fee_rates import router as settings_fee_rates_router
+from app.api.v1.settings_warehouses import router as settings_warehouses_router
 from app.api.v1.content import router as content_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.collect import router as collect_router
@@ -65,11 +68,14 @@ api_router.include_router(sourcing_router)
 api_router.include_router(import_router)
 api_router.include_router(product_analysis_router)
 api_router.include_router(discovery_router)
+api_router.include_router(discovery_trends_router)
 api_router.include_router(dictionary_router)
 api_router.include_router(scout_router)
 api_router.include_router(scout_trending_router)
 api_router.include_router(scout_supply_router)
 api_router.include_router(settings_router)
+api_router.include_router(settings_fee_rates_router)
+api_router.include_router(settings_warehouses_router)
 api_router.include_router(content_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(collect_router)

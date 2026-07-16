@@ -61,6 +61,8 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
     ? Number(((comparison.current.net_profit_rmb / comparison.current.revenue_rmb) * 100).toFixed(1))
     : null
   const topPlatform = platformRows[0]
+  const negativeProfitStores = stores.filter((store) => (store.net_profit_rmb ?? 0) < 0)
+  const hasNegativeProfit = (comparison.current.net_profit_rmb ?? 0) < 0 || negativeProfitStores.length > 0
 
   return (
     <section aria-label="平台店铺经营总分看板" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)]">
@@ -189,6 +191,14 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
           },
         ]}
       />
+
+      {hasNegativeProfit && (
+        <NegativeProfitAlert
+          totalProfit={comparison.current.net_profit_rmb}
+          stores={negativeProfitStores}
+          onNavigate={onNavigate}
+        />
+      )}
 
       <div className="grid gap-3 lg:grid-cols-4">
         <SummaryTile icon={<Store className="h-4 w-4" />} label="全部店铺" value={`${data.sections.store_matrix.metrics.active_store_count}/${data.sections.store_matrix.metrics.store_count}`} sub="活跃/总店铺" />
@@ -331,7 +341,7 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
                           />
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-[var(--color-muted)]">{store.platform} · {store.market || '市场待补'}</td>
+                      <td className="px-3 py-2 text-[var(--color-muted)]">{store.platform} · {formatMarketLabel(store.market)}</td>
                       <td className="px-3 py-2 text-[var(--color-fg)]">{store.order_count}</td>
                       <td className="px-3 py-2 text-[var(--color-fg)]">
                         <p>{store.active_listings}</p>
@@ -359,6 +369,58 @@ export function CockpitStoreCommandBoard({ data, onNavigate }: Props) {
             </div>
           </div>
         )}
+      </div>
+    </section>
+  )
+}
+
+function NegativeProfitAlert({
+  totalProfit,
+  stores,
+  onNavigate,
+}: {
+  totalProfit: number | null
+  stores: CockpitData['sections']['store_matrix']['items']
+  onNavigate: (route: string) => void
+}) {
+  return (
+    <section
+      data-ui="cockpit-negative-profit-alert"
+      className="mb-4 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] p-3"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--color-danger)]">负毛利警示</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+            当前经营范围净利为 {money(totalProfit)}；{stores.length > 0 ? `${stores.length} 个店铺出现负利润。` : '公司级净利润为负。'}
+            需要复核采购成本、平台费率、广告费用、物流费用和汇率配置，避免只看订单量误判经营质量。
+          </p>
+          {stores.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {stores.slice(0, 4).map((store) => (
+                <span key={store.id} className="rounded bg-[var(--color-surface)] px-2 py-1 text-[11px] text-[var(--color-danger)]">
+                  {store.account_name} {money(store.net_profit_rmb)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate('/finance?view=traceback')}
+            className="rounded-lg bg-[var(--color-danger)] px-3 py-2 text-xs font-medium text-[var(--color-primary-text)] transition hover:opacity-90"
+          >
+            复核成本利润
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('/settings/fees')}
+            className="rounded-lg border border-[var(--color-danger)] bg-[var(--color-surface)] px-3 py-2 text-xs font-medium text-[var(--color-danger)] transition hover:bg-[var(--color-bg)]"
+          >
+            配置费率与汇率
+          </button>
+        </div>
       </div>
     </section>
   )
@@ -449,6 +511,11 @@ function contributionValue(store: CockpitData['sections']['store_matrix']['items
 function revenueText(values: { currency: string; orders: number; revenue: number }[]) {
   if (values.length === 0) return ''
   return values.slice(0, 2).map((item) => `${item.currency} ${item.revenue.toLocaleString()} / ${item.orders}单`).join('；')
+}
+
+function formatMarketLabel(value?: string | null) {
+  if (!value || value.toLowerCase() === 'unknown') return '--'
+  return value
 }
 
 const tooltipStyle = {

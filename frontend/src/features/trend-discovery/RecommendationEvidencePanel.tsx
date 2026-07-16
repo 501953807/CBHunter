@@ -236,6 +236,7 @@ function CandidateDetailSidebar({ item, onDecide }: { item: ProductRecommendatio
       </div>
 
       <ProductContext item={item} />
+      <CandidateAnalysisGrid item={item} />
 
       <div className="mt-3">
         <EvidenceChips item={item} />
@@ -267,6 +268,45 @@ function CandidateDetailSidebar({ item, onDecide }: { item: ProductRecommendatio
         </div>
       )}
     </aside>
+  )
+}
+
+function CandidateAnalysisGrid({ item }: { item: ProductRecommendation }) {
+  const context = item.product_context
+  const summary = evidenceSummary(item)
+  const sourceCount = item.source_refs?.length || context?.evidence?.source_ref_count || 0
+  const rows = [
+    {
+      title: '评分维度',
+      value: `${item.score} · ${item.decision_label}`,
+      detail: `需求 ${item.demand_level} / 利润 ${item.profit_potential} / 竞品 ${item.competition_level}`,
+    },
+    {
+      title: '资料来源',
+      value: `${sourceCount} 个来源`,
+      detail: item.evidence_window || context?.evidence?.evidence_window || '来源时间窗口待补',
+    },
+    {
+      title: '趋势数据',
+      value: `${formatValue(context?.trend?.search_volume ?? item.search_volume)} 搜索量`,
+      detail: `${context?.trend?.trend_direction || item.trend_direction || '趋势方向待补'}${item.seasonal ? ' · 季节性' : ''}`,
+    },
+    {
+      title: '对比决策',
+      value: `${summary.present}/${summary.total} 项资料`,
+      detail: summary.missing > 0 ? `仍缺 ${summary.missing} 项，先补资料再决策` : item.decision_action,
+    },
+  ]
+  return (
+    <div className="mt-3 grid gap-2 md:grid-cols-2" data-ui="candidate-detail-analysis">
+      {rows.map(row => (
+        <div key={row.title} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+          <p className="text-[10px] font-medium text-[var(--color-primary)]">{row.title}</p>
+          <p className="mt-1 text-xs font-semibold text-[var(--color-fg)]">{row.value}</p>
+          <p className="mt-1 text-[11px] leading-5 text-[var(--color-muted)]">{row.detail}</p>
+        </div>
+      ))}
+    </div>
   )
 }
 

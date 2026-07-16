@@ -143,7 +143,7 @@ export function ScoutSourceCards({
               ) : (
                 <button onClick={() => setShowCapture(source.id)}
                   className="flex items-center gap-1 text-[11px] text-[var(--color-primary)] hover:text-[var(--color-primary)] border border-dashed border-[var(--color-primary)] rounded-lg py-1.5 w-full justify-center">
-                  <Plus className="w-3 h-3" /> {getLayerBtnText(source)}
+                  <Plus className="w-3 h-3" /> 录入信号 · {getLayerBtnText(source)}
                 </button>
               )}
             </div>
@@ -171,7 +171,7 @@ function SourceHeader({ source }: { source: any }) {
               {source.category_label || source.category}
             </span>
             <Badge variant={source.priority <= 1 ? 'danger' : source.priority <= 2 ? 'warning' : 'default'}>{source.frequency_label}</Badge>
-            <span className="text-[11px] text-[var(--color-muted)]">约{source.total_time}分钟</span>
+            <span className="text-[11px] text-[var(--color-muted)]">每次约{source.total_time}分钟</span>
           </div>
           <SourceAccess source={source} />
         </div>

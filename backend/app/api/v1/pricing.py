@@ -224,16 +224,16 @@ async def recommend_price(
     pricing_mode = data.get("pricing_mode")
 
     if source_price_value is None or float(source_price_value) <= 0:
-        raise HTTPException(400, "请填写真实采购价")
+        raise HTTPException(status_code=400, detail="请填写真实采购价")
     source_price = float(source_price_value)
     if not platform:
-        raise HTTPException(400, "请选择平台")
+        raise HTTPException(status_code=400, detail="请选择平台")
     if not market:
-        raise HTTPException(400, "请选择市场")
+        raise HTTPException(status_code=400, detail="请选择市场")
     if target_profit_pct is None:
-        raise HTTPException(400, "请填写目标利润率")
+        raise HTTPException(status_code=400, detail="请填写目标利润率")
     if pricing_mode not in ("cost_based", "selling_based"):
-        raise HTTPException(400, "定价策略无效")
+        raise HTTPException(status_code=400, detail="定价策略无效")
 
     target_profit = float(target_profit_pct)
     currency = None
@@ -341,7 +341,7 @@ async def recommend_price(
         return round(source_price / divisor, 2)
 
     if target_profit <= 0 or target_profit + 20 >= 100 - total_fee_pct:
-        raise HTTPException(400, "目标利润率与平台费率组合无有效售价区间")
+        raise HTTPException(status_code=400, detail="目标利润率与平台费率组合无有效售价区间")
 
     conservative = calc_price(target_profit)
     balanced = calc_price(target_profit + 10)

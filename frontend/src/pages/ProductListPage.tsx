@@ -41,7 +41,8 @@ export default function ProductListPage() {
   const initialPlatformAccountId = searchParams.get('platform_account_id') || ''
   const platformStatusesQuery = usePlatformStatuses()
 
-  const { data, isLoading, refetch } = useProductList({ status: status || undefined, search: search || undefined, page, page_size: 20 })
+  const productListQuery = useProductList({ status: status || undefined, search: search || undefined, page, page_size: 20 })
+  const { data, isLoading, refetch } = productListQuery
   const deleteMutation = useDeleteProduct()
 
   const products = data?.data ?? []
@@ -226,6 +227,18 @@ export default function ProductListPage() {
               />
             </div>
           </div>
+
+          {productListQuery.isError && (
+            <div
+              data-ui="product-list-error"
+              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            >
+              <span className="text-[var(--color-danger)]">基础商品资料列表加载失败，当前筛选下的商品主档、状态诊断和 Listing 衔接暂不可用。</span>
+              <Button size="sm" variant="secondary" onClick={() => productListQuery.refetch()}>
+                重新加载商品列表
+              </Button>
+            </div>
+          )}
 
           {selectedIds.size > 0 && (
           <ProductBulkToolbar

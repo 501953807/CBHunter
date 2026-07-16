@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, FileText, PackageOpen, TriangleAlert } from 'lucide-react'
-import { getContentWorkbench, type ContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
+import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
-import { logger } from '../../utils/logger'
 import { productImageSrc } from '../../utils/productImages'
 
 const STATUS_LABELS: Record<string, string> = {
@@ -17,30 +17,22 @@ export function ContentProductQueue({ onSelect, initialProductId = '', layout = 
   initialProductId?: string
   layout?: 'table' | 'rail'
 }) {
-  const [workbench, setWorkbench] = useState<ContentWorkbench | null>(null)
   const [selectedId, setSelectedId] = useState('')
-  const [error, setError] = useState('')
   const [queuePage, setQueuePage] = useState(1)
+  const contentWorkbenchQuery = useQuery({
+    queryKey: ['content-workbench'],
+    queryFn: getContentWorkbench,
+  })
+  const workbench = contentWorkbenchQuery.data?.data || null
 
   useEffect(() => {
-    let cancelled = false
-    getContentWorkbench().then((response) => {
-      if (cancelled) return
-      const data = response.data || null
-      setWorkbench(data)
-      const first = data?.items?.find(item => matchesProduct(item, initialProductId)) || data?.items?.[0]
-      if (first) {
-        setSelectedId(first.work_item_id)
-        const firstIndex = data?.items?.findIndex(item => item.work_item_id === first.work_item_id) ?? 0
-        setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout)) + 1)
-        onSelect(first)
-      }
-    }).catch((e: any) => {
-      logger.error('Load content workbench failed', e)
-      if (!cancelled) setError(e?.response?.data?.detail || e?.message || '内容商品队列加载失败')
-    })
-    return () => { cancelled = true }
-  }, [onSelect, initialProductId, layout])
+    const first = workbench?.items?.find(item => matchesProduct(item, initialProductId)) || workbench?.items?.[0]
+    if (!first) return
+    setSelectedId(first.work_item_id)
+    const firstIndex = workbench?.items?.findIndex(item => item.work_item_id === first.work_item_id) ?? 0
+    setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout)) + 1)
+    onSelect(first)
+  }, [onSelect, initialProductId, layout, workbench])
 
   const items = workbench?.items || []
   const pageSize = getPageSize(layout)
@@ -85,8 +77,22 @@ export function ContentProductQueue({ onSelect, initialProductId = '', layout = 
           </div>
         )}
 
-        {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
-        {!error && items.length === 0 && (
+        {contentWorkbenchQuery.isError && (
+          <div
+            data-ui="content-workbench-error"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+          >
+            <span className="text-[var(--color-danger)]">内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和素材缺口暂不可用。</span>
+            <button
+              type="button"
+              onClick={() => contentWorkbenchQuery.refetch()}
+              className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+            >
+              重新加载内容商品队列
+            </button>
+          </div>
+        )}
+        {!contentWorkbenchQuery.isError && items.length === 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" />
             <span>暂无已通过选品决策的商品。请先在选品决策完成绿灯/黄灯验证，再进入内容制作。</span>

@@ -30,7 +30,7 @@ async def product_listing_matrix(
     """Return Product Master -> base version -> platform/store Listing instance matrix."""
     matrix = await get_product_listing_matrix(db, current_user.id, product_id)
     if not matrix:
-        raise HTTPException(404, "商品不存在或无权访问")
+        raise HTTPException(status_code=404, detail="商品不存在或无权访问")
     refs = [
         source_ref("product", matrix["product_master"]["id"], label=matrix["product_master"]["name"]),
         *[
@@ -60,10 +60,10 @@ async def patch_listing_overrides(
     """Update store-level Listing overrides without changing Product Master or sibling listings."""
     overrides = data.get("overrides") if isinstance(data, dict) else None
     if not isinstance(overrides, dict) or not overrides:
-        raise HTTPException(400, "请提供店铺级覆盖字段")
+        raise HTTPException(status_code=400, detail="请提供店铺级覆盖字段")
     updated = await update_listing_overrides(db, current_user.id, listing_id, overrides)
     if not updated:
-        raise HTTPException(404, "Listing 不存在或无权访问")
+        raise HTTPException(status_code=404, detail="Listing 不存在或无权访问")
     await record_audit_event(
         db,
         user=current_user,
@@ -94,7 +94,7 @@ async def post_promote_listing_base_version(
     """Explicitly generate a new product base version from one store Listing."""
     result = await promote_listing_to_base_version(db, current_user.id, listing_id)
     if not result:
-        raise HTTPException(404, "Listing 不存在或无权访问")
+        raise HTTPException(status_code=404, detail="Listing 不存在或无权访问")
     base = result.get("base_version") or {}
     listing = result.get("listing_instance") or {}
     await record_audit_event(
@@ -171,17 +171,17 @@ async def batch_preview(
     target_profit_pct: Optional[float] = data.get("target_profit_pct")
 
     if not sourcing_item_ids and not product_ids:
-        raise HTTPException(400, "请选择至少一个产品")
+        raise HTTPException(status_code=400, detail="请选择至少一个产品")
     if not platforms:
-        raise HTTPException(400, "请选择至少一个目标平台")
+        raise HTTPException(status_code=400, detail="请选择至少一个目标平台")
     if not markets:
-        raise HTTPException(400, "请选择至少一个目标市场")
+        raise HTTPException(status_code=400, detail="请选择至少一个目标市场")
     if not platform_account_ids:
-        raise HTTPException(400, "请选择至少一个目标店铺")
+        raise HTTPException(status_code=400, detail="请选择至少一个目标店铺")
     if pricing_mode not in ("cost_based", "selling_based"):
-        raise HTTPException(400, "定价策略无效")
+        raise HTTPException(status_code=400, detail="定价策略无效")
     if target_profit_pct is None:
-        raise HTTPException(400, "请填写目标利润率")
+        raise HTTPException(status_code=400, detail="请填写目标利润率")
 
     drafts = await batch_publish_service.generate_listing_drafts(
         db=db,
@@ -278,11 +278,11 @@ async def batch_publish(
     publish_plan: dict = data.get("publish_plan") or {"mode": "immediate"}
 
     if not drafts:
-        raise HTTPException(400, "请选择至少一个要创建草稿的Listing")
+        raise HTTPException(status_code=400, detail="请选择至少一个要创建草稿的Listing")
 
     confirmed = [d for d in drafts if d.get("confirmed")]
     if not confirmed:
-        raise HTTPException(400, "请确认至少一个Listing")
+        raise HTTPException(status_code=400, detail="请确认至少一个Listing")
 
     results = await batch_publish_service.confirm_publish(
         db=db,

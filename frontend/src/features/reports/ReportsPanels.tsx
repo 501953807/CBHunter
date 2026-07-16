@@ -16,7 +16,7 @@ const FREQ_LABELS: Record<string, string> = { daily: "每日", weekly: "每周",
 export function DailyTab({ date, setDate }: { date: string; setDate: (v: string) => void }) {
   const today = new Date().toISOString().slice(0, 10)
   const query = date || today
-  const report = useDailyReport(query)
+  const reportDailyQuery = useDailyReport(query)
   return (
     <>
       <div className="flex items-center gap-3">
@@ -24,7 +24,13 @@ export function DailyTab({ date, setDate }: { date: string; setDate: (v: string)
           className="px-3 py-2 rounded-lg border text-sm"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
       </div>
-      <ReportSection report={report.data} loading={report.isLoading} />
+      {reportDailyQuery.isError ? (
+        <div data-ui="report-daily-error">
+          <ReportLoadError title="日报加载失败" actionLabel="重新加载日报" onRetry={() => reportDailyQuery.refetch()} />
+        </div>
+      ) : (
+        <ReportSection report={reportDailyQuery.data} loading={reportDailyQuery.isLoading} />
+      )}
     </>
   )
 }
@@ -35,7 +41,7 @@ export function WeeklyTab({ weekStart, setWeekStart }: { weekStart: string; setW
   d.setDate(d.getDate() - 7)
   const weekAgo = d.toISOString().slice(0, 10)
   const query = weekStart || weekAgo
-  const report = useWeeklyReport(query)
+  const reportWeeklyQuery = useWeeklyReport(query)
   return (
     <>
       <div className="flex items-center gap-3">
@@ -44,7 +50,13 @@ export function WeeklyTab({ weekStart, setWeekStart }: { weekStart: string; setW
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
         <span className="text-xs" style={{ color: 'var(--color-muted)' }}>起止日期</span>
       </div>
-      <ReportSection report={report.data} loading={report.isLoading} />
+      {reportWeeklyQuery.isError ? (
+        <div data-ui="report-weekly-error">
+          <ReportLoadError title="周报加载失败" actionLabel="重新加载周报" onRetry={() => reportWeeklyQuery.refetch()} />
+        </div>
+      ) : (
+        <ReportSection report={reportWeeklyQuery.data} loading={reportWeeklyQuery.isLoading} />
+      )}
     </>
   )
 }
@@ -53,7 +65,7 @@ export function WeeklyTab({ weekStart, setWeekStart }: { weekStart: string; setW
 export function MonthlyTab({ month, setMonth }: { month: string; setMonth: (v: string) => void }) {
   const curMonth = new Date().toISOString().slice(0, 7)
   const query = month || curMonth
-  const report = useMonthlyReport(query)
+  const reportMonthlyQuery = useMonthlyReport(query)
   return (
     <>
       <div className="flex items-center gap-3">
@@ -61,7 +73,13 @@ export function MonthlyTab({ month, setMonth }: { month: string; setMonth: (v: s
           className="px-3 py-2 rounded-lg border text-sm"
           style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
       </div>
-      <ReportSection report={report.data} loading={report.isLoading} />
+      {reportMonthlyQuery.isError ? (
+        <div data-ui="report-monthly-error">
+          <ReportLoadError title="月报加载失败" actionLabel="重新加载月报" onRetry={() => reportMonthlyQuery.refetch()} />
+        </div>
+      ) : (
+        <ReportSection report={reportMonthlyQuery.data} loading={reportMonthlyQuery.isLoading} />
+      )}
     </>
   )
 }
@@ -162,14 +180,14 @@ export function AnomalyTab() {
 
 /* ── Subscriptions Tab ── */
 export function SubscriptionsTab() {
-  const subs = useSubscriptions()
+  const reportSubscriptionsQuery = useSubscriptions()
   const create = useCreateSubscription()
   const remove = useDeleteSubscription()
   const confirmAction = useConfirm()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<{ channel: 'in_app'; frequency: string }>({ channel: 'in_app', frequency: '' })
 
-  const items = subs.data?.data ?? []
+  const items = reportSubscriptionsQuery.data?.data ?? []
 
   const handleRemove = async (id: string) => {
     const ok = await confirmAction({
@@ -184,7 +202,7 @@ export function SubscriptionsTab() {
   return (
     <Card>
       <CardContent>
-        <EvidenceBanner evidence={subs.data} compact />
+        <EvidenceBanner evidence={reportSubscriptionsQuery.data} compact />
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>设置定期报表推送</p>
           <button onClick={() => setShowAdd(true)}
@@ -194,7 +212,11 @@ export function SubscriptionsTab() {
           </button>
         </div>
 
-        {subs.isLoading ? (
+        {reportSubscriptionsQuery.isError ? (
+          <div data-ui="report-subscriptions-error">
+            <ReportLoadError title="订阅列表加载失败" actionLabel="重新加载订阅" onRetry={() => reportSubscriptionsQuery.refetch()} />
+          </div>
+        ) : reportSubscriptionsQuery.isLoading ? (
           <div className="skeleton-shimmer h-32 rounded-xl" />
         ) : items.length === 0 ? (
           <EmptyState icon={<Mail className="w-10 h-10" />} title="暂无订阅" description="点击「添加订阅」设置推送" />
@@ -260,5 +282,35 @@ export function SubscriptionsTab() {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function ReportLoadError({ title, actionLabel, onRetry }: {
+  title: string
+  actionLabel: string
+  onRetry: () => void
+}) {
+  return (
+    <div
+      className="mt-4 rounded-xl border p-4"
+      style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>{title}</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-muted)' }}>
+            报表接口未返回可用数据，请检查后端服务、登录状态或数据源同步状态。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </div>
   )
 }

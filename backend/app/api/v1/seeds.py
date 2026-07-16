@@ -59,7 +59,7 @@ async def create_seed(
         )
         return ApiResponse(data=seed)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{seed_id}", response_model=ApiResponse)
@@ -72,7 +72,7 @@ async def update_seed(
     """Update an existing seed keyword."""
     old_value = await _get_seed_snapshot(db, seed_id)
     if not old_value:
-        raise HTTPException(404, "Seed not found")
+        raise HTTPException(status_code=404, detail="Seed not found")
     data["id"] = seed_id
     try:
         seed = await seed_service.upsert_seed(db, data)
@@ -88,7 +88,7 @@ async def update_seed(
         )
         return ApiResponse(data=seed)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/{seed_id}", response_model=ApiResponse)
@@ -100,10 +100,10 @@ async def delete_seed_endpoint(
     """Delete a seed keyword."""
     old_value = await _get_seed_snapshot(db, seed_id)
     if not old_value:
-        raise HTTPException(404, "Seed not found")
+        raise HTTPException(status_code=404, detail="Seed not found")
     ok = await seed_service.delete_seed(db, seed_id)
     if not ok:
-        raise HTTPException(404, "Seed not found")
+        raise HTTPException(status_code=404, detail="Seed not found")
     await record_audit_event(
         db,
         user=current_user,
@@ -175,7 +175,7 @@ async def discover_seeds(
 
     market = payload.get("market")
     if not market:
-        raise HTTPException(400, "请选择要发现种子的市场")
+        raise HTTPException(status_code=400, detail="请选择要发现种子的市场")
     from app.services.seed_discovery import discover_seeds_from_google_trends
 
     result = await discover_seeds_from_google_trends(db, market=market)

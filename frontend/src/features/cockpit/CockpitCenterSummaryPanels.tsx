@@ -84,7 +84,7 @@ function CockpitStoreMatrixTable({ stores, onNavigate }: {
             <tr key={store.id} className="border-t border-[var(--color-border)] align-top">
               <td className="px-2 py-2">
                 <p className="font-semibold text-[var(--color-fg)]">{store.account_name}</p>
-                <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {store.market || '市场待补'}</p>
+                <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {formatMarketLabel(store.market)}</p>
               </td>
               <td className="px-2 py-2 text-[var(--color-fg)]">
                 <p>{store.active_listings} Listing</p>
@@ -114,4 +114,9 @@ function CockpitStoreMatrixTable({ stores, onNavigate }: {
 function revenueText(values: { currency: string; orders: number; revenue: number }[]) {
   if (values.length === 0) return ''
   return values.slice(0, 2).map((item) => `${item.currency} ${item.revenue.toLocaleString()} / ${item.orders}单`).join('；')
+}
+
+function formatMarketLabel(value?: string | null) {
+  if (!value || value.toLowerCase() === 'unknown') return '--'
+  return value
 }

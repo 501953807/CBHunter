@@ -307,7 +307,7 @@ export function RiskStoreCommandBoard({ data, onNavigate }: Props) {
                     <tr key={`${store.platform}-${store.platform_account_id || store.account_name}`} className="border-t border-[var(--color-border)]">
                       <td className="px-3 py-2">
                         <p className="font-medium text-[var(--color-fg)]">{store.account_name}</p>
-                        <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {store.market || '市场待补'}</p>
+                        <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {formatMarketLabel(store.market)}</p>
                       </td>
                       <td className="px-3 py-2 text-[var(--color-danger)]">{store.critical}</td>
                       <td className="px-3 py-2 text-[var(--color-warning)]">{store.warning}</td>
@@ -407,6 +407,11 @@ function RateBadge({ label, value }: { label: string; value: number | null }) {
 
 function EmptyChart({ text }: { text: string }) {
   return <div className="flex h-56 items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] text-sm text-[var(--color-muted)]">{text}</div>
+}
+
+function formatMarketLabel(value?: string | null) {
+  if (!value || value.toLowerCase() === 'unknown') return '--'
+  return value
 }
 
 const tooltipStyle = {

@@ -26,6 +26,8 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
   const [form, setForm] = useState({
     platform_account_id: '', merchant_order_number: '', buyer_name: '', currency: '',
     total: '', ordered_at: '', notes: '',
+    shipping_address: '', shipping_fee: '', platform_fee: '', discount: '',
+    payment_status: '', payment_method: '', fulfillment_status: '', fulfillment_deadline_at: '', logistics_channel: '',
   })
   const [items, setItems] = useState<DraftItem[]>([emptyItem()])
   const supportedIds = new Set(platforms.map((item) => item.id))
@@ -46,12 +48,15 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
 
   const submit = async () => {
     const total = Number(form.total)
+    const shippingFee = parseOptionalAmount(form.shipping_fee)
+    const platformFee = parseOptionalAmount(form.platform_fee)
+    const discount = parseOptionalAmount(form.discount)
     const parsedItems = items.map((item) => ({
       name: item.name.trim(), sku: item.sku.trim() || null,
       quantity: Number(item.quantity), unit_price: Number(item.unit_price),
     }))
-    if (!form.platform_account_id || !form.merchant_order_number.trim() || !form.currency || !form.ordered_at || !Number.isFinite(total) || total <= 0 || parsedItems.some((item) => !item.name || !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isFinite(item.unit_price) || item.unit_price < 0)) {
-      setError('请完整填写店铺、订单号、币种、金额、下单时间和至少一条有效商品明细。')
+    if (!form.platform_account_id || !form.merchant_order_number.trim() || !form.currency || !form.ordered_at || !Number.isFinite(total) || total <= 0 || [shippingFee, platformFee, discount].some(value => value == null ? false : value < 0) || parsedItems.some((item) => !item.name || !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isFinite(item.unit_price) || item.unit_price < 0)) {
+      setError('请完整填写店铺、订单号、币种、金额、下单时间和至少一条有效商品明细；费用字段如填写必须大于等于 0。')
       return
     }
     setSaving(true)
@@ -61,8 +66,17 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
         platform_account_id: form.platform_account_id,
         merchant_order_number: form.merchant_order_number.trim(),
         buyer_name: form.buyer_name.trim() || null,
+        shipping_address: form.shipping_address.trim() ? { raw: form.shipping_address.trim(), source: 'manual_order_form' } : null,
+        shipping_fee: shippingFee,
+        platform_fee: platformFee,
+        discount,
         currency: form.currency,
         total,
+        payment_status: form.payment_status.trim() || null,
+        payment_method: form.payment_method.trim() || null,
+        fulfillment_status: form.fulfillment_status.trim() || null,
+        fulfillment_deadline_at: form.fulfillment_deadline_at ? new Date(form.fulfillment_deadline_at).toISOString() : null,
+        logistics_channel: form.logistics_channel.trim() || null,
         ordered_at: new Date(form.ordered_at).toISOString(),
         notes: form.notes.trim() || null,
         items: parsedItems,
@@ -90,6 +104,19 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
           <Input label="订单总额" type="number" min="0.01" step="0.01" value={form.total} onChange={(event) => setForm({ ...form, total: event.target.value })} />
           <Input label="下单时间" type="datetime-local" value={form.ordered_at} onChange={(event) => setForm({ ...form, ordered_at: event.target.value })} />
         </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Input label="买家支付运费" type="number" min="0" step="0.01" value={form.shipping_fee} onChange={(event) => setForm({ ...form, shipping_fee: event.target.value })} />
+          <Input label="平台费用" type="number" min="0" step="0.01" value={form.platform_fee} onChange={(event) => setForm({ ...form, platform_fee: event.target.value })} />
+          <Input label="优惠折扣" type="number" min="0" step="0.01" value={form.discount} onChange={(event) => setForm({ ...form, discount: event.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Input label="支付状态" placeholder="paid / unpaid / refunded" value={form.payment_status} onChange={(event) => setForm({ ...form, payment_status: event.target.value })} />
+          <Input label="支付方式" placeholder="平台钱包 / 信用卡 / COD" value={form.payment_method} onChange={(event) => setForm({ ...form, payment_method: event.target.value })} />
+          <Input label="履约状态" placeholder="pending / packed / shipped" value={form.fulfillment_status} onChange={(event) => setForm({ ...form, fulfillment_status: event.target.value })} />
+          <Input label="平台发货时限" type="datetime-local" value={form.fulfillment_deadline_at} onChange={(event) => setForm({ ...form, fulfillment_deadline_at: event.target.value })} />
+          <Input label="物流渠道" placeholder="J&T / Shopee Xpress / TikTok Shipping" value={form.logistics_channel} onChange={(event) => setForm({ ...form, logistics_channel: event.target.value })} />
+          <Input label="收货地址" placeholder="按平台订单收货地址原文录入" value={form.shipping_address} onChange={(event) => setForm({ ...form, shipping_address: event.target.value })} />
+        </div>
         <Input label="订单备注" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         <div>
           <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-[var(--color-fg)]">商品明细</h3><Button variant="secondary" size="sm" onClick={() => setItems((current) => [...current, emptyItem()])}><Plus className="h-3.5 w-3.5" />添加商品</Button></div>
@@ -107,4 +134,10 @@ export function ManualOrderModal({ open, onClose, onCreated }: Props) {
       </div>
     </Modal>
   )
+}
+
+function parseOptionalAmount(value: string) {
+  if (value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : -1
 }

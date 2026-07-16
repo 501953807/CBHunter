@@ -29,7 +29,7 @@ export function Header({ title }: { title?: string }) {
   const statuses = syncData?.data ?? []
   const anyError = statuses.some((s) => s.last_sync_status === 'failed')
   const connectedCount = statuses.filter((s) => s.last_sync_status === 'success').length
-  const networkLabel = netStatus?.overseas ? '外网可达' : netStatus?.domestic ? '仅内网' : '离线'
+  const networkLabel = netStatus?.overseas ? '网络状态：外网可达' : netStatus?.domestic ? '网络状态：仅内网' : '网络状态：离线'
 
   return (
     <header className="h-16 frosted border-b border-[var(--color-border)] flex items-center justify-between gap-4 px-5 shrink-0 transition-colors">

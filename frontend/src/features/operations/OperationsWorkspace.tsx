@@ -145,6 +145,7 @@ export default function OperationsWorkspace() {
         <SummaryCard icon={CheckCircle2} label="已关联财务台账" value={String(linkedCount)} />
         <SummaryCard icon={Users} label="真实发生金额" value={`¥${totalActual.toFixed(2)}`} />
       </div>
+      <OperationCadencePanel records={records} />
       <Card>
         <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">{editingId ? '编辑运营记录' : '新增运营记录'}</h2></CardHeader>
         <CardContent className="space-y-3">
@@ -192,6 +193,51 @@ export default function OperationsWorkspace() {
 
 function SummaryCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return <Card><CardContent className="pt-4 flex items-center gap-3"><Icon className="w-5 h-5 text-[var(--color-primary)]" /><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="text-xl font-bold text-[var(--color-fg)]">{value}</p></div></CardContent></Card>
+}
+
+function OperationCadencePanel({ records }: { records: OperationRecord[] }) {
+  const now = new Date()
+  const oneDay = 24 * 60 * 60 * 1000
+  const buckets = [
+    { label: '日常运营记录', days: 1 },
+    { label: '每周运营记录', days: 7 },
+    { label: '每月运营记录', days: 30 },
+  ].map(bucket => {
+    const items = records.filter(record => {
+      const time = record.created_at ? new Date(record.created_at).getTime() : 0
+      return time > 0 && now.getTime() - time <= bucket.days * oneDay
+    })
+    return {
+      ...bucket,
+      count: items.length,
+      amount: items.reduce((sum, record) => sum + Number(record.actual_amount_rmb || 0), 0),
+    }
+  })
+  const maxAmount = Math.max(...buckets.map(bucket => bucket.amount), 1)
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-semibold text-[var(--color-fg)]">运营节奏与趋势</h2>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">按真实运营台账生成日/周/月记录视图；无记录时只显示空态，不生成模板任务。</p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3" data-ui="operation-trend-chart">
+          {buckets.map(bucket => (
+            <div key={bucket.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--color-fg)]">{bucket.label}</p>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">{bucket.count} 条</span>
+              </div>
+              <p className="mt-2 text-xl font-semibold text-[var(--color-fg)]">¥{bucket.amount.toFixed(2)}</p>
+              <div className="mt-2 h-2 rounded-full bg-[var(--color-border)]">
+                <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${Math.max(bucket.amount / maxAmount * 100, bucket.amount ? 4 : 0)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 function isTemporaryRecordName(value: string) {

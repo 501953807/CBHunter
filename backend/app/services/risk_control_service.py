@@ -15,30 +15,25 @@ from app.services.audit_service import record_audit_event
 from app.services.cockpit_service import get_operating_cockpit
 from app.services.finance_service import get_finance_summary
 from app.services.inventory_alert_service import get_inventory_risk_workbench
+from app.services.risk_control_category_service import RISK_CATEGORY_LIBRARY, change_pct, risk_snapshot
+from app.services.risk_control_location_service import _risk_location_gap_queue
 from app.services.risk_control_projection_service import build_risk_control_projections
 from app.services.risk_control_sales_risk_service import get_listing_sales_decline_risks
-
-RISK_CATEGORY_LIBRARY = [
-    {"key": "account", "label": "账号安全风险", "route": "/platforms", "description": "平台授权、凭证、店铺可用性和同步阻断。"},
-    {"key": "business", "label": "店铺经营风险", "route": "/command-center", "description": "店铺投入、销售下滑、长期无销售和经营效率异常。"},
-    {"key": "compliance", "label": "合规/IP 风险", "route": "/monitor", "description": "侵权、禁限售、投诉和竞品异常信号。"},
-    {"key": "logistics", "label": "物流时效风险", "route": "/orders", "description": "订单履约超时、物流异常和发货阻塞。"},
-    {"key": "currency", "label": "汇率与利润风险", "route": "/settings/fees", "description": "市场币种、汇率缺口、利润台账矛盾。"},
-    {"key": "inventory", "label": "库存/供货风险", "route": "/inventory-alerts", "description": "库存预警、可售库存未知和补货断点。"},
-]
+from app.services.risk_control_sla_service import RISK_SLA_TEMPLATES, get_risk_sla_templates
 
 
 async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
     cockpit = await get_operating_cockpit(db, user_id)
     inventory_workbench = await get_inventory_risk_workbench(db, user_id)
     finance_summary = await get_finance_summary(db, user_id, "monthly")
+    sla_templates = await get_risk_sla_templates(db)
     risks = _build_risks(cockpit)
     risks.extend(_inventory_workbench_risks(inventory_workbench))
     risks.extend(_finance_signal_risks(finance_summary))
     risks.extend(await get_listing_sales_decline_risks(db, user_id))
     risks = await _attach_risk_scope(db, cockpit, risks)
     states = await _load_states(db, user_id, [item["id"] for item in risks])
-    risks = [_merge_state(item, states.get(item["id"])) for item in risks]
+    risks = [_merge_state(item, states.get(item["id"]), sla_templates) for item in risks]
     active_risks = [item for item in risks if item["status"] not in ("closed", "ignored")]
     gaps = _risk_gaps(cockpit, active_risks)
     assessment_status = "attention" if active_risks else "insufficient" if gaps else "clear"
@@ -58,10 +53,12 @@ async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
             "source_count": sum(len(item["source_refs"]) for item in risks),
             "category_count": len(RISK_CATEGORY_LIBRARY),
         },
+        "risk_sla_templates": sla_templates,
         "risks": risks,
         "risk_categories": risk_categories,
         "risk_store_matrix": _risk_store_matrix(active_risks),
         "risk_platform_matrix": _risk_platform_matrix(active_risks),
+        "location_gap_queue": _risk_location_gap_queue(active_risks),
         "comparison": comparison,
         **projections,
         "source_refs": _unique_refs([ref for item in risks for ref in item["source_refs"]]),
@@ -82,6 +79,7 @@ async def update_risk_event_state(
     cockpit = await get_operating_cockpit(db, current_user.id)
     inventory_workbench = await get_inventory_risk_workbench(db, current_user.id)
     finance_summary = await get_finance_summary(db, current_user.id, "monthly")
+    sla_templates = await get_risk_sla_templates(db)
     risks = _build_risks(cockpit)
     risks.extend(_inventory_workbench_risks(inventory_workbench))
     risks.extend(_finance_signal_risks(finance_summary))
@@ -130,7 +128,7 @@ async def update_risk_event_state(
         new_value=_state_snapshot(state),
         detail=request.note,
     )
-    return _merge_state(risk, state)
+    return _merge_state(risk, state, sla_templates)
 
 
 async def get_risk_event_audit(db: AsyncSession, user_id: str, risk_id: str) -> list[dict]:
@@ -502,16 +500,16 @@ async def _risk_period_comparison(db: AsyncSession, user_id: str, cockpit: dict)
     year_end = end - timedelta(days=365)
     previous = await _risk_snapshot_for_window(db, user_id, previous_start, previous_end)
     last_year = await _risk_snapshot_for_window(db, user_id, year_start, year_end)
-    current = _risk_snapshot(_build_risks(cockpit))
+    current = risk_snapshot(_build_risks(cockpit))
     return {
         "current": current,
         "previous": previous,
         "last_year": last_year,
         "rates": {
-            "active_mom_pct": _change_pct(current["active"], previous["active"]),
-            "active_yoy_pct": _change_pct(current["active"], last_year["active"]),
-            "critical_mom_pct": _change_pct(current["critical"], previous["critical"]),
-            "critical_yoy_pct": _change_pct(current["critical"], last_year["critical"]),
+            "active_mom_pct": change_pct(current["active"], previous["active"]),
+            "active_yoy_pct": change_pct(current["active"], last_year["active"]),
+            "critical_mom_pct": change_pct(current["critical"], previous["critical"]),
+            "critical_yoy_pct": change_pct(current["critical"], last_year["critical"]),
         },
         "windows": {
             "current": f"{start.isoformat()} 至 {end.isoformat()}",
@@ -523,23 +521,7 @@ async def _risk_period_comparison(db: AsyncSession, user_id: str, cockpit: dict)
 
 async def _risk_snapshot_for_window(db: AsyncSession, user_id: str, start: date, end: date) -> dict:
     cockpit = await get_operating_cockpit(db, user_id, start_date=start, end_date=end)
-    return _risk_snapshot(_build_risks(cockpit))
-
-
-def _risk_snapshot(risks: list[dict]) -> dict:
-    active = [item for item in risks if item["status"] not in ("closed", "ignored")]
-    return {
-        "active": len(active),
-        "critical": sum(1 for item in active if item["severity"] == "critical"),
-        "warning": sum(1 for item in active if item["severity"] == "warning"),
-        "events": len(risks),
-    }
-
-
-def _change_pct(current, baseline):
-    if current is None or baseline in (None, 0):
-        return None
-    return round(((current - baseline) / abs(baseline)) * 100, 2)
+    return risk_snapshot(_build_risks(cockpit))
 
 
 def _risk_store_matrix(risks: list[dict]) -> list[dict]:
@@ -665,14 +647,22 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
-def _complete_risk_operating_context(risk: dict) -> dict:
+def _complete_risk_operating_context(risk: dict, sla_templates: dict | None = None) -> dict:
     item = dict(risk)
+    templates = sla_templates or RISK_SLA_TEMPLATES
+    template_key = item.get("type") if item.get("type") in templates else "business"
+    severity = item.get("severity") if item.get("severity") in ("critical", "warning", "info") else "warning"
+    template_hours = templates.get(template_key, {}).get(severity)
     response_deadline_at = item.get("response_deadline_at") or None
+    if not response_deadline_at and template_hours:
+        response_deadline_at = (datetime.now(timezone.utc) + timedelta(hours=template_hours)).isoformat()
     sla_hours, remaining_time_label = _deadline_snapshot(response_deadline_at)
     item.setdefault("estimated_impact", _default_risk_impact(item))
     item.setdefault("response_deadline_at", response_deadline_at)
     item.setdefault("remaining_time_label", remaining_time_label)
     item.setdefault("sla_hours", sla_hours)
+    item.setdefault("sla_template_key", template_key)
+    item.setdefault("sla_template_hours", template_hours)
     return item
 
 
@@ -759,8 +749,8 @@ async def _load_states(db: AsyncSession, user_id: str, risk_ids: list[str]) -> d
     return {item.risk_id: item for item in result.scalars().all()}
 
 
-def _merge_state(risk: dict, state: Optional[RiskEventState]) -> dict:
-    merged = _complete_risk_operating_context(risk)
+def _merge_state(risk: dict, state: Optional[RiskEventState], sla_templates: dict | None = None) -> dict:
+    merged = _complete_risk_operating_context(risk, sla_templates)
     if not state:
         default_deadline = merged.get("response_deadline_at")
         merged.update({

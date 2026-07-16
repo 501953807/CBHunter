@@ -89,7 +89,7 @@ async def schedule_report(
             db, current_user.id, req.channel, req.frequency,
         )
     except ValueError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(status_code=409, detail=str(exc))
     await record_audit_event(
         db,
         user=current_user,
@@ -135,11 +135,11 @@ async def delete_subscription(
     """Delete a report subscription."""
     sub = await _get_subscription(db, sub_id, current_user.id)
     if not sub:
-        raise HTTPException(404, "订阅不存在")
+        raise HTTPException(status_code=404, detail="订阅不存在")
     old_value = _subscription_snapshot(sub)
     ok = await report_service.delete_subscription(db, sub_id, current_user.id)
     if not ok:
-        raise HTTPException(404, "订阅不存在")
+        raise HTTPException(status_code=404, detail="订阅不存在")
     await record_audit_event(
         db,
         user=current_user,

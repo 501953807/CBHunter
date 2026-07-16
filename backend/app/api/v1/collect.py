@@ -124,7 +124,7 @@ async def collect_product_unified(
     from app.services.config_service import get_platforms
     approved_platforms = {item["id"] for item in await get_platforms(db)}
     if source_platform not in approved_platforms:
-        raise HTTPException(400, "仅支持配置中的 Shopee、TEMU、TikTok Shop 平台")
+        raise HTTPException(status_code=400, detail="仅支持配置中的 Shopee、TEMU、TikTok Shop 平台")
 
     missing = _missing_fields({
         "source_url": req.source_url,
@@ -313,7 +313,7 @@ async def collect_hot_product(
     from app.services.config_service import get_platforms
     approved_platforms = {item["id"] for item in await get_platforms(db)}
     if req.platform not in approved_platforms:
-        raise HTTPException(400, "仅支持配置中的 Shopee、TEMU、TikTok Shop 平台")
+        raise HTTPException(status_code=400, detail="仅支持配置中的 Shopee、TEMU、TikTok Shop 平台")
 
     missing = _missing_fields({
         "product_url": req.product_url,
@@ -443,7 +443,7 @@ async def collect_supplier(
     sourcing_item_id = req.sourcing_item_id
     if not sourcing_item_id and req.product_name:
         if req.purchase_price_rmb is None or req.purchase_price_rmb <= 0:
-            raise HTTPException(400, "新建选品时必须提供真实采购价")
+            raise HTTPException(status_code=400, detail="新建选品时必须提供真实采购价")
         from app.services.sourcing_service import create_item
         item = await create_item(db, current_user.id, {
             "source_name": "ali1688",
@@ -464,7 +464,7 @@ async def collect_supplier(
         )
 
     if not sourcing_item_id:
-        raise HTTPException(400, "sourcing_item_id 或 product_name 必填")
+        raise HTTPException(status_code=400, detail="sourcing_item_id 或 product_name 必填")
     await _ensure_sourcing_item_owner(db, sourcing_item_id, current_user.id)
 
     supplier = await create_supplier(db, current_user.id, {
@@ -734,7 +734,7 @@ async def _ensure_sourcing_item_owner(db: AsyncSession, sourcing_item_id: str, u
         )
     )
     if not result.scalar_one_or_none():
-        raise HTTPException(404, "选品不存在或无权关联供应商")
+        raise HTTPException(status_code=404, detail="选品不存在或无权关联供应商")
 
 
 def _trending_product_snapshot(product) -> dict:

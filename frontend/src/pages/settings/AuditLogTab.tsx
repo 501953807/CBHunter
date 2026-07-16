@@ -23,7 +23,8 @@ export default function AuditLogTab() {
   if (dateFrom) params.date_from = dateFrom
   if (dateTo) params.date_to = dateTo
 
-  const { data: res, isLoading } = useAuditLogs(params)
+  const auditLogsQuery = useAuditLogs(params)
+  const res = auditLogsQuery.data
   const items = (res?.data ?? []) as any[]
   const meta = res?.meta
   const totalPages = meta?.total_pages ?? 0
@@ -42,11 +43,46 @@ export default function AuditLogTab() {
     return s.length > max ? s.slice(0, max) + '...' : s
   }
 
+  const applyDateRange = (days: number) => {
+    const end = new Date()
+    const start = new Date()
+    start.setDate(end.getDate() - days + 1)
+    setDateFrom(toDateInputValue(start))
+    setDateTo(toDateInputValue(end))
+    setPage(1)
+  }
+
   return (
     <Card>
       <CardContent>
         <EvidenceBanner evidence={res} compact />
         {/* Filters */}
+        <div className="mb-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" data-ui="audit-date-range-filter">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[var(--color-fg)]">审计日志时间范围</p>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                当前范围：{dateFrom || '不限开始'} 至 {dateTo || '不限结束'}；时间范围会与用户、操作和资源条件一起查询。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => applyDateRange(7)}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              >
+                最近7天
+              </button>
+              <button
+                type="button"
+                onClick={() => applyDateRange(30)}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              >
+                最近30天
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <input
             type="text"
@@ -139,7 +175,30 @@ export default function AuditLogTab() {
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
+              {auditLogsQuery.isError ? (
+                <tr data-ui="audit-log-error">
+                  <td colSpan={5} className="py-12 text-center">
+                    <div className="mx-auto max-w-xl rounded-xl border p-4 text-left" style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-fg)]">审计日志加载失败</p>
+                          <p className="mt-1 text-xs text-[var(--color-muted)]">
+                            无法读取操作追溯记录，请检查后端服务、登录状态或审计日志接口。
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => auditLogsQuery.refetch()}
+                          className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
+                          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
+                        >
+                          重新加载审计日志
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : auditLogsQuery.isLoading ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center" style={{ color: 'var(--color-muted)' }}>
                     <div className="flex items-center justify-center gap-2">
@@ -246,4 +305,8 @@ function exportAuditCsv(items: any[], formatTime: (value: string) => string) {
 function csvCell(value: unknown) {
   const text = value == null ? '' : String(value)
   return `"${text.replaceAll('"', '""')}"`
+}
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10)
 }

@@ -16,6 +16,7 @@ export function ProfileSettings({ toast }: { toast: any }) {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [searchText, setSearchText] = useState('')
   const [form, setForm] = useState({ username: '', email: '', display_name: '', password: '' })
   const [pwTarget, setPwTarget] = useState<string | null>(null)
   const [pwForm, setPwForm] = useState({ new1: '', new2: '' })
@@ -64,6 +65,15 @@ export function ProfileSettings({ toast }: { toast: any }) {
 
   if (loading) return <div className="text-sm text-[var(--color-muted)] py-8 text-center">加载中...</div>
 
+  const normalizedSearch = searchText.trim().toLowerCase()
+  const filteredUsers = normalizedSearch
+    ? users.filter((user) => [
+      user.username,
+      user.display_name,
+      user.email,
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch)))
+    : users
+
   return (
     <div className="space-y-4">
       <Card>
@@ -71,7 +81,7 @@ export function ProfileSettings({ toast }: { toast: any }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-[var(--color-primary)]" />
-              <h2 className="font-semibold" style={{ color: 'var(--color-fg)' }}>账号列表 ({users.length})</h2>
+              <h2 className="font-semibold" style={{ color: 'var(--color-fg)' }}>账号列表 ({filteredUsers.length}/{users.length})</h2>
             </div>
             {!adding && (
               <button onClick={() => { setAdding(true); setForm({ username: '', email: '', display_name: '', password: '' }) }}
@@ -83,6 +93,26 @@ export function ProfileSettings({ toast }: { toast: any }) {
         </CardHeader>
         <div className="px-6"><EvidenceBanner evidence={evidence} compact /></div>
         <CardContent>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <input
+              data-ui="settings-user-search"
+              aria-label="账号搜索"
+              className="min-w-[240px] rounded-lg border px-3 py-2 text-sm"
+              placeholder="账号搜索：用户名 / 显示名称 / 邮箱"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg)', backgroundColor: 'var(--color-surface)' }}
+            />
+            {searchText && (
+              <button
+                type="button"
+                onClick={() => setSearchText('')}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:bg-[var(--color-bg)]"
+              >
+                清除账号搜索
+              </button>
+            )}
+          </div>
           {adding && (
             <div className="mb-4 p-3 rounded-lg border" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
@@ -115,7 +145,7 @@ export function ProfileSettings({ toast }: { toast: any }) {
               <th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>操作</th>
             </tr></thead>
             <tbody>
-              {users.map((u: any) => (
+              {filteredUsers.map((u: any) => (
                 <tr key={u.username} className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   {editing === u.username ? (
                     <>
@@ -143,6 +173,13 @@ export function ProfileSettings({ toast }: { toast: any }) {
                   )}
                 </tr>
               ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-[var(--color-muted)]">
+                    未找到匹配账号，请调整账号搜索条件。
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </CardContent>

@@ -54,7 +54,7 @@ async def mark_read(
     old_value = _notification_snapshot(notification)
     ok = await notification_service.mark_read(db, current_user.id, notification_id)
     if not ok:
-        raise HTTPException(404, "通知不存在")
+        raise HTTPException(status_code=404, detail="通知不存在")
     await record_audit_event(
         db,
         user=current_user,

@@ -513,7 +513,11 @@ def _stage_projection(key: str, name: str, route: str, source: str, cockpit: dic
     gaps = list(section["gaps"])
     if key == "listing":
         gaps.extend(sections["inventory"]["gaps"])
-    if key == "optimization" and sections["reports"]["metrics"]["anomaly_count"] > 0:
+    if (
+        key == "optimization"
+        and sections["reports"]["metrics"]["anomaly_count"] > 0
+        and sections["reports"].get("source_refs")
+    ):
         gaps.append("存在报表异常，需先完成风险复核")
     return {
         "key": key,
@@ -585,7 +589,13 @@ def _stage_status(key: str, cockpit: dict, gaps: list[str]) -> str:
         return "data_required"
     if key in ("fulfillment", "listing") and gaps:
         return "blocked"
-    if key == "optimization" and cockpit["attention_count"] > 0:
+    if key == "optimization" and (
+        cockpit["sections"]["ai_suggestions"]["metrics"]["active"] > 0
+        or (
+            cockpit["sections"]["reports"]["metrics"]["anomaly_count"] > 0
+            and cockpit["sections"]["reports"].get("source_refs")
+        )
+    ):
         return "blocked"
     if gaps:
         return "data_required"

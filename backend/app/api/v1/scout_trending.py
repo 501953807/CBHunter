@@ -132,7 +132,7 @@ async def sync_trending_products(
             from app.services.trending_sync_service import fetch_tiktok_trending
             stats["tiktok"] = await fetch_tiktok_trending(db, current_user.id)
         else:
-            raise HTTPException(400, f"Unknown platform: {platform}")
+            raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
         stats["total"] = sum(value for value in stats.values() if isinstance(value, int))
 
     await record_audit_event(
@@ -167,11 +167,11 @@ async def delete_trending_product(
 
     product = await _get_trending_product(db, product_id, current_user.id)
     if not product:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
     old_value = _trending_snapshot(product)
     ok = await do_delete(db, product_id, current_user.id)
     if not ok:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
     await record_audit_event(
         db,
         user=current_user,
@@ -193,7 +193,7 @@ async def capture_trending_product(
     """Capture a trending product from hot list into user's captured list."""
     src_id = data.get("trending_id") or data.get("id")
     if not src_id:
-        raise HTTPException(400, "缺少 trending_id")
+        raise HTTPException(status_code=400, detail="缺少 trending_id")
 
     result = await db.execute(
         select(TrendingProduct).where(
@@ -203,7 +203,7 @@ async def capture_trending_product(
     )
     src = result.scalar_one_or_none()
     if not src:
-        raise HTTPException(404, "商品不存在")
+        raise HTTPException(status_code=404, detail="商品不存在")
 
     existing = await db.execute(
         select(CapturedTrendingProduct).where(
@@ -213,7 +213,7 @@ async def capture_trending_product(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "已加入备选")
+        raise HTTPException(status_code=409, detail="已加入备选")
 
     now = datetime.now(timezone.utc)
     captured = CapturedTrendingProduct(
@@ -305,7 +305,7 @@ async def delete_captured_trending_product(
     """Delete a captured trending product."""
     existing = await _get_captured_trending_product(db, product_id, current_user.id)
     if not existing:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
     old_value = _captured_trending_snapshot(existing)
     result = await db.execute(
         sql_delete(CapturedTrendingProduct).where(
@@ -315,7 +315,7 @@ async def delete_captured_trending_product(
     )
     await db.commit()
     if result.rowcount == 0:
-        raise HTTPException(404, "Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
     await record_audit_event(
         db,
         user=current_user,

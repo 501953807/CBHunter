@@ -102,9 +102,9 @@ async def add_supply_to_discovery(
     )
     supply_product = result.scalar_one_or_none()
     if not supply_product:
-        raise HTTPException(404, "Supply product not found")
+        raise HTTPException(status_code=404, detail="Supply product not found")
     if supply_product.added_to_discovery and supply_product.discovery_id:
-        raise HTTPException(400, "该产品已添加到图片选品")
+        raise HTTPException(status_code=400, detail="该产品已添加到图片选品")
 
     first_image_url = _get_first_image_url(supply_product)
     ensure_image_dir()
@@ -178,7 +178,7 @@ async def delete_supply_product(
     )
     supply_product = result.scalar_one_or_none()
     if not supply_product:
-        raise HTTPException(404, "Supply product not found")
+        raise HTTPException(status_code=404, detail="Supply product not found")
 
     old_value = _supply_product_snapshot(supply_product)
     supply_product.is_active = False
@@ -228,10 +228,10 @@ def _supply_product_snapshot(product: SupplyProduct) -> dict:
 def _get_first_image_url(supply_product: SupplyProduct) -> str:
     images = supply_product.images or []
     if not images:
-        raise HTTPException(400, "该产品没有图片")
+        raise HTTPException(status_code=400, detail="该产品没有图片")
     first_image_url = images[0]
     if not first_image_url or not first_image_url.startswith("http"):
-        raise HTTPException(400, "图片 URL 无效")
+        raise HTTPException(status_code=400, detail="图片 URL 无效")
     return first_image_url
 
 
@@ -258,4 +258,4 @@ async def _download_image(image_url: str, filepath: str) -> None:
             with open(filepath, "wb") as image_file:
                 image_file.write(response.content)
     except Exception as exc:
-        raise HTTPException(400, f"图片下载失败: {str(exc)}")
+        raise HTTPException(status_code=400, detail=f"图片下载失败: {str(exc)}")

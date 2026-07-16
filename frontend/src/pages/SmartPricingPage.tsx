@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Calculator, TrendingUp, Target, Shield, Zap } from 'lucide-react'
 import { PageHeader } from '../components/shared/PageHeader'
 import { Card, CardContent } from '../components/ui/Card'
@@ -28,22 +29,26 @@ export default function SmartPricingPage() {
   const [pricingMode, setPricingMode] = useState<'cost_based' | 'selling_based' | ''>('')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [selectedStoreId, setSelectedStoreId] = useState('')
-  const [pricingItems, setPricingItems] = useState<PricingWorkbenchItem[]>([])
   const [result, setResult] = useState<PriceRecommendationData | null>(null)
   const [evidence, setEvidence] = useState<ApiResponse<PriceRecommendationData> | null>(null)
   const [loading, setLoading] = useState(false)
   const [confirmingTier, setConfirmingTier] = useState('')
   const [confirmMessage, setConfirmMessage] = useState('')
   const [confirmedProductId, setConfirmedProductId] = useState('')
+  const pricingWorkbenchQuery = useQuery({
+    queryKey: ['pricing-workbench'],
+    queryFn: getPricingWorkbench,
+  })
+  const pricingItems = pricingWorkbenchQuery.data?.data?.items || []
   const pricingPlatforms = filterPlatformsByCapability(platforms, 'pricing')
   const isConfigurationRequired = result?.status === 'configuration_required'
   const pricingDataGaps = result?.data_gaps || []
+  const selectedPricingItem = pricingItems.find(item => item.id === selectedItemId)
+  const targetProfitSliderValue = normalizeProfitSliderValue(targetProfit)
 
   useEffect(() => {
-    getPricingWorkbench().then(res => setPricingItems(res.data?.items || [])).catch((e: any) => {
-      logger.error('Load pricing workbench failed', e)
-    })
-  }, [])
+    if (pricingWorkbenchQuery.error) logger.error('Load pricing workbench failed', pricingWorkbenchQuery.error)
+  }, [pricingWorkbenchQuery.error])
 
   useEffect(() => {
     if (selectedItemId || pricingItems.length === 0) return
@@ -129,6 +134,26 @@ export default function SmartPricingPage() {
         <div className="col-span-2 space-y-4">
           <Card>
             <CardContent className="pt-4 space-y-4">
+              {pricingWorkbenchQuery.isError && (
+                <div
+                  data-ui="pricing-workbench-error"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+                >
+                  <span className="text-[var(--color-danger)]">定价商品队列加载失败，请检查后端服务或当前登录权限。</span>
+                  <button
+                    type="button"
+                    onClick={() => pricingWorkbenchQuery.refetch()}
+                    className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+                  >
+                    重新加载定价队列
+                  </button>
+                </div>
+              )}
+              {pricingWorkbenchQuery.isLoading && (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
+                  正在加载定价商品队列...
+                </div>
+              )}
               <PricingItemSelector items={pricingItems} selectedItemId={selectedItemId} selectedStoreId={selectedStoreId} onSelectItem={handleSelectItem} onSelectStore={setSelectedStoreId} />
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -179,14 +204,30 @@ export default function SmartPricingPage() {
                   <label className="text-xs" style={{ color: 'var(--color-muted)' }}>
                     {pricingMode === 'cost_based' ? '目标成本利润率' : pricingMode === 'selling_based' ? '目标售价净利率' : '目标利润率'}
                   </label>
+                  <span className="text-xs font-medium text-[var(--color-primary)]">{targetProfit || targetProfitSliderValue}%</span>
                 </div>
-                <input
-                  type="number" min="0.1" max="60" step="0.1" value={targetProfit}
-                  onChange={e => setTargetProfit(e.target.value)}
-                  placeholder="请输入目标利润率"
-                  className="w-full rounded-lg px-3 py-2 outline-none"
-                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
-                />
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" data-ui="pricing-profit-slider">
+                  <input
+                    aria-label="目标利润率滑块"
+                    type="range"
+                    min="0.1"
+                    max="60"
+                    step="0.1"
+                    value={targetProfitSliderValue}
+                    onChange={e => setTargetProfit(e.target.value)}
+                    className="w-full accent-[var(--color-primary)]"
+                  />
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="number" min="0.1" max="60" step="0.1" value={targetProfit}
+                      onChange={e => setTargetProfit(e.target.value)}
+                      placeholder="请输入目标利润率"
+                      className="w-32 rounded-lg px-3 py-2 outline-none"
+                      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
+                    />
+                    <p className="text-xs text-[var(--color-muted)]">拖动滑块快速调整利润率，精确数值可在输入框修正。</p>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -248,35 +289,38 @@ export default function SmartPricingPage() {
             </div>
           )}
           {result?.status === 'ready' && (
-            <div className="grid grid-cols-3 gap-3">
-              {(['conservative', 'balanced', 'aggressive'] as const).map(tier => {
-                const rec = result.recommendations[tier]
-                if (!rec) return null
-                return (
-                  <Card key={tier}>
-                    <CardContent className="pt-4 text-center">
-                      <div className="flex justify-center mb-2">
-                        {tier === 'conservative' ? <Shield className="w-5 h-5" style={{ color: 'var(--color-info)' }} />
-                         : tier === 'balanced' ? <Target className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
-                         : <Zap className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />}
-                      </div>
-                      <p className="text-[11px] mb-1" style={{ color: 'var(--color-muted)' }}>{rec.label}</p>
-                      <p className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>¥{rec.selling_price}</p>
-                      {rec.selling_price_local != null && <p className="text-xs mt-1" style={{ color: 'var(--color-primary)' }}>{rec.currency} {rec.selling_price_local}</p>}
-                      {rec.competition_position && <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>{rec.competition_position === 'below_band' ? '低于竞品价格带' : rec.competition_position === 'above_band' ? '高于竞品价格带' : '位于竞品价格带内'}</p>}
-                      <p className="text-xs mt-1" style={{ color: 'var(--color-success)' }}>净利润率 {rec.net_profit_pct}%</p>
-                      <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                        <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                          净利润 ¥{rec.net_profit_rmb.toFixed(2)}
-                        </p>
-                      </div>
-                      <button onClick={() => handleConfirmPrice(tier)} disabled={!selectedItemId || !selectedStoreId || confirmingTier === tier || !rec.selling_price_local} className="mt-3 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] disabled:opacity-40">
-                        {confirmingTier === tier ? '确认中...' : '确认并创建草稿'}
-                      </button>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {(['conservative', 'balanced', 'aggressive'] as const).map(tier => {
+                  const rec = result.recommendations[tier]
+                  if (!rec) return null
+                  return (
+                    <Card key={tier}>
+                      <CardContent className="pt-4 text-center">
+                        <div className="flex justify-center mb-2">
+                          {tier === 'conservative' ? <Shield className="w-5 h-5" style={{ color: 'var(--color-info)' }} />
+                           : tier === 'balanced' ? <Target className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
+                           : <Zap className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />}
+                        </div>
+                        <p className="text-[11px] mb-1" style={{ color: 'var(--color-muted)' }}>{rec.label}</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>¥{rec.selling_price}</p>
+                        {rec.selling_price_local != null && <p className="text-xs mt-1" style={{ color: 'var(--color-primary)' }}>{rec.currency} {rec.selling_price_local}</p>}
+                        {rec.competition_position && <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>{rec.competition_position === 'below_band' ? '低于竞品价格带' : rec.competition_position === 'above_band' ? '高于竞品价格带' : '位于竞品价格带内'}</p>}
+                        <p className="text-xs mt-1" style={{ color: 'var(--color-success)' }}>净利润率 {rec.net_profit_pct}%</p>
+                        <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                          <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                            净利润 ¥{rec.net_profit_rmb.toFixed(2)}
+                          </p>
+                        </div>
+                        <button onClick={() => handleConfirmPrice(tier)} disabled={!selectedItemId || !selectedStoreId || confirmingTier === tier || !rec.selling_price_local} className="mt-3 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] disabled:opacity-40">
+                          {confirmingTier === tier ? '确认中...' : '确认并创建草稿'}
+                        </button>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+              <PricingDecisionContext result={result} item={selectedPricingItem} />
             </div>
           )}
         </div>
@@ -329,4 +373,96 @@ function matchesPricingProduct(item: PricingWorkbenchItem, productId: string) {
     item.work_item_id === productId ||
     item.object_refs?.some(ref => ref.type === 'product' && ref.id === productId)
   ))
+}
+
+function normalizeProfitSliderValue(value: string) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 20
+  return Math.min(Math.max(numeric, 0.1), 60)
+}
+
+function PricingDecisionContext({ result, item }: { result: PriceRecommendationData; item?: PricingWorkbenchItem }) {
+  const balanced = result.recommendations.balanced
+  const feePct = result.estimated_fee_pct ?? 0
+  const sellingPrice = balanced?.selling_price ?? 0
+  const platformFee = sellingPrice * feePct / 100
+  const sourceCost = result.source_price_rmb
+  const netProfit = balanced?.net_profit_rmb ?? null
+  const maxAbs = Math.max(sourceCost, platformFee, Math.abs(netProfit ?? 0), 1)
+  const profitRows = [
+    { label: '采购成本 source_price_rmb', value: sourceCost, tone: 'var(--color-danger)' },
+    { label: '平台费 estimated_fee_pct', value: platformFee, tone: 'var(--color-warning)' },
+    { label: '净利润', value: netProfit ?? 0, tone: (netProfit ?? 0) < 0 ? 'var(--color-danger)' : 'var(--color-primary)' },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+      <Card>
+        <CardContent className="pt-4">
+          <p className="text-sm font-semibold text-[var(--color-fg)]">定价历史</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">
+            当前展示本次定价快照；后续接入真实调价日志后按店铺、平台和商品版本形成价格时间线。
+          </p>
+          <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--color-muted)]">{item?.product_name || result.product_name || '当前定价商品'}</span>
+              <span className="font-medium text-[var(--color-fg)]">{balanced ? `¥${balanced.selling_price}` : '--'}</span>
+            </div>
+            <p className="mt-1 text-[var(--color-muted)]">
+              {[result.platform, result.market, balanced?.label].filter(Boolean).join(' · ') || '平台/市场待选择'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <p className="text-sm font-semibold text-[var(--color-fg)]">竞品价格带对比</p>
+          {result.competitor_price_band ? (
+            <div className="mt-3 space-y-2 text-xs">
+              {[
+                ['最低价', result.competitor_price_band.min],
+                ['中位价', result.competitor_price_band.median],
+                ['最高价', result.competitor_price_band.max],
+              ].map(([label, value]) => (
+                <div key={label as string} className="rounded-lg bg-[var(--color-bg)] px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--color-muted)]">{label as string}</span>
+                    <span className="font-medium text-[var(--color-fg)]">{result.competitor_price_band?.currency} {Number(value).toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+              <p className="text-[11px] text-[var(--color-muted)]">样本 {result.competitor_price_band.sample_count} 个；用于判断推荐售价相对竞品区间的位置。</p>
+            </div>
+          ) : (
+            <p className="mt-3 rounded-xl border border-dashed border-[var(--color-border)] p-4 text-xs text-[var(--color-muted)]">
+              暂无真实竞品价格样本；补充竞品监控后展示平台价格带，不使用模拟竞品。
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4" data-ui="pricing-profit-breakdown">
+          <p className="text-sm font-semibold text-[var(--color-fg)]">利润拆分</p>
+          <div className="mt-3 space-y-2">
+            {profitRows.map((row) => (
+              <div key={row.label}>
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="text-[var(--color-muted)]">{row.label}</span>
+                  <span className="font-medium text-[var(--color-fg)]">¥{row.value.toFixed(2)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[var(--color-border)]">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(Math.abs(row.value) / maxAbs * 100, row.value ? 4 : 0)}%`, background: row.tone }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--color-muted)]">
+            以平衡档售价拆分采购成本、平台费和净利润，确认后写入本地 Listing 草稿，平台实际费用以账单同步为准。
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

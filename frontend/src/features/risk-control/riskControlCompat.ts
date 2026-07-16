@@ -22,6 +22,14 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
       category_count: riskCategories.length,
       ...(raw.metrics || {}),
     },
+    risk_sla_templates: raw.risk_sla_templates || {
+      account: { critical: 12, warning: 24, info: 72 },
+      business: { critical: 24, warning: 72, info: 120 },
+      compliance: { critical: 12, warning: 48, info: 120 },
+      logistics: { critical: 6, warning: 24, info: 72 },
+      currency: { critical: 24, warning: 72, info: 120 },
+      inventory: { critical: 24, warning: 72, info: 120 },
+    },
     risk_categories: riskCategories,
     risk_radar: Array.isArray(raw.risk_radar) ? raw.risk_radar : riskCategories.map((item: any) => ({
       key: item.key,
@@ -49,6 +57,7 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
     })),
     risk_store_matrix: Array.isArray(raw.risk_store_matrix) ? raw.risk_store_matrix : [],
     risk_platform_matrix: Array.isArray(raw.risk_platform_matrix) ? raw.risk_platform_matrix : [],
+    location_gap_queue: Array.isArray(raw.location_gap_queue) ? raw.location_gap_queue : [],
     comparison: {
       current: { ...emptySnapshot, ...(raw.comparison?.current || {}) },
       previous: { ...emptySnapshot, ...(raw.comparison?.previous || {}) },
@@ -73,6 +82,8 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
       response_deadline_at: risk.response_deadline_at || risk.due_at || null,
       remaining_time_label: risk.remaining_time_label || (risk.is_overdue ? '已超期' : '未设置'),
       sla_hours: typeof risk.sla_hours === 'number' ? risk.sla_hours : null,
+      sla_template_key: risk.sla_template_key || risk.type || null,
+      sla_template_hours: typeof risk.sla_template_hours === 'number' ? risk.sla_template_hours : null,
     })),
     source_refs: Array.isArray(raw.source_refs) ? raw.source_refs : [],
     gaps,

@@ -14,12 +14,14 @@ export function SignalFunnelOverview() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [visibleStreamCount, setVisibleStreamCount] = useState(10)
 
   const load = async () => {
     setLoading(true)
     try {
       const res = await getScoutFunnel()
       setData(res.data || null)
+      setVisibleStreamCount(10)
       setError('')
     } catch (e: any) {
       logger.error('Load scout funnel failed', e)
@@ -64,6 +66,7 @@ export function SignalFunnelOverview() {
         </div>
 
         <SignalFunnelMap layers={layers} metrics={metrics} />
+        <CompleteCandidateRepairPanel metrics={metrics} />
 
         <div className="grid gap-2 lg:grid-cols-4">
           {layers.map((layer: any) => (
@@ -89,7 +92,7 @@ export function SignalFunnelOverview() {
 
         <div className="grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
           <CandidateCards candidates={candidates} />
-          <SignalStream stream={stream} />
+          <SignalStream stream={stream} visibleCount={visibleStreamCount} onLoadMore={() => setVisibleStreamCount(count => count + 10)} />
         </div>
       </CardContent>
     </Card>
@@ -171,6 +174,40 @@ function Metric({ label, value }: { label: string; value: number }) {
   )
 }
 
+function CompleteCandidateRepairPanel({ metrics }: { metrics: any }) {
+  const candidateCount = Number(metrics?.candidate_count || 0)
+  const completeCount = Number(metrics?.complete_candidate_count || 0)
+  if (candidateCount === 0 || completeCount > 0) return null
+  const repairs = [
+    { layer: 'culture', title: '补社交文娱影响', detail: '录入小红书、Facebook、TikTok Creative Center 等可追溯链接、截图或评论资料。' },
+    { layer: 'trend', title: '补流行趋势', detail: '同步或手工录入 Pinterest / Google Trends 关键词，标记市场、时间窗口和趋势方向。' },
+    { layer: 'platform', title: '补销售平台', detail: '补 Shopee、TEMU、TikTok Shop 热卖商品链接、价格带、销量或评分资料。' },
+    { layer: 'supply', title: '补供应渠道', detail: '补 1688/供应商链接、采购价、起订量、规格、图片和发货周期。' },
+  ]
+  return (
+    <section className="rounded-2xl border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-4" aria-label="完整候选补齐路径">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-warning)]">完整候选补齐路径</p>
+          <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">已有候选，但四层资料还没有形成闭环</h3>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">系统不会把不完整候选冒充为可决策商品；请按缺失层补真实来源后再进入选品决策。</p>
+        </div>
+        <span className="rounded-full bg-[var(--color-bg)] px-3 py-1 text-xs font-medium text-[var(--color-warning)]">
+          {completeCount}/{candidateCount} 个完整候选
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-4">
+        {repairs.map(item => (
+          <a key={item.layer} href={`#scout-layer-${item.layer}`} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs hover:border-[var(--color-warning)]">
+            <p className="font-semibold text-[var(--color-fg)]">{item.title}</p>
+            <p className="mt-1 leading-5 text-[var(--color-muted)]">{item.detail}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function CandidateCards({ candidates }: { candidates: any[] }) {
   return (
     <div className="space-y-2">
@@ -210,20 +247,22 @@ function CandidateCards({ candidates }: { candidates: any[] }) {
   )
 }
 
-function SignalStream({ stream }: { stream: any[] }) {
+function SignalStream({ stream, visibleCount, onLoadMore }: { stream: any[]; visibleCount: number; onLoadMore: () => void }) {
+  const visible = stream.slice(0, visibleCount)
+  const hasMore = visibleCount < stream.length
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-fg)]">
         <CircleDashed className="h-3.5 w-3.5 text-[var(--color-primary)]" />
         最新信号流
       </div>
-      <div className="max-h-80 space-y-2 overflow-auto pr-1">
+      <div className="max-h-80 space-y-2 overflow-auto pr-1" aria-label="最新信号流分页">
         {stream.length === 0 && (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-xs text-[var(--color-muted)]">
             当前没有信号流记录。
           </div>
         )}
-        {stream.slice(0, 10).map((item: any) => (
+        {visible.map((item: any) => (
           <div key={`${item.source_type}-${item.source_id}`} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-xs font-medium text-[var(--color-fg)]">{item.title}</span>
@@ -232,6 +271,11 @@ function SignalStream({ stream }: { stream: any[] }) {
             <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">{item.source_name} · {item.detail}</p>
           </div>
         ))}
+        {hasMore && (
+          <button type="button" onClick={onLoadMore} className="w-full rounded-xl border border-dashed border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] hover:border-[var(--color-primary)]">
+            加载更多信号（已显示 {visible.length}/{stream.length}）
+          </button>
+        )}
       </div>
     </div>
   )

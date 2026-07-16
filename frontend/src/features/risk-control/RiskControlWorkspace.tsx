@@ -160,6 +160,7 @@ export default function RiskControlWorkspace() {
           <Metric label="数据缺口" value={String(data?.gaps?.length ?? 0)} tone="warning" />
           <Metric label="已关闭" value={String(data?.metrics.closed ?? 0)} tone="ready" />
         </div>
+        {data && <RiskSlaTemplateStrip data={data} onOpenConfig={() => navigate('/settings/keys')} />}
       </CommandCenterFrame>
 
       {data && <RiskStoreCommandBoard data={data} onNavigate={navigate} />}
@@ -178,6 +179,7 @@ export default function RiskControlWorkspace() {
               </button>
             ))}
           </div>
+          {data && <LocationGapQueuePanel data={data} onNavigate={navigate} />}
           <RiskQueueDensityBar risks={risks} />
           <div className="mt-3 space-y-2">
             {risks.length === 0 ? (
@@ -290,6 +292,37 @@ export default function RiskControlWorkspace() {
   )
 }
 
+function RiskSlaTemplateStrip({ data, onOpenConfig }: { data: RiskControlOverview; onOpenConfig: () => void }) {
+  const templateRows = Object.entries(data.risk_sla_templates || {}).slice(0, 6)
+  return (
+    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-fg)]">风险 SLA 模板</p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            无平台原生时限的风险按类型和严重级别自动补处理时限；可在设置中心编辑 risk.sla_templates，订单履约风险优先使用平台发货时限。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenConfig}
+          className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] transition hover:border-[var(--color-primary)]"
+        >
+          进入 SLA 配置
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        {templateRows.map(([key, template]) => (
+          <div key={key} className="rounded-lg bg-[var(--color-bg)] px-3 py-2 text-[11px]">
+            <p className="font-medium text-[var(--color-fg)]">{riskTypeLabel(key)}</p>
+            <p className="mt-1 text-[var(--color-muted)]">高危 {template.critical}h · 警告 {template.warning}h</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Metric({ label, value, tone }: { label: string; value: string; tone: 'danger' | 'warning' | 'info' | 'ready' }) {
   const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : tone === 'info' ? 'var(--color-info)' : 'var(--color-success)'
   return (
@@ -298,6 +331,50 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: 'd
       <p className="mt-1 text-xl font-semibold" style={{ color }}>{value}</p>
     </div>
   )
+}
+
+function LocationGapQueuePanel({ data, onNavigate }: { data: RiskControlOverview; onNavigate: (route: string) => void }) {
+  const rows = data.location_gap_queue || []
+  if (!rows.length) return null
+  return (
+    <section aria-label="待定位信息合并队列" className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-semibold text-[var(--color-fg)]">待定位信息合并队列</p>
+          <p className="mt-0.5 text-[10px] text-[var(--color-muted)]">将平台、店铺、目标市场缺失的风险合并处理，避免风险队列被“待定位”刷屏。</p>
+        </div>
+        <Badge variant="warning">{rows.reduce((sum, item) => sum + item.risk_count, 0)} 项</Badge>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {rows.map((item) => (
+          <button
+            key={item.gap_key}
+            type="button"
+            onClick={() => onNavigate(item.route)}
+            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-left transition hover:border-[var(--color-primary)]"
+          >
+            <span className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="font-semibold text-[var(--color-fg)]">{item.label}</span>
+              <span className="text-[var(--color-warning)]">风险 {item.risk_count} · 高危 {item.critical}</span>
+            </span>
+            <span className="mt-1 block line-clamp-1 text-[10px] text-[var(--color-muted)]">
+              样例：{item.sample_risks.map((risk) => risk.title || risk.id).join('、') || '待补风险样例'}
+            </span>
+            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-[var(--color-primary)]">
+              {locationGapActionLabel(item.gap_key, item.action_label)}<ArrowRight className="h-3 w-3" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function locationGapActionLabel(gapKey: string, fallback?: string) {
+  if (gapKey === 'platform') return fallback || '补齐平台归属'
+  if (gapKey === 'store') return fallback || '补齐店铺归属'
+  if (gapKey === 'market') return fallback || '补齐目标市场'
+  return fallback || '补齐定位信息'
 }
 
 function RiskQueueDensityBar({ risks }: { risks: RiskControlRisk[] }) {
@@ -375,4 +452,14 @@ function statusText(status: RiskControlRisk['status']) {
   if (status === 'closed') return '已关闭'
   if (status === 'ignored') return '已忽略'
   return '待处理'
+}
+
+function riskTypeLabel(type: string) {
+  if (type === 'account') return '账号安全'
+  if (type === 'business') return '店铺经营'
+  if (type === 'compliance') return '合规/IP'
+  if (type === 'logistics') return '物流时效'
+  if (type === 'currency') return '汇率利润'
+  if (type === 'inventory') return '库存供货'
+  return type
 }

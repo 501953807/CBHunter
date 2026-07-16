@@ -78,6 +78,8 @@ class OrderDetailResponse(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: str
+    manual_override: bool = False
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 class OrderNoteUpdate(BaseModel):
@@ -96,8 +98,23 @@ class ManualOrderCreate(BaseModel):
     merchant_order_number: str = Field(..., min_length=1, max_length=100)
     status: str = Field("pending", min_length=1, max_length=30)
     buyer_name: Optional[str] = Field(None, max_length=200)
+    shipping_address: Optional[dict] = None
+    shipping_fee: Optional[float] = Field(None, ge=0)
+    platform_fee: Optional[float] = Field(None, ge=0)
+    discount: Optional[float] = Field(None, ge=0)
     currency: str = Field(..., min_length=3, max_length=3)
     total: float = Field(..., gt=0)
+    payment_status: Optional[str] = Field(None, max_length=30)
+    payment_method: Optional[str] = Field(None, max_length=100)
+    fulfillment_status: Optional[str] = Field(None, max_length=30)
+    fulfillment_deadline_at: Optional[datetime] = None
+    logistics_channel: Optional[str] = Field(None, max_length=100)
     ordered_at: datetime
     notes: Optional[str] = None
     items: list[ManualOrderItemCreate] = Field(..., min_length=1)
+
+
+class ManualOrderImportRequest(BaseModel):
+    rows: list[ManualOrderCreate] = Field(..., min_length=1)
+    import_ref: Optional[str] = Field(None, max_length=120)
+    source_file: Optional[str] = Field(None, max_length=255)

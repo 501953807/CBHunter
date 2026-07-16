@@ -80,11 +80,11 @@ async def update_rule(
         await _validate_inventory_alert_options(db, severity=kwargs["severity"])
     old_rule = await _get_rule(db, rule_id, current_user.id)
     if not old_rule:
-        raise HTTPException(404, "规则不存在")
+        raise HTTPException(status_code=404, detail="规则不存在")
     old_value = _rule_snapshot(old_rule)
     rule = await inventory_alert_service.update_rule(db, rule_id, current_user.id, **kwargs)
     if not rule:
-        raise HTTPException(404, "规则不存在")
+        raise HTTPException(status_code=404, detail="规则不存在")
     await record_audit_event(
         db,
         user=current_user,
@@ -106,11 +106,11 @@ async def delete_rule(
 ):
     rule = await _get_rule(db, rule_id, current_user.id)
     if not rule:
-        raise HTTPException(404, "规则不存在")
+        raise HTTPException(status_code=404, detail="规则不存在")
     old_value = _rule_snapshot(rule)
     ok = await inventory_alert_service.delete_rule(db, rule_id, current_user.id)
     if not ok:
-        raise HTTPException(404, "规则不存在")
+        raise HTTPException(status_code=404, detail="规则不存在")
     await record_audit_event(
         db,
         user=current_user,
@@ -193,11 +193,11 @@ async def acknowledge_alert(
 ):
     old_log = await _get_alert_log(db, alert_id, current_user.id)
     if not old_log:
-        raise HTTPException(404, "预警不存在或已处理")
+        raise HTTPException(status_code=404, detail="预警不存在或已处理")
     old_value = _alert_snapshot(old_log)
     log = await inventory_alert_service.acknowledge_alert(db, alert_id, current_user.id, current_user.username)
     if not log:
-        raise HTTPException(404, "预警不存在或已处理")
+        raise HTTPException(status_code=404, detail="预警不存在或已处理")
     await record_audit_event(
         db,
         user=current_user,
@@ -219,11 +219,11 @@ async def clear_alert(
 ):
     old_log = await _get_alert_log(db, alert_id, current_user.id)
     if not old_log:
-        raise HTTPException(404, "预警不存在或已清除")
+        raise HTTPException(status_code=404, detail="预警不存在或已清除")
     old_value = _alert_snapshot(old_log)
     log = await inventory_alert_service.clear_alert(db, alert_id, current_user.id)
     if not log:
-        raise HTTPException(404, "预警不存在或已清除")
+        raise HTTPException(status_code=404, detail="预警不存在或已清除")
     await record_audit_event(
         db,
         user=current_user,

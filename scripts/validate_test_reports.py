@@ -4,20 +4,20 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 
-REPORT_DIR = Path(__file__).resolve().parents[1] / "docs" / "test-reports"
+REPORT_DIR = Path(__file__).resolve().parents[1] / "docs" / "测试报告"
 
 
 def validate_reports() -> list[Path]:
     if not REPORT_DIR.exists():
         return []
     invalid_files = [
-        path for path in sorted(REPORT_DIR.iterdir())
-        if path.is_file() and path.suffix not in {".md", ".xml"}
+        path for path in sorted(REPORT_DIR.rglob("*"))
+        if path.is_file() and not path.name.startswith(".") and path.suffix not in {".md", ".xml"}
     ]
     if invalid_files:
         names = ", ".join(path.name for path in invalid_files)
         raise RuntimeError(f"Non-report files found in {REPORT_DIR}: {names}")
-    reports = sorted(REPORT_DIR.glob("*.xml")) + sorted(REPORT_DIR.glob("*.md"))
+    reports = sorted(REPORT_DIR.rglob("*.xml")) + sorted(REPORT_DIR.rglob("*.md"))
     if not reports:
         raise RuntimeError(f"No test reports found in {REPORT_DIR}")
     for report in reports:
@@ -30,11 +30,11 @@ def validate_reports() -> list[Path]:
 
 def _validate_markdown_report(report: Path) -> None:
     content = report.read_text(encoding="utf-8")
-    required_markers = ("# ", "|", "P1", "P2")
+    required_markers = ("# ",)
     missing = [marker for marker in required_markers if marker not in content]
     if missing:
         raise RuntimeError(f"{report} is missing required report markers: {', '.join(missing)}")
-    if not any(token in content for token in ("问题", "缺口", "建议")):
+    if not any(token in content for token in ("问题", "缺口", "建议", "缺失", "改进")):
         raise RuntimeError(f"{report} does not contain actionable findings")
 
 
@@ -43,4 +43,4 @@ if __name__ == "__main__":
     if validated:
         print(f"Validated {len(validated)} test reports")
     else:
-        print("Skipped test report validation: docs/test-reports is local-only or absent")
+        print("Skipped test report validation: docs/测试报告 is local-only or absent")

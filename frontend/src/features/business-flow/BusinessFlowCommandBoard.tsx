@@ -1,17 +1,20 @@
-import type { ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowRight, GitBranch, PackageCheck, ShieldAlert, Store } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { updateBusinessFlowTasks } from '../../api/businessFlow'
 import { Badge } from '../../components/ui/Badge'
 import { CommandInsightStrip } from '../../components/shared/CommandInsightStrip'
 import { ComparisonRangeCards } from '../../components/shared/ComparisonRangeCards'
 import { MetricStackBar } from '../../components/shared/MetricStackBar'
-import type { BusinessFlowOverview } from '../../types/businessFlow'
+import type { BusinessFlowItem, BusinessFlowOverview } from '../../types/businessFlow'
 import { comparisonRangeLabel } from '../../utils/comparisonRange'
+import { logger } from '../../utils/logger'
 import { buildObjectRoute } from './businessFlowRoutes'
 
 interface Props {
   data: BusinessFlowOverview
   onNavigate: (route: string) => void
+  onReload?: () => Promise<void>
 }
 
 const chartColors = [
@@ -22,10 +25,26 @@ const chartColors = [
   'var(--color-success)',
 ]
 
-export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
+export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) {
+  const [assigning, setAssigning] = useState(false)
+  const [assignError, setAssignError] = useState('')
   const stageRows = data.flow_stage_matrix
   const platformRows = data.flow_platform_matrix
   const storeRows = data.flow_store_matrix.slice(0, 8)
+  const unassignedItems = useMemo(
+    () => data.items.filter((item) => !item.assigned_to).slice(0, 6),
+    [data.items],
+  )
+  const unassignedTotal = data.items.filter((item) => !item.assigned_to).length
+  const stageItems = useMemo(() => {
+    const groups = new Map<string, BusinessFlowItem[]>()
+    data.items.forEach((item) => {
+      const current = groups.get(item.stage_key) || []
+      current.push(item)
+      groups.set(item.stage_key, current)
+    })
+    return groups
+  }, [data.items])
   const pieRows = platformRows.map((item) => ({ name: item.platform, value: item.object_count }))
   const comparisonRows = [
     { period: comparisonRangeLabel('current', data.comparison.windows.current), window: data.comparison.windows.current, items: data.comparison.current.items, blocked: data.comparison.current.blocked, dataRequired: data.comparison.current.data_required },
@@ -42,6 +61,29 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
   const topBlockedStore = [...data.flow_store_matrix].sort((a, b) => ((b.blocked + b.data_required) - (a.blocked + a.data_required)))[0]
   const flowPriority = blockedRate == null ? '待形成' : blockedRate > 30 ? '立即疏通' : blockedRate > 10 ? '今日处理' : '正常推进'
   const primaryActionRoute = primaryAction ? buildObjectRoute(primaryAction.route, primaryAction) : '/business-flow'
+  const canAssignToMe = Boolean(data.current_username && unassignedItems.length)
+
+  const assignFirstUnassignedToMe = async () => {
+    if (!data.current_username || unassignedItems.length === 0) {
+      onNavigate('/business-flow')
+      return
+    }
+    setAssigning(true)
+    setAssignError('')
+    try {
+      await updateBusinessFlowTasks({
+        action: 'assign',
+        assigned_to: data.current_username,
+        items: unassignedItems.map(toTaskRef),
+      })
+      await onReload?.()
+    } catch (e: any) {
+      logger.error('业务监控台首屏一键分配失败', e)
+      setAssignError(e?.response?.data?.detail || e?.message || '一键分配失败')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   return (
     <section aria-label="业务流程总分看板" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)]">
@@ -172,6 +214,54 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
         <SummaryTile icon={<Store className="h-4 w-4" />} label="涉及店铺" value={String(data.flow_store_matrix.length)} sub="已定位平台店铺对象" danger={data.flow_store_matrix.some((item) => item.account_name === '待定位店铺')} />
       </div>
 
+      <section data-ui="flow-unassigned-actions" aria-label="未分配对象处理" className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-fg)]">未分配对象处理</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              当前有 {unassignedTotal} 个业务对象没有负责人；先把首批对象分配给当前用户，再进入处理总线逐项复盘。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!canAssignToMe || assigning}
+              onClick={assignFirstUnassignedToMe}
+              className="rounded-lg border border-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] disabled:border-[var(--color-border)] disabled:text-[var(--color-muted)]"
+            >
+              {assigning ? '分配中...' : '一键分配给我'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('/business-flow')}
+              className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            >
+              进入任务队列
+            </button>
+          </div>
+        </div>
+        {assignError && <p className="mt-2 text-xs text-[var(--color-danger)]">{assignError}</p>}
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {unassignedItems.slice(0, 3).map((item) => (
+            <button
+              type="button"
+              key={item.work_item_id || item.id}
+              onClick={() => onNavigate(buildObjectRoute(item.next_action_route || item.route, item))}
+              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
+            >
+              <p className="truncate text-sm font-semibold text-[var(--color-fg)]" title={item.name}>{truncateObjectName(item.name)}</p>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">{item.stage_name} · {item.lifecycle_label}</p>
+              <p className="mt-2 line-clamp-1 text-[11px] text-[var(--color-warning)]">{item.gaps[0] || item.next_action}</p>
+            </button>
+          ))}
+          {!unassignedItems.length && (
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">
+              当前没有未分配对象。
+            </div>
+          )}
+        </div>
+      </section>
+
       <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-[var(--color-fg)]">业务对象范围对比</p>
@@ -230,8 +320,10 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
         <div className="grid gap-2 xl:grid-cols-8">
           {stageRows.map((stage, index) => {
             const blocked = stage.blocked + stage.data_required
+            const currentStageItems = stageItems.get(stage.key) || []
+            const hiddenCount = Math.max(0, currentStageItems.length - 3)
             return (
-              <button key={stage.key} onClick={() => onNavigate(stage.route)} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
+              <article key={stage.key} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
                 <span className="grid h-7 w-7 place-items-center rounded-full border border-[var(--color-border)] text-[11px] text-[var(--color-muted)]">{index + 1}</span>
                 <p className="mt-2 truncate text-xs font-semibold text-[var(--color-fg)]">{stage.label}</p>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
@@ -244,7 +336,29 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
                 <p className="mt-0.5 truncate text-[11px] text-[var(--color-muted)]" title={stage.max_wait_item?.name || ''}>
                   最长停留 {stage.max_wait_item ? `${stage.max_wait_item.wait_label} · ${stage.max_wait_item.name}` : '待形成'}
                 </p>
-              </button>
+                <div className="mt-2 space-y-1">
+                  {currentStageItems.slice(0, 3).map((item) => (
+                    <button
+                      type="button"
+                      key={item.work_item_id || item.id}
+                      title={item.name}
+                      onClick={() => onNavigate(buildObjectRoute(item.next_action_route || item.route, item))}
+                      className="block w-full truncate rounded-md bg-[var(--color-bg)] px-2 py-1 text-left text-[11px] text-[var(--color-muted)] hover:text-[var(--color-primary)]"
+                    >
+                      {item.assigned_to ? '' : '未分配 · '}{truncateObjectName(item.name)}
+                    </button>
+                  ))}
+                </div>
+                {hiddenCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('/business-flow')}
+                    className="mt-2 text-[11px] font-medium text-[var(--color-primary)] hover:underline"
+                  >
+                    另有 {hiddenCount} 个对象 · 展开阶段对象
+                  </button>
+                )}
+              </article>
             )
           })}
         </div>
@@ -313,7 +427,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate }: Props) {
                   <tr key={`${store.platform}-${store.platform_account_id || store.account_name}`} className="border-t border-[var(--color-border)]">
                     <td className="px-3 py-2">
                       <p className="font-medium text-[var(--color-fg)]">{store.account_name}</p>
-                      <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {store.market || '市场待补'}</p>
+                      <p className="mt-0.5 text-[var(--color-muted)]">{store.platform} · {formatMarketLabel(store.market)}</p>
                     </td>
                     <td className="px-3 py-2 text-[var(--color-fg)]">{store.object_count}</td>
                     <td className="px-3 py-2 text-[var(--color-danger)]">{store.blocked}</td>
@@ -389,13 +503,34 @@ function SummaryTile({ icon, label, value, sub, danger }: { icon: ReactNode; lab
 }
 
 function RateText({ mom, yoy }: { mom: number | null; yoy: number | null }) {
-  if (mom == null && yoy == null) return <span>环比/同比待业务对象时间序列补齐</span>
-  return <span>环比 {mom ?? '待补'}% · 同比 {yoy ?? '待补'}%</span>
+  if (mom == null && yoy == null) return <span>环比 -- · 同比 --</span>
+  return <span>环比 {mom ?? '--'}% · 同比 {yoy ?? '--'}%</span>
 }
 
 function formatComparisonRate(value: number | null) {
-  if (value == null) return '环比待补'
+  if (value == null) return '环比 --'
   return value > 0 ? `环比 +${value}%` : `环比 ${value}%`
+}
+
+function formatMarketLabel(value?: string | null) {
+  if (!value || value.toLowerCase() === 'unknown') return '--'
+  return value
+}
+
+function truncateObjectName(name: string) {
+  return name.length > 22 ? `${name.slice(0, 22)}…` : name
+}
+
+function toTaskRef(item: BusinessFlowItem) {
+  return {
+    item_type: item.type,
+    item_id: item.id,
+    stage_key: item.stage_key,
+    title: item.name,
+    route: item.route,
+    source_refs: item.source_refs,
+    last_gap: item.gaps[0] || null,
+  }
 }
 
 function EmptyChart({ text }: { text: string }) {

@@ -149,6 +149,17 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
       </div>
 
       <EvidenceBanner evidence={productsQuery.data} compact />
+      {productsQuery.isError && (
+        <div
+          data-ui="platform-store-products-error"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+        >
+          <span className="text-[var(--color-danger)]">平台店铺商品加载失败，当前店铺 Listing、图片缺口和 SKU 覆盖暂不可用。</span>
+          <Button size="sm" variant="secondary" onClick={() => productsQuery.refetch()}>
+            重新加载平台店铺商品
+          </Button>
+        </div>
+      )}
 
       <section aria-label="平台店铺商品库总览" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <SummaryCard label="平台 Listing" value={String(meta?.total ?? items.length)} hint="当前筛选下的店铺商品实例" />

@@ -29,6 +29,8 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
   const [evidence, setEvidence] = useState<ApiResponse<FinanceLedgerEntry[]> | null>(null)
   const [entryTypes, setEntryTypes] = useState<FinanceEntryTypeOption[]>([])
   const [saving, setSaving] = useState(false)
+  const [selectedEntry, setSelectedEntry] = useState<FinanceLedgerEntry | null>(null)
+  const [rowActionMessage, setRowActionMessage] = useState('')
   const [form, setForm] = useState({
     entry_type: '',
     amount_rmb: '',
@@ -93,6 +95,29 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleViewEntry = (entry: FinanceLedgerEntry) => {
+    setSelectedEntry(entry)
+    setRowActionMessage('已打开台账详情。')
+  }
+
+  const handleCopyEntry = (entry: FinanceLedgerEntry) => {
+    setForm({
+      entry_type: entry.entry_type,
+      amount_rmb: String(entry.amount_rmb),
+      platform: entry.platform || '',
+      market: entry.market || '',
+      order_id: entry.order_id || '',
+      description: entry.description ? `复制编辑：${entry.description}` : '复制编辑',
+    })
+    setSelectedEntry(entry)
+    setRowActionMessage('已将该台账复制到上方表单，请核对金额、类型和说明后保存为新记录。')
+  }
+
+  const handleDeleteEntry = (entry: FinanceLedgerEntry) => {
+    setSelectedEntry(entry)
+    setRowActionMessage('删除记录需要后端审计删除接口支持；当前只允许查看详情或复制编辑，避免无审计地破坏真实财务流水。')
   }
 
   const mergedEntryTypes = [
@@ -199,6 +224,7 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
                     <th className="text-right py-2 pr-3 font-medium text-[var(--color-muted)]">金额</th>
                     <th className="text-left py-2 pr-3 font-medium text-[var(--color-muted)]">平台/市场</th>
                     <th className="text-left py-2 font-medium text-[var(--color-muted)]">说明</th>
+                    <th className="text-right py-2 font-medium text-[var(--color-muted)]">行操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -209,10 +235,30 @@ export function FinanceLedgerPanel({ onLedgerChanged, initialEntryType = '', ini
                       <td className={`py-2 pr-3 text-right font-medium ${Number(entry.amount_rmb) < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-fg)]'}`}>¥{Number(entry.amount_rmb).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
                       <td className="py-2 pr-3 text-[var(--color-muted)]">{[entry.platform, entry.market].filter(Boolean).join(' / ') || '-'}</td>
                       <td className="py-2 text-[var(--color-muted)]">{entry.description || '-'}</td>
+                      <td className="py-2 text-right">
+                        <div data-ui="finance-ledger-row-actions" className="flex justify-end gap-1">
+                          <button type="button" onClick={() => handleViewEntry(entry)} className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-primary)] hover:border-[var(--color-primary)]">查看详情</button>
+                          <button type="button" onClick={() => handleCopyEntry(entry)} className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-primary)] hover:border-[var(--color-primary)]">复制编辑</button>
+                          <button type="button" onClick={() => handleDeleteEntry(entry)} className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-danger)] hover:border-[var(--color-danger)]">删除记录</button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {rowActionMessage && (
+            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-fg)]">
+              <p>{rowActionMessage}</p>
+              {selectedEntry && (
+                <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-4">
+                  <span>编号：{selectedEntry.id}</span>
+                  <span>类型：{mergedEntryTypes.find(t => t.id === selectedEntry.entry_type)?.label || selectedEntry.entry_type}</span>
+                  <span>金额：¥{Number(selectedEntry.amount_rmb).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</span>
+                  <span>订单：{selectedEntry.order_id || '-'}</span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

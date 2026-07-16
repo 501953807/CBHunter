@@ -506,7 +506,7 @@ async def score_supplier(
     ))
     supplier = result.scalar_one_or_none()
     if not supplier:
-        raise HTTPException(404, "供应商不存在")
+        raise HTTPException(status_code=404, detail="供应商不存在")
     old_value = _supplier_snapshot(supplier)
 
     scores = []

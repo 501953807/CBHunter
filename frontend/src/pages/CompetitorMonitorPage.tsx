@@ -13,8 +13,8 @@ export default function CompetitorMonitorPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showAlertModal, setShowAlertModal] = useState<string | null>(null)
   const [listMode, setListMode] = useState<'all' | 'changed' | 'new'>('all')
-  const dash = useMonitorDashboard()
-  const d = dash.data?.data
+  const competitorDashboardQuery = useMonitorDashboard()
+  const d = competitorDashboardQuery.data?.data
   const competitors = (d?.competitors ?? []).filter((item) => (
     listMode === 'changed' ? item.prev_price != null && item.price !== item.prev_price
       : listMode === 'new' ? item.is_new_24h : true
@@ -55,10 +55,35 @@ export default function CompetitorMonitorPage() {
         </div>
       )}
 
+      <CompetitorInsightPanel competitors={competitors} onOpenAlert={(id) => setShowAlertModal(id)} />
+
       {/* Competitor Table */}
       <Card>
         <CardContent>
-          {dash.isLoading ? (
+          {competitorDashboardQuery.isError ? (
+            <div
+              data-ui="competitor-dashboard-error"
+              className="rounded-xl border p-4"
+              style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-fg)]">竞品监控加载失败</p>
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">
+                    无法读取竞品列表、价格追踪和预警上下文，请检查后端服务、登录状态或竞品采集数据源。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => competitorDashboardQuery.refetch()}
+                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
+                  style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
+                >
+                  重新加载竞品监控
+                </button>
+              </div>
+            </div>
+          ) : competitorDashboardQuery.isLoading ? (
             <div className="skeleton-shimmer h-64 rounded-xl" />
           ) : competitors.length === 0 ? (
             <EmptyState
@@ -153,6 +178,65 @@ export default function CompetitorMonitorPage() {
       {showAlertModal && (
         <AlertRuleModal competitorId={showAlertModal} onClose={() => setShowAlertModal(null)} />
       )}
+    </div>
+  )
+}
+
+function CompetitorInsightPanel({ competitors, onOpenAlert }: { competitors: any[]; onOpenAlert: (id: string) => void }) {
+  const changed = competitors.filter(item => item.prev_price != null && item.price != null && item.price !== item.prev_price)
+  const maxAbs = Math.max(...changed.map(item => Math.abs(Number(item.price || 0) - Number(item.prev_price || 0))), 1)
+  const first = competitors[0]
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-fg)]">竞品详细监控视图</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">竞品列表、价格追踪、快照对比和预警设置都基于当前已追踪竞品；无快照时显示缺口，不补造价格历史。</p>
+          </div>
+          {first && (
+            <button onClick={() => onOpenAlert(first.id)} className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-primary)] hover:border-[var(--color-primary)]">
+              预警设置
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-4" data-ui="competitor-price-trend">
+          <CompetitorInsightCard title="竞品列表" value={competitors.length} detail="当前筛选下可追踪的竞品对象数量。" />
+          <CompetitorInsightCard title="价格追踪" value={changed.length} detail="存在上一价格且发生变化的竞品数量。" />
+          <CompetitorInsightCard title="快照对比" value={competitors.filter(item => item.prev_price != null).length} detail="已有前后价格快照可对比的竞品。" />
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <p className="text-sm font-semibold text-[var(--color-fg)]">价格变化趋势</p>
+            <div className="mt-3 space-y-2">
+              {changed.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无真实价格变化快照。</p>
+              ) : changed.slice(0, 4).map(item => {
+                const diff = Number(item.price || 0) - Number(item.prev_price || 0)
+                return (
+                  <div key={item.id}>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                      <span className="truncate text-[var(--color-muted)]">{item.name}</span>
+                      <span className={diff > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}>{diff > 0 ? '+' : ''}{diff.toFixed(2)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[var(--color-border)]">
+                      <span className="block h-full rounded-full" style={{ width: `${Math.max(Math.abs(diff) / maxAbs * 100, 4)}%`, background: diff > 0 ? 'var(--color-danger)' : 'var(--color-success)' }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function CompetitorInsightCard({ title, value, detail }: { title: string; value: number; detail: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-sm font-semibold text-[var(--color-fg)]">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-[var(--color-primary)]">{value}</p>
+      <p className="mt-1 text-[11px] leading-5 text-[var(--color-muted)]">{detail}</p>
     </div>
   )
 }

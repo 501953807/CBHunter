@@ -1,6 +1,13 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
-import type { ManualOrderCreate, OrderListRow, OrderDetail, OrderFulfillmentStats } from '../types/order'
+import type {
+  ManualOrderCreate,
+  ManualOrderImportRequest,
+  ManualOrderImportResult,
+  OrderListRow,
+  OrderDetail,
+  OrderFulfillmentStats,
+} from '../types/order'
 
 export interface OrderListParams {
   status?: string
@@ -39,5 +46,10 @@ export async function updateOrderNotes(id: string, notes: string) {
 
 export async function createManualOrder(data: ManualOrderCreate) {
   const res = await client.post<ApiResponse<OrderDetail>>('/orders/manual', data)
+  return res.data
+}
+
+export async function importManualOrders(data: ManualOrderImportRequest) {
+  const res = await client.post<ApiResponse<ManualOrderImportResult>>('/orders/import', data)
   return res.data
 }

@@ -77,7 +77,7 @@ export default function BusinessFlowWorkspace() {
         )}
       />
 
-      <BusinessFlowCommandBoard data={data} onNavigate={navigate} />
+      <BusinessFlowCommandBoard data={data} onNavigate={navigate} onReload={load} />
 
       <BusinessFlowV2Board
         data={data}
