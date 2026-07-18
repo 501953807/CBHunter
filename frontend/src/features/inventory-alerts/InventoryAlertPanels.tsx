@@ -285,14 +285,14 @@ export function CheckInventoryButton() {
 
 /* ── Rules Tab ── */
 export function RulesTab() {
-  const rules = useAlertRules()
+  const alertRulesQuery = useAlertRules()
   const updateRule = useUpdateAlertRule()
   const deleteRule = useDeleteAlertRule()
   const confirmAction = useConfirm()
   const { inventory_alert_severities = [] } = useConfig()
-  const items = (rules.data?.data ?? []) as any[]
+  const items = (alertRulesQuery.data?.data ?? []) as any[]
 
-  if (rules.isLoading) {
+  if (alertRulesQuery.isLoading) {
     return <div className="skeleton-shimmer h-48 rounded-xl" />
   }
 
@@ -309,8 +309,31 @@ export function RulesTab() {
   return (
     <Card>
       <CardContent>
-        <EvidenceBanner evidence={rules.data} compact />
-        {items.length === 0 ? (
+        <EvidenceBanner evidence={alertRulesQuery.data} compact />
+        {alertRulesQuery.isError ? (
+          <div
+            data-ui="inventory-alert-rules-error"
+            className="rounded-xl border p-4"
+            style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-fg)]">预警规则加载失败</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">
+                  无法读取安全库存规则，请检查后端服务、登录状态或库存预警接口。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => alertRulesQuery.refetch()}
+                className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
+                style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
+              >
+                重新加载预警规则
+              </button>
+            </div>
+          </div>
+        ) : items.length === 0 ? (
           <EmptyState icon={<Bell className="w-10 h-10" />} title="暂无预警规则" description="点击「添加规则」设置库存阈值" />
         ) : (
           <div className="overflow-x-auto">
@@ -375,17 +398,17 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
   status: string; severity: string; page: number;
   onStatusChange: (v: string) => void; onSevChange: (v: string) => void; onPageChange: (v: number) => void;
 }) {
-  const logs = useAlertLogs({ status: status || undefined, severity: severity || undefined, page, page_size: 20 })
+  const alertLogsQuery = useAlertLogs({ status: status || undefined, severity: severity || undefined, page, page_size: 20 })
   const ack = useAcknowledgeAlert()
   const clear = useClearAlert()
   const { inventory_alert_statuses = [], inventory_alert_severities = [] } = useConfig()
-  const items = (logs.data?.data ?? []) as any[]
-  const meta = logs.data?.meta
+  const items = (alertLogsQuery.data?.data ?? []) as any[]
+  const meta = alertLogsQuery.data?.meta
 
   return (
     <Card>
       <CardContent>
-        <EvidenceBanner evidence={logs.data} compact />
+        <EvidenceBanner evidence={alertLogsQuery.data} compact />
         {/* Filters */}
         <div className="flex items-center gap-3 mb-4">
           <select
@@ -423,7 +446,30 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
               </tr>
             </thead>
             <tbody>
-              {logs.isLoading ? (
+              {alertLogsQuery.isError ? (
+                <tr data-ui="inventory-alert-logs-error">
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="mx-auto max-w-xl rounded-xl border p-4 text-left" style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-fg)]">预警历史加载失败</p>
+                          <p className="mt-1 text-xs text-[var(--color-muted)]">
+                            无法读取库存预警处理记录，请检查后端服务、登录状态或库存预警历史接口。
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => alertLogsQuery.refetch()}
+                          className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-90"
+                          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-primary-text)' }}
+                        >
+                          重新加载预警历史
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : alertLogsQuery.isLoading ? (
                 <tr><td colSpan={8} className="py-12 text-center" style={{ color: 'var(--color-muted)' }}>加载中...</td></tr>
               ) : items.length === 0 ? (
                 <tr><td colSpan={8}><EmptyState icon={<Bell className="h-9 w-9" />} title="暂无预警记录" description="先配置库存规则并执行扫描；没有真实库存时会保留数据缺口。" /></td></tr>

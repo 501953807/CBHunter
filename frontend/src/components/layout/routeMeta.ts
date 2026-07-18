@@ -21,7 +21,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/operations': '运营台账',
   '/promotions': '促销活动',
   '/growth': '增长引擎',
-  '/publish/templates': 'Listing 模板',
+  '/publish/templates': '图片/水印模板',
   '/publish': '批量刊登',
   '/pricing': '智能定价',
   '/smart/radar': '关键词雷达',

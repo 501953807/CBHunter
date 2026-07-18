@@ -45,6 +45,16 @@ export interface ListingStoreOverrideSummary {
   override_boundary?: string | null
 }
 
+export interface ListingMasterStatus {
+  ready: boolean
+  label: string
+  detail?: string
+  source?: string
+  confirmed_required?: number
+  confirmed_count?: number
+  missing?: string[]
+}
+
 export interface ListingInstanceMatrixItem {
   id: string
   product_id: string
@@ -121,6 +131,7 @@ export interface ListingWorkbenchItem {
   image_url?: string | null
   media_readiness?: MediaReadiness
   platform_requirements?: PlatformListingRequirements
+  listing_master_status?: ListingMasterStatus
   listing_store_override?: ListingStoreOverrideSummary
   pricing_confirmation?: Record<string, unknown>
   lifecycle_status: string
@@ -206,7 +217,10 @@ export interface BatchListingDraft {
   template_title: string
   template_description: string
   platform_requirements?: PlatformListingRequirements
+  listing_master_status?: ListingMasterStatus
   listing_store_override?: ListingStoreOverrideSummary
+  field_sources?: Record<string, string>
+  override_boundary?: string
   template_missing: boolean
   fee_missing: boolean
   status?: 'ready' | 'configuration_required' | 'data_required'

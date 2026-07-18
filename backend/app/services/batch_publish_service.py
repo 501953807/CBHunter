@@ -68,6 +68,7 @@ async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]
             "image_url": item.source_image,
             "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
             "platform_requirements": platform_requirements,
+            "listing_master_status": _listing_master_status(item),
             "listing_store_override": listing_store_override_summary(listing_store_override_payload),
             "pricing_confirmation": (item.extra_data or {}).get("pricing_confirmation") or {},
             "data_gaps": [],
@@ -292,6 +293,7 @@ async def generate_listing_drafts(
                         "template_title": title,
                         "template_description": description,
                         "platform_requirements": platform_requirements,
+                        "listing_master_status": item["listing_master_status"],
                         "listing_store_override": listing_store_override_summary(item.get("listing_store_override") or {}),
                         "template_missing": not bool(tpl or existing_listing),
                         "fee_missing": not bool(fee),
@@ -416,6 +418,18 @@ async def confirm_publish(
         logistics = normalize_logistics(draft.get("logistics"))
         compliance = normalize_compliance(draft.get("compliance"))
         listing_images = media_assets.get("images") or (draft.get("images") if isinstance(draft.get("images"), list) else [])
+        store_override_summary = draft.get("listing_store_override") or {}
+        listing_master_status = draft.get("listing_master_status") or {}
+        override_boundary = store_override_summary.get("override_boundary") or "store_listing_only"
+        field_sources = {
+            "title": "listing_store_override" if store_override_summary.get("title") else "draft",
+            "description": "listing_store_override" if store_override_summary.get("title") else "draft",
+            "sku_plan": "listing_store_override" if store_override_summary.get("sku_count") else "draft",
+            "media_assets": "listing_store_override" if store_override_summary.get("image_count") else "draft",
+            "logistics": "listing_store_override" if store_override_summary.get("has_logistics") else "draft",
+            "compliance": "listing_store_override" if store_override_summary.get("has_compliance") else "draft",
+            "platform_requirements": "listing_store_override" if store_override_summary.get("has_platform_attributes") else "draft",
+        }
         validation_checks = build_validation_checks(
             title=title,
             selling_price=selling_price,
@@ -469,6 +483,10 @@ async def confirm_publish(
                     "logistics": logistics,
                     "compliance": compliance,
                     "validation_checks": validation_checks,
+                    "listing_store_override": store_override_summary,
+                    "listing_master_status": listing_master_status,
+                    "field_sources": field_sources,
+                    "override_boundary": override_boundary,
                 },
                 "listing_overrides": {
                     "title": title[:500],
@@ -480,7 +498,15 @@ async def confirm_publish(
                     "compliance": compliance,
                     "validation_checks": validation_checks,
                     "platform_requirements": draft.get("platform_requirements") or {},
+                    "listing_store_override": store_override_summary,
+                    "listing_master_status": listing_master_status,
+                    "field_sources": field_sources,
+                    "override_boundary": override_boundary,
                 },
+                "listing_store_override": store_override_summary,
+                "listing_master_status": listing_master_status,
+                "field_sources": field_sources,
+                "override_boundary": override_boundary,
                 "platform_requirements": draft.get("platform_requirements") or {},
                 "sku_plan": sku_plan,
                 "media_assets": media_assets,
@@ -574,6 +600,7 @@ def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
         "target_market": item.market,
         "readiness_gaps": _listing_readiness_gaps(item),
         "platform_requirements": platform_requirements,
+        "listing_master_status": _listing_master_status(item),
         "listing_store_override": listing_store_override_payload,
         "images": [item.source_image] if item.source_image else [],
         "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
@@ -618,6 +645,15 @@ def _source_from_product(product, field_schemas: dict | None = None, draft_listi
         "target_market": None,
         "readiness_gaps": [],
         "platform_requirements": merge_platform_requirements_map((product.attributes or {}).get("platform_requirements") or {}, field_schemas),
+        "listing_master_status": {
+            "ready": True,
+            "label": "本地 Listing 草稿",
+            "detail": "来自商品主档或本地店铺 Listing 草稿，发布前仍需预览校验。",
+            "source": "product",
+            "confirmed_required": 0,
+            "confirmed_count": 0,
+            "missing": [],
+        },
         "draft_listings": listing_map,
         "images": images,
         "media_readiness": media_readiness_from_extra(product.attributes or {}, images),
@@ -721,3 +757,29 @@ def _listing_readiness_gaps(item) -> list[str]:
     if item.pipeline_stage != "price_confirmed" or not ((item.extra_data or {}).get("pricing_confirmation") or {}):
         gaps.append("sourcing_items.pricing_confirmation")
     return gaps
+
+
+def _listing_master_status(item) -> dict:
+    from app.services.content_workbench_service import REQUIRED_CONTENT_GAPS
+
+    tasks = (item.extra_data or {}).get("content_tasks") or {}
+    missing = [
+        label
+        for task_type, label in REQUIRED_CONTENT_GAPS
+        if not tasks.get(task_type, {}).get("confirmed_version")
+    ]
+    confirmed_count = len(REQUIRED_CONTENT_GAPS) - len(missing)
+    ready = not missing
+    return {
+        "ready": ready,
+        "label": "统一母版已确认" if ready else "统一母版待确认",
+        "detail": (
+            "内容工厂已确认标题、卖点、描述、图片理解、图片处理计划和合规检查。"
+            if ready
+            else " / ".join(missing[:3]) + (" 等" if len(missing) > 3 else "")
+        ),
+        "source": "content_workbench",
+        "confirmed_required": len(REQUIRED_CONTENT_GAPS),
+        "confirmed_count": confirmed_count,
+        "missing": missing,
+    }

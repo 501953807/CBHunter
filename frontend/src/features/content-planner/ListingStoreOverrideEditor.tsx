@@ -193,7 +193,7 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-4 p-4">
         <div className="space-y-4">
           <section aria-label="店铺标题与描述覆盖" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <div className="mb-3 flex items-center gap-2">
@@ -288,7 +288,7 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
           </section>
         </div>
 
-        <aside aria-label="店铺覆盖字段保存状态" className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <section aria-label="店铺覆盖字段保存状态" className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <p className="text-sm font-semibold text-[var(--color-fg)]">覆盖边界与门禁</p>
           <StatusLine label="基础商品" value={product?.product_name || '未选择'} ok={Boolean(product)} />
           <StatusLine label="目标店铺" value={storeLabel || '店铺待选择'} ok={Boolean(storeId)} />
@@ -308,7 +308,7 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
           <Button className="w-full" onClick={saveOverride} disabled={!product || saving}>
             {saving ? <><Save className="mr-1 h-4 w-4" />保存中...</> : <><CheckCircle2 className="mr-1 h-4 w-4" />保存店铺覆盖草稿</>}
           </Button>
-        </aside>
+        </section>
       </div>
     </section>
   )

@@ -131,9 +131,19 @@ export function ContentTitleGenerator({
   const titleReady = titleLength >= 35 && titleLength <= 120
   const bulletReady = filledBullets >= 5
   const descriptionReady = manualDescription.trim().length >= 80
+  const titleRules = [
+    { label: '标题长度', ok: titleReady, detail: `${titleLength} 字，建议 35-120 字` },
+    { label: '平台', ok: Boolean(form.platform), detail: form.platform || '待选择平台' },
+    { label: '目标市场', ok: Boolean(form.market), detail: form.market || '待选择市场' },
+    { label: '关键词覆盖', ok: keywordTerms.length === 0 || keywordHitCount > 0, detail: `${keywordHitCount}/${keywordTerms.length || 0}` },
+  ]
 
   return (
-    <section aria-label="Listing 文案编辑工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <section
+      aria-label="Listing 文案编辑工作台"
+      data-ui="listing-copy-editor-seller-console"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+    >
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -149,7 +159,29 @@ export function ContentTitleGenerator({
         </div>
       </div>
 
-      <div className="grid gap-0 xl:grid-cols-[280px_minmax(0,1fr)_260px]">
+      <nav
+        aria-label="Listing 文案字段快速定位"
+        data-ui="copy-editor-section-nav"
+        className="flex flex-wrap gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"
+      >
+        {[
+          ['title', '标题'],
+          ['bullets', '五点卖点'],
+          ['description', '长描述'],
+          ['check', '文案校验'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => document.getElementById(`listing-copy-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="space-y-4">
         <Card className="rounded-none border-0 border-b border-[var(--color-border)] shadow-none xl:border-b-0 xl:border-r">
           <CardContent className="space-y-3 pt-4">
             <div className="flex items-center justify-between">
@@ -193,7 +225,7 @@ export function ContentTitleGenerator({
         </Card>
 
         <div className="min-w-0 space-y-4 p-4">
-          <Card>
+          <Card id="listing-copy-title" aria-label="卖家后台标题编辑区">
             <CardContent className="space-y-3 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-[var(--color-fg)]">标题候选与人工定稿</h3>
@@ -215,10 +247,11 @@ export function ContentTitleGenerator({
                   ))}
                 </div>
               )}
+              <PlatformTitleRuleStatusTable rules={titleRules} />
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="listing-copy-bullets">
             <CardContent className="space-y-3 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-[var(--color-fg)]">五点卖点</h3>
@@ -226,18 +259,32 @@ export function ContentTitleGenerator({
                   <CheckCircle2 className="mr-1 h-3.5 w-3.5" />确认卖点
                 </Button>
               </div>
-              <div className="grid gap-2">
+              <div aria-label="五点卖点编辑表" className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
+                    <tr>
+                      <th className="w-28 px-3 py-2 font-medium">卖点类型</th>
+                      <th className="px-3 py-2 font-medium">买家可见内容</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                 {manualBullets.map((bullet, index) => (
-                  <label key={index} className="grid gap-1 text-xs text-[var(--color-muted)]">
-                    卖点 {index + 1}
-                    <input className={inputClass} value={bullet} onChange={event => updateBullet(index, event.target.value)} placeholder={['核心功能/痛点', '材质/安全', '规格/适配', '场景/人群', '信任/售后'][index]} />
-                  </label>
+                  <tr key={index} className="border-t border-[var(--color-border)]">
+                    <td className="px-3 py-2 font-semibold text-[var(--color-fg)]">
+                      {['核心功能', '材质安全', '规格适配', '场景人群', '信任售后'][index]}
+                    </td>
+                    <td className="px-3 py-2">
+                      <input className={inputClass} value={bullet} onChange={event => updateBullet(index, event.target.value)} placeholder={['核心功能/痛点', '材质/安全', '规格/适配', '场景/人群', '信任/售后'][index]} />
+                    </td>
+                  </tr>
                 ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="listing-copy-description" aria-label="长描述编辑区">
             <CardContent className="space-y-3 pt-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-[var(--color-fg)]">长描述 / 商品详情</h3>
@@ -250,7 +297,7 @@ export function ContentTitleGenerator({
           </Card>
         </div>
 
-        <aside aria-label="Listing 文案校验面板" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 xl:border-l xl:border-t-0">
+        <section id="listing-copy-check" aria-label="Listing 文案校验面板" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <p className="text-xs font-semibold text-[var(--color-fg)]">文案校验</p>
           <div className="mt-3 grid gap-2">
             <CopyCheck label="标题长度" value={`${titleLength} 字`} ok={titleReady} detail="建议 35-120 字，发布前再按平台精确规则校验。" />
@@ -259,7 +306,7 @@ export function ContentTitleGenerator({
             <CopyCheck label="长描述" value={`${manualDescription.trim().length} 字`} ok={descriptionReady} detail="详情描述应覆盖材质、尺寸、使用方式、包装和售后。" />
             <CopyCheck label="人工确认" value={product ? '写入内容任务' : '未选择商品'} ok={Boolean(product)} detail="确认后进入内容任务矩阵，供定价校验和刊登使用。" />
           </div>
-        </aside>
+        </section>
       </div>
 
       {note && <div className="bg-[var(--color-warning-light)] border border-[var(--color-warning)] rounded-lg p-3 text-xs text-[var(--color-warning)]">{note}</div>}
@@ -304,6 +351,31 @@ function extractKeywordTerms(keywords: any, form: { features: string; material: 
 
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="grid gap-1 text-[11px] text-[var(--color-muted)]">{label}{children}</label>
+}
+
+function PlatformTitleRuleStatusTable({ rules }: { rules: Array<{ label: string; ok: boolean; detail: string }> }) {
+  return (
+    <div aria-label="平台标题规则状态表" className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
+          <tr>
+            <th className="px-3 py-2 font-medium">标题规则</th>
+            <th className="px-3 py-2 font-medium">字段状态</th>
+            <th className="px-3 py-2 font-medium">当前值</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rules.map(rule => (
+            <tr key={rule.label} className="border-t border-[var(--color-border)]">
+              <td className="px-3 py-2 font-semibold text-[var(--color-fg)]">{rule.label}</td>
+              <td className={rule.ok ? 'px-3 py-2 text-[var(--color-success)]' : 'px-3 py-2 text-[var(--color-warning)]'}>{rule.ok ? '已满足' : '待优化'}</td>
+              <td className="px-3 py-2 text-[var(--color-muted)]">{rule.detail}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function CopyCheck({ label, value, ok, detail }: { label: string; value: string; ok: boolean; detail: string }) {

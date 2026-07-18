@@ -1359,6 +1359,79 @@ def test_confirm_publish_persists_listing_workspace_sections(tmp_path):
     asyncio.run(run_test())
 
 
+def test_confirm_publish_preserves_store_override_sources(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'listing-store-override-sources.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            store = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee MY 主店", is_active=True)
+            product = Product(user_id="user-a", sku="BAG-BASE", name="基础商品", cost_price=18)
+            session.add_all([store, product])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "source_type": "product",
+                "source_product_id": product.id,
+                "platform": "shopee",
+                "platform_account_id": store.id,
+                "market": "MY",
+                "selling_price": 39,
+                "template_title": "Shopee MY 覆盖标题",
+                "template_description": "Shopee MY 店铺覆盖描述",
+                "platform_requirements": {"attribute_values": {"材质": "草编", "seller_sku": "BAG-MY-BEIGE"}},
+                "listing_store_override": {
+                    "schema": "listing_store_override.v1",
+                    "store_id": store.id,
+                    "store_label": "Shopee MY 主店",
+                    "title": "Shopee MY 覆盖标题",
+                    "image_count": 2,
+                    "sku_count": 1,
+                    "has_platform_attributes": True,
+                    "has_logistics": True,
+                    "has_compliance": True,
+                    "override_boundary": "store_listing_only",
+                },
+                "listing_master_status": {
+                    "ready": True,
+                    "label": "统一母版已确认",
+                    "detail": "内容工厂已确认标题、卖点、描述、图片理解、图片处理计划和合规检查。",
+                    "source": "content_workbench",
+                },
+                "sku_plan": {
+                    "master_sku": "BAG-BASE",
+                    "variants": [{"sku": "BAG-MY-BEIGE", "variation": "米色", "price": 39, "stock": 12}],
+                },
+                "media_assets": {
+                    "main_image": "https://down-my.img.susercontent.com/file/my-main.jpg",
+                    "images": [
+                        "https://down-my.img.susercontent.com/file/my-main.jpg",
+                        "https://down-my.img.susercontent.com/file/my-scene.jpg",
+                    ],
+                },
+                "logistics": {"weight_g": 320, "dimensions": {"length_cm": 28, "width_cm": 12, "height_cm": 22}},
+                "compliance": {"restricted_check_status": "passed"},
+                "source_price_rmb": 18,
+            }])
+            listing = (await session.execute(select(PlatformListing))).scalar_one()
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "draft"
+        assert listing.platform_data["listing_store_override"]["store_label"] == "Shopee MY 主店"
+        assert listing.platform_data["listing_store_override"]["sku_count"] == 1
+        assert listing.platform_data["listing_snapshot"]["field_sources"]["sku_plan"] == "listing_store_override"
+        assert listing.platform_data["listing_snapshot"]["listing_master_status"]["label"] == "统一母版已确认"
+        assert listing.platform_data["listing_snapshot"]["field_sources"]["media_assets"] == "listing_store_override"
+        assert listing.platform_data["listing_overrides"]["field_sources"]["platform_requirements"] == "listing_store_override"
+        assert listing.platform_data["listing_overrides"]["listing_master_status"]["source"] == "content_workbench"
+        assert listing.platform_data["listing_overrides"]["override_boundary"] == "store_listing_only"
+
+    asyncio.run(run_test())
+
+
 def test_batch_preview_returns_listing_validation_checks(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'listing-validation-checks.db'}")
@@ -1750,6 +1823,9 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         assert items[0]["listing_store_override"]["sku_count"] == 1
         assert items[0]["listing_store_override"]["has_logistics"] is True
         assert items[0]["listing_store_override"]["has_compliance"] is True
+        assert items[0]["listing_master_status"]["ready"] is True
+        assert items[0]["listing_master_status"]["label"] == "统一母版已确认"
+        assert items[0]["listing_master_status"]["confirmed_count"] == len(REQUIRED_CONTENT_GAPS)
         assert items[0]["media_readiness"]["captured_image_count"] == 1
         assert items[0]["media_readiness"]["missing_image_count"] == 4
         assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
@@ -1762,6 +1838,8 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         assert drafts[0]["listing_store_override"]["store_label"] == "Shopee MY 主店"
         assert drafts[0]["listing_store_override"]["sku_count"] == 1
         assert drafts[0]["listing_store_override"]["has_platform_attributes"] is True
+        assert drafts[0]["listing_master_status"]["ready"] is True
+        assert drafts[0]["listing_master_status"]["source"] == "content_workbench"
 
     asyncio.run(run_test())
 

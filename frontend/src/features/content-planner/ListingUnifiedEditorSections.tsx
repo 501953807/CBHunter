@@ -62,9 +62,26 @@ export function ListingUnifiedEditorSections({
     { id: 'tags', label: '搜索', title: '标签与搜索词', summary: '平台搜索词、话题标签、品类词', status: hashtags.length ? `${hashtags.length} 个` : '待生成' },
     { id: 'handoff', label: '衔接', title: '定价发布衔接', summary: '定价校验、发布队列、店铺草稿', status: product?.content_status === 'ready' ? '可衔接' : '待确认' },
   ]
+  const titleTerms = (product?.content_brief?.title || '')
+    .split(/[\s,，、/｜|]+/)
+    .map(term => term.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+  const categoryTerms = [
+    product?.category,
+    product?.target_market,
+    product?.target_platform,
+  ].filter(Boolean) as string[]
+  const sceneTerms = (product?.content_brief?.bullets || [])
+    .flatMap(bullet => bullet.split(/[\s,，、/｜|]+/))
+    .map(term => term.trim())
+    .filter(term => term.length >= 2)
+    .slice(0, 8)
+  const platformTags = hashtags.map(tag => tag.replace('#', '')).slice(0, 12)
+  const searchTermPackage = [...new Set([...titleTerms, ...categoryTerms, ...sceneTerms, ...platformTags])].join(' ')
 
   return (
-    <section aria-label="当前商品 Listing 同屏分组编辑" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+    <section aria-label="当前商品 Listing 同屏分组编辑" data-ui="listing-editor-wide-continuous-layout" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
       <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 同屏编辑台</p>
         <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">围绕一个商品连续编辑完整 Listing</h3>
@@ -74,21 +91,21 @@ export function ListingUnifiedEditorSections({
         <ContentListingCapabilityMap product={product} scriptsCount={scripts.length} hashtagsCount={hashtags.length} />
       </div>
 
-      <div className="grid gap-0 xl:grid-cols-[180px_minmax(0,1fr)_240px]">
-        <aside aria-label="Listing 字段导航" className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3 xl:border-b-0 xl:border-r">
-          <div className="grid gap-2">
+      <div>
+        <nav aria-label="Listing 字段导航" className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+          <div className="flex min-w-0 gap-2 overflow-x-auto">
             {sections.map(section => (
               <a
                 key={section.id}
                 href={`#listing-editor-${section.id}`}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+                className="min-w-[108px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
               >
                 <span className="block text-xs font-semibold text-[var(--color-fg)]">{section.label}</span>
                 <span className="mt-1 block text-[11px] text-[var(--color-muted)]">{section.status}</span>
               </a>
             ))}
           </div>
-        </aside>
+        </nav>
 
         <div className="min-w-0 space-y-4 p-4">
           <ListingEditorSection
@@ -194,29 +211,28 @@ export function ListingUnifiedEditorSections({
           <ListingEditorSection
             id="tags"
             title="标签与搜索词"
-            description="标签必须来自当前商品、平台、市场和品类，不使用固定模板；无结果时保持待生成状态。"
+            description="后台搜索词、品类词、场景词和平台标签必须来自当前商品、平台、市场和品类，不使用固定模板；无结果时保持待生成状态。"
           >
-            <Card>
-              <CardContent className="pt-4">
-                <h3 className="mb-3 flex items-center gap-1 text-sm font-semibold text-[var(--color-fg)]">
-                  <Hash className="h-4 w-4" />
-                  推荐标签
-                </h3>
-                {hashtags.length === 0 && renderEmptyPlan()}
-                <div className="flex flex-wrap gap-2">
-                  {hashtags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex cursor-pointer items-center rounded-full bg-[var(--color-primary-light)] px-3 py-1.5 text-sm font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary-light)]"
-                      onClick={() => onCopy(tag, hashtags.indexOf(tag))}
-                    >
-                      <Hash className="mr-1 h-3 w-3" />
-                      {tag.replace('#', '')}
-                    </span>
-                  ))}
+            <section aria-label="Listing 搜索词后台编辑区" data-ui="listing-search-terms-editor" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-primary)]">后台 Search Terms</p>
+                  <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">搜索词来源与平台标签</h3>
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">用于平台搜索归档，不替代买家可见标题、五点卖点和长描述。</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Button size="sm" variant="outline" disabled={!searchTermPackage} onClick={() => onCopy(searchTermPackage, 9001)}>
+                  <Copy className="mr-1 h-3 w-3" />复制搜索词包
+                </Button>
+              </div>
+              {searchTermPackage.length === 0 ? renderEmptyPlan() : (
+                <div className="grid gap-3 p-4 md:grid-cols-2">
+                  <SearchTermColumn title="后台 Search Terms" source="标题候选 / 商品名称" terms={titleTerms} onCopy={onCopy} />
+                  <SearchTermColumn title="品类词" source="类目 / 平台 / 目标市场" terms={categoryTerms} onCopy={onCopy} />
+                  <SearchTermColumn title="场景词" source="五点卖点 / 使用场景" terms={sceneTerms} onCopy={onCopy} />
+                  <SearchTermColumn title="平台标签" source="AI 候选 / 内容计划" terms={platformTags} onCopy={onCopy} />
+                </div>
+              )}
+            </section>
           </ListingEditorSection>
 
           <ListingEditorSection
@@ -228,9 +244,9 @@ export function ListingUnifiedEditorSections({
           </ListingEditorSection>
         </div>
 
-        <aside aria-label="Listing 段落校验摘要" className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3 xl:border-l xl:border-t-0">
+        <section aria-label="Listing 段落校验摘要" className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
           <p className="text-xs font-semibold text-[var(--color-fg)]">段落校验摘要</p>
-          <div className="mt-3 grid gap-2">
+          <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {sections.map(section => (
               <div key={section.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -241,7 +257,7 @@ export function ListingUnifiedEditorSections({
               </div>
             ))}
           </div>
-        </aside>
+        </section>
       </div>
     </section>
   )
@@ -315,6 +331,47 @@ function ContentListingCapabilityMap({
           <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">{item.detail}</p>
         </div>
       ))}
+    </div>
+  )
+}
+
+function SearchTermColumn({
+  title,
+  source,
+  terms,
+  onCopy,
+}: {
+  title: string
+  source: string
+  terms: string[]
+  onCopy: (text: string, index: number) => void
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-fg)]">{title}</p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">搜索词来源：{source}</p>
+        </div>
+        <Badge variant={terms.length ? 'success' : 'warning'}>{terms.length ? `${terms.length} 个` : '待补'}</Badge>
+      </div>
+      {terms.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">待从当前商品资料生成。</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {terms.map((term, index) => (
+            <button
+              key={`${title}-${term}-${index}`}
+              type="button"
+              className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary-light)]"
+              onClick={() => onCopy(term, index)}
+            >
+              <Hash className="mr-1 h-3 w-3" />
+              {term}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

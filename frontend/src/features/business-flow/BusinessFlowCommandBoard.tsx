@@ -161,7 +161,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
       </section>
 
       <ComparisonRangeCards
-        ariaLabel="业务对象对比范围说明"
+        ariaLabel="商品流程对比范围说明"
         scopeLabel="业务对象"
         windows={data.comparison.windows}
         descriptions={{
@@ -264,7 +264,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
 
       <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-[var(--color-fg)]">业务对象范围对比</p>
+          <p className="text-sm font-semibold text-[var(--color-fg)]">商品流程数量对比</p>
           <span className="text-[11px] text-[var(--color-muted)]">图例显示天数，悬停看起止日期</span>
         </div>
         <ResponsiveContainer width="100%" height={240}>
@@ -273,9 +273,9 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
             <XAxis dataKey="period" tick={{ fontSize: 11 }} stroke="var(--color-muted)" />
             <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted)" />
             <Tooltip contentStyle={tooltipStyle} labelFormatter={(_, payload) => payload?.[0]?.payload?.window || ''} />
-            <Bar dataKey="items" name="业务对象" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="blocked" name="卡点对象" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="dataRequired" name="待补对象" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="items" name="流程商品数" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="blocked" name="阻塞商品数" fill="var(--color-danger)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="dataRequired" name="待补资料商品数" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -286,7 +286,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
             <p className="text-sm font-semibold text-[var(--color-fg)]">阶段停留对比</p>
             <p className="mt-1 text-[11px] text-[var(--color-muted)]">按真实业务对象更新时间计算当前、环比、同比平均停留，定位哪个阶段正在拖慢上架链路。</p>
           </div>
-          <Badge variant="outline">统计日期范围 / 环比日期范围 / 同比日期范围</Badge>
+          <Badge variant="outline">本周/上周/去年同周；本月/上月/去年同月</Badge>
         </div>
         <div className="grid gap-2 lg:grid-cols-4">
           {stageDwellRows.map((stage) => (

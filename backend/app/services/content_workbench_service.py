@@ -21,7 +21,7 @@ CONTENT_TASKS = (
     {"task_type": "description", "label": "商品描述", "requires_ai": True, "required_for_pricing": True},
     {"task_type": "image_understanding", "label": "图片理解", "requires_ai": True, "required_for_pricing": True},
     {"task_type": "image_edit_plan", "label": "图片处理建议", "requires_ai": True, "required_for_pricing": True},
-    {"task_type": "video_script", "label": "视频脚本", "requires_ai": True, "required_for_pricing": True},
+    {"task_type": "video_script", "label": "视频脚本", "requires_ai": True, "required_for_pricing": False},
     {"task_type": "compliance_check", "label": "合规检查", "requires_ai": True, "required_for_pricing": True},
     {"task_type": "listing_store_override", "label": "店铺 Listing 覆盖字段包", "requires_ai": False, "required_for_pricing": False},
     {"task_type": "enhanced_content", "label": "A+图文增强内容", "requires_ai": True, "required_for_pricing": False},
@@ -34,7 +34,6 @@ REQUIRED_CONTENT_GAPS = (
     ("description", "缺少已确认商品描述"),
     ("image_understanding", "缺少已确认图片理解"),
     ("image_edit_plan", "缺少已确认图片处理建议"),
-    ("video_script", "缺少已确认视频脚本"),
     ("compliance_check", "缺少已确认合规检查"),
 )
 
@@ -229,7 +228,19 @@ def _platform_requirements(item: SourcingItem, field_schemas: dict | None = None
 
 def _content_brief(item: SourcingItem) -> dict:
     brief = (item.extra_data or {}).get("content_workbench") or {}
-    return brief if isinstance(brief, dict) else {}
+    if not isinstance(brief, dict):
+        brief = {}
+    stored_tasks = _stored_tasks(item)
+    listing_title = _confirmed_task_content(stored_tasks, "listing_copy")
+    selling_points = _confirmed_task_content(stored_tasks, "selling_points")
+    description = _confirmed_task_content(stored_tasks, "description")
+    return {
+        **brief,
+        "title": listing_title or brief.get("title"),
+        "bullets": _lines(selling_points) or brief.get("bullets") or _lines(description)[:5],
+        "description": description or brief.get("description"),
+        "video_script": _confirmed_task_content(stored_tasks, "video_script") or brief.get("video_script"),
+    }
 
 
 def _set_stored_tasks(item: SourcingItem, tasks: dict) -> None:
@@ -237,6 +248,21 @@ def _set_stored_tasks(item: SourcingItem, tasks: dict) -> None:
     extra["content_tasks"] = tasks
     item.extra_data = extra
     flag_modified(item, "extra_data")
+
+
+def _confirmed_task_content(tasks: dict, task_type: str) -> str:
+    record = tasks.get(task_type) or {}
+    confirmed_version = record.get("confirmed_version")
+    if not confirmed_version:
+        return ""
+    for version in record.get("versions") or []:
+        if version.get("version") == confirmed_version:
+            return str(version.get("content") or "")
+    return ""
+
+
+def _lines(value: str) -> list[str]:
+    return [line.strip(" -•\t") for line in str(value or "").splitlines() if line.strip()]
 
 
 def _advance_after_content_confirmation(item: SourcingItem) -> None:

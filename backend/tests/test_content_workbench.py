@@ -135,15 +135,6 @@ def test_content_workbench_gaps_follow_confirmed_task_versions(tmp_path):
                 provider="ai",
             )
             await confirm_content_task_version(session, "content-user", item.id, "listing_copy", title["version"])
-            video = await save_content_task_version(
-                session,
-                "content-user",
-                item.id,
-                "video_script",
-                "展示通勤、容量和海岛场景。",
-                provider="ai",
-            )
-            await confirm_content_task_version(session, "content-user", item.id, "video_script", video["version"])
             workbench = await get_content_workbench(session, "content-user")
         await engine.dispose()
 
@@ -368,7 +359,15 @@ def test_content_task_matrix_tracks_versions_and_manual_confirmation(tmp_path):
             "influencer_brief",
         ]
         optional = [task for task in initial["tasks"] if not task["required_for_pricing"]]
-        assert [task["task_type"] for task in optional] == ["listing_store_override", "enhanced_content", "ad_creative", "influencer_brief"]
+        assert [task["task_type"] for task in optional] == [
+            "video_script",
+            "listing_store_override",
+            "enhanced_content",
+            "ad_creative",
+            "influencer_brief",
+        ]
+        video_task = next(task for task in initial["tasks"] if task["task_type"] == "video_script")
+        assert video_task["required_for_pricing"] is False
         override_task = next(task for task in initial["tasks"] if task["task_type"] == "listing_store_override")
         assert override_task["requires_ai"] is False
         listing_task = next(task for task in confirmed["tasks"] if task["task_type"] == "listing_copy")
@@ -440,5 +439,62 @@ def test_confirming_all_content_tasks_advances_product_to_pricing_queue(tmp_path
         assert pricing.status == "ready"
         assert pricing.data["items"][0]["id"] == item.id
         assert pricing.data["items"][0]["pricing_status"] == "pricing_required"
+
+    asyncio.run(run_test())
+
+
+def test_confirmed_editor_tasks_update_content_brief_and_do_not_require_video(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'content-brief-confirmed.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            item = SourcingItem(
+                user_id="content-user",
+                product_name="越南风编织包",
+                source_name="1688",
+                source_price_rmb=18,
+                category="bags",
+                platform="shopee",
+                market="MY",
+                pipeline_stage="content_required",
+            )
+            session.add(item)
+            await session.commit()
+            await session.refresh(item)
+
+            confirmed_payloads = {
+                "listing_copy": "越南风编织包 轻便通勤海岛旅行",
+                "selling_points": "轻便肩背\n大容量通勤\n适合东南亚海岛场景",
+                "description": "采用轻量编织材质，适合通勤、海岛旅行和日常搭配。",
+                "image_understanding": "主图、辅图、场景图已确认。",
+                "image_edit_plan": "主图白底、尺寸图、场景图按平台规范处理。",
+                "compliance_check": "类目、材质、重量、物流合规已复核。",
+            }
+            for task_type, content in confirmed_payloads.items():
+                saved = await save_content_task_version(
+                    session,
+                    "content-user",
+                    item.id,
+                    task_type,
+                    content,
+                    provider="manual",
+                )
+                await confirm_content_task_version(session, "content-user", item.id, task_type, saved["version"])
+
+            matrix = await get_content_task_matrix(session, "content-user", item.id)
+            workbench = await get_content_workbench(session, "content-user")
+        await engine.dispose()
+
+        video_task = next(task for task in matrix["tasks"] if task["task_type"] == "video_script")
+        item_payload = workbench["items"][0]
+        assert video_task["required_for_pricing"] is False
+        assert matrix["metrics"]["required_confirmed"] == len(REQUIRED_CONTENT_GAPS)
+        assert item_payload["content_status"] == "ready"
+        assert item_payload["content_brief"]["title"] == "越南风编织包 轻便通勤海岛旅行"
+        assert item_payload["content_brief"]["bullets"] == ["轻便肩背", "大容量通勤", "适合东南亚海岛场景"]
+        assert item_payload["content_brief"]["description"] == "采用轻量编织材质，适合通勤、海岛旅行和日常搭配。"
 
     asyncio.run(run_test())

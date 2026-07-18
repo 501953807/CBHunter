@@ -20,6 +20,8 @@ ROUTE_META = (ROOT / "frontend/src/components/layout/routeMeta.ts").read_text(en
 SETTINGS_WORKSPACE = (ROOT / "frontend/src/features/settings/SettingsWorkspace.tsx").read_text(encoding="utf-8")
 SETTINGS_ACCOUNT_PANELS = (ROOT / "frontend/src/features/settings/SettingsAccountPanels.tsx").read_text(encoding="utf-8")
 SETTINGS_SYSTEM_PANELS = (ROOT / "frontend/src/features/settings/SettingsSystemPanels.tsx").read_text(encoding="utf-8")
+SETTINGS_ACCESS_PANEL = (ROOT / "frontend/src/features/settings/SettingsAccessPanel.tsx").read_text(encoding="utf-8")
+SEED_MANAGER_TAB = (ROOT / "frontend/src/features/settings/SeedManagerTab.tsx").read_text(encoding="utf-8")
 HEADER = (ROOT / "frontend/src/components/layout/Header.tsx").read_text(encoding="utf-8")
 OPERATIONS_WORKSPACE = (ROOT / "frontend/src/features/operations/OperationsWorkspace.tsx").read_text(encoding="utf-8")
 SCOUT_WORKSPACE = (ROOT / "frontend/src/features/scout-sources/ScoutSourcesWorkspace.tsx").read_text(encoding="utf-8")
@@ -69,6 +71,7 @@ SMART_PRICING_PAGE = (ROOT / "frontend/src/pages/SmartPricingPage.tsx").read_tex
 PRICING_API = (ROOT / "frontend/src/api/pricing.ts").read_text(encoding="utf-8")
 CONTENT_MEDIA_STUDIO = (ROOT / "frontend/src/features/content-planner/ContentMediaStudio.tsx").read_text(encoding="utf-8")
 CONTENT_TITLE_GENERATOR = (ROOT / "frontend/src/features/content-planner/ContentTitleGenerator.tsx").read_text(encoding="utf-8")
+SELLER_PLATFORM_LISTING_EDITOR = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorPanel.tsx").read_text(encoding="utf-8")
 CONTENT_PLANNER_WORKSPACE = (ROOT / "frontend/src/features/content-planner/ContentPlannerWorkspace.tsx").read_text(encoding="utf-8")
 LISTING_OBJECT_SCOPE_MAP = (ROOT / "frontend/src/features/content-planner/ListingObjectScopeMap.tsx").read_text(encoding="utf-8")
 LISTING_STORE_OVERRIDE_EDITOR_PATH = ROOT / "frontend/src/features/content-planner/ListingStoreOverrideEditor.tsx"
@@ -78,6 +81,7 @@ LISTING_SPECIFICATION_EDITOR = (ROOT / "frontend/src/features/content-planner/Li
 CONTENT_PUBLISH_GUIDE = (ROOT / "frontend/src/features/content-planner/ContentPublishGuide.tsx").read_text(encoding="utf-8")
 CONTENT_PRODUCT_QUEUE = (ROOT / "frontend/src/features/content-planner/ContentProductQueue.tsx").read_text(encoding="utf-8")
 CONTENT_TASK_MATRIX = (ROOT / "frontend/src/features/content-planner/ContentTaskMatrix.tsx").read_text(encoding="utf-8")
+LISTING_TEMPLATES_WORKSPACE = (ROOT / "frontend/src/features/listing-templates/ListingTemplatesWorkspace.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_PREVIEW = (ROOT / "frontend/src/features/batch-publish/BatchPublishPreviewStep.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH = ROOT / "frontend/src/features/batch-publish/StoreOverridePreviewPanel.tsx"
 BATCH_PUBLISH_OVERRIDE_PREVIEW = BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH.read_text(encoding="utf-8") if BATCH_PUBLISH_OVERRIDE_PREVIEW_PATH.exists() else ""
@@ -283,9 +287,11 @@ def validate() -> list[str]:
     for required in ("aria-label=\"品源三阶段侧边导航\"", "信号捕获", "候选验证", "选品决策", "先发散，再收敛，最后决策"):
         if required not in SCOUT_STAGE_RAIL:
             errors.append(f"scout stage rail must express the compact three-stage workflow: {required}")
-    for required in ("data-navigation-style=\"floating-stage-rail\"", "fixed", "right-4", "z-40", "pointer-events-none", "pointer-events-auto"):
+    for required in ("data-navigation-style=\"floating-stage-rail\"", "data-ui=\"draggable-stage-rail\"", "data-draggable=\"true\"", "data-collapsible=\"true\"", "onPointerDown", "setCollapsed", "fixed", "z-40", "pointer-events-none", "pointer-events-auto"):
         if required not in SCOUT_STAGE_RAIL:
-            errors.append(f"scout stage rail must be a non-content-taking floating side rail: {required}")
+            errors.append(f"scout stage rail must be a draggable collapsible floating side rail: {required}")
+    if "right-4 top-[148px]" in SCOUT_STAGE_RAIL:
+        errors.append("scout stage rail must not be hard-fixed to the right edge; it must be draggable")
     if "xl:sticky" in SCOUT_STAGE_RAIL or "sm:grid-cols-3" in SCOUT_STAGE_RAIL:
         errors.append("scout stage rail must not regress to an inline sticky/horizontal card block")
     for forbidden in ("内容制作", "定价校验", "平台刊登"):
@@ -380,9 +386,13 @@ def validate() -> list[str]:
         errors.append("content export tab route title must describe platform listing guidance")
     if "'/content': '内容制作'" not in ROUTE_META:
         errors.append("content route title must match the current content production page title")
-    for required in ("aria-label=\"内容刊登三阶段浮动导航\"", "data-navigation-style=\"floating-stage-rail\"", "内容制作", "定价校验", "平台刊登", "fixed", "right-4", "z-40"):
+    for required in ("aria-label=\"内容刊登三阶段浮动导航\"", "data-navigation-style=\"floating-stage-rail\"", "data-ui=\"draggable-stage-rail\"", "data-draggable=\"true\"", "data-collapsible=\"true\"", "data-stage-icon-only=\"true\"", "onPointerDown", "setCollapsed", "内容制作", "定价校验", "平台刊登", "fixed", "z-40"):
         if required not in CONTENT_STAGE_RAIL:
-            errors.append(f"content/listing stage rail must be a floating side rail for downstream stages: {required}")
+            errors.append(f"content/listing stage rail must be a draggable collapsible floating side rail for downstream stages: {required}")
+    if "right-4 top-[148px]" in CONTENT_STAGE_RAIL:
+        errors.append("content/listing stage rail must not be hard-fixed to the right edge; it must be draggable")
+    if "{index + 1}" in CONTENT_STAGE_RAIL:
+        errors.append("content/listing stage rail must use icon-only stage controls instead of 1/2/3 number pills")
     for page_name, page_content in (
         ("content planner", CONTENT_PLANNER_WORKSPACE),
         ("smart pricing", SMART_PRICING_PAGE),
@@ -406,7 +416,7 @@ def validate() -> list[str]:
     if "BusinessFlowCommandBoard" not in BUSINESS_FLOW_WORKSPACE:
         errors.append("business monitor must put the flow total-and-breakdown board in the main visual area")
     business_flow_board_with_range_util = BUSINESS_FLOW_COMMAND_BOARD + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
-    for required in ("业务流程总分看板", "业务流程卡点总览", "业务处理总览", "当前瓶颈", "卡点率", "待补关键资料", "业务处理动作", "data-ui=\"flow-hero\"", "业务对象范围对比", "业务核心判断条", "业务核心判断", "链路卡点率", "当前瓶颈阶段", "下一步动作", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "统计日期范围", "环比日期范围", "同比日期范围", "默认最近30个自然日", "向前紧邻${days}天", "去年同日期${days}天", "业务对象对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "八阶段卡点矩阵", "平台业务对象分布", "平台对象占比", "店铺卡点热力", "推进结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺业务推进结构", "信号收集", "候选验证", "选品决策", "Listing 制作", "定价策略", "平台刊登", "BarChart", "PieChart", "comparisonRangeLabel"):
+    for required in ("业务流程总分看板", "业务流程卡点总览", "业务处理总览", "当前瓶颈", "卡点率", "待补关键资料", "业务处理动作", "data-ui=\"flow-hero\"", "商品流程数量对比", "业务核心判断条", "业务核心判断", "链路卡点率", "当前瓶颈阶段", "下一步动作", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "商品流程对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "八阶段卡点矩阵", "平台业务对象分布", "平台对象占比", "店铺卡点热力", "推进结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺业务推进结构", "信号收集", "候选验证", "选品决策", "Listing 制作", "定价策略", "平台刊登", "BarChart", "PieChart", "comparisonRangeLabel"):
         if required not in business_flow_board_with_range_util:
             errors.append(f"business monitor V5 board must expose total/breakdown/stage charts: {required}")
     business_flow_service_content = (ROOT / "backend/app/services/business_flow_service.py").read_text(encoding="utf-8")
@@ -415,9 +425,12 @@ def validate() -> list[str]:
     for required in ("avg_wait_label", "max_wait_item", "平均停留", "最长停留", "stage_dwell_stats", "stage_dwell", "阶段停留对比"):
         if required not in business_flow_dwell_content:
             errors.append(f"business flow monitor must expose real stage dwell time and longest waiting object: {required}")
-    for forbidden in ("业务对象周期对比", "业务对象窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "label=\"业务对象\"", "label=\"卡点对象\"", "label=\"待补资料\""):
+    for forbidden in ("业务对象范围对比", "业务对象对比范围说明", "业务对象周期对比", "业务对象窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "统计日期范围 / 环比日期范围 / 同比日期范围", "name=\"业务对象\"", "name=\"卡点对象\"", "name=\"待补对象\"", "label=\"业务对象\"", "label=\"卡点对象\"", "label=\"待补资料\""):
         if forbidden in BUSINESS_FLOW_COMMAND_BOARD:
             errors.append(f"business monitor must not use vague period/object labels: {forbidden}")
+    for required in ("流程商品数", "阻塞商品数", "待补资料商品数"):
+        if required not in BUSINESS_FLOW_COMMAND_BOARD:
+            errors.append(f"business monitor object chart must use concrete product-flow labels: {required}")
     for required in ("data.comparison.previous", "data.comparison.last_year", "data.flow_store_matrix.length"):
         if required not in BUSINESS_FLOW_COMMAND_BOARD:
             errors.append(f"business monitor total board must use real comparison and full store matrix counts: {required}")
@@ -453,7 +466,7 @@ def validate() -> list[str]:
     if "aria-label=\"风险处置指标\"" not in RISK_CONTROL_WORKSPACE:
         errors.append("risk control metric strip must expose an accessible risk indicator label")
     risk_board_with_range_util = RISK_STORE_COMMAND_BOARD + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
-    for required in ("平台店铺风险总分看板", "平台店铺风险总览", "风险处置总览", "处置优先级", "最高风险店铺", "即将超时", "风险处置动作", "data-ui=\"risk-hero\"", "风险范围对比", "风险核心判断条", "风险核心判断", "风险压力", "逾期处理", "最高风险归属", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "统计日期范围", "环比日期范围", "同比日期范围", "默认最近30个自然日", "向前紧邻${days}天", "去年同日期${days}天", "风险对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "平台风险分布", "平台风险占比", "风险类型雷达", "店铺风险热力", "风险热度", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺风险热度结构", "店铺商品", "环比", "同比", "BarChart", "PieChart", "comparisonRangeLabel"):
+    for required in ("平台店铺风险总分看板", "平台店铺风险总览", "风险处置总览", "处置优先级", "最高风险店铺", "即将超时", "风险处置动作", "data-ui=\"risk-hero\"", "风险范围对比", "风险核心判断条", "风险核心判断", "风险压力", "逾期处理", "最高风险归属", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "风险对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "平台风险分布", "平台风险占比", "风险类型雷达", "店铺风险热力", "风险热度", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺风险热度结构", "店铺商品", "环比", "同比", "BarChart", "PieChart", "comparisonRangeLabel"):
         if required not in risk_board_with_range_util:
             errors.append(f"risk control V5 board must expose total/breakdown/comparison charts: {required}")
     for forbidden in ("风险周期对比", "风险窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "label=\"活跃风险\"", "label=\"高危风险\""):
@@ -499,7 +512,7 @@ def validate() -> list[str]:
     if "CockpitStoreCommandBoard" not in COCKPIT_WORKSPACE:
         errors.append("operating cockpit must put the platform/store total-and-breakdown board in the main visual area")
     cockpit_board_with_range_util = COCKPIT_STORE_COMMAND_BOARD + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
-    for required in ("平台店铺经营总分看板", "公司 → 平台 → 店铺经营总览", "公司级经营总览", "经营覆盖", "资金质量", "主力店铺", "经营下钻动作", "data-ui=\"operating-hero\"", "经营范围对比", "经营核心判断条", "经营核心判断", "公司经营结果", "店铺贡献最高", "利润率口径", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "统计日期范围", "环比日期范围", "同比日期范围", "默认最近30个自然日", "向前紧邻${days}天", "去年同日期${days}天", "经营对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "平台经营分布", "平台占比", "店铺贡献排行", "店铺经营贡献结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "环比", "同比", "BarChart", "PieChart", "comparisonRangeLabel"):
+    for required in ("平台店铺经营总分看板", "公司 → 平台 → 店铺经营总览", "公司级经营总览", "经营覆盖", "资金质量", "主力店铺", "经营下钻动作", "data-ui=\"operating-hero\"", "经营范围对比", "经营核心判断条", "经营核心判断", "公司经营结果", "店铺贡献最高", "利润率口径", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "经营对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "平台经营分布", "平台占比", "店铺贡献排行", "店铺经营贡献结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "环比", "同比", "BarChart", "PieChart", "comparisonRangeLabel"):
         if required not in cockpit_board_with_range_util:
             errors.append(f"operating cockpit V5 board must expose total/breakdown/comparison charts: {required}")
     for forbidden in ("经营周期对比", "经营窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "周期财务结构", "本期订单", "本期收入", "本期净利润"):
@@ -644,10 +657,39 @@ def validate() -> list[str]:
         errors.append("content media studio must support using the selected product source image")
     for required in (
         "ListingMediaSlotBoard",
+        "data-ui=\"listing-media-editor-seller-console\"",
+        "SellerImageEditorWorkbench",
+        "data-ui=\"listing-image-editor-workbench\"",
+        "2xl:grid-cols-[220px_minmax(640px,1fr)_150px]",
+        "aria-label=\"Listing 图片编辑工作台\"",
+        "aria-label=\"左侧图片工具栏\"",
+        "aria-label=\"图片编辑画布\"",
+        "aria-label=\"右侧图片槽位缩略图\"",
+        "批量编辑模式",
+        "消除笔",
+        "裁剪旋转",
+        "修改尺寸",
+        "AI设计",
+        "保存图片修改",
+        "保存槽位顺序",
+        "setAsMainImage",
+        "moveSlot",
+        "{activeSlot.index}/9",
+        "aria-label=\"Listing 媒体字段快速定位\"",
+        "data-ui=\"media-editor-section-nav\"",
         "aria-label=\"Listing 图片槽位工作台\"",
+        "aria-label=\"卖家后台图片槽位主表\"",
         "平台图片槽位与素材门禁",
+        "图片角色",
+        "素材状态",
+        "处理动作",
         "待补真实图片",
         "aria-label=\"Listing 图片处理动作\"",
+        "aria-label=\"图片处理参数表\"",
+        "aria-label=\"视频素材编辑区\"",
+        "商品视频",
+        "aria-label=\"当前商品素材库\"",
+        "当前商品素材库",
         "处理当前主图",
         "MediaHealthCard",
         "productImageAssets",
@@ -655,13 +697,27 @@ def validate() -> list[str]:
     ):
         if required not in CONTENT_MEDIA_STUDIO:
             errors.append(f"content media studio must expose seller-console listing media slots: {required}")
+    for forbidden in ("grid-cols-[220px_minmax(520px,1fr)_150px]",):
+        if forbidden in CONTENT_MEDIA_STUDIO:
+            errors.append(f"content media studio must not force the image editor into a compressed three-column layout: {forbidden}")
     for required in (
         "aria-label=\"Listing 文案编辑工作台\"",
+        "data-ui=\"listing-copy-editor-seller-console\"",
+        "aria-label=\"Listing 文案字段快速定位\"",
+        "data-ui=\"copy-editor-section-nav\"",
+        "aria-label=\"卖家后台标题编辑区\"",
+        "aria-label=\"平台标题规则状态表\"",
+        "标题规则",
+        "待优化",
         "标题、五点卖点与长描述编辑台",
         "Listing 文案校验面板",
         "标题候选与人工定稿",
         "五点卖点",
+        "aria-label=\"五点卖点编辑表\"",
+        "卖点类型",
+        "买家可见内容",
         "长描述 / 商品详情",
+        "aria-label=\"长描述编辑区\"",
         "saveAndConfirm('listing_copy'",
         "saveAndConfirm('selling_points'",
         "saveAndConfirm('description'",
@@ -670,6 +726,9 @@ def validate() -> list[str]:
     ):
         if required not in CONTENT_TITLE_GENERATOR:
             errors.append(f"content title generator must behave as a seller-console listing copy editor: {required}")
+    for forbidden in ("xl:grid-cols-[280px_minmax(0,1fr)_260px]", "xl:border-l xl:border-t-0"):
+        if forbidden in CONTENT_TITLE_GENERATOR:
+            errors.append(f"content title generator must not squeeze listing copy fields into narrow side rails: {forbidden}")
     for required in ("useConfirm", "删除内容素材", "确认删除素材"):
         if required not in CONTENT_MEDIA_STUDIO:
             errors.append(f"content media asset delete must use system confirm dialog: {required}")
@@ -685,111 +744,131 @@ def validate() -> list[str]:
         errors.append("professional workspace visual frame component must exist with accessible shell label")
     if "aria-label=\"业务对象下钻动作\"" not in BUSINESS_OBJECT_ACTION_BAR:
         errors.append("business object action bar must exist with accessible drill-down action label")
-    for required in ("Listing 一体化内容工作台", "当前商品 Listing 编辑器", "当前编辑商品", "Listing 右侧校验与下游动作", "ContentListingContextPanel", "layout=\"rail\""):
+    for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-workspace\"", "data-ui=\"content-image-edit-workspace\"", "workspaceMode === 'queue'", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\""):
         if required not in CONTENT_PLANNER_WORKSPACE:
-            errors.append(f"content planner must use one-product listing workbench layout: {required}")
+            errors.append(f"content planner must separate queue, listing detail, and image editor flows: {required}")
+    for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "ListingCompositionBoard product={selectedProduct}"):
+        if forbidden in CONTENT_PLANNER_WORKSPACE or forbidden in CONTENT_PRODUCT_QUEUE:
+            errors.append(f"content factory queue/detail must not expose old squeezed or misplaced action: {forbidden}")
+    for required in ("listing-master-copy", "listing-master-media", "listing-master-attributes", "listing-master-sku", "listing-master-logistics"):
+        if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"listing detail must keep direct anchors to editable sections: {required}")
+    for forbidden in ("内容诊断", "Preview", "Product Detail"):
+        if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"seller listing editor embedded in CBHunter must not copy platform side diagnosis/preview panels: {forbidden}")
     for required in (
-        "ListingObjectScopeMap",
-        "aria-label=\"基础商品与店铺 Listing 实例关系\"",
-        "data-ui=\"listing-object-scope-map\"",
-        "基础商品 → 店铺 Listing 实例 → 定价发布",
-        "店铺覆盖字段",
-        "标题",
-        "主图/辅图",
-        "价格",
-        "SKU/变体",
-        "平台属性",
-        "物流包装",
-        "合规资料",
-        "进入定价校验",
-        "进入平台刊登",
-        "不回写污染基础商品版本",
+        "density=\"compact\"",
+        "data-ui=\"content-listing-compact-toolbar\"",
+        "aria-label=\"单商品 Listing 详情编辑工作区\"",
+        "aria-label=\"当前商品主图编辑工作区\"",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE + LISTING_OBJECT_SCOPE_MAP:
-            errors.append(f"content planner must expose base product to store listing instance scope map: {required}")
-    for required in (
+        if required not in CONTENT_PLANNER_WORKSPACE:
+            errors.append(f"content factory must prioritize editable listing workspace over explanatory cards: {required}")
+    for forbidden in (
+        "aria-label=\"AI 内容与视频计划辅助折叠区\"",
+        "aria-label=\"Listing 校验与衔接折叠区\"",
+        "aria-label=\"店铺 Listing 覆盖字段折叠编辑区\"",
+        "aria-label=\"Listing 对象关系折叠说明\"",
+        "ContentListingContextPanel",
+        "ListingObjectScopeMap product={selectedProduct}",
         "ListingStoreOverrideEditor",
-        "aria-label=\"店铺 Listing 覆盖字段编辑器\"",
-        "data-ui=\"listing-store-override-editor\"",
-        "店铺标题与描述",
-        "店铺图片视频覆盖",
-        "店铺 SKU 价格库存覆盖",
-        "店铺平台属性物流合规覆盖",
-        "店铺覆盖字段保存状态",
-        "listing_store_override",
-        "getContentTaskMatrix(product.id)",
-        "parseListingStoreOverrideDraft",
-        "storedOverrideVersion",
-        "已回读版本",
-        "saveContentTaskVersion(product.id, 'listing_store_override'",
-        "confirmContentTaskVersion(product.id, 'listing_store_override'",
-        "保存店铺覆盖草稿",
-        "不回写基础商品版本",
+        "ContentTaskMatrix product={selectedProduct}",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE + LISTING_STORE_OVERRIDE_EDITOR:
-            errors.append(f"content planner must provide a persistent store-level listing override editor: {required}")
+        if forbidden in CONTENT_PLANNER_WORKSPACE:
+            errors.append(f"content factory detail page must not expose backend/explanatory panels in the primary editor: {forbidden}")
+    for forbidden in ("xl:grid-cols-[380px_minmax(720px,1fr)_360px]", "xl:grid-cols-[320px_minmax(900px,1fr)]", "professional-context-rail space-y-3"):
+        if forbidden in CONTENT_PLANNER_WORKSPACE:
+            errors.append(f"content planner must not squeeze the listing editor with a permanent right rail: {forbidden}")
+    if "description=\"围绕已决策商品编制标题、卖点、视频、图片处理和刊登前内容任务，所有内容必须绑定具体商品和平台字段。\"" in CONTENT_PLANNER_WORKSPACE:
+        errors.append("content factory must not render a large explanatory description card above the listing editor")
+    if "xl:grid-cols-[minmax(0,1fr)_320px]" in LISTING_STORE_OVERRIDE_EDITOR:
+        errors.append("listing store override editor must not squeeze store-level fields with a permanent status side rail")
     for required in (
         "aria-label=\"当前商品 Listing 对象总览\"",
-        "当前 Listing 商品对象",
+        "当前编辑商品",
         "ListingReadinessMeter",
         "ListingFact",
         "主图 {imageCount}/{recommendedImages}",
         "价格链路",
         "当前缺口",
         "暂无阻断缺口",
+        "data-ui=\"listing-gap-jump-chip\"",
     ):
         if required not in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner must expose a seller-backend style current listing object overview: {required}")
     for required in (
-        "ListingCompositionBoard",
-        "aria-label=\"当前商品 Listing 编制总表\"",
-        "商品标题",
-        "五点卖点",
-        "长描述",
-        "主图/辅图",
-        "商品视频",
-        "SKU/变体",
-        "平台属性",
-        "物流包装",
-        "合规检查",
-        "定价衔接",
-        "Listing 发布门禁清单",
-        "整体完整度",
-        "ListingProgress",
-        "ListingStatusPill",
-        "缺口/风险",
-        "定位处理",
-        "changeTab(section.targetTab)",
+        "SellerPlatformListingEditorPanel",
+        "data-ui=\"unified-listing-master-editor\"",
+        "aria-label=\"统一 Listing 母版编辑器\"",
+        "data-ui=\"unified-listing-sticky-field-nav\"",
+        "data-ui=\"listing-master-image-slot-grid\"",
+        "dropImageSlot",
+        "draggable",
+        "onDrop",
+        "data-ui=\"listing-master-add-image-slot\"",
+        "添加图片",
+        "setMainImage",
+        "image_slots",
+        "统一 Listing 母版",
+        "一次编辑，按店铺实例分发到 Shopee / TEMU / TikTok Shop",
+        "商品基础内容在母版维护",
+        "商品图片与素材",
+        "商品标题与商品描述",
+        "商品描述 / 图文详情",
+        "类目属性",
+        "SKU、销售资料与库存",
+        "新增 SKU 变体",
+        "物流、包装与合规",
+        "AI 辅助动作",
+        "保存母版草稿",
+        "保存到店铺覆盖",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE:
-            errors.append(f"content planner must expose a same-product listing composition board: {required}")
+        if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"content planner must expose a focused same-product listing editor: {required}")
+    for forbidden in ("xl:grid-cols-[240px_minmax(560px,1fr)_260px]",):
+        if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"seller platform listing editor must not force the editing form into a compressed three-column layout: {forbidden}")
     for forbidden in ("xl:grid-cols-5", "进入编制 <ArrowRight"):
         if forbidden in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner listing composition must not regress to large clickable-card grid: {forbidden}")
+    for forbidden in ("<ListingUnifiedEditorSections", "AI 内容辅助、视频计划与搜索词", "短视频与内容计划", "标签与搜索词"):
+        if forbidden in CONTENT_PLANNER_WORKSPACE:
+            errors.append(f"content planner listing detail must not mix secondary AI/video/search helpers into primary listing editor: {forbidden}")
+    for forbidden in ("xl:grid-cols-[180px_minmax(0,1fr)_240px]", "xl:border-l xl:border-t-0"):
+        if forbidden in LISTING_UNIFIED_EDITOR_SECTIONS:
+            errors.append(f"listing unified editor must not compress fields into nested three-column layout: {forbidden}")
     for required in (
-        "ListingUnifiedEditorSections",
-        "aria-label=\"当前商品 Listing 同屏分组编辑\"",
-        "Listing 同屏编辑台",
-        "aria-label=\"Listing 字段导航\"",
-        "aria-label=\"Listing 段落校验摘要\"",
-        "ListingSpecificationEditor",
-        "SKU/属性/物流/合规",
-        "文案与卖点",
-        "媒体素材",
-        "短视频与内容计划",
-        "标签与搜索词",
-        "定价发布衔接",
-        "不再通过 Tabs 切换",
+        "aria-label=\"Listing 搜索词后台编辑区\"",
+        "data-ui=\"listing-search-terms-editor\"",
+        "后台 Search Terms",
+        "品类词",
+        "场景词",
+        "平台标签",
+        "搜索词来源",
+        "复制搜索词包",
+        "onCopy(searchTermPackage",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE + LISTING_UNIFIED_EDITOR_SECTIONS:
-            errors.append(f"content planner must render all listing editing sections in one product context: {required}")
+        if required not in LISTING_UNIFIED_EDITOR_SECTIONS:
+            errors.append(f"listing unified editor must expose seller-backend search terms editing: {required}")
     for required in (
         "aria-label=\"Listing SKU 属性物流合规工作台\"",
+        "data-ui=\"listing-spec-editor-seller-console\"",
+        "aria-label=\"Listing 规格字段快速定位\"",
+        "data-ui=\"spec-editor-section-nav\"",
+        "aria-label=\"卖家后台规格编辑主表\"",
         "SKU/变体、平台属性、物流包装、合规检查",
         "aria-label=\"SKU 变体草稿表\"",
+        "商家SKU",
+        "平台SKU",
+        "SPU/SKC",
+        "变体属性",
         "aria-label=\"平台属性编辑工作台\"",
+        "aria-label=\"平台必填字段状态表\"",
+        "字段状态",
+        "待填写",
         "PlatformFieldGroupEditor",
         "aria-label=\"物流包装编辑区\"",
+        "aria-label=\"物流包裹尺寸表\"",
         "aria-label=\"规格合规校验面板\"",
         "confirmCompliance",
         "saveContentTaskVersion(product.id, 'compliance_check'",
@@ -803,32 +882,62 @@ def validate() -> list[str]:
     ):
         if required not in LISTING_SPECIFICATION_EDITOR:
             errors.append(f"content planner must expose actionable listing specs/attributes/logistics/compliance editor: {required}")
+    if "xl:grid-cols-[minmax(0,1fr)_320px]" in LISTING_SPECIFICATION_EDITOR:
+        errors.append("listing specification editor must not squeeze SKU/spec fields with a permanent compliance side rail")
+    if "xl:grid-cols-[minmax(0,1fr)_280px]" in CONTENT_MEDIA_STUDIO:
+        errors.append("content media studio must not squeeze image slots with a permanent image action side rail")
     for forbidden in ("const CONTENT_TABS", "<Tabs tabs={CONTENT_TABS}", "activeTab ===", "{ id: 'title', label: 'AI标题' }", "{ id: 'export', label: '平台刊登' }", "{ id: 'media', label: '素材工坊' }"):
         if forbidden in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner tabs must not expose split tool/module labels: {forbidden}")
-    for required in (
-        "ContentPlatformPreviewPanel",
-        "aria-label=\"三平台 Listing 预览与字段缺口\"",
-        "Shopee",
-        "TEMU",
-        "TikTok Shop",
-        "卖家后台预览",
-        "按卖家后台关键项预览",
-        "SKU/变体",
-        "价格",
-        "物流包装",
-        "类目属性",
-        "图片",
-        "合规重点",
-        "source_price_rmb",
-        "selling_price_local",
-        "profit_margin_pct",
-        "attribute_values",
+    for forbidden in (
+        "ContentPlatformMappingPanel",
+        "aria-label=\"三平台 Listing 字段映射与差异缺口\"",
+        "data-ui=\"platform-listing-field-mapping-panel\"",
+        "统一母版负责沉淀 90% 共性字段",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE:
-            errors.append(f"content planner must preview three platform listing differences before publishing: {required}")
+        if forbidden in CONTENT_PLANNER_WORKSPACE:
+            errors.append(f"content planner primary listing editor must not expose platform-difference mapping panels: {forbidden}")
     if "aria-label=\"内容商品侧边队列\"" not in CONTENT_PRODUCT_QUEUE:
         errors.append("content product queue must support compact side-rail selection inside the listing workbench")
+    for required in (
+        "data-ui=\"content-product-seller-filter-toolbar\"",
+        "data-ui=\"content-product-seller-console-table\"",
+        "商品信息",
+        "平台 / 店铺 / 市场",
+        "图片 / 视频",
+        "标题 / 描述",
+        "SKU / 属性",
+        "价格 / 库存",
+        "待处理缺口",
+        "搜索商品名称、平台、市场、类目",
+        "statusFilter",
+    ):
+        if required not in CONTENT_PRODUCT_QUEUE:
+            errors.append(f"content product queue must follow seller-console product list structure: {required}")
+    for required in (
+        "图片/水印模板",
+        "data-ui=\"image-watermark-template-workspace\"",
+        "data-ui=\"watermark-template-filter-toolbar\"",
+        "data-ui=\"watermark-template-console-table\"",
+        "营销水印",
+        "我的主图水印",
+        "系统水印模板",
+        "创建水印",
+        "搜水印 / 搜产品",
+        "水印信息",
+        "水印状态",
+        "定时添加",
+        "编辑水印",
+        "删除水印",
+        "投放详情",
+        "追加投放",
+        "fabric.js / cropperjs",
+    ):
+        if required not in MODULE_SUBNAV + ROUTE_META + LISTING_TEMPLATES_WORKSPACE:
+            errors.append(f"listing templates route must become Miaoshou-style image/watermark templates: {required}")
+    for forbidden in ("Listing 模板", "标题模板", "描述模板", "新建 Listing 模板", "编辑 Listing 模板"):
+        if forbidden in MODULE_SUBNAV + ROUTE_META + LISTING_TEMPLATES_WORKSPACE:
+            errors.append(f"content publishing templates must not regress to duplicated listing copy templates: {forbidden}")
     for required in ("aria-label=\"内容商品队列分页\"", "queuePage", "visibleItems", "getPageSize", "上一页", "下一页"):
         if required not in CONTENT_PRODUCT_QUEUE:
             errors.append(f"content product queue must paginate dense listing workbench items: {required}")
@@ -885,7 +994,7 @@ def validate() -> list[str]:
             errors.append(f"batch publish manual item selection must carry known target context: {required}")
     if "不选则按平台默认店铺生成" in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
         errors.append("batch publish must not generate drafts for an implicit default store")
-    for required in ("必须选择目标店铺", "selectedStores.size === 0", "请选择至少一个目标店铺"):
+    for required in ("selectedStores.size === 0", "请选择至少一个目标店铺"):
         if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
             errors.append(f"batch publish must require explicit target store selection: {required}")
     for required in ("selectedPlatformsList", "多平台字段组", "platformRequirementsForSelection"):
@@ -894,17 +1003,45 @@ def validate() -> list[str]:
     for required in ("目标归属", "ItemTargetContext", "商品目标归属", "待选择目标平台/市场/店铺"):
         if required not in BATCH_PUBLISH_SELECT:
             errors.append(f"batch publish select step must show product target context, not only field requirements: {required}")
-    for required in ("aria-label=\"发布门禁总览\"", "PublishGateCard", "PublishGateStack", "aria-label=\"发布门禁状态\"", "publishReadiness", "图片门禁", "字段门禁", "目标归属"):
+    for required in ("aria-label=\"发布门禁总览\"", "PublishGateCard", "PublishGateStack", "aria-label=\"发布门禁状态\"", "publishReadiness", "图片门禁", "字段门禁", "目标归属", "Listing 母版", "masterReady"):
         if required not in BATCH_PUBLISH_SELECT:
             errors.append(f"batch publish select step must expose publish gate summary and row diagnostics: {required}")
+    for required in ("listingMasterStatus", "ListingMasterSummary", "aria-label=\"统一 Listing 母版摘要\"", "本地 Listing 草稿"):
+        if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
+            errors.append(f"batch publish select step must expose listing master status before publish: {required}")
+    for required in ("ListingMasterStatus", "listing_master_status"):
+        if required not in LISTING_API:
+            errors.append(f"listing API types must carry backend listing master status: {required}")
     for required in ("listingStoreOverride", "ListingOverrideSummary", "aria-label=\"店铺覆盖字段摘要\"", "未保存店铺覆盖草稿", "SKU", "属性", "物流", "合规"):
         if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
             errors.append(f"batch publish select step must carry store override summary into publish gates: {required}")
     for required in ("StoreOverridePreviewPanel", "aria-label=\"发布预览店铺覆盖来源\"", "店铺覆盖版本", "SKU/变体来源", "物流来源", "合规来源", "平台属性来源", "未使用店铺覆盖版本", "listing_store_override"):
         if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
             errors.append(f"batch publish preview must expose store override source/status before draft creation: {required}")
+    for required in ("field_sources", "override_boundary", "字段来源矩阵", "店铺 Listing 独立覆盖边界"):
+        if required not in BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
+            errors.append(f"batch publish preview must expose field source matrix for store override persistence: {required}")
     if "Array.from(selectedPlatforms)[0]" in BATCH_PUBLISH_SELECT:
         errors.append("batch publish select step must not inspect only the first selected platform for field requirements")
+    for required in (
+        "data-ui=\"publish-target-command-bar\"",
+        "aria-label=\"发布目标批量操作条\"",
+        "目标平台 / 店铺",
+        "市场由店铺或商品目标归属自动带入",
+        "min-w-[1180px]",
+        "space-y-4",
+    ):
+        if required not in BATCH_PUBLISH_SELECT:
+            errors.append(f"batch publish select must prioritize product table and responsive target operation bar: {required}")
+    for forbidden in (
+        "className=\"grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]\"",
+        "2xl:grid-cols-[minmax(0,1fr)_360px]",
+        "aria-label=\"目标平台店铺操作区\"",
+        "onToggleMarket",
+        "请选择至少一个目标市场",
+    ):
+        if forbidden in BATCH_PUBLISH_SELECT:
+            errors.append(f"batch publish select must not squeeze the product table with a permanent xl side rail: {forbidden}")
     if "ProductBulkToolbar" not in PRODUCT_EDIT_PAGE and "ProductBulkToolbar" not in PRODUCT_LIST_PAGE:
         errors.append("product list selected toolbar must not regress to empty batch action buttons")
     if "库存待接入" in PRODUCT_BULK_TOOLBAR:
@@ -1420,6 +1557,39 @@ def validate() -> list[str]:
     ):
         if required not in AUDIT_LOG_TAB:
             errors.append(f"AUDIT-P2-03 audit log tab must expose visible React Query error recovery: {required}")
+    for required in (
+        "alertRulesQuery",
+        "alertRulesQuery.isError",
+        "data-ui=\"inventory-alert-rules-error\"",
+        "重新加载预警规则",
+    ):
+        if required not in INVENTORY_ALERT_PANELS:
+            errors.append(f"AUDIT-P2-03 inventory alert rules tab must expose visible React Query error recovery: {required}")
+    for required in (
+        "alertLogsQuery",
+        "alertLogsQuery.isError",
+        "data-ui=\"inventory-alert-logs-error\"",
+        "重新加载预警历史",
+    ):
+        if required not in INVENTORY_ALERT_PANELS:
+            errors.append(f"AUDIT-P2-03 inventory alert history tab must expose visible React Query error recovery: {required}")
+    for required in (
+        "seedListError",
+        "dictionaryError",
+        "data-ui=\"trend-seed-list-error\"",
+        "data-ui=\"trend-seed-dictionary-error\"",
+        "重新加载种子词",
+        "重新加载字典",
+    ):
+        if required not in SEED_MANAGER_TAB:
+            errors.append(f"AUDIT-P2-03 trend seed manager must expose visible error recovery: {required}")
+    for required in (
+        "accessControlError",
+        "data-ui=\"access-control-error\"",
+        "重新加载权限授权",
+    ):
+        if required not in SETTINGS_ACCESS_PANEL:
+            errors.append(f"AUDIT-P2-03 access control settings must expose visible error recovery: {required}")
 
     return errors
 

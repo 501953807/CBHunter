@@ -9,9 +9,9 @@ export interface ParsedComparisonRange {
 
 export function comparisonRangeName(kind: RangeKind): string {
   return {
-    current: '统计日期范围',
-    previous: '环比日期范围',
-    lastYear: '同比日期范围',
+    current: '所选区间',
+    previous: '上一等长区间',
+    lastYear: '去年同日期区间',
   }[kind]
 }
 
@@ -19,9 +19,9 @@ export function comparisonRangeTitle(kind: RangeKind, rangeText?: string): strin
   const days = rangeText ? countRangeDays(rangeText) : null
   if (!days) {
     return {
-      current: '统计日期天数待补',
-      previous: '环比日期天数待补',
-      lastYear: '同比日期天数待补',
+      current: '所选区间待补',
+      previous: '上一等长区间待补',
+      lastYear: '去年同日期区间待补',
     }[kind]
   }
   return explicitRangeName(kind, days)
@@ -68,9 +68,30 @@ function formatRangeDate(value: string): string {
 }
 
 function explicitRangeName(kind: RangeKind, days: number): string {
+  if (days === 7) {
+    return {
+      current: '本周',
+      previous: '上周',
+      lastYear: '去年同周',
+    }[kind]
+  }
+  if (days >= 28 && days <= 31) {
+    return {
+      current: '本月',
+      previous: '上月',
+      lastYear: '去年同月',
+    }[kind]
+  }
+  if (days >= 89 && days <= 92) {
+    return {
+      current: '本季度',
+      previous: '上季度',
+      lastYear: '去年同季',
+    }[kind]
+  }
   return {
-    current: days === 30 ? '统计日期范围（默认最近30个自然日）' : `统计日期范围（所选日期${days}天）`,
-    previous: `环比日期范围（向前紧邻${days}天）`,
-    lastYear: `同比日期范围（去年同日期${days}天）`,
+    current: `所选区间（${days}天）`,
+    previous: `上一等长区间（${days}天）`,
+    lastYear: `去年同日期区间（${days}天）`,
   }[kind]
 }

@@ -6,6 +6,23 @@ export function StoreOverridePreviewPanel({ draft }: { draft: BatchListingDraft 
   const hasOverride = Boolean(override?.store_id || override?.title || override?.sku_count || override?.has_logistics || override?.has_compliance || override?.has_platform_attributes)
   const storeLabel = override?.store_label || draft.store?.account_name || '当前目标店铺'
   const sourceLabel = hasOverride ? '来自当前店铺覆盖版本' : '来自基础商品/草稿字段'
+  const fallbackFieldSources = {
+    title: override?.title ? 'listing_store_override' : 'draft',
+    sku_plan: override?.sku_count ? 'listing_store_override' : 'draft',
+    media_assets: override?.image_count ? 'listing_store_override' : 'draft',
+    logistics: override?.has_logistics ? 'listing_store_override' : 'draft',
+    compliance: override?.has_compliance ? 'listing_store_override' : 'draft',
+    platform_requirements: override?.has_platform_attributes ? 'listing_store_override' : 'draft',
+  }
+  const fieldSources = draft.field_sources || fallbackFieldSources
+  const sourceRows = [
+    ['标题', fieldSources.title],
+    ['SKU/变体', fieldSources.sku_plan],
+    ['图片素材', fieldSources.media_assets],
+    ['物流包装', fieldSources.logistics],
+    ['合规资料', fieldSources.compliance],
+    ['平台属性', fieldSources.platform_requirements],
+  ]
   const rows = [
     {
       label: 'SKU/变体来源',
@@ -56,8 +73,24 @@ export function StoreOverridePreviewPanel({ draft }: { draft: BatchListingDraft 
           </div>
         ))}
       </div>
+      <div className="mt-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2" aria-label="字段来源矩阵">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold text-[var(--color-fg)]">字段来源矩阵</p>
+          <span className="text-[10px] text-[var(--color-muted)]">{draft.override_boundary || override?.override_boundary || '店铺 Listing 独立覆盖边界'}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          {sourceRows.map(([label, source]) => (
+            <div key={label} className="rounded border border-[var(--color-border)] px-1.5 py-1">
+              <span className="text-[10px] text-[var(--color-muted)]">{label}</span>
+              <p className={source === 'listing_store_override' ? 'text-[10px] font-semibold text-[var(--color-success)]' : 'text-[10px] font-semibold text-[var(--color-warning)]'}>
+                {source === 'listing_store_override' ? '店铺覆盖' : '草稿/基础'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
       <p className="mt-2 text-[10px] leading-4 text-[var(--color-muted)]">
-        覆盖字段只作用于当前平台店铺草稿，不回写基础商品版本，也不会影响同商品在其他店铺的 Listing。
+        店铺 Listing 独立覆盖边界：覆盖字段只作用于当前平台店铺草稿，不回写基础商品版本，也不会影响同商品在其他店铺的 Listing。
       </p>
     </div>
   )

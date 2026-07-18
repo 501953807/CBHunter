@@ -22,6 +22,8 @@ export default function SeedManagerTab({ toast }: { toast: any }) {
   // Dictionary data for dropdowns
   const [categories, setCategories] = useState<any[]>([])
   const [markets, setMarkets] = useState<any[]>([])
+  const [seedListError, setSeedListError] = useState('')
+  const [dictionaryError, setDictionaryError] = useState('')
   const [resetting, setResetting] = useState(false)
   const [discovering, setDiscovering] = useState(false)
   const [discoveryMarkets, setDiscoveryMarkets] = useState<{ id: string; label: string; flag: string; status: 'idle' | 'running' | 'done' | 'error'; count: number; error?: string }[]>([])
@@ -56,6 +58,7 @@ export default function SeedManagerTab({ toast }: { toast: any }) {
 
   const loadSeeds = async () => {
     setLoading(true)
+    setSeedListError('')
     try {
       const params: any = { page, page_size: PAGE_SIZE }
       if (filterCat) params.category_id = filterCat
@@ -66,21 +69,34 @@ export default function SeedManagerTab({ toast }: { toast: any }) {
       setTotal(r.meta?.total || r.data?.total || 0)
     } catch (e: any) {
       logger.error('Load trend seeds failed', e)
+      setSeedListError(e?.response?.data?.detail || e?.message || '种子词列表加载失败，请检查接口服务后重试。')
       setSeeds([])
+      setTotal(0)
     }
     setLoading(false)
+  }
+
+  const loadDictionaries = async () => {
+    setDictionaryError('')
+    try {
+      const r = await getDictionary()
+      if (r && r.data) {
+        setCategories(r.data.categories || [])
+        setMarkets(r.data.markets || [])
+      }
+    } catch (e: any) {
+      logger.error('Load seed manager dictionaries failed', e)
+      setDictionaryError(e?.response?.data?.detail || e?.message || '品类和市场字典加载失败，筛选与新增种子词暂不可用。')
+      setCategories([])
+      setMarkets([])
+    }
   }
 
   useEffect(() => { loadSeeds() }, [filterCat, filterMarket, showInactive, page])
   useEffect(() => { loadGlobalStats() }, [markets])
 
   useEffect(() => {
-    getDictionary().then(r => {
-      if (r && r.data) {
-        setCategories(r.data.categories || [])
-        setMarkets(r.data.markets || [])
-      }
-    }).catch((e: any) => logger.error('Load seed manager dictionaries failed', e))
+    loadDictionaries()
   }, [])
 
   const handleAdd = async () => {
@@ -176,6 +192,23 @@ export default function SeedManagerTab({ toast }: { toast: any }) {
   return (<div className="space-y-6">
       <p className="text-xs" style={{ color: 'var(--color-muted)' }}>配置每个品类的趋势发现种子词。同步时用种子词在 Google Trends / Pinterest 上发现热门关键词。</p>
       <SeedStatsGrid stats={globalStats} />
+      {dictionaryError && (
+        <div
+          data-ui="trend-seed-dictionary-error"
+          className="rounded-2xl border px-4 py-3 text-sm flex items-center justify-between gap-3"
+          style={{ borderColor: 'var(--color-danger)', background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}
+        >
+          <span>{dictionaryError}</span>
+          <button
+            type="button"
+            onClick={loadDictionaries}
+            className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium"
+            style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)', background: 'var(--color-surface)' }}
+          >
+            重新加载字典
+          </button>
+        </div>
+      )}
 
       {/* Filters & actions */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -307,6 +340,23 @@ export default function SeedManagerTab({ toast }: { toast: any }) {
         onDelete={handleDelete}
         onPageChange={setPage}
       />
+      {seedListError && (
+        <div
+          data-ui="trend-seed-list-error"
+          className="rounded-2xl border px-4 py-3 text-sm flex items-center justify-between gap-3"
+          style={{ borderColor: 'var(--color-danger)', background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}
+        >
+          <span>{seedListError}</span>
+          <button
+            type="button"
+            onClick={loadSeeds}
+            className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium"
+            style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)', background: 'var(--color-surface)' }}
+          >
+            重新加载种子词
+          </button>
+        </div>
+      )}
     </div>
   )
 }

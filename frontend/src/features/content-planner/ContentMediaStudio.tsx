@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { Download, Film, Image, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent } from '../../components/ui/Card'
@@ -12,6 +12,8 @@ import {
   editContentImageFromUrl,
   getContentAssets,
   renderContentVideo,
+  saveContentTaskVersion,
+  confirmContentTaskVersion,
   type ContentAsset,
   type ContentWorkbenchItem,
 } from '../../api/content'
@@ -22,6 +24,28 @@ import type { ApiResponse } from '../../types/common'
 
 const inputClass = 'text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]'
 
+type ImageEditOptions = {
+  width: number
+  height: number
+  fit: string
+  background: string
+  brightness: number
+  contrast: number
+  sharpness: number
+  auto_contrast: boolean
+  unsharp_mask: boolean
+  output_format: string
+  quality: number
+}
+
+type MediaSlotPlan = {
+  index: number
+  label: string
+  imageUrl: string
+  assetName: string
+  sizeText: string
+}
+
 export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | 'image' | 'video'; product?: ContentWorkbenchItem | null }) {
   const toast = useToast()
   const confirmAction = useConfirm()
@@ -30,7 +54,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
   const [loading, setLoading] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [videoFiles, setVideoFiles] = useState<File[]>([])
-  const [imageOptions, setImageOptions] = useState({
+  const [imageOptions, setImageOptions] = useState<ImageEditOptions>({
     width: 1080, height: 1080, fit: 'contain', background: 'white',
     brightness: 1, contrast: 1, sharpness: 1, auto_contrast: true,
     unsharp_mask: true, output_format: 'jpeg', quality: 88,
@@ -81,6 +105,36 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
     } catch (error: any) {
       logger.error('Edit source image failed', error)
       toast.addToast('error', error?.response?.data?.detail || '商品源图处理失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveImageSlotPlan = async (slots: MediaSlotPlan[]) => {
+    if (!product) return
+    setLoading(true)
+    try {
+      const payload = JSON.stringify({
+        schema: 'listing_image_slots.v1',
+        product_id: product.id,
+        slots: slots.map((slot, index) => ({
+          position: index + 1,
+          role: index === 0 ? 'main_image' : 'extra_image',
+          label: index === 0 ? '主图' : `辅图 ${index}`,
+          image_url: slot.imageUrl,
+          asset_name: slot.assetName,
+          size: slot.sizeText,
+        })),
+        boundary: 'content_workbench_image_plan',
+      }, null, 2)
+      const saved = await saveContentTaskVersion(product.id, 'image_edit_plan', payload, 'manual_image_slot_plan')
+      const version = saved.data?.version
+      if (version) await confirmContentTaskVersion(product.id, 'image_edit_plan', version)
+      toast.addToast('success', '图片槽位顺序已保存到当前商品 Listing 图片计划')
+      await loadAssets()
+    } catch (error: any) {
+      logger.error('Save image slot plan failed', error)
+      toast.addToast('error', error?.response?.data?.detail || '图片槽位保存失败')
     } finally {
       setLoading(false)
     }
@@ -137,9 +191,31 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
   const productAssets = product ? assets.filter(asset => String(asset.extra?.content_item_id || '') === product.id) : []
   const productImageAssets = productAssets.filter(asset => asset.asset_type === 'image')
   const productVideoAssets = productAssets.filter(asset => asset.asset_type === 'video')
+  const jumpTo = (id: string) => document.getElementById(`listing-media-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-ui="listing-media-editor-seller-console">
+      <nav aria-label="Listing 媒体字段快速定位" data-ui="media-editor-section-nav" className="sticky top-0 z-10 flex flex-wrap gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-2 shadow-[var(--shadow-sm)] backdrop-blur">
+        {[
+          ['slots', '图片槽位'],
+          ['image', '图片处理'],
+          ['video', '商品视频'],
+          ['library', '素材库'],
+        ].map(([id, label]) => (
+          <button key={id} type="button" onClick={() => jumpTo(id)} className="rounded-xl px-3 py-2 text-xs font-medium transition hover:bg-[var(--color-bg)]" style={{ color: 'var(--color-fg)' }}>
+            {label}
+          </button>
+        ))}
+      </nav>
+      <SellerImageEditorWorkbench
+        product={product || null}
+        productImageAssets={productImageAssets}
+        imageOptions={imageOptions}
+        setImageOptions={setImageOptions}
+        onUseSourceImage={runSourceImageEdit}
+        onSaveImageSlotPlan={saveImageSlotPlan}
+        loading={loading}
+      />
       <ListingMediaSlotBoard product={product || null} productImageAssets={productImageAssets} productVideoAssets={productVideoAssets} onUseSourceImage={runSourceImageEdit} loading={loading} />
 
       <section aria-label="素材商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -157,8 +233,8 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
         </div>
       </section>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {mode !== 'video' && <Card>
-          <CardContent className="pt-4 space-y-4">
+        {mode !== 'video' && <section id="listing-media-image" aria-label="图片处理参数表" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Image className="w-4 h-4 text-[var(--color-primary)]" />
               <h3 className="font-semibold text-[var(--color-fg)]">商品图处理</h3>
@@ -182,14 +258,14 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
               <Button onClick={runSourceImageEdit} disabled={!product?.image_url || loading}><SlidersHorizontal className="w-4 h-4 mr-1" />使用当前商品源图处理</Button>
               <Button onClick={runImageEdit} disabled={!imageFile || loading} variant="outline"><SlidersHorizontal className="w-4 h-4 mr-1" />处理上传图片</Button>
             </div>
-          </CardContent>
-        </Card>}
+          </div>
+        </section>}
 
-        {mode !== 'image' && <Card>
-          <CardContent className="pt-4 space-y-4">
+        {mode !== 'image' && <section id="listing-media-video" aria-label="视频素材编辑区" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Film className="w-4 h-4 text-[var(--color-danger)]" />
-              <h3 className="font-semibold text-[var(--color-fg)]">商品图转视频</h3>
+              <h3 className="font-semibold text-[var(--color-fg)]">商品视频</h3>
             </div>
             <input type="file" accept="image/*" multiple className={inputClass} onChange={event => setVideoFiles(Array.from(event.target.files || []))} />
             <p className="text-xs text-[var(--color-muted)]">按选择顺序将 1-20 张图片渲染为无声 MP4，不会补充虚构画面。</p>
@@ -200,18 +276,18 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
               <SelectField label="适配" value={videoOptions.fit} options={[['contain', '完整留白'], ['cover', '居中裁切']]} onChange={fit => setVideoOptions({...videoOptions, fit})} />
             </div>
             <Button onClick={runVideoRender} disabled={videoFiles.length === 0 || loading}><Film className="w-4 h-4 mr-1" />生成 MP4</Button>
-          </CardContent>
-        </Card>}
+          </div>
+        </section>}
       </div>
 
-      <Card>
+      <Card id="listing-media-library" aria-label="当前商品素材库">
         <CardContent className="pt-4">
           <EvidenceBanner evidence={evidence} compact />
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-[var(--color-fg)]">已生成素材</h3>
+            <h3 className="font-semibold text-[var(--color-fg)]">当前商品素材库</h3>
             <Button size="sm" variant="outline" onClick={loadAssets}><RefreshCw className="w-3.5 h-3.5" /></Button>
           </div>
-          {assets.length === 0 ? <p className="text-sm text-[var(--color-muted)] py-6 text-center">暂无已生成素材</p> : (
+          {assets.length === 0 ? <p className="text-sm text-[var(--color-muted)] py-6 text-center">暂无当前商品素材</p> : (
             <div className="divide-y divide-[var(--color-border)]">
               {assets.map(asset => (
                 <div key={asset.id} className="flex items-center gap-3 py-3 text-sm">
@@ -229,6 +305,249 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function SellerImageEditorWorkbench({
+  product,
+  productImageAssets,
+  imageOptions,
+  setImageOptions,
+  onUseSourceImage,
+  onSaveImageSlotPlan,
+  loading,
+}: {
+  product: ContentWorkbenchItem | null
+  productImageAssets: ContentAsset[]
+  imageOptions: ImageEditOptions
+  setImageOptions: Dispatch<SetStateAction<ImageEditOptions>>
+  onUseSourceImage: () => void
+  onSaveImageSlotPlan: (slots: MediaSlotPlan[]) => void
+  loading: boolean
+}) {
+  const [activeSlotIndex, setActiveSlotIndex] = useState(1)
+  const [activeTool, setActiveTool] = useState('修改尺寸')
+  const sourceImage = product?.image_url || ''
+  const slotCount = Math.max(product?.media_readiness?.recommended_platform_images ?? 9, 9)
+  const imageAssetKey = productImageAssets.map(asset => `${asset.id}:${asset.created_at}`).join('|')
+  const [imageSlots, setImageSlots] = useState<MediaSlotPlan[]>([])
+  useEffect(() => {
+    const nextSlots = Array.from({ length: slotCount }).map((_, index) => {
+      const asset = productImageAssets[index - 1]
+      const imageUrl = index === 0 ? sourceImage : asset?.extra?.url ? String(asset.extra.url) : ''
+      return {
+        index: index + 1,
+        label: index === 0 ? '主图' : `辅图 ${index}`,
+        imageUrl,
+        assetName: asset?.original_name || '',
+        sizeText: asset ? `${asset.width}×${asset.height}px` : imageUrl ? '源图待处理' : '待补真实图片',
+      }
+    })
+    setImageSlots(nextSlots)
+    setActiveSlotIndex(1)
+  }, [product?.id, imageAssetKey, slotCount, sourceImage])
+  const activeSlot = imageSlots.find(slot => slot.index === activeSlotIndex) || imageSlots[0] || {
+    index: 1,
+    label: '主图',
+    imageUrl: '',
+    assetName: '',
+    sizeText: '待补真实图片',
+  }
+  const relabelSlots = (slots: MediaSlotPlan[]) => slots.map((slot, index) => ({
+    ...slot,
+    index: index + 1,
+    label: index === 0 ? '主图' : `辅图 ${index}`,
+  }))
+  const moveSlot = (slotIndex: number, direction: -1 | 1) => {
+    const currentIndex = imageSlots.findIndex(slot => slot.index === slotIndex)
+    const targetIndex = currentIndex + direction
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= imageSlots.length) return
+    const nextSlots = [...imageSlots]
+    const [removed] = nextSlots.splice(currentIndex, 1)
+    nextSlots.splice(targetIndex, 0, removed)
+    const relabeled = relabelSlots(nextSlots)
+    setImageSlots(relabeled)
+    setActiveSlotIndex(targetIndex + 1)
+  }
+  const setAsMainImage = (slotIndex: number) => {
+    const currentIndex = imageSlots.findIndex(slot => slot.index === slotIndex)
+    if (currentIndex <= 0) return
+    const nextSlots = [...imageSlots]
+    const [removed] = nextSlots.splice(currentIndex, 1)
+    nextSlots.unshift(removed)
+    setImageSlots(relabelSlots(nextSlots))
+    setActiveSlotIndex(1)
+  }
+  const filterStyle = {
+    filter: `brightness(${imageOptions.brightness}) contrast(${imageOptions.contrast})`,
+  }
+  const applyToolPreset = (tool: string) => {
+    setActiveTool(tool)
+    if (tool === '裁剪旋转') {
+      setImageOptions(prev => ({ ...prev, fit: prev.fit === 'cover' ? 'contain' : 'cover' }))
+      return
+    }
+    if (tool === '修改尺寸') {
+      setImageOptions(prev => ({ ...prev, width: 800, height: 800, fit: 'cover' }))
+      return
+    }
+    if (tool === '图片变清晰') {
+      setImageOptions(prev => ({ ...prev, sharpness: 2, unsharp_mask: true, auto_contrast: true, contrast: 1.1 }))
+      return
+    }
+    if (tool === '图片校正') {
+      setImageOptions(prev => ({ ...prev, brightness: 1.05, contrast: 1.08, auto_contrast: true }))
+      return
+    }
+    if (tool === '智能抠图') {
+      setImageOptions(prev => ({ ...prev, background: 'white', output_format: 'png', fit: 'contain' }))
+      return
+    }
+    if (tool === '拼图') {
+      setImageOptions(prev => ({ ...prev, width: 1080, height: 1080, fit: 'contain' }))
+      return
+    }
+    if (tool === '切图') {
+      setImageOptions(prev => ({ ...prev, width: 800, height: 800, fit: 'cover' }))
+    }
+  }
+  const toolGroups = [
+    { title: '调整', tools: ['消除笔', '裁剪旋转', '修改尺寸', '图片翻译', 'AI设计'] },
+    { title: '更多工具', tools: ['智能抠图', '图片变清晰', '拼图', '切图', '商品堆品', '图片校正'] },
+    { title: '标记工具', tools: ['涂鸦', '形状线条', '商品标尺', '放大镜'] },
+  ]
+  const editableToolHints: Record<string, string> = {
+    消除笔: '当前先记录为图片处理任务，后续接入局部涂抹/擦除组件。',
+    裁剪旋转: '切换完整留白/居中裁切，保存后由后端重新生成平台尺寸图。',
+    修改尺寸: '设置为平台常用 800×800 方图。',
+    图片翻译: '当前先作为待处理任务，避免伪造翻译结果。',
+    AI设计: '当前先作为待处理任务，后续接入可用 AI 图像组件。',
+    智能抠图: '输出 PNG 白底图，用于主图白底规范。',
+    图片变清晰: '提升锐化、对比度和自动对比度。',
+    拼图: '生成 1080×1080 留白图，适合多图拼版前置。',
+    切图: '设置居中裁切方图，用于平台缩略图。',
+    商品堆品: '当前先作为待处理任务，避免生成假商品组合图。',
+    图片校正: '轻微提升亮度和对比度。',
+    涂鸦: '当前先作为待处理任务，后续接入标注画笔。',
+    形状线条: '当前先作为待处理任务，后续接入标注图形。',
+    商品标尺: '当前先作为待处理任务，后续接入尺寸标注。',
+    放大镜: '当前先作为待处理任务，后续接入细节放大组件。',
+  }
+
+  return (
+    <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-primary-light)] px-4 py-2 text-xs">
+        <span className="font-semibold text-[var(--color-primary)]">当前已开启批量编辑模式</span>
+        <Badge variant="success">批量编辑模式</Badge>
+      </div>
+      <div className="grid min-h-[560px] grid-cols-1 2xl:grid-cols-[220px_minmax(640px,1fr)_150px]">
+        <aside aria-label="左侧图片工具栏" className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-b-0 2xl:border-r">
+          <div className="space-y-4">
+            {toolGroups.map(group => (
+              <div key={group.title}>
+                <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">{group.title}</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-2">
+                  {group.tools.map(tool => (
+                    <button
+                      key={tool}
+                      type="button"
+                      onClick={() => applyToolPreset(tool)}
+                      className={tool === activeTool
+                        ? 'rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-3 text-xs font-semibold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
+                        : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-3 text-xs text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'}
+                    >
+                      <SlidersHorizontal className="mx-auto mb-1 h-4 w-4 text-[var(--color-muted)]" />
+                      {tool}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <div aria-label="图片编辑画布" className="relative grid place-items-center bg-[var(--color-bg)] p-8">
+          {activeSlot.imageUrl ? (
+            <div className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
+              <img
+                src={productImageSrc(activeSlot.imageUrl)}
+                alt={`${product?.product_name || '商品'}${activeSlot.label}`}
+                className={imageOptions.fit === 'cover' ? 'aspect-square w-full object-cover' : 'aspect-square w-full object-contain'}
+                style={filterStyle}
+              />
+              <div className="absolute left-4 top-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs font-semibold text-[var(--color-fg)] shadow-[var(--shadow-sm)]">
+                {product?.product_name || '当前商品'}
+              </div>
+              <div className="absolute bottom-4 left-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs text-[var(--color-muted)] shadow-[var(--shadow-sm)]">
+                {activeTool} · {imageOptions.width}×{imageOptions.height} · {imageOptions.fit === 'cover' ? '裁切' : '留白'} · {imageOptions.output_format.toUpperCase()}
+              </div>
+            </div>
+          ) : (
+            <div className="grid h-[420px] w-full max-w-[720px] place-items-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] text-center text-sm text-[var(--color-muted)]">
+              <div>
+                <Image className="mx-auto mb-3 h-10 w-10" />
+                <p>当前商品缺少可编辑主图</p>
+                <p className="mt-1 text-xs">请先采集或上传真实图片，不使用假图占位。</p>
+              </div>
+            </div>
+          )}
+          <div className="absolute left-4 top-4 max-w-[360px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 text-xs shadow-[var(--shadow-sm)] backdrop-blur">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="default">{activeSlot.label}</Badge>
+              <span className="text-[var(--color-muted)]">当前工具：{activeTool}</span>
+            </div>
+            <p className="mt-2 leading-5 text-[var(--color-muted)]">{editableToolHints[activeTool]}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="text-[var(--color-muted)]">
+                宽度
+                <input className={`${inputClass} mt-1 w-full`} type="number" value={imageOptions.width} onChange={event => setImageOptions(prev => ({ ...prev, width: Number(event.target.value) || prev.width }))} />
+              </label>
+              <label className="text-[var(--color-muted)]">
+                高度
+                <input className={`${inputClass} mt-1 w-full`} type="number" value={imageOptions.height} onChange={event => setImageOptions(prev => ({ ...prev, height: Number(event.target.value) || prev.height }))} />
+              </label>
+            </div>
+          </div>
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <Button variant="outline" disabled={!product}>取消</Button>
+            <Button onClick={onUseSourceImage} disabled={!sourceImage || loading}>{loading ? '处理中...' : '保存图片修改'}</Button>
+            <Button variant="secondary" onClick={() => onSaveImageSlotPlan(imageSlots)} disabled={!product || loading}>保存槽位顺序</Button>
+          </div>
+        </div>
+
+        <aside aria-label="右侧图片槽位缩略图" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-l 2xl:border-t-0">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
+            <span className="text-xs text-[var(--color-primary)]">{activeSlot.index}/9</span>
+          </div>
+          <div className="grid max-h-[500px] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-6 2xl:block 2xl:space-y-3">
+            {imageSlots.slice(0, 9).map(slot => (
+              <div
+                key={slot.index}
+                className={slot.index === activeSlot.index ? 'rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left' : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left'}
+              >
+                <button type="button" onClick={() => setActiveSlotIndex(slot.index)} className="block w-full text-left">
+                  {slot.imageUrl ? (
+                    <img src={productImageSrc(slot.imageUrl)} alt={slot.label} className="aspect-square w-full rounded-lg object-cover" />
+                  ) : (
+                    <div className="grid aspect-square place-items-center rounded-lg bg-[var(--color-bg)] text-[10px] text-[var(--color-muted)]">待补图</div>
+                  )}
+                </button>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-muted)]">
+                  <span>{slot.sizeText}</span>
+                  <span>{slot.index}/9</span>
+                </div>
+                <div className="mt-1 grid grid-cols-3 gap-1 text-[10px]">
+                  <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">主图</button>
+                  <button type="button" onClick={() => moveSlot(slot.index, -1)} disabled={slot.index === 1} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40">上移</button>
+                  <button type="button" onClick={() => moveSlot(slot.index, 1)} disabled={slot.index >= imageSlots.length} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40">下移</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </section>
   )
 }
 
@@ -264,7 +583,7 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
   })
 
   return (
-    <section aria-label="Listing 图片槽位工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+    <section id="listing-media-slots" aria-label="Listing 图片槽位工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -287,8 +606,30 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
         </div>
       </div>
 
-      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="space-y-4">
         <div className="p-4">
+          <div className="mb-4 overflow-hidden rounded-xl border border-[var(--color-border)]">
+            <table aria-label="卖家后台图片槽位主表" className="w-full text-left text-xs">
+              <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
+                <tr>
+                  <th className="px-3 py-2 font-medium">槽位</th>
+                  <th className="px-3 py-2 font-medium">图片角色</th>
+                  <th className="px-3 py-2 font-medium">素材状态</th>
+                  <th className="px-3 py-2 font-medium">处理动作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border)]">
+                {imageSlots.map(slot => (
+                  <tr key={slot.id} className="text-[var(--color-fg)]">
+                    <td className="px-3 py-2 font-medium">{slot.label}</td>
+                    <td className="px-3 py-2 text-[var(--color-muted)]">{slot.role}</td>
+                    <td className="px-3 py-2">{slot.status}</td>
+                    <td className="px-3 py-2 text-[var(--color-primary)]">{slot.required ? '必须补齐/处理' : '可补充优化'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
             {imageSlots.map(slot => (
               <div key={slot.id} className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
@@ -314,7 +655,7 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
           </div>
         </div>
 
-        <aside aria-label="Listing 图片处理动作" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 xl:border-l xl:border-t-0">
+        <section aria-label="Listing 图片处理动作" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <p className="text-xs font-semibold text-[var(--color-fg)]">图片处理动作</p>
           <div className="mt-3 grid gap-2 text-xs text-[var(--color-muted)]">
             <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">主图优先处理为 1:1 白底或干净背景，避免文字、水印和无关拼贴。</p>
@@ -324,7 +665,7 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
           <Button className="mt-4 w-full" onClick={onUseSourceImage} disabled={!product?.image_url || loading}>
             <SlidersHorizontal className="mr-1 h-4 w-4" />处理当前主图
           </Button>
-        </aside>
+        </section>
       </div>
     </section>
   )

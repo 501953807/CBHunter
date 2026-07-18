@@ -28,14 +28,14 @@ async def list_templates_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     templates = await list_templates(db, current_user.id, platform)
-    gaps = [] if templates else ["暂无符合当前平台筛选的 Listing 模板"]
+    gaps = [] if templates else ["暂无符合当前平台筛选的模板配置"]
     if any(not (item.template_data or {}).get("title_template") for item in templates):
         gaps.append("部分模板缺少标题模板")
     return ApiResponse(
         data=[TemplateResponse.model_validate(t) for t in templates],
         status="ready" if templates else "data_required",
         source_refs=[source_ref("listing_template", item.id, label=item.name) for item in templates],
-        evidence_window="当前用户 Listing 模板配置",
+        evidence_window="当前用户模板配置",
         confidence_reason="模板列表直接读取当前用户已保存配置，不自动生成默认模板。",
         data_gaps=gaps,
     )

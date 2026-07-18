@@ -10,6 +10,8 @@ import { logger } from '../../utils/logger'
 
 type SkuDraft = {
   sku: string
+  platformSku: string
+  spuSkc: string
   variation: string
   price: string
   stock: string
@@ -40,7 +42,7 @@ type ListingOverridePayload = {
   currency?: string
   image_urls?: string[]
   video_url?: string
-  skus?: { seller_sku?: string; variation?: string; price?: string; stock?: string }[]
+  skus?: { seller_sku?: string; platform_sku?: string; spu_skc?: string; variation?: string; price?: string; stock?: string }[]
   platform_attributes_note?: string
   logistics_note?: string
   compliance_note?: string
@@ -63,7 +65,7 @@ export function ListingSpecificationEditor({
   onGenerated: () => void
 }) {
   const [requirements, setRequirements] = useState<PlatformRequirementsLike | undefined>(product?.platform_requirements)
-  const [skuDrafts, setSkuDrafts] = useState<SkuDraft[]>([{ sku: '', variation: '', price: '', stock: '' }])
+  const [skuDrafts, setSkuDrafts] = useState<SkuDraft[]>([emptySkuDraft()])
   const [logistics, setLogistics] = useState<LogisticsDraft>({ weight: '', length: '', width: '', height: '', packageType: '', shippingSla: '' })
   const [complianceText, setComplianceText] = useState('')
   const [existingOverride, setExistingOverride] = useState<ListingOverridePayload | null>(null)
@@ -73,7 +75,7 @@ export function ListingSpecificationEditor({
   useEffect(() => {
     let cancelled = false
     setRequirements(product?.platform_requirements)
-    setSkuDrafts([{ sku: '', variation: '', price: '', stock: '' }])
+    setSkuDrafts([emptySkuDraft()])
     setLogistics({ weight: '', length: '', width: '', height: '', packageType: '', shippingSla: '' })
     setComplianceText((product?.platform_requirements?.compliance || []).join('\n'))
     setExistingOverride(null)
@@ -121,7 +123,7 @@ export function ListingSpecificationEditor({
   }
 
   const addSku = () => {
-    setSkuDrafts(current => [...current, { sku: '', variation: '', price: '', stock: '' }])
+    setSkuDrafts(current => [...current, emptySkuDraft()])
   }
 
   const copySpecificationPack = async () => {
@@ -176,11 +178,13 @@ export function ListingSpecificationEditor({
         skus: skuDrafts
           .map(row => ({
             seller_sku: row.sku.trim(),
+            platform_sku: row.platformSku.trim(),
+            spu_skc: row.spuSkc.trim(),
             variation: row.variation.trim(),
             price: row.price.trim(),
             stock: row.stock.trim(),
           }))
-          .filter(row => row.seller_sku || row.variation || row.price || row.stock),
+          .filter(row => row.seller_sku || row.platform_sku || row.spu_skc || row.variation || row.price || row.stock),
         platform_attributes_note: JSON.stringify(requirements?.attribute_values || {}, null, 2),
         logistics_note: JSON.stringify(logistics, null, 2),
         compliance_note: complianceText.trim(),
@@ -201,7 +205,11 @@ export function ListingSpecificationEditor({
   }
 
   return (
-    <section aria-label="Listing SKU 属性物流合规工作台" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <section
+      aria-label="Listing SKU 属性物流合规工作台"
+      data-ui="listing-spec-editor-seller-console"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+    >
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -219,22 +227,46 @@ export function ListingSpecificationEditor({
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <nav
+        aria-label="Listing 规格字段快速定位"
+        data-ui="spec-editor-section-nav"
+        className="flex flex-wrap gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"
+      >
+        {[
+          ['sku', 'SKU/变体'],
+          ['attributes', '平台属性'],
+          ['logistics', '物流包装'],
+          ['compliance', '合规确认'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => document.getElementById(`listing-spec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="space-y-4 p-4">
         <div className="space-y-4">
-          <section aria-label="SKU 变体草稿表" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <section id="listing-spec-sku" aria-label="SKU 变体草稿表" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-[var(--color-fg)]">SKU/变体草稿</p>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">同一基础商品可生成多个店铺 Listing 实例；这里先准备当前 Listing 的规格行。</p>
+                <p className="text-sm font-semibold text-[var(--color-fg)]">卖家后台规格编辑主表</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">按平台后台习惯维护商家SKU、平台SKU、SPU/SKC、变体属性、售价和库存。</p>
               </div>
               <Button size="sm" variant="outline" onClick={addSku}>新增规格行</Button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-xs">
+              <table aria-label="卖家后台规格编辑主表" className="w-full min-w-[920px] text-left text-xs">
                 <thead className="text-[var(--color-muted)]">
                   <tr>
-                    <th className="px-2 py-2 font-medium">SKU</th>
-                    <th className="px-2 py-2 font-medium">变体/规格</th>
+                    <th className="px-2 py-2 font-medium">商家SKU</th>
+                    <th className="px-2 py-2 font-medium">平台SKU</th>
+                    <th className="px-2 py-2 font-medium">SPU/SKC</th>
+                    <th className="px-2 py-2 font-medium">变体属性</th>
                     <th className="px-2 py-2 font-medium">售价</th>
                     <th className="px-2 py-2 font-medium">库存</th>
                   </tr>
@@ -242,7 +274,9 @@ export function ListingSpecificationEditor({
                 <tbody>
                   {skuDrafts.map((row, index) => (
                     <tr key={index} className="border-t border-[var(--color-border)]">
-                      <td className="px-2 py-2"><input className={inputClass} value={row.sku} onChange={event => updateSku(index, 'sku', event.target.value)} placeholder="店铺 SKU" /></td>
+                      <td className="px-2 py-2"><input className={inputClass} value={row.sku} onChange={event => updateSku(index, 'sku', event.target.value)} placeholder="商家SKU" /></td>
+                      <td className="px-2 py-2"><input className={inputClass} value={row.platformSku} onChange={event => updateSku(index, 'platformSku', event.target.value)} placeholder="平台SKU/Model ID" /></td>
+                      <td className="px-2 py-2"><input className={inputClass} value={row.spuSkc} onChange={event => updateSku(index, 'spuSkc', event.target.value)} placeholder="SPU/SKC/商品ID" /></td>
                       <td className="px-2 py-2"><input className={inputClass} value={row.variation} onChange={event => updateSku(index, 'variation', event.target.value)} placeholder="颜色/尺码/型号" /></td>
                       <td className="px-2 py-2"><input className={inputClass} value={row.price} onChange={event => updateSku(index, 'price', event.target.value)} placeholder="发布售价" /></td>
                       <td className="px-2 py-2"><input className={inputClass} value={row.stock} onChange={event => updateSku(index, 'stock', event.target.value)} placeholder="店铺库存" /></td>
@@ -253,17 +287,18 @@ export function ListingSpecificationEditor({
             </div>
           </section>
 
-          <section aria-label="平台属性编辑工作台" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <section id="listing-spec-attributes" aria-label="平台属性编辑工作台" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <div className="mb-3">
               <p className="text-sm font-semibold text-[var(--color-fg)]">平台属性</p>
               <p className="mt-1 text-xs text-[var(--color-muted)]">按当前平台/类目字段组编辑；字段组缺失时必须回到平台字段补证，不用自由文本冒充必填字段。</p>
             </div>
+            <PlatformRequiredFieldStatusTable requiredAttrs={requiredAttrs} values={values} />
             <PlatformFieldGroupEditor requirements={requirements} onChange={setRequirements} />
           </section>
 
-          <section aria-label="物流包装编辑区" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <section id="listing-spec-logistics" aria-label="物流包装编辑区" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <p className="text-sm font-semibold text-[var(--color-fg)]">物流包装</p>
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div aria-label="物流包裹尺寸表" className="mt-3 grid gap-2 md:grid-cols-3">
               <TextField label="重量(g)" value={logistics.weight} onChange={value => setLogistics(current => ({ ...current, weight: value }))} />
               <TextField label="长(cm)" value={logistics.length} onChange={value => setLogistics(current => ({ ...current, length: value }))} />
               <TextField label="宽(cm)" value={logistics.width} onChange={value => setLogistics(current => ({ ...current, width: value }))} />
@@ -274,7 +309,7 @@ export function ListingSpecificationEditor({
           </section>
         </div>
 
-        <aside aria-label="规格合规校验面板" className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <section id="listing-spec-compliance" aria-label="规格合规校验面板" className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <p className="text-sm font-semibold text-[var(--color-fg)]">规格合规校验</p>
           <SpecCheck label="SKU/变体" ok={skuReady} detail={skuReady ? '已有至少一条可发布规格行。' : '至少补一条 SKU 和售价。'} />
           <SpecCheck label="平台属性" ok={fieldReady} detail={fieldReady ? '必填属性已填。' : missingAttrs.length ? `待补：${missingAttrs.slice(0, 4).join('、')}` : '字段组待补齐。'} />
@@ -299,7 +334,7 @@ export function ListingSpecificationEditor({
             <PackageCheck className="mb-2 h-4 w-4 text-[var(--color-primary)]" />
             当前草稿用于内容制作阶段准备字段；发布到具体店铺前仍需在平台刊登/店铺 Listing 实例中确认覆盖字段。
           </div>
-        </aside>
+        </section>
       </div>
     </section>
   )
@@ -311,6 +346,41 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
       {label}
       <input className={inputClass} value={value} onChange={event => onChange(event.target.value)} />
     </label>
+  )
+}
+
+function PlatformRequiredFieldStatusTable({ requiredAttrs, values }: { requiredAttrs: string[]; values: Record<string, unknown> }) {
+  return (
+    <div aria-label="平台必填字段状态表" className="mb-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
+          <tr>
+            <th className="px-3 py-2 font-medium">平台字段</th>
+            <th className="px-3 py-2 font-medium">字段状态</th>
+            <th className="px-3 py-2 font-medium">当前值</th>
+          </tr>
+        </thead>
+        <tbody>
+          {requiredAttrs.length === 0 && (
+            <tr>
+              <td colSpan={3} className="px-3 py-3 text-[var(--color-muted)]">当前平台/类目还没有已确认必填字段，需继续补证平台字段组。</td>
+            </tr>
+          )}
+          {requiredAttrs.map(field => {
+            const filled = hasValue(values[field])
+            return (
+              <tr key={field} className="border-t border-[var(--color-border)]">
+                <td className="px-3 py-2 font-semibold text-[var(--color-fg)]">{field}</td>
+                <td className={filled ? 'px-3 py-2 text-[var(--color-success)]' : 'px-3 py-2 text-[var(--color-warning)]'}>
+                  {filled ? '已填写' : '待填写'}
+                </td>
+                <td className="px-3 py-2 text-[var(--color-muted)]">{formatFieldValue(values[field])}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -331,6 +401,17 @@ function hasValue(value: unknown) {
   return value !== undefined && value !== null && String(value).trim() !== ''
 }
 
+function formatFieldValue(value: unknown) {
+  if (!hasValue(value)) return '--'
+  if (Array.isArray(value)) return value.join('、')
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+function emptySkuDraft(): SkuDraft {
+  return { sku: '', platformSku: '', spuSkc: '', variation: '', price: '', stock: '' }
+}
+
 function parseListingOverridePayload(content: string): ListingOverridePayload | null {
   if (!content.trim()) return null
   try {
@@ -345,9 +426,11 @@ function parseListingOverridePayload(content: string): ListingOverridePayload | 
 function normalizeSkuDrafts(value: ListingOverridePayload['skus']): SkuDraft[] {
   if (!Array.isArray(value)) return []
   return value
-    .filter(row => row && (row.seller_sku || row.variation || row.price || row.stock))
+    .filter(row => row && (row.seller_sku || row.platform_sku || row.spu_skc || row.variation || row.price || row.stock))
     .map(row => ({
       sku: row.seller_sku || '',
+      platformSku: row.platform_sku || '',
+      spuSkc: row.spu_skc || '',
       variation: row.variation || '',
       price: row.price || '',
       stock: row.stock || '',

@@ -72,6 +72,11 @@ export default function BatchPublishPage() {
             costPrice: product.cost_price ?? null,
             imageUrl: product.images?.[0] ?? null,
             platformRequirementsByPlatform: (product.attributes?.platform_requirements || {}) as PublishableItem['platformRequirementsByPlatform'],
+            listingMasterStatus: {
+              ready: true,
+              label: '本地 Listing 草稿',
+              detail: '来自商品库或店铺 Listing 草稿，发布前仍需预览校验。',
+            },
             targetPlatforms: productTargetPlatforms(product),
             targetMarkets: productTargetMarkets(product),
             lifecycleLabel: '定价确认商品',
@@ -112,6 +117,7 @@ export default function BatchPublishPage() {
     imageUrl: item.image_url,
     mediaReadiness: item.media_readiness,
     platformRequirements: item.platform_requirements,
+    listingMasterStatus: item.listing_master_status,
     listingStoreOverride: item.listing_store_override,
     targetPlatforms: item.platform ? [item.platform] : [],
     targetMarkets: item.market ? [item.market] : [],
@@ -121,6 +127,13 @@ export default function BatchPublishPage() {
   const publishableItems: PublishableItem[] = queryProductItems.length
     ? [...queryProductItems, ...workbenchItems.filter(item => !queryProductItems.some(queryItem => queryItem.key === item.key))]
     : workbenchItems
+  const selectedTargetMarkets = new Set(deriveSelectedTargetMarkets(
+    publishableItems,
+    selectedItems,
+    fullConfig.store_scope?.stores || [],
+    selectedStores,
+    selectedMarkets,
+  ))
   const selectedProductIds = Array.from(selectedItems)
     .filter(key => key.startsWith('product:'))
     .map(key => key.slice('product:'.length))
@@ -167,10 +180,26 @@ export default function BatchPublishPage() {
     }
   }
 
+  const toggleStoreSelection = (id: string) => {
+    const store = (fullConfig.store_scope?.stores || []).find(entry => entry.id === id) as ({ id: string; platform: string; market?: string | null } | undefined)
+    const isSelecting = !selectedStores.has(id)
+    toggleSelection(selectedStores, setSelectedStores, id)
+    if (!isSelecting || !store) return
+    setSelectedPlatforms(current => new Set([...Array.from(current), store.platform]))
+    if (store.market) {
+      setSelectedMarkets(current => new Set([...Array.from(current), store.market as string]))
+    }
+  }
+
   const loadPreview = async () => {
     if (selectedItems.size === 0) return
     if (selectedStores.size === 0) {
       logger.error('请选择至少一个目标店铺', { selectedPlatforms: Array.from(selectedPlatforms) })
+      return
+    }
+    const marketsForPreview = Array.from(selectedTargetMarkets)
+    if (marketsForPreview.length === 0) {
+      logger.error('目标店铺缺少市场归属，请先在店铺配置维护市场', { selectedStores: Array.from(selectedStores) })
       return
     }
     const selectedProductIds = Array.from(selectedItems)
@@ -185,7 +214,7 @@ export default function BatchPublishPage() {
         sourcing_item_ids: selectedSourcingIds,
         product_ids: selectedProductIds,
         platforms: Array.from(selectedPlatforms),
-        markets: Array.from(selectedMarkets),
+        markets: marketsForPreview,
         platform_account_ids: Array.from(selectedStores),
         pricing_mode: pricingMode,
         target_profit_pct: targetProfit,
@@ -256,7 +285,7 @@ export default function BatchPublishPage() {
       <ProfessionalWorkspaceFrame
         eyebrow="Listing Publish"
         title="批量刊登"
-        description="以发布就绪商品队列为主，选择目标平台、店铺、市场后生成店铺级本地 Listing 草稿。"
+          description="以发布就绪商品队列为主，选择目标平台和店铺后生成店铺级本地 Listing 草稿；市场由店铺归属或商品目标市场带入。"
         metrics={[
           { label: '发布队列', value: publishableItems.length, hint: '内容和定价已就绪' },
           { label: '已选商品', value: selectedItems.size, hint: '来源于发布队列或商品深链' },
@@ -284,15 +313,14 @@ export default function BatchPublishPage() {
           platformStatus={platformStatus}
           selectedItems={selectedItems}
           selectedPlatforms={selectedPlatforms}
-          selectedMarkets={selectedMarkets}
+          selectedMarkets={selectedTargetMarkets}
           selectedStores={selectedStores}
           pricingMode={pricingMode}
           targetProfit={targetProfit}
           loading={loading}
           onToggleItem={toggleItemSelection}
           onTogglePlatform={id => toggleSelection(selectedPlatforms, setSelectedPlatforms, id)}
-          onToggleMarket={id => toggleSelection(selectedMarkets, setSelectedMarkets, id)}
-          onToggleStore={id => toggleSelection(selectedStores, setSelectedStores, id)}
+          onToggleStore={toggleStoreSelection}
           onPricingModeChange={setPricingMode}
           onTargetProfitChange={setTargetProfit}
           onPreview={loadPreview}
@@ -332,6 +360,22 @@ function productTargetPlatforms(product: Product) {
 function productTargetMarkets(product: Product) {
   const attrs = product.attributes || {}
   return uniq(arrayOfStrings(attrs.target_markets))
+}
+
+function deriveSelectedTargetMarkets(
+  items: PublishableItem[],
+  selectedItems: Set<string>,
+  stores: Array<{ id: string; market?: string | null }>,
+  selectedStores: Set<string>,
+  selectedMarkets: Set<string>,
+) {
+  const fromSelectedItems = items
+    .filter(item => selectedItems.has(item.key))
+    .flatMap(item => item.targetMarkets || [])
+  const fromSelectedStores = stores
+    .filter(store => selectedStores.has(store.id) && store.market)
+    .map(store => store.market as string)
+  return uniq([...Array.from(selectedMarkets), ...fromSelectedItems, ...fromSelectedStores])
 }
 
 function arrayOfStrings(value: unknown) {

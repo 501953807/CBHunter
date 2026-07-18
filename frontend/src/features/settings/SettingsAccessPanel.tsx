@@ -22,9 +22,11 @@ export function AccessControlSettings({ toast }: { toast: any }) {
   const [storeIds, setStoreIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [accessControlError, setAccessControlError] = useState('')
 
   const load = async () => {
     setLoading(true)
+    setAccessControlError('')
     try {
       const res = await getAccessControl()
       const data = res.data || null
@@ -34,6 +36,7 @@ export function AccessControlSettings({ toast }: { toast: any }) {
       if (first) selectUser(first, data)
     } catch (e: any) {
       logger.error('Load access control failed', e)
+      setAccessControlError(e?.response?.data?.detail || e?.message || '权限授权加载失败，请检查接口服务后重试。')
       toast.addToast('error', '权限授权加载失败')
     } finally {
       setLoading(false)
@@ -93,6 +96,16 @@ export function AccessControlSettings({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-5">
+      {accessControlError && (
+        <div
+          data-ui="access-control-error"
+          className="rounded-2xl border px-4 py-3 text-sm flex items-center justify-between gap-3"
+          style={{ borderColor: 'var(--color-danger)', background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}
+        >
+          <span>{accessControlError}</span>
+          <Button size="sm" variant="secondary" onClick={load}>重新加载权限授权</Button>
+        </div>
+      )}
       <EvidenceBanner evidence={evidence} />
       <div className="grid gap-5 xl:grid-cols-[280px_1fr]">
       <Card>

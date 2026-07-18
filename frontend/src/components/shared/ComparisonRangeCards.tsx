@@ -22,9 +22,9 @@ const accentByKind: Record<RangeKind, string> = {
 
 export function ComparisonRangeCards({ ariaLabel, scopeLabel, windows, descriptions }: Props) {
   const cards = [
-    { kind: 'current' as const, range: windows.current, role: '统计日期范围；未筛选时为最近 30 个自然日' },
-    { kind: 'previous' as const, range: windows.previous, role: '统计日期范围之前的同样天数，用于环比' },
-    { kind: 'lastYear' as const, range: windows.last_year, role: '统计日期范围向前平移一年的同样天数，用于同比' },
+    { kind: 'current' as const, range: windows.current, role: '本周 / 本月 / 本季度或用户选择的业务区间' },
+    { kind: 'previous' as const, range: windows.previous, role: '上周 / 上月 / 上季度或上一等长区间，用于环比' },
+    { kind: 'lastYear' as const, range: windows.last_year, role: '去年同周 / 去年同月 / 去年同季或去年同日期区间，用于同比' },
   ]
 
   return (
@@ -39,14 +39,14 @@ export function ComparisonRangeCards({ ariaLabel, scopeLabel, windows, descripti
             <CalendarRange className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">{scopeLabel}日期范围</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-fg)]">{scopeLabel}业务统计区间</h3>
             <p className="mt-0.5 text-[11px] leading-5 text-[var(--color-muted)]">
-              未筛选日期时固定按最近 30 个自然日统计；选择日期后按实际起止日期计算，并直接显示区间长度、环比区间和同比区间。
+              常用看板优先按本周/上周、本月/上月、本季度/上季度表达；自定义日期才显示所选区间、上一等长区间和去年同日期区间。
             </p>
           </div>
         </div>
         <span className="rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[11px] text-[var(--color-muted)]">
-          默认最近30个自然日 · 自定义显示实际天数
+          周 / 月 / 季 / 自定义区间
         </span>
       </div>
 
@@ -78,7 +78,7 @@ function RangeCard({ kind, range, role, description }: { kind: RangeKind; range:
           <p className="mt-1 text-sm font-semibold text-[var(--color-fg)]">{comparisonRangeLabel(kind, range)}</p>
         </div>
         <span className="rounded-full bg-[var(--color-bg)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">
-          {parsed.days ? `${parsed.days} 天` : '天数待补'}
+          {parsed.days ? `实际天数 ${parsed.days} 天` : '天数待补'}
         </span>
       </div>
 

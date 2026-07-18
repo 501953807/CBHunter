@@ -1,7 +1,8 @@
-import { ArrowRight, Calculator, Globe, Package, ShoppingCart, Sparkles } from 'lucide-react'
+import { ArrowRight, Calculator, Package, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
 import type { DictMarket, DictPlatform } from '../../api/config'
+import type { ListingMasterStatus } from '../../api/listing'
 import { productImageSrc } from '../../utils/productImages'
 
 export interface PublishableItem {
@@ -24,6 +25,7 @@ export interface PublishableItem {
     evidence_source?: string
   }
   platformRequirementsByPlatform?: Record<string, PlatformRequirementsLike>
+  listingMasterStatus?: ListingMasterStatus
   listingStoreOverride?: {
     store_id?: string | null
     store_label?: string | null
@@ -65,7 +67,6 @@ interface Props {
   loading: boolean
   onToggleItem: (id: string) => void
   onTogglePlatform: (id: string) => void
-  onToggleMarket: (id: string) => void
   onToggleStore: (id: string) => void
   onPricingModeChange: (mode: 'cost_based' | 'selling_based') => void
   onTargetProfitChange: (value: number) => void
@@ -74,7 +75,7 @@ interface Props {
 
 export function BatchPublishSelectStep({
   items, platforms, markets, stores, platformStatus, selectedItems, selectedPlatforms, selectedMarkets, selectedStores,
-  pricingMode, targetProfit, loading, onToggleItem, onTogglePlatform, onToggleMarket,
+  pricingMode, targetProfit, loading, onToggleItem, onTogglePlatform,
   onToggleStore, onPricingModeChange, onTargetProfitChange, onPreview,
 }: Props) {
   const marketLabelMap = new Map(markets.map(m => [m.id, `${m.flag ? `${m.flag} ` : ''}${m.label}`]))
@@ -86,6 +87,7 @@ export function BatchPublishSelectStep({
   const readyRows = readinessRows.filter(row => row.ready).length
   const blockedRows = readinessRows.length - readyRows
   const mediaBlockedRows = readinessRows.filter(row => !row.mediaReady).length
+  const masterBlockedRows = readinessRows.filter(row => !row.masterReady).length
   const fieldBlockedRows = readinessRows.filter(row => !row.fieldReady).length
   const targetBlockedRows = readinessRows.filter(row => !row.targetReady).length
   const previewDisabledReason = buildPreviewDisabledReason(loading, selectedItems, selectedPlatforms, selectedMarkets, selectedStores)
@@ -101,7 +103,7 @@ export function BatchPublishSelectStep({
   }
 
   return (
-    <section aria-label="发布队列主工作台" className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <section aria-label="发布队列主工作台" className="space-y-4">
       <Card id="target-store-panel">
         <CardContent className="space-y-4 pt-4">
           <div className="flex items-center gap-2 mb-3">
@@ -109,21 +111,64 @@ export function BatchPublishSelectStep({
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">发布就绪商品队列</h3>
             <span className="text-xs text-[var(--color-muted)]">已选 {selectedItems.size} / {items.length}</span>
           </div>
-          <section aria-label="发布门禁总览" className="grid gap-3 md:grid-cols-4">
+          <section
+            aria-label="发布目标批量操作条"
+            data-ui="publish-target-command-bar"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-fg)]">目标平台 / 店铺</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">先锁定目标平台和店铺，再在下方产品表选择要发布的 Listing；市场由店铺或商品目标归属自动带入。</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">平台 {selectedPlatforms.size}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">店铺 {selectedStores.size}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">市场归属 {selectedMarkets.size || '待店铺带入'}</span>
+              </div>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <TargetChipGroup
+                title="目标平台"
+                items={platforms.map(platform => ({
+                  id: platform.id,
+                  label: `${platform.icon} ${platform.label}`,
+                  meta: platformStatus[platform.id]?.label || '未配置',
+                }))}
+                selected={selectedPlatforms}
+                onToggle={onTogglePlatform}
+                tone="primary"
+              />
+              <TargetChipGroup
+                title="目标店铺"
+                items={visibleStores.map(store => ({
+                  id: store.id,
+                  label: store.account_name,
+                  meta: `${store.platform.toUpperCase()}${store.shop_id ? ` · ${store.shop_id}` : ''}`,
+                }))}
+                selected={selectedStores}
+                onToggle={onToggleStore}
+                emptyText="当前平台未配置可刊登店铺"
+                tone="primary"
+              />
+            </div>
+          </section>
+          <section aria-label="发布门禁总览" className="grid gap-3 md:grid-cols-5">
             <PublishGateCard label="可生成草稿" value={`${readyRows}`} detail={`阻断 ${blockedRows}`} ok={blockedRows === 0} />
+            <PublishGateCard label="Listing 母版" value={masterBlockedRows ? `缺 ${masterBlockedRows}` : '通过'} detail="标题/卖点/描述/合规" ok={masterBlockedRows === 0} />
             <PublishGateCard label="图片门禁" value={mediaBlockedRows ? `缺 ${mediaBlockedRows}` : '通过'} detail="平台最低图片数量" ok={mediaBlockedRows === 0} />
             <PublishGateCard label="字段门禁" value={fieldBlockedRows ? `缺 ${fieldBlockedRows}` : '通过'} detail="平台必填属性" ok={fieldBlockedRows === 0} />
-            <PublishGateCard label="目标归属" value={targetBlockedRows ? `缺 ${targetBlockedRows}` : '通过'} detail="平台/市场/店铺" ok={targetBlockedRows === 0} />
+            <PublishGateCard label="目标归属" value={targetBlockedRows ? `缺 ${targetBlockedRows}` : '通过'} detail="平台/店铺/市场归属" ok={targetBlockedRows === 0} />
           </section>
           <div className="max-h-[calc(100vh-340px)] overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
-            <table className="professional-table w-full text-left text-xs">
+            <table className="professional-table min-w-[1180px] w-full text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
                   <th className="w-10 px-3 py-2">选</th>
                   <th className="px-3 py-2">商品</th>
                   <th className="px-3 py-2">成本/售价</th>
                   <th className="px-3 py-2">目标归属</th>
-                  <th className="px-3 py-2">店铺覆盖</th>
+                  <th className="px-3 py-2">母版/店铺覆盖</th>
                   <th className="px-3 py-2">阶段</th>
                   <th className="px-3 py-2">平台字段组</th>
                   <th className="px-3 py-2">状态</th>
@@ -178,7 +223,10 @@ export function BatchPublishSelectStep({
                     />
                   </td>
                   <td className="min-w-56 px-3 py-3">
-                    <ListingOverrideSummary override={item.listingStoreOverride} />
+                    <div className="space-y-2">
+                      <ListingMasterSummary status={item.listingMasterStatus} />
+                      <ListingOverrideSummary override={item.listingStoreOverride} />
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-[var(--color-muted)]">{item.lifecycleLabel || '--'}</td>
                   <td className="min-w-72 px-3 py-3">
@@ -205,130 +253,101 @@ export function BatchPublishSelectStep({
         </CardContent>
       </Card>
 
-      <aside aria-label="目标平台店铺操作区" className="space-y-4 xl:sticky xl:top-24 xl:self-start">
       <Card>
         <CardContent className="pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <ShoppingCart className="w-4 h-4 text-[var(--color-primary)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标店铺</h3>
-            <span className="text-xs text-[var(--color-muted)]">已选 {selectedStores.size} 个；必须选择目标店铺后才能生成店铺级 Listing 草稿</span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-[var(--color-warning)]" />
+                <h3 className="text-sm font-semibold text-[var(--color-fg)]">定价策略</h3>
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
+                <input type="radio" checked={pricingMode === 'cost_based'} onChange={() => onPricingModeChange('cost_based')} />
+                成本利润率
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
+                <input type="radio" checked={pricingMode === 'selling_based'} onChange={() => onPricingModeChange('selling_based')} />
+                售价利润率
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--color-muted)]">目标利润</span>
+                <input type="range" min={5} max={60} value={targetProfit} onChange={e => onTargetProfitChange(parseInt(e.target.value))} className="w-32" />
+                <span className="text-sm font-bold text-[var(--color-primary)]">{targetProfit}%</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              {selectedStores.size === 0 && (
+                <span className="text-xs text-[var(--color-warning)]">请选择至少一个目标店铺</span>
+              )}
+              <button
+                onClick={onPreview}
+                disabled={loading || selectedItems.size === 0 || selectedPlatforms.size === 0 || selectedMarkets.size === 0 || selectedStores.size === 0}
+                title={previewDisabledReason}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
+                style={{ background: 'var(--gradient-accent)' }}
+              >
+                {loading
+                  ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-pulse" /> 生成中...</span>
+                  : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
+              </button>
+            </div>
           </div>
-          {visibleStores.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">当前平台未配置可刊登店铺，请先到设置中心配置平台账号。</p>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              {visibleStores.map(store => (
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
+function TargetChipGroup({
+  title,
+  items,
+  selected,
+  onToggle,
+  emptyText = '暂无可选项',
+  tone = 'primary',
+}: {
+  title: string
+  items: Array<{ id: string; label: string; meta?: string }>
+  selected: Set<string>
+  onToggle: (id: string) => void
+  emptyText?: string
+  tone?: 'primary' | 'success'
+}) {
+  const activeColor = tone === 'success' ? 'var(--color-success)' : 'var(--color-primary)'
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-[var(--color-fg)]">{title}</p>
+        <span className="text-[11px] text-[var(--color-muted)]">已选 {selected.size}</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]">{emptyText}</p>
+      ) : (
+        <div className="max-h-28 overflow-y-auto">
+          <div className="flex flex-wrap gap-2 pr-1">
+            {items.map(item => {
+              const checked = selected.has(item.id)
+              return (
                 <button
-                  key={store.id}
-                  onClick={() => onToggleStore(store.id)}
-                  className="rounded-full px-3 py-1.5 text-xs font-medium transition-all"
+                  key={item.id}
+                  type="button"
+                  onClick={() => onToggle(item.id)}
+                  className="rounded-full border px-3 py-1.5 text-left text-xs transition hover:-translate-y-0.5"
                   style={{
-                    background: selectedStores.has(store.id) ? 'var(--color-primary)' : 'var(--color-border)',
-                    color: selectedStores.has(store.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
+                    background: checked ? activeColor : 'var(--color-bg)',
+                    borderColor: checked ? activeColor : 'var(--color-border)',
+                    color: checked ? 'var(--color-primary-text)' : 'var(--color-muted)',
                   }}
                 >
-                  {store.account_name} · {store.platform.toUpperCase()}{store.shop_id ? ` · ${store.shop_id}` : ''}
+                  <span className="font-medium">{item.label}</span>
+                  {item.meta && <span className="ml-1 opacity-80">{item.meta}</span>}
                 </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Globe className="w-4 h-4 text-[var(--color-accent)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标平台</h3>
+              )
+            })}
           </div>
-          <div className="flex gap-3 flex-wrap">
-            {platforms.map(platform => (
-              <button
-                key={platform.id}
-                onClick={() => onTogglePlatform(platform.id)}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2"
-                style={{
-                  background: selectedPlatforms.has(platform.id) ? 'var(--color-primary)' : 'var(--color-border)',
-                  color: selectedPlatforms.has(platform.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
-                }}
-              >
-                <span>{platform.icon}</span>
-                <span>{platform.label}</span>
-                <span className="rounded-full bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px]" style={{ color: platformStatus[platform.id]?.configured ? 'var(--color-success)' : 'var(--color-warning)' }}>
-                  {platformStatus[platform.id]?.label || '未配置'}
-                </span>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <ShoppingCart className="w-4 h-4 text-[var(--color-success)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">目标市场</h3>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {markets.map(market => (
-              <button
-                key={market.id}
-                onClick={() => onToggleMarket(market.id)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-                style={{
-                  background: selectedMarkets.has(market.id) ? 'var(--color-success)' : 'var(--color-border)',
-                  color: selectedMarkets.has(market.id) ? 'var(--color-primary-text)' : 'var(--color-muted)',
-                }}
-              >
-                {marketLabelMap.get(market.id)}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Calculator className="w-4 h-4 text-[var(--color-warning)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">定价策略</h3>
-          </div>
-          <div className="flex items-center gap-6 flex-wrap">
-            <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
-              <input type="radio" checked={pricingMode === 'cost_based'} onChange={() => onPricingModeChange('cost_based')} />
-              成本利润率
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer text-[var(--color-fg)]">
-              <input type="radio" checked={pricingMode === 'selling_based'} onChange={() => onPricingModeChange('selling_based')} />
-              售价利润率
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--color-muted)]">目标利润</span>
-              <input type="range" min={5} max={60} value={targetProfit} onChange={e => onTargetProfitChange(parseInt(e.target.value))} className="w-32" />
-              <span className="text-sm font-bold text-[var(--color-primary)]">{targetProfit}%</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end">
-        {selectedStores.size === 0 && (
-          <span className="mr-3 self-center text-xs text-[var(--color-warning)]">请选择至少一个目标店铺</span>
-        )}
-        <button
-          onClick={onPreview}
-          disabled={loading || selectedItems.size === 0 || selectedPlatforms.size === 0 || selectedMarkets.size === 0 || selectedStores.size === 0}
-          title={previewDisabledReason}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
-          style={{ background: 'var(--gradient-accent)' }}
-        >
-          {loading
-            ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-pulse" /> 生成中...</span>
-            : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
-        </button>
-      </div>
-      </aside>
-    </section>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -348,9 +367,11 @@ function publishReadiness(
   const fieldReady = requiredAttrs.length > 0 && missingAttrs.length === 0
   const priceReady = item.sellingPrice != null || item.costPrice != null
   const targetReady = selectedPlatforms.size > 0 && selectedMarkets.size > 0 && selectedStores.size > 0
-  const ready = mediaReady && fieldReady && priceReady && targetReady && !item.disabled
+  const masterReady = item.listingMasterStatus?.ready ?? (item.sourceType === 'product')
+  const ready = masterReady && mediaReady && fieldReady && priceReady && targetReady && !item.disabled
   return {
     ready,
+    masterReady,
     mediaReady,
     fieldReady,
     priceReady,
@@ -415,6 +436,8 @@ function PublishGateStack({ item, readiness, disabledReason }: { item: Publishab
   if (disabledReason) return <span className="text-[var(--color-warning)]">{disabledReason}</span>
   return (
     <div className="grid gap-1" aria-label="发布门禁状态">
+      <GatePill label="母版" ok={readiness.masterReady} detail={item.listingMasterStatus?.label || (readiness.masterReady ? '已确认' : '待补')} />
+      {!readiness.masterReady && <RepairAction href={repairHref(item, 'fields')} label="完善母版" />}
       <GatePill label="媒体" ok={readiness.mediaReady} detail={readiness.mediaLabel} />
       {!readiness.mediaReady && <RepairAction href={repairHref(item, 'media')} label="补齐图片" />}
       <GatePill label="字段" ok={readiness.fieldReady} detail={readiness.missingAttrs.length ? `缺 ${readiness.missingAttrs.length}` : '通过'} />
@@ -422,6 +445,23 @@ function PublishGateStack({ item, readiness, disabledReason }: { item: Publishab
       <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '可试算' : '待补'} />
       <GatePill label="目标" ok={readiness.targetReady} detail={readiness.targetReady ? '已选' : '待选'} />
       {!readiness.targetReady && <RepairAction href="#target-store-panel" label="补齐目标" />}
+    </div>
+  )
+}
+
+function ListingMasterSummary({ status }: { status?: PublishableItem['listingMasterStatus'] }) {
+  const ready = status?.ready ?? true
+  return (
+    <div className={ready
+      ? 'rounded-lg border border-[var(--color-success-light)] bg-[var(--color-success-light)] p-2 text-[11px]'
+      : 'rounded-lg border border-[var(--color-warning-light)] bg-[var(--color-warning-light)] p-2 text-[11px]'
+    } aria-label="统一 Listing 母版摘要">
+      <p className={ready ? 'font-semibold text-[var(--color-success)]' : 'font-semibold text-[var(--color-warning)]'}>
+        {status?.label || '本地 Listing 草稿'}
+      </p>
+      <p className={ready ? 'mt-1 text-[var(--color-success)]' : 'mt-1 text-[var(--color-warning)]'}>
+        {status?.detail || (ready ? '可进入店铺刊登草稿' : '标题、卖点、描述或合规尚未确认')}
+      </p>
     </div>
   )
 }
@@ -491,8 +531,8 @@ function buildPreviewDisabledReason(
   if (loading) return '正在生成预览'
   if (selectedItems.size === 0) return '请选择至少一个商品'
   if (selectedPlatforms.size === 0) return '请选择至少一个目标平台'
-  if (selectedMarkets.size === 0) return '请选择至少一个目标市场'
   if (selectedStores.size === 0) return '请选择至少一个目标店铺'
+  if (selectedMarkets.size === 0) return '目标店铺缺少市场归属，请先在店铺配置维护市场'
   return '生成 Listing 预览'
 }
 

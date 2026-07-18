@@ -37,7 +37,7 @@ const sections: ModuleSubnavSection[] = [
       { to: '/content', label: '内容工厂' },
       { to: '/pricing', label: '定价校验' },
       { to: '/publish', label: '批量刊登' },
-      { to: '/publish/templates', label: 'Listing 模板' },
+      { to: '/publish/templates', label: '图片/水印模板' },
     ],
   },
   {
