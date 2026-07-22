@@ -10,6 +10,7 @@ import {
   type PermissionConfig,
   type PlatformProductFieldGroups,
   type StoreScopeConfig,
+  type UnifiedFieldDictionary,
 } from '../api/config'
 import { logger } from '../utils/logger'
 export type { DictCategory, DictMarket, DictPlatform } from '../api/config'
@@ -19,6 +20,7 @@ interface ConfigState {
   markets: DictMarket[]
   categories: DictCategory[]
   platform_product_field_groups?: PlatformProductFieldGroups
+  unified_field_dictionary?: UnifiedFieldDictionary
   finance_entry_types?: { id: string; label: string }[]
   operation_record_types?: { id: string; label: string; ledger_entry_type?: string }[]
   operation_record_statuses?: { id: string; label: string }[]
@@ -52,6 +54,7 @@ export function useConfig() {
     markets: cachedConfig?.markets || [],
     categories: cachedConfig?.categories || [],
     platform_product_field_groups: cachedConfig?.platform_product_field_groups || {},
+    unified_field_dictionary: cachedConfig?.unified_field_dictionary || { fields: [] },
     finance_entry_types: cachedConfig?.finance_entry_types || [],
     operation_record_types: cachedConfig?.operation_record_types || [],
     operation_record_statuses: cachedConfig?.operation_record_statuses || [],
@@ -106,6 +109,7 @@ export function useFullConfig() {
       markets: [],
       categories: [],
       platform_product_field_groups: {},
+      unified_field_dictionary: { fields: [] },
       finance_entry_types: [],
       operation_record_types: [],
       operation_record_statuses: [],

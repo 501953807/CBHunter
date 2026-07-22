@@ -39,6 +39,12 @@ export interface PlatformProductField {
   required?: boolean
   placeholder?: string
   evidence_state?: 'observed' | 'needs_category_recheck' | 'needs_edit_page_recheck' | 'needs_api_recheck'
+  unified_field_key?: string
+  standard_label?: string
+  data_type?: string
+  country_difference?: string
+  platform_field_name?: string
+  miaoshou_field_name?: string
 }
 
 export interface PlatformProductFieldGroup {
@@ -65,11 +71,30 @@ export interface PlatformProductFieldSchema {
 
 export type PlatformProductFieldGroups = Record<string, PlatformProductFieldSchema>
 
+export interface UnifiedFieldDictionaryItem {
+  order: number
+  key: string
+  label: string
+  data_type: string
+  module: string
+  is_standard_field: boolean
+  country_difference?: string
+  remark?: string
+  platforms?: Record<string, { field?: string; note?: string }>
+}
+
+export interface UnifiedFieldDictionary {
+  source?: string
+  version?: string
+  fields: UnifiedFieldDictionaryItem[]
+}
+
 export interface DictionaryConfig {
   platforms: DictPlatform[]
   markets: DictMarket[]
   categories: DictCategory[]
   platform_product_field_groups?: PlatformProductFieldGroups
+  unified_field_dictionary?: UnifiedFieldDictionary
   finance_entry_types?: { id: string; label: string }[]
   operation_record_types?: { id: string; label: string; ledger_entry_type?: string }[]
   operation_record_statuses?: { id: string; label: string }[]

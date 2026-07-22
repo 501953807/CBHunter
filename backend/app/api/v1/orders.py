@@ -29,6 +29,9 @@ async def list_orders_endpoint(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     exceptions: bool = Query(False, description="Only orders with fulfillment exceptions"),
+    fulfillment_exception_status: Optional[str] = Query(None, description="Filter by fulfillment exception status"),
+    sync_status: Optional[str] = Query(None, description="Filter by platform order sync review status"),
+    shipping_sla: Optional[str] = Query(None, description="Filter by shipping SLA bucket"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -36,7 +39,7 @@ async def list_orders_endpoint(
 ):
     orders, total = await list_orders(
         db, current_user.id, status, platform, platform_account_id, search,
-        date_from, date_to, exceptions, page, page_size
+        date_from, date_to, exceptions, fulfillment_exception_status, sync_status, shipping_sla, page, page_size
     )
 
     data = []
@@ -53,6 +56,12 @@ async def list_orders_endpoint(
     gaps = [] if total else ["当前筛选范围没有可访问店铺的订单"]
     if exceptions and not total:
         gaps = ["当前筛选范围没有履约异常订单"]
+    if fulfillment_exception_status and not total:
+        gaps = [f"当前筛选范围没有 {fulfillment_exception_status} 履约状态订单"]
+    if sync_status and not total:
+        gaps = [f"当前筛选范围没有 {sync_status} 同步状态订单"]
+    if shipping_sla and not total:
+        gaps = [f"当前筛选范围没有 {shipping_sla} 发货时效订单"]
     if platform_account_id and not total:
         gaps = ["当前店铺没有订单，或该店铺不在当前用户授权范围内"]
     return ApiResponse(

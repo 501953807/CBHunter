@@ -18,11 +18,11 @@ interface Props {
   drafts: BatchListingDraft[]
   confirmedDrafts: Set<number>
   publishing: boolean
-  publishMode: 'immediate' | 'scheduled'
+  publishMode: 'draft_only' | 'immediate' | 'scheduled'
   scheduledAt: string
   onToggleDraft: (index: number) => void
   onDraftChange: (index: number, patch: Partial<BatchListingDraft>) => void
-  onPublishModeChange: (mode: 'immediate' | 'scheduled') => void
+  onPublishModeChange: (mode: 'draft_only' | 'immediate' | 'scheduled') => void
   onScheduledAtChange: (value: string) => void
   onBack: () => void
   onPublish: () => void
@@ -110,16 +110,20 @@ export function BatchPublishPreviewStep({
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-fg)]">发布计划</h3>
-              <p className="text-xs mt-1 text-[var(--color-muted)]">当前仅保存本地计划，平台 Open API 未接通时不会显示发布成功。</p>
+              <p className="text-xs mt-1 text-[var(--color-muted)]">保存草稿只落本地待发布；立即/定时发布会先创建本地计划，平台 Open API 未接通时不会显示发布成功。</p>
             </div>
             <div className="flex items-center gap-4 flex-wrap">
               <label className="flex items-center gap-2 text-sm text-[var(--color-fg)]">
+                <input type="radio" checked={publishMode === 'draft_only'} onChange={() => onPublishModeChange('draft_only')} />
+                保存草稿
+              </label>
+              <label className="flex items-center gap-2 text-sm text-[var(--color-fg)]">
                 <input type="radio" checked={publishMode === 'immediate'} onChange={() => onPublishModeChange('immediate')} />
-                立即创建本地计划
+                立即发布计划
               </label>
               <label className="flex items-center gap-2 text-sm text-[var(--color-fg)]">
                 <input type="radio" checked={publishMode === 'scheduled'} onChange={() => onPublishModeChange('scheduled')} />
-                定时计划
+                定时发布计划
               </label>
               {publishMode === 'scheduled' && (
                 <input
@@ -131,7 +135,12 @@ export function BatchPublishPreviewStep({
               )}
             </div>
           </div>
-          {missingSchedule && <p className="mt-2 text-xs text-[var(--color-warning)]">定时计划必须选择计划时间。</p>}
+          <div className="mt-3 grid gap-2 text-xs text-[var(--color-muted)] md:grid-cols-3" aria-label="发布计划模式说明" data-ui="publish-plan-mode-guide">
+            <p className={publishMode === 'draft_only' ? 'rounded-lg bg-[var(--color-primary-light)] p-2 text-[var(--color-primary)]' : 'rounded-lg bg-[var(--color-bg)] p-2'}>保存草稿：只写入本地 Listing 草稿，不进入发布计划队列。</p>
+            <p className={publishMode === 'immediate' ? 'rounded-lg bg-[var(--color-primary-light)] p-2 text-[var(--color-primary)]' : 'rounded-lg bg-[var(--color-bg)] p-2'}>立即发布计划：生成待平台提交的本地计划，待 API 接通后执行。</p>
+            <p className={publishMode === 'scheduled' ? 'rounded-lg bg-[var(--color-primary-light)] p-2 text-[var(--color-primary)]' : 'rounded-lg bg-[var(--color-bg)] p-2'}>定时发布计划：必须填写计划时间，按店铺 Listing 独立排队。</p>
+          </div>
+          {missingSchedule && <p className="mt-2 text-xs text-[var(--color-warning)]">定时发布计划必须选择计划时间。</p>}
         </CardContent>
       </Card>
 

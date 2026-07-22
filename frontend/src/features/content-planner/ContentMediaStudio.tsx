@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { Download, Film, Image, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Download, Film, Image, Plus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -34,16 +34,38 @@ type ImageEditOptions = {
   sharpness: number
   auto_contrast: boolean
   unsharp_mask: boolean
+  crop_mode: string
+  crop_x: number
+  crop_y: number
+  crop_width: number
+  crop_height: number
+  watermark_text: string
+  watermark_position: string
+  watermark_opacity: number
+  watermark_color: string
   output_format: string
   quality: number
 }
 
 type MediaSlotPlan = {
   index: number
+  role: string
   label: string
   imageUrl: string
   assetName: string
   sizeText: string
+}
+
+const listingImageRoleByIndex = (index: number) => {
+  const roles = [
+    { role: 'main_image', label: '主图' },
+    { role: 'scene_image', label: '场景辅图' },
+    { role: 'dimension_image', label: '尺寸图' },
+    { role: 'detail_image', label: '细节图' },
+    { role: 'sku_image', label: 'SKU图' },
+    { role: 'description_image', label: '详情图' },
+  ]
+  return roles[index] || { role: `extra_image_${index + 1}`, label: `辅图 ${index + 1}` }
 }
 
 export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | 'image' | 'video'; product?: ContentWorkbenchItem | null }) {
@@ -57,7 +79,10 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
   const [imageOptions, setImageOptions] = useState<ImageEditOptions>({
     width: 1080, height: 1080, fit: 'contain', background: 'white',
     brightness: 1, contrast: 1, sharpness: 1, auto_contrast: true,
-    unsharp_mask: true, output_format: 'jpeg', quality: 88,
+    unsharp_mask: true, crop_mode: 'none', crop_x: 0, crop_y: 0,
+    crop_width: 800, crop_height: 800, watermark_text: '',
+    watermark_position: 'bottom_right', watermark_opacity: 0.32,
+    watermark_color: '#FFFFFF', output_format: 'jpeg', quality: 88,
   })
   const [videoOptions, setVideoOptions] = useState({
     width: 1080, height: 1920, fit: 'contain', background: 'white', seconds_per_image: 2,
@@ -117,14 +142,19 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
       const payload = JSON.stringify({
         schema: 'listing_image_slots.v1',
         product_id: product.id,
-        slots: slots.map((slot, index) => ({
-          position: index + 1,
-          role: index === 0 ? 'main_image' : 'extra_image',
-          label: index === 0 ? '主图' : `辅图 ${index}`,
-          image_url: slot.imageUrl,
-          asset_name: slot.assetName,
-          size: slot.sizeText,
-        })),
+        slots: slots.map((slot, index) => {
+          const roleMeta = listingImageRoleByIndex(index)
+          return {
+            position: index + 1,
+            role: slot.role || roleMeta.role,
+            label: slot.label || roleMeta.label,
+            image_url: slot.imageUrl,
+            asset_name: slot.assetName,
+            size: slot.sizeText,
+            edit_options: imageOptions,
+          }
+        }),
+        image_edit_options: imageOptions,
         boundary: 'content_workbench_image_plan',
       }, null, 2)
       const saved = await saveContentTaskVersion(product.id, 'image_edit_plan', payload, 'manual_image_slot_plan')
@@ -247,11 +277,32 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
               <SelectField label="格式" value={imageOptions.output_format} options={[['jpeg', 'JPEG'], ['png', 'PNG'], ['webp', 'WebP']]} onChange={output_format => setImageOptions({...imageOptions, output_format})} />
               <RangeField label="亮度" value={imageOptions.brightness} min={0.5} max={1.5} step={0.05} onChange={brightness => setImageOptions({...imageOptions, brightness})} />
               <RangeField label="对比度" value={imageOptions.contrast} min={0.5} max={1.5} step={0.05} onChange={contrast => setImageOptions({...imageOptions, contrast})} />
-              <RangeField label="锐化" value={imageOptions.sharpness} min={0} max={3} step={0.1} onChange={sharpness => setImageOptions({...imageOptions, sharpness})} />
-              <SelectField label="背景色" value={imageOptions.background} options={[['white', '白色'], ['black', '黑色']]} onChange={background => setImageOptions({...imageOptions, background})} />
-            </div>
-            <div className="flex gap-4 text-xs text-[var(--color-muted)]">
-              <label><input type="checkbox" checked={imageOptions.auto_contrast} onChange={event => setImageOptions({...imageOptions, auto_contrast: event.target.checked})} /> 自动对比度</label>
+	              <RangeField label="锐化" value={imageOptions.sharpness} min={0} max={3} step={0.1} onChange={sharpness => setImageOptions({...imageOptions, sharpness})} />
+	              <SelectField label="背景色" value={imageOptions.background} options={[['white', '白色'], ['black', '黑色']]} onChange={background => setImageOptions({...imageOptions, background})} />
+	            </div>
+	            <div aria-label="图片裁剪参数表" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+	              <div className="mb-3 flex items-center justify-between gap-2">
+	                <p className="text-xs font-semibold text-[var(--color-fg)]">裁剪区域</p>
+	                <SelectField label="模式" value={imageOptions.crop_mode} options={[['none', '不裁剪'], ['manual', '手动裁剪']]} onChange={crop_mode => setImageOptions({...imageOptions, crop_mode})} />
+	              </div>
+	              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+	                <NumberField label="X" value={imageOptions.crop_x} onChange={crop_x => setImageOptions({...imageOptions, crop_x})} />
+	                <NumberField label="Y" value={imageOptions.crop_y} onChange={crop_y => setImageOptions({...imageOptions, crop_y})} />
+	                <NumberField label="裁剪宽" value={imageOptions.crop_width} onChange={crop_width => setImageOptions({...imageOptions, crop_width})} />
+	                <NumberField label="裁剪高" value={imageOptions.crop_height} onChange={crop_height => setImageOptions({...imageOptions, crop_height})} />
+	              </div>
+	            </div>
+	            <div aria-label="图片水印参数表" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+	              <p className="mb-3 text-xs font-semibold text-[var(--color-fg)]">水印</p>
+	              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+	                <label className="text-xs text-[var(--color-muted)]">水印文字<input className={`${inputClass} mt-1 block w-full`} value={imageOptions.watermark_text} maxLength={40} onChange={event => setImageOptions({...imageOptions, watermark_text: event.target.value})} placeholder="不填则不添加水印" /></label>
+	                <SelectField label="位置" value={imageOptions.watermark_position} options={[['bottom_right', '右下'], ['bottom_left', '左下'], ['top_right', '右上'], ['top_left', '左上'], ['center', '居中']]} onChange={watermark_position => setImageOptions({...imageOptions, watermark_position})} />
+	                <RangeField label="透明度" value={imageOptions.watermark_opacity} min={0.05} max={0.8} step={0.05} onChange={watermark_opacity => setImageOptions({...imageOptions, watermark_opacity})} />
+	                <label className="text-xs text-[var(--color-muted)]">颜色<input className={`${inputClass} mt-1 block w-full`} value={imageOptions.watermark_color} onChange={event => setImageOptions({...imageOptions, watermark_color: event.target.value})} placeholder="#FFFFFF" /></label>
+	              </div>
+	            </div>
+	            <div className="flex gap-4 text-xs text-[var(--color-muted)]">
+	              <label><input type="checkbox" checked={imageOptions.auto_contrast} onChange={event => setImageOptions({...imageOptions, auto_contrast: event.target.checked})} /> 自动对比度</label>
               <label><input type="checkbox" checked={imageOptions.unsharp_mask} onChange={event => setImageOptions({...imageOptions, unsharp_mask: event.target.checked})} /> 清晰度增强</label>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -327,6 +378,7 @@ function SellerImageEditorWorkbench({
 }) {
   const [activeSlotIndex, setActiveSlotIndex] = useState(1)
   const [activeTool, setActiveTool] = useState('修改尺寸')
+  const [draggingSlotIndex, setDraggingSlotIndex] = useState<number | null>(null)
   const sourceImage = product?.image_url || ''
   const slotCount = Math.max(product?.media_readiness?.recommended_platform_images ?? 9, 9)
   const imageAssetKey = productImageAssets.map(asset => `${asset.id}:${asset.created_at}`).join('|')
@@ -335,9 +387,11 @@ function SellerImageEditorWorkbench({
     const nextSlots = Array.from({ length: slotCount }).map((_, index) => {
       const asset = productImageAssets[index - 1]
       const imageUrl = index === 0 ? sourceImage : asset?.extra?.url ? String(asset.extra.url) : ''
+      const roleMeta = listingImageRoleByIndex(index)
       return {
         index: index + 1,
-        label: index === 0 ? '主图' : `辅图 ${index}`,
+        role: roleMeta.role,
+        label: roleMeta.label,
         imageUrl,
         assetName: asset?.original_name || '',
         sizeText: asset ? `${asset.width}×${asset.height}px` : imageUrl ? '源图待处理' : '待补真实图片',
@@ -348,26 +402,45 @@ function SellerImageEditorWorkbench({
   }, [product?.id, imageAssetKey, slotCount, sourceImage])
   const activeSlot = imageSlots.find(slot => slot.index === activeSlotIndex) || imageSlots[0] || {
     index: 1,
+    role: 'main_image',
     label: '主图',
     imageUrl: '',
     assetName: '',
     sizeText: '待补真实图片',
   }
-  const relabelSlots = (slots: MediaSlotPlan[]) => slots.map((slot, index) => ({
-    ...slot,
-    index: index + 1,
-    label: index === 0 ? '主图' : `辅图 ${index}`,
-  }))
-  const moveSlot = (slotIndex: number, direction: -1 | 1) => {
-    const currentIndex = imageSlots.findIndex(slot => slot.index === slotIndex)
-    const targetIndex = currentIndex + direction
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= imageSlots.length) return
+  const relabelSlots = (slots: MediaSlotPlan[]) => slots.map((slot, index) => {
+    const roleMeta = listingImageRoleByIndex(index)
+    return {
+      ...slot,
+      index: index + 1,
+      role: roleMeta.role,
+      label: roleMeta.label,
+    }
+  })
+  const reorderSlot = (fromSlotIndex: number, toSlotIndex: number) => {
+    if (fromSlotIndex === toSlotIndex) return
+    const currentIndex = imageSlots.findIndex(slot => slot.index === fromSlotIndex)
+    const targetIndex = imageSlots.findIndex(slot => slot.index === toSlotIndex)
+    if (currentIndex < 0 || targetIndex < 0) return
     const nextSlots = [...imageSlots]
     const [removed] = nextSlots.splice(currentIndex, 1)
     nextSlots.splice(targetIndex, 0, removed)
     const relabeled = relabelSlots(nextSlots)
     setImageSlots(relabeled)
     setActiveSlotIndex(targetIndex + 1)
+  }
+  const addImageSlot = () => {
+    const nextIndex = imageSlots.length + 1
+    const roleMeta = listingImageRoleByIndex(nextIndex - 1)
+    setImageSlots(current => [...current, {
+      index: nextIndex,
+      role: roleMeta.role,
+      label: roleMeta.label,
+      imageUrl: '',
+      assetName: '',
+      sizeText: '新增图片空位',
+    }])
+    setActiveSlotIndex(nextIndex)
   }
   const setAsMainImage = (slotIndex: number) => {
     const currentIndex = imageSlots.findIndex(slot => slot.index === slotIndex)
@@ -384,7 +457,7 @@ function SellerImageEditorWorkbench({
   const applyToolPreset = (tool: string) => {
     setActiveTool(tool)
     if (tool === '裁剪旋转') {
-      setImageOptions(prev => ({ ...prev, fit: prev.fit === 'cover' ? 'contain' : 'cover' }))
+      setImageOptions(prev => ({ ...prev, fit: 'cover', crop_mode: 'manual', crop_width: prev.width, crop_height: prev.height }))
       return
     }
     if (tool === '修改尺寸') {
@@ -408,7 +481,7 @@ function SellerImageEditorWorkbench({
       return
     }
     if (tool === '切图') {
-      setImageOptions(prev => ({ ...prev, width: 800, height: 800, fit: 'cover' }))
+      setImageOptions(prev => ({ ...prev, width: 800, height: 800, fit: 'cover', crop_mode: 'manual', crop_width: 800, crop_height: 800 }))
     }
   }
   const toolGroups = [
@@ -516,15 +589,31 @@ function SellerImageEditorWorkbench({
         </div>
 
         <aside aria-label="右侧图片槽位缩略图" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-l 2xl:border-t-0">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
-            <span className="text-xs text-[var(--color-primary)]">{activeSlot.index}/9</span>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
+              <p className="text-[10px] text-[var(--color-muted)]">拖拽缩略图调整主图/辅图顺序</p>
+            </div>
+            <span className="text-xs text-[var(--color-primary)]">{activeSlot.index}/{imageSlots.length}</span>
           </div>
           <div className="grid max-h-[500px] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-6 2xl:block 2xl:space-y-3">
-            {imageSlots.slice(0, 9).map(slot => (
+            {imageSlots.map(slot => (
               <div
                 key={slot.index}
-                className={slot.index === activeSlot.index ? 'rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left' : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left'}
+                draggable
+                onDragStart={() => setDraggingSlotIndex(slot.index)}
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => {
+                  event.preventDefault()
+                  if (draggingSlotIndex) reorderSlot(draggingSlotIndex, slot.index)
+                  setDraggingSlotIndex(null)
+                }}
+                onDragEnd={() => setDraggingSlotIndex(null)}
+                className={slot.index === activeSlot.index
+                  ? 'rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left shadow-[var(--shadow-sm)]'
+                  : draggingSlotIndex === slot.index
+                    ? 'rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-1 text-left opacity-70'
+                    : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left transition hover:border-[var(--color-primary)]'}
               >
                 <button type="button" onClick={() => setActiveSlotIndex(slot.index)} className="block w-full text-left">
                   {slot.imageUrl ? (
@@ -535,15 +624,24 @@ function SellerImageEditorWorkbench({
                 </button>
                 <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-muted)]">
                   <span>{slot.sizeText}</span>
-                  <span>{slot.index}/9</span>
+                  <span>{slot.index}/{imageSlots.length}</span>
                 </div>
-                <div className="mt-1 grid grid-cols-3 gap-1 text-[10px]">
-                  <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">主图</button>
-                  <button type="button" onClick={() => moveSlot(slot.index, -1)} disabled={slot.index === 1} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40">上移</button>
-                  <button type="button" onClick={() => moveSlot(slot.index, 1)} disabled={slot.index >= imageSlots.length} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40">下移</button>
+                <div className="mt-1 grid grid-cols-1 gap-1 text-[10px]">
+                  <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">设为主图</button>
                 </div>
               </div>
             ))}
+            <button
+              type="button"
+              onClick={addImageSlot}
+              className="grid min-h-28 place-items-center rounded-xl border border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] p-2 text-center text-xs font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-surface)]"
+              aria-label="新增图片空位"
+            >
+              <span>
+                <Plus className="mx-auto mb-1 h-4 w-4" />
+                新增图片空位
+              </span>
+            </button>
           </div>
         </aside>
       </div>

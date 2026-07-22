@@ -21,7 +21,7 @@ from app.models.sys_dict import SysDictItem
 from app.models.user import User
 from app.schemas.profitability import ProfitabilityRequest
 from app.schemas.inventory_alert import InventoryAlertRuleCreate
-from app.services.config_service import get_all_config, get_dictionary_admin_config, get_exchange_rates
+from app.services.config_service import get_all_config, get_dictionary_admin_config, get_exchange_rates, get_platform_product_field_groups
 from app.services.sourcing_service import advance_stage, get_pipeline_summary
 from app.services.smart_radar_service import get_latest_exchange_rates
 from app.services.sys_dict_service import seed_sys_dict
@@ -39,6 +39,8 @@ def test_runtime_config_does_not_silently_fallback_to_seed_file(tmp_path):
         assert config["platforms"] == []
         assert config["markets"] == []
         assert config["categories"] == []
+        assert len(config["unified_field_dictionary"]["fields"]) == 108
+        assert "product_title" in {item["key"] for item in config["unified_field_dictionary"]["fields"]}
 
     asyncio.run(run_test())
 
@@ -514,6 +516,64 @@ def test_platform_product_field_groups_have_evidence_registry():
         assert evidence.get("confidence") in {"confirmed", "partial"}
         assert isinstance(evidence.get("needs_recheck"), list)
         assert schema.get("evidence_source") == evidence.get("summary")
+
+
+def test_unified_field_dictionary_preserves_v5_field_standard():
+    config_path = Path(__file__).resolve().parents[1] / "app" / "data" / "default_unified_field_dictionary.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    fields = config.get("fields", [])
+    by_key = {item["key"]: item for item in fields}
+
+    assert config.get("source") == "CBHunter V5.0 03 字段标准对照表"
+    assert len(fields) == 108
+    for key in ("product_title", "product_images", "sku_price", "order_status", "currency_code", "clear_image_status"):
+        assert key in by_key
+    for item in fields:
+        assert item.get("label")
+        assert item.get("data_type")
+        assert set((item.get("platforms") or {}).keys()) == {"shopee", "tiktok", "temu", "miaoshou"}
+    assert by_key["product_title"]["platforms"]["shopee"]["field"]
+    assert by_key["product_title"]["platforms"]["tiktok"]["field"]
+    assert by_key["product_title"]["platforms"]["temu"]["field"]
+    assert by_key["product_title"]["platforms"]["miaoshou"]["field"]
+    assert by_key["sku_price"]["country_difference"] == "Temu为供货价"
+
+
+def test_platform_field_groups_are_enriched_by_unified_field_dictionary(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'field-dictionary.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            schemas = await get_platform_product_field_groups(session)
+        await engine.dispose()
+
+        shopee_fields = {
+            field["key"]: field
+            for group in schemas["shopee"]["groups"]
+            for field in group.get("fields", [])
+        }
+        tiktok_fields = {
+            field["key"]: field
+            for group in schemas["tiktok"]["groups"]
+            for field in group.get("fields", [])
+        }
+        temu_fields = {
+            field["key"]: field
+            for group in schemas["temu"]["groups"]
+            for field in group.get("fields", [])
+        }
+
+        assert shopee_fields["selling_price"]["unified_field_key"] == "sku_price"
+        assert shopee_fields["selling_price"]["data_type"] == "decimal"
+        assert shopee_fields["selling_price"]["platform_field_name"]
+        assert shopee_fields["selling_price"]["miaoshou_field_name"]
+        assert tiktok_fields["main_image"]["unified_field_key"] == "product_images"
+        assert temu_fields["declared_price_cny"]["unified_field_key"] == "supply_price_cny"
+        assert temu_fields["declared_price_cny"]["country_difference"] == "仅Temu"
+
+    asyncio.run(run_test())
 
 
 def test_unconfirmed_platform_fields_are_not_marked_required():

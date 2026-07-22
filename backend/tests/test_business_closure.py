@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import json
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -1889,6 +1890,84 @@ def test_batch_preview_blocks_unpriced_sourcing_items(tmp_path):
     asyncio.run(run_test())
 
 
+def test_batch_preview_uses_confirmed_image_slot_plan(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'image-slot-plan-preview.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        content_tasks = {
+            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+            for task_type, _label in REQUIRED_CONTENT_GAPS
+        }
+        content_tasks["image_edit_plan"] = {
+            "confirmed_version": 2,
+            "versions": [{
+                "version": 2,
+                "content": json.dumps({
+                    "schema": "listing_image_slots.v1",
+                    "slots": [
+                        {
+                            "position": 1,
+                            "role": "main_image",
+                            "label": "主图",
+                            "image_url": "https://cdn.example.com/listing-main.jpg",
+                            "asset_name": "main.jpg",
+                            "size": "1080×1080px",
+                        },
+                        {
+                            "position": 2,
+                            "role": "sku_image",
+                            "label": "SKU图",
+                            "image_url": "https://cdn.example.com/listing-sku.jpg",
+                            "asset_name": "sku.jpg",
+                            "size": "1080×1080px",
+                        },
+                    ],
+                }),
+            }],
+        }
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee MY", is_active=True)
+            item = SourcingItem(
+                user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
+                product_name="图片计划商品", source_image="https://cdn.example.com/source-only.jpg",
+                platform="shopee", market="MY", pipeline_stage="price_confirmed",
+                extra_data={"content_tasks": content_tasks, "pricing_confirmation": {"listing_id": "draft-1"}},
+            )
+            session.add_all([
+                account,
+                item,
+                ListingTemplate(user_id="user-a", name="Shopee 模板", platform="shopee", template_data={"title_template": "{{product_name}}"}, is_default=True),
+                FeeTemplate(platform="shopee", market="MY", commission_pct=8, transaction_fee_pct=2, tech_service_pct=1, is_active=True),
+            ])
+            await session.commit()
+
+            drafts = await generate_listing_drafts(
+                db=session,
+                user_id="user-a",
+                sourcing_item_ids=[item.id],
+                product_ids=[],
+                platforms=["shopee"],
+                markets=["MY"],
+                pricing_mode="cost_based",
+                target_profit_pct=20,
+                platform_account_ids=[account.id],
+            )
+        await engine.dispose()
+
+        assert len(drafts) == 1
+        assert drafts[0]["images"] == [
+            "https://cdn.example.com/listing-main.jpg",
+            "https://cdn.example.com/listing-sku.jpg",
+        ]
+        assert drafts[0]["media_assets"]["main_image"] == "https://cdn.example.com/listing-main.jpg"
+        assert drafts[0]["media_assets"]["image_slots"][0]["role"] == "main_image"
+        assert drafts[0]["media_assets"]["image_slots"][1]["role"] == "sku_image"
+
+    asyncio.run(run_test())
+
+
 def test_confirm_publish_blocks_unready_sourcing_even_if_marked_publishable(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'confirm-unready-listing.db'}")
@@ -1965,6 +2044,48 @@ def test_confirm_publish_stores_scheduled_local_publish_plan(tmp_path):
     asyncio.run(run_test())
 
 
+def test_confirm_publish_stores_draft_only_local_plan(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'draft-only-local-plan.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        content_tasks = {
+            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+            for task_type, _label in REQUIRED_CONTENT_GAPS
+        }
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
+            item = SourcingItem(
+                user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
+                product_name="保存草稿商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
+                extra_data={"content_tasks": content_tasks, "pricing_confirmation": {"listing_id": "draft-1"}},
+            )
+            session.add_all([account, item])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "platform": "shopee",
+                "sourcing_item_id": item.id,
+                "selling_price": 39,
+                "template_title": "保存草稿商品标题",
+            }], publish_plan={"mode": "draft_only"})
+            listing = (await session.execute(select(PlatformListing))).scalar_one()
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "draft"
+        assert result[0]["plan_status"] == "saved_draft"
+        assert result[0]["publish_plan"]["mode"] == "draft_only"
+        assert result[0]["publish_plan"]["scheduled_at"] is None
+        assert listing.status == "draft"
+        assert listing.platform_data["publish_plan"]["status"] == "saved_draft"
+        assert listing.platform_data["publish_plan"]["mode"] == "draft_only"
+
+    asyncio.run(run_test())
+
+
 def test_confirm_publish_rejects_scheduled_plan_without_time(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'invalid-local-plan.db'}")
@@ -1998,6 +2119,47 @@ def test_confirm_publish_rejects_scheduled_plan_without_time(tmp_path):
 
         assert result[0]["publish_status"] == "skipped"
         assert "listing_publish_plan.scheduled_at" in result[0]["data_gaps"]
+        assert listings == []
+
+    asyncio.run(run_test())
+
+
+def test_confirm_publish_rechecks_blocking_validation_before_creating_draft(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'publish-validation-blocks.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        content_tasks = {
+            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+            for task_type, _label in REQUIRED_CONTENT_GAPS
+        }
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
+            item = SourcingItem(
+                user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
+                product_name="发布前校验商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
+                extra_data={"content_tasks": content_tasks, "pricing_confirmation": {"listing_id": "draft-1"}},
+            )
+            session.add_all([account, item])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "platform": "shopee",
+                "sourcing_item_id": item.id,
+                "selling_price": 39,
+                "template_title": "发布前校验商品标题",
+                "fee_missing": True,
+            }], publish_plan={"mode": "draft_only"})
+            listings = (await session.execute(select(PlatformListing))).scalars().all()
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "skipped"
+        assert result[0]["error"].startswith("Listing 发布前校验未通过")
+        assert "listing_validation.fees" in result[0]["data_gaps"]
+        assert any(check["code"] == "fees" and check["state"] == "block" for check in result[0]["validation_checks"])
         assert listings == []
 
     asyncio.run(run_test())

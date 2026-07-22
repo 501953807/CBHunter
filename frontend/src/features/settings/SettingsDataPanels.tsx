@@ -103,9 +103,10 @@ export function FeeRateSettings({ toast }: { toast: any }) {
   const loadFees = async () => {
     try {
       const r = await listFeeRates()
-      if (r.data?.grouped) {
-        setGrouped(r.data.grouped)
-        setActivePlatform(current => current || Object.keys(r.data.grouped)[0] || '')
+      const groupedRates = r.data?.grouped || {}
+      if (Object.keys(groupedRates).length > 0) {
+        setGrouped(groupedRates)
+        setActivePlatform(current => current || Object.keys(groupedRates)[0] || '')
       }
     } catch (e: any) { logger.error('Load fee rates failed', e) }
   }

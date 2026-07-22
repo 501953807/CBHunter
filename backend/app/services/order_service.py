@@ -42,6 +42,9 @@ async def list_orders(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     exceptions: bool = False,
+    fulfillment_exception_status: Optional[str] = None,
+    sync_status: Optional[str] = None,
+    shipping_sla: Optional[str] = None,
     page: int = 1,
     page_size: int = 20,
 ):
@@ -76,12 +79,22 @@ async def list_orders(
 
     query = query.order_by(Order.ordered_at.desc())
 
-    if exceptions:
+    if exceptions or fulfillment_exception_status or sync_status or shipping_sla:
         result = await db.execute(query)
-        all_orders = [
-            order for order in result.scalars().all()
-            if build_fulfillment_exception_context(order).get("status") != "clear"
-        ]
+        candidate_orders = list(result.scalars().all())
+        sync_reviews = await get_order_sync_reviews(db, candidate_orders) if sync_status else {}
+        all_orders = []
+        for order in candidate_orders:
+            fulfillment_context = build_fulfillment_exception_context(order)
+            if exceptions and fulfillment_context.get("status") == "clear":
+                continue
+            if fulfillment_exception_status and fulfillment_context.get("status") != fulfillment_exception_status:
+                continue
+            if shipping_sla and not _matches_shipping_sla(fulfillment_context, shipping_sla):
+                continue
+            if sync_status and sync_reviews.get(order.id, {}).get("status") != sync_status:
+                continue
+            all_orders.append(order)
         total = len(all_orders)
         start_index = (page - 1) * page_size
         return all_orders[start_index:start_index + page_size], total
@@ -365,6 +378,22 @@ def build_order_list_context(order: Order, now: datetime | None = None) -> dict:
         "financial_reconciliation_status": platform_data.get("financial_reconciliation_status", "not_reconciled"),
         "fulfillment_exception": build_fulfillment_exception_context(order, now=now),
     }
+
+
+def _matches_shipping_sla(fulfillment_context: dict, shipping_sla: str) -> bool:
+    status = fulfillment_context.get("status")
+    hours = fulfillment_context.get("hours_to_deadline")
+    if shipping_sla == "overdue":
+        return status == "shipping_overdue"
+    if shipping_sla == "due_soon":
+        return status == "shipping_due_soon"
+    if shipping_sla == "missing_deadline":
+        return "fulfillment_deadline_at" in (fulfillment_context.get("data_gaps") or [])
+    if shipping_sla == "within_12h":
+        return isinstance(hours, (int, float)) and 0 <= hours <= 12
+    if shipping_sla == "within_24h":
+        return isinstance(hours, (int, float)) and 0 <= hours <= 24
+    return True
 
 
 async def get_order_sync_reviews(db: AsyncSession, orders: list[Order]) -> dict[str, dict]:

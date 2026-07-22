@@ -41,7 +41,7 @@ export default function BatchPublishPage() {
   const [summary, setSummary] = useState<BatchPreviewSummary | null>(null)
   const [confirmedDrafts, setConfirmedDrafts] = useState<Set<number>>(new Set())
   const [publishResult, setPublishResult] = useState<BatchPublishResponse | null>(null)
-  const [publishMode, setPublishMode] = useState<'immediate' | 'scheduled'>('immediate')
+  const [publishMode, setPublishMode] = useState<'draft_only' | 'immediate' | 'scheduled'>('draft_only')
   const [scheduledAt, setScheduledAt] = useState('')
   const [evidence, setEvidence] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -274,7 +274,7 @@ export default function BatchPublishPage() {
     setSummary(null)
     setConfirmedDrafts(new Set())
     setPublishResult(null)
-    setPublishMode('immediate')
+    setPublishMode('draft_only')
     setScheduledAt('')
     setEvidence(null)
   }

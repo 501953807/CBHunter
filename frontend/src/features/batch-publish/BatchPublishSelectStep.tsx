@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { ArrowRight, Calculator, Package, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
@@ -78,6 +79,12 @@ export function BatchPublishSelectStep({
   pricingMode, targetProfit, loading, onToggleItem, onTogglePlatform,
   onToggleStore, onPricingModeChange, onTargetProfitChange, onPreview,
 }: Props) {
+  const [keyword, setKeyword] = useState('')
+  const [platformFilter, setPlatformFilter] = useState('all')
+  const [storeFilter, setStoreFilter] = useState('all')
+  const [gateFilter, setGateFilter] = useState<'all' | 'ready' | 'blocked'>('all')
+  const [page, setPage] = useState(1)
+  const pageSize = 10
   const marketLabelMap = new Map(markets.map(m => [m.id, `${m.flag ? `${m.flag} ` : ''}${m.label}`]))
   const selectedPlatformsList = Array.from(selectedPlatforms)
   const platformLabelMap = new Map(platforms.map(platform => [platform.id, platform.label]))
@@ -101,6 +108,41 @@ export function BatchPublishSelectStep({
       requirements: item.platformRequirementsByPlatform?.[platform] || item.platformRequirements,
     }))
   }
+  const filteredItems = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase()
+    return items.filter(item => {
+      const readiness = publishReadiness(item, selectedPlatforms, selectedMarkets, selectedStores)
+      const keywordMatched = !normalizedKeyword
+        || item.name.toLowerCase().includes(normalizedKeyword)
+        || item.id.toLowerCase().includes(normalizedKeyword)
+        || (item.lifecycleLabel || '').toLowerCase().includes(normalizedKeyword)
+      const platformMatched = platformFilter === 'all' || (item.targetPlatforms || []).includes(platformFilter)
+      const storeMatched = storeFilter === 'all' || (item.targetStoreIds || []).includes(storeFilter)
+      const gateMatched = gateFilter === 'all' || (gateFilter === 'ready' ? readiness.ready : !readiness.ready)
+      return keywordMatched && platformMatched && storeMatched && gateMatched
+    })
+  }, [gateFilter, items, keyword, platformFilter, selectedMarkets, selectedPlatforms, selectedStores, storeFilter])
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pageItems = filteredItems.slice((safePage - 1) * pageSize, safePage * pageSize)
+  const selectablePageItems = pageItems.filter(item => !item.disabled)
+  const selectedOnPage = selectablePageItems.filter(item => selectedItems.has(item.key)).length
+  const allPageSelected = selectablePageItems.length > 0 && selectedOnPage === selectablePageItems.length
+  const toggleVisiblePage = () => {
+    selectablePageItems.forEach(item => {
+      if (allPageSelected ? selectedItems.has(item.key) : !selectedItems.has(item.key)) {
+        onToggleItem(item.key)
+      }
+    })
+  }
+  const resetFilters = () => {
+    setKeyword('')
+    setPlatformFilter('all')
+    setStoreFilter('all')
+    setGateFilter('all')
+    setPage(1)
+  }
+  const changePage = (nextPage: number) => setPage(Math.min(Math.max(nextPage, 1), totalPages))
 
   return (
     <section aria-label="发布队列主工作台" className="space-y-4">
@@ -119,12 +161,12 @@ export function BatchPublishSelectStep({
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-fg)]">目标平台 / 店铺</p>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">先锁定目标平台和店铺，再在下方产品表选择要发布的 Listing；市场由店铺或商品目标归属自动带入。</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">先锁定目标平台和店铺，再在下方产品表选择要发布的 Listing；市场跟随店铺归属，缺市场时回到设置中心维护店铺。</p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">平台 {selectedPlatforms.size}</span>
                 <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">店铺 {selectedStores.size}</span>
-                <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">市场归属 {selectedMarkets.size || '待店铺带入'}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">店铺市场 {selectedMarkets.size || '待补'}</span>
               </div>
             </div>
             <div className="grid gap-3 lg:grid-cols-2">
@@ -160,8 +202,58 @@ export function BatchPublishSelectStep({
             <PublishGateCard label="字段门禁" value={fieldBlockedRows ? `缺 ${fieldBlockedRows}` : '通过'} detail="平台必填属性" ok={fieldBlockedRows === 0} />
             <PublishGateCard label="目标归属" value={targetBlockedRows ? `缺 ${targetBlockedRows}` : '通过'} detail="平台/店铺/市场归属" ok={targetBlockedRows === 0} />
           </section>
-          <div className="max-h-[calc(100vh-340px)] overflow-y-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }}>
-            <table className="professional-table min-w-[1180px] w-full text-left text-xs">
+          <section
+            aria-label="发布就绪商品筛选工具栏"
+            data-ui="batch-publish-ready-list-toolbar"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+          >
+            <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_180px_220px_160px_auto]">
+              <label className="text-xs text-[var(--color-muted)]">
+                商品搜索
+                <input
+                  value={keyword}
+                  onChange={event => { setKeyword(event.target.value); setPage(1) }}
+                  placeholder="搜索商品名、ID、阶段"
+                  className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
+                />
+              </label>
+              <SelectBox label="平台筛选" value={platformFilter} onChange={value => { setPlatformFilter(value); setPage(1) }} options={[
+                ['all', '全部平台'],
+                ...platforms.map(platform => [platform.id, platform.label] as [string, string]),
+              ]} />
+              <SelectBox label="店铺筛选" value={storeFilter} onChange={value => { setStoreFilter(value); setPage(1) }} options={[
+                ['all', '全部店铺'],
+                ...stores.map(store => [store.id, `${store.account_name} · ${store.platform.toUpperCase()}`] as [string, string]),
+              ]} />
+              <SelectBox label="发布门禁" value={gateFilter} onChange={value => { setGateFilter(value as typeof gateFilter); setPage(1) }} options={[
+                ['all', '全部状态'],
+                ['ready', '可生成草稿'],
+                ['blocked', '有阻断项'],
+              ]} />
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={toggleVisiblePage}
+                  disabled={selectablePageItems.length === 0}
+                  className="rounded-xl border border-[var(--color-primary)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] disabled:opacity-40"
+                >
+                  {allPageSelected ? '取消本页' : '选择本页'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]"
+                >
+                  重置
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-[var(--color-muted)]">
+              当前显示 {filteredItems.length} 条，已选本页 {selectedOnPage}/{selectablePageItems.length}；发布动作只针对勾选商品和已选目标店铺生成店铺级草稿。
+            </p>
+          </section>
+          <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }} data-ui="batch-publish-ready-list-table">
+            <table className="professional-table min-w-[1240px] w-full text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
                   <th className="w-10 px-3 py-2">选</th>
@@ -175,7 +267,7 @@ export function BatchPublishSelectStep({
                 </tr>
               </thead>
               <tbody>
-            {items.map(item => {
+            {pageItems.map(item => {
               const requirementsBySelection = platformRequirementsForSelection(item)
               const mediaReadiness = item.mediaReadiness
               const mediaGaps = mediaReadiness?.gaps || []
@@ -249,6 +341,16 @@ export function BatchPublishSelectStep({
               </tbody>
             </table>
             {items.length === 0 && <p className="p-3 text-xs text-[var(--color-muted)]">暂无发布就绪商品。请先完成选品决策、内容任务人工确认和定价确认。</p>}
+            {items.length > 0 && filteredItems.length === 0 && <p className="p-3 text-xs text-[var(--color-muted)]">当前筛选下没有商品，请调整平台、店铺、门禁或关键词。</p>}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2" data-ui="publish-ready-pagination">
+            <p className="text-xs text-[var(--color-muted)]">
+              第 {safePage}/{totalPages} 页 · 每页 {pageSize} 条 · 共 {filteredItems.length} 条
+            </p>
+            <div className="flex gap-2">
+              <button type="button" disabled={safePage <= 1} onClick={() => changePage(safePage - 1)} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] disabled:opacity-40">上一页</button>
+              <button type="button" disabled={safePage >= totalPages} onClick={() => changePage(safePage + 1)} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-muted)] disabled:opacity-40">下一页</button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -348,6 +450,33 @@ function TargetChipGroup({
         </div>
       )}
     </div>
+  )
+}
+
+function SelectBox({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: Array<[string, string]>
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="text-xs text-[var(--color-muted)]">
+      {label}
+      <select
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className="mt-1 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
+      >
+        {options.map(([id, optionLabel]) => (
+          <option key={id} value={id}>{optionLabel}</option>
+        ))}
+      </select>
+    </label>
   )
 }
 

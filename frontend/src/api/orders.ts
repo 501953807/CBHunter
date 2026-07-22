@@ -14,6 +14,9 @@ export interface OrderListParams {
   platform?: string
   platform_account_id?: string
   exceptions?: '1'
+  fulfillment_exception_status?: string
+  sync_status?: string
+  shipping_sla?: string
   search?: string
   page?: number
   page_size?: number

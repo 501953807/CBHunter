@@ -9,6 +9,9 @@ export interface PriceRecommendationRequest {
   target_profit_pct: number
   pricing_mode: 'cost_based' | 'selling_based'
   content_item_id?: string
+  shipping_cost_rmb?: number
+  activity_discount_pct?: number
+  min_profit_rmb?: number
 }
 
 export interface PriceRecommendationItem {
@@ -20,6 +23,8 @@ export interface PriceRecommendationItem {
   selling_price_local?: number
   currency?: string
   competition_position?: 'below_band' | 'inside_band' | 'above_band'
+  effective_selling_price_rmb?: number
+  profit_floor_applied?: boolean
 }
 
 export interface CompetitorPriceBand {
@@ -41,6 +46,21 @@ export interface PriceRecommendationData {
   exchange_rate?: number
   competitor_price_band?: CompetitorPriceBand | null
   estimated_fee_pct: number | null
+  fee_breakdown?: {
+    commission_pct?: number
+    transaction_fee_pct?: number
+    tech_service_pct?: number
+    vat_pct?: number
+    total_fee_pct?: number
+    source?: string
+  } | null
+  pricing_adjustments?: {
+    base_cost_rmb: number
+    shipping_cost_rmb: number
+    total_cost_rmb: number
+    activity_discount_pct: number
+    min_profit_rmb: number
+  }
   recommendations: Partial<Record<'conservative' | 'balanced' | 'aggressive', PriceRecommendationItem>>
   message?: string
   note?: string

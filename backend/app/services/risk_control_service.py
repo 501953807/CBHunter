@@ -15,17 +15,20 @@ from app.services.audit_service import record_audit_event
 from app.services.cockpit_service import get_operating_cockpit
 from app.services.finance_service import get_finance_summary
 from app.services.inventory_alert_service import get_inventory_risk_workbench
+from app.services.order_service import get_order_stats
 from app.services.risk_control_category_service import RISK_CATEGORY_LIBRARY, change_pct, risk_snapshot
 from app.services.risk_control_location_service import _risk_location_gap_queue
 from app.services.risk_control_projection_service import build_risk_control_projections
 from app.services.risk_control_sales_risk_service import get_listing_sales_decline_risks
 from app.services.risk_control_sla_service import RISK_SLA_TEMPLATES, get_risk_sla_templates
+from app.services.risk_control_source_summary_service import build_risk_source_summary
 
 
 async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
     cockpit = await get_operating_cockpit(db, user_id)
     inventory_workbench = await get_inventory_risk_workbench(db, user_id)
     finance_summary = await get_finance_summary(db, user_id, "monthly")
+    order_stats = await get_order_stats(db, user_id)
     sla_templates = await get_risk_sla_templates(db)
     risks = _build_risks(cockpit)
     risks.extend(_inventory_workbench_risks(inventory_workbench))
@@ -58,24 +61,20 @@ async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
         "risk_categories": risk_categories,
         "risk_store_matrix": _risk_store_matrix(active_risks),
         "risk_platform_matrix": _risk_platform_matrix(active_risks),
+        "risk_source_summary": build_risk_source_summary(active_risks, inventory_workbench, finance_summary, order_stats),
         "location_gap_queue": _risk_location_gap_queue(active_risks),
         "comparison": comparison,
         **projections,
         "source_refs": _unique_refs([ref for item in risks for ref in item["source_refs"]]),
         "evidence_window": cockpit["evidence_window"],
-        "confidence_reason": "风险管控由经营指挥台中的库存预警、报表异常、关键 AI 建议和竞品变化生成。",
+        "confidence_reason": "风险管控由订单履约发货时限、库存预警与库存风险工作台、真实财务台账利润信号、经营指挥台和竞品变化生成。",
         "data_gaps": gaps,
         "gaps": gaps,
         "gap_actions": _gap_actions(cockpit),
     }
 
 
-async def update_risk_event_state(
-    db: AsyncSession,
-    current_user: User,
-    risk_id: str,
-    request: RiskStateUpdateRequest,
-) -> dict:
+async def update_risk_event_state(db: AsyncSession, current_user: User, risk_id: str, request: RiskStateUpdateRequest) -> dict:
     cockpit = await get_operating_cockpit(db, current_user.id)
     inventory_workbench = await get_inventory_risk_workbench(db, current_user.id)
     finance_summary = await get_finance_summary(db, current_user.id, "monthly")

@@ -233,11 +233,54 @@ export async function deleteDictItem(dict: string, id: string) {
 }
 
 export async function listFeeRates() {
-  const res = await client.get<ApiResponse<any>>('/settings/fee-rates')
+  const res = await client.get<ApiResponse<FeeRateResponse>>('/settings/fee-rates')
   return res.data
+}
+
+export interface FeeRateItem {
+  id: string
+  platform: string
+  market: string
+  commission: number | null
+  transaction: number | null
+  tech: number | null
+  low_value_tax: number | null
+  total?: number | null
+  total_pct?: string | null
+}
+
+export interface FeeRateResponse {
+  grouped: Record<string, FeeRateItem[]>
+  flat: FeeRateItem[]
+  pricing_adjustment_templates?: PricingAdjustmentTemplateItem[]
 }
 
 export async function updateFeeRates(data: Record<string, unknown>) {
   const res = await client.put<ApiResponse>('/settings/fee-rates', data)
+  return res.data
+}
+
+export interface PricingAdjustmentTemplateItem {
+  id: string
+  label: string
+  platform: string
+  market: string
+  shipping_cost_rmb: number
+  activity_discount_pct: number
+  min_profit_rmb: number
+  target_profit_pct: number
+}
+
+export interface PricingAdjustmentTemplateResponse {
+  templates: PricingAdjustmentTemplateItem[]
+}
+
+export async function listPricingAdjustmentTemplates() {
+  const res = await client.get<ApiResponse<PricingAdjustmentTemplateResponse>>('/settings/pricing-adjustment-templates')
+  return res.data
+}
+
+export async function updatePricingAdjustmentTemplates(data: PricingAdjustmentTemplateItem[]) {
+  const res = await client.put<ApiResponse<PricingAdjustmentTemplateResponse>>('/settings/pricing-adjustment-templates', data)
   return res.data
 }

@@ -72,6 +72,7 @@ PRICING_API = (ROOT / "frontend/src/api/pricing.ts").read_text(encoding="utf-8")
 CONTENT_MEDIA_STUDIO = (ROOT / "frontend/src/features/content-planner/ContentMediaStudio.tsx").read_text(encoding="utf-8")
 CONTENT_TITLE_GENERATOR = (ROOT / "frontend/src/features/content-planner/ContentTitleGenerator.tsx").read_text(encoding="utf-8")
 SELLER_PLATFORM_LISTING_EDITOR = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorPanel.tsx").read_text(encoding="utf-8")
+SELLER_PLATFORM_LISTING_EDITOR_UTILS = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorUtils.ts").read_text(encoding="utf-8")
 CONTENT_PLANNER_WORKSPACE = (ROOT / "frontend/src/features/content-planner/ContentPlannerWorkspace.tsx").read_text(encoding="utf-8")
 LISTING_OBJECT_SCOPE_MAP = (ROOT / "frontend/src/features/content-planner/ListingObjectScopeMap.tsx").read_text(encoding="utf-8")
 LISTING_STORE_OVERRIDE_EDITOR_PATH = ROOT / "frontend/src/features/content-planner/ListingStoreOverrideEditor.tsx"
@@ -116,7 +117,11 @@ ORDER_TYPES = (ROOT / "frontend/src/types/order.ts").read_text(encoding="utf-8")
 SHIPMENTS_API = (ROOT / "frontend/src/api/shipments.ts").read_text(encoding="utf-8")
 USE_ORDERS_HOOK = (ROOT / "frontend/src/hooks/useOrders.ts").read_text(encoding="utf-8")
 USE_SYNC_HOOK = (ROOT / "frontend/src/hooks/useSync.ts").read_text(encoding="utf-8")
+USE_CONFIG_HOOK = (ROOT / "frontend/src/hooks/useConfig.ts").read_text(encoding="utf-8")
+CONFIG_API = (ROOT / "frontend/src/api/config.ts").read_text(encoding="utf-8")
+CONFIG_SERVICE = (ROOT / "backend/app/services/config_service.py").read_text(encoding="utf-8")
 RISK_CONTROL_SERVICE = (ROOT / "backend/app/services/risk_control_service.py").read_text(encoding="utf-8")
+RISK_CONTROL_SOURCE_SUMMARY_SERVICE = (ROOT / "backend/app/services/risk_control_source_summary_service.py").read_text(encoding="utf-8")
 RISK_CONTROL_SALES_RISK_SERVICE = (ROOT / "backend/app/services/risk_control_sales_risk_service.py").read_text(encoding="utf-8")
 FINANCE_PAGE = (ROOT / "frontend/src/pages/FinancePage.tsx").read_text(encoding="utf-8")
 FINANCE_API = (ROOT / "frontend/src/api/finance.ts").read_text(encoding="utf-8")
@@ -155,6 +160,8 @@ PRODUCT_SELLER_WORKBENCH = (ROOT / "frontend/src/features/products/ProductSeller
 PRODUCTS_API = (ROOT / "frontend/src/api/products.ts").read_text(encoding="utf-8")
 SYNC_API = (ROOT / "frontend/src/api/sync.ts").read_text(encoding="utf-8")
 LISTING_API = (ROOT / "frontend/src/api/listing.ts").read_text(encoding="utf-8")
+BATCH_PUBLISH_SERVICE = (ROOT / "backend/app/services/batch_publish_service.py").read_text(encoding="utf-8")
+LISTING_STORE_OVERRIDE_SERVICE = (ROOT / "backend/app/services/listing_store_override_service.py").read_text(encoding="utf-8")
 PLATFORMS_API = (ROOT / "frontend/src/api/platforms.ts").read_text(encoding="utf-8")
 PLATFORM_SETTINGS_PAGE = (ROOT / "frontend/src/pages/PlatformSettingsPage.tsx").read_text(encoding="utf-8")
 PROFESSIONAL_WORKSPACE_FRAME_PATH = ROOT / "frontend/src/components/shared/ProfessionalWorkspaceFrame.tsx"
@@ -163,7 +170,8 @@ COMMAND_CENTER_FRAME_PATH = ROOT / "frontend/src/components/shared/CommandCenter
 COMMAND_CENTER_FRAME = COMMAND_CENTER_FRAME_PATH.read_text(encoding="utf-8") if COMMAND_CENTER_FRAME_PATH.exists() else ""
 BUSINESS_OBJECT_ACTION_BAR_PATH = ROOT / "frontend/src/components/shared/BusinessObjectActionBar.tsx"
 BUSINESS_OBJECT_ACTION_BAR = BUSINESS_OBJECT_ACTION_BAR_PATH.read_text(encoding="utf-8") if BUSINESS_OBJECT_ACTION_BAR_PATH.exists() else ""
-IMPLEMENTATION_PLAN = (ROOT / "docs/系统建设方案4.0-实施任务总表.md").read_text(encoding="utf-8")
+IMPLEMENTATION_PLAN = (ROOT / "docs/03_CBHunter_V5.0实施任务总表.md").read_text(encoding="utf-8")
+UNIFIED_FIELD_DICTIONARY = (ROOT / "backend/app/data/default_unified_field_dictionary.json").read_text(encoding="utf-8")
 
 
 def native_confirm_usages() -> list[str]:
@@ -465,6 +473,9 @@ def validate() -> list[str]:
         errors.append("risk control must put the platform/store risk total-and-breakdown board in the main visual area")
     if "aria-label=\"风险处置指标\"" not in RISK_CONTROL_WORKSPACE:
         errors.append("risk control metric strip must expose an accessible risk indicator label")
+    for required in ("data-ui=\"risk-stage2-signal-summary\"", "履约库存利润风险源汇总", "RiskSourceSummaryPanel", "履约超时", "库存断货", "利润异常", "fulfillment_overdue", "inventory_stockout", "profit_anomaly"):
+        if required not in RISK_CONTROL_WORKSPACE:
+            errors.append(f"risk control must expose fulfillment/inventory/profit source summary cards: {required}")
     risk_board_with_range_util = RISK_STORE_COMMAND_BOARD + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
     for required in ("平台店铺风险总分看板", "平台店铺风险总览", "风险处置总览", "处置优先级", "最高风险店铺", "即将超时", "风险处置动作", "data-ui=\"risk-hero\"", "风险范围对比", "风险核心判断条", "风险核心判断", "风险压力", "逾期处理", "最高风险归属", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "风险对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "平台风险分布", "平台风险占比", "风险类型雷达", "店铺风险热力", "风险热度", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺风险热度结构", "店铺商品", "环比", "同比", "BarChart", "PieChart", "comparisonRangeLabel"):
         if required not in risk_board_with_range_util:
@@ -673,8 +684,8 @@ def validate() -> list[str]:
         "保存图片修改",
         "保存槽位顺序",
         "setAsMainImage",
-        "moveSlot",
-        "{activeSlot.index}/9",
+        "reorderSlot",
+        "{activeSlot.index}/{imageSlots.length}",
         "aria-label=\"Listing 媒体字段快速定位\"",
         "data-ui=\"media-editor-section-nav\"",
         "aria-label=\"Listing 图片槽位工作台\"",
@@ -744,7 +755,7 @@ def validate() -> list[str]:
         errors.append("professional workspace visual frame component must exist with accessible shell label")
     if "aria-label=\"业务对象下钻动作\"" not in BUSINESS_OBJECT_ACTION_BAR:
         errors.append("business object action bar must exist with accessible drill-down action label")
-    for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-workspace\"", "data-ui=\"content-image-edit-workspace\"", "workspaceMode === 'queue'", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\""):
+    for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-overlay-workspace\"", "data-ui=\"content-image-edit-overlay-workspace\"", "data-ui=\"content-factory-editor-overlay\"", "覆盖式工作台", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\""):
         if required not in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner must separate queue, listing detail, and image editor flows: {required}")
     for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "ListingCompositionBoard product={selectedProduct}"):
@@ -797,10 +808,31 @@ def validate() -> list[str]:
         if required not in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner must expose a seller-backend style current listing object overview: {required}")
     for required in (
+        "listingImageRoleByIndex",
+        "main_image",
+        "scene_image",
+        "dimension_image",
+        "detail_image",
+        "sku_image",
+        "description_image",
+        "role: slot.role || roleMeta.role",
+        "label: slot.label || roleMeta.label",
+    ):
+        if required not in CONTENT_MEDIA_STUDIO:
+            errors.append(f"content media studio must preserve V5 image slot roles in saved image plans: {required}")
+    for required in (
         "SellerPlatformListingEditorPanel",
         "data-ui=\"unified-listing-master-editor\"",
         "aria-label=\"统一 Listing 母版编辑器\"",
         "data-ui=\"unified-listing-sticky-field-nav\"",
+        "data-ui=\"listing-gap-clickable-summary\"",
+        "aria-label=\"Listing 缺口点击定位摘要\"",
+        "data-ui=\"listing-gap-click-to-field\"",
+        "当前缺口定位",
+        "点击标签直接定位到对应编辑区",
+        "buildListingGaps",
+        "图片不足",
+        "SKU 销售资料待补",
         "data-ui=\"listing-master-image-slot-grid\"",
         "dropImageSlot",
         "draggable",
@@ -809,6 +841,12 @@ def validate() -> list[str]:
         "添加图片",
         "setMainImage",
         "image_slots",
+        "场景辅图",
+        "尺寸图",
+        "细节图",
+        "SKU图",
+        "详情图",
+        "搜索页首图 / 商品页主图",
         "统一 Listing 母版",
         "一次编辑，按店铺实例分发到 Shopee / TEMU / TikTok Shop",
         "商品基础内容在母版维护",
@@ -817,13 +855,27 @@ def validate() -> list[str]:
         "商品描述 / 图文详情",
         "类目属性",
         "SKU、销售资料与库存",
+        "data-ui=\"seller-listing-platform-attribute-editor\"",
+        "aria-label=\"卖家后台平台属性编辑区\"",
+        "aria-label=\"平台必填字段状态表\"",
+        "data-ui=\"seller-listing-sku-sales-editor\"",
+        "aria-label=\"卖家后台 SKU 销售资料编辑区\"",
+        "aria-label=\"SKU 批量操作工具条\"",
+        "aria-label=\"卖家后台 SKU 销售资料编辑表\"",
+        "规格一",
+        "规格二",
+        "平台 SKU / SPU/SKC",
+        "SKU 图角色",
+        "包装尺寸",
+        "填充启用 SKU",
         "新增 SKU 变体",
         "物流、包装与合规",
-        "AI 辅助动作",
+        "listing-inline-ai-title",
+        "listing-inline-ai-description",
         "保存母版草稿",
         "保存到店铺覆盖",
     ):
-        if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR:
+        if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + SELLER_PLATFORM_LISTING_EDITOR_UTILS:
             errors.append(f"content planner must expose a focused same-product listing editor: {required}")
     for forbidden in ("xl:grid-cols-[240px_minmax(560px,1fr)_260px]",):
         if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
@@ -886,6 +938,15 @@ def validate() -> list[str]:
         errors.append("listing specification editor must not squeeze SKU/spec fields with a permanent compliance side rail")
     if "xl:grid-cols-[minmax(0,1fr)_280px]" in CONTENT_MEDIA_STUDIO:
         errors.append("content media studio must not squeeze image slots with a permanent image action side rail")
+    for required in ("draggable", "onDragStart", "onDragOver", "onDrop", "reorderSlot", "新增图片空位", "aria-label=\"新增图片空位\"", "拖拽缩略图调整主图/辅图顺序"):
+        if required not in CONTENT_MEDIA_STUDIO:
+            errors.append(f"content media studio must support drag-sort image slots and add empty slots: {required}")
+    for required in ("aria-label=\"图片裁剪参数表\"", "aria-label=\"图片水印参数表\"", "crop_mode", "crop_x", "crop_width", "watermark_text", "watermark_position", "image_edit_options"):
+        if required not in CONTENT_MEDIA_STUDIO:
+            errors.append(f"content media studio must persist crop/watermark image edit options: {required}")
+    for forbidden in ("moveSlot(", "上移</button>", "下移</button>"):
+        if forbidden in CONTENT_MEDIA_STUDIO:
+            errors.append(f"content media studio must not rely on old up/down image sorting buttons: {forbidden}")
     for forbidden in ("const CONTENT_TABS", "<Tabs tabs={CONTENT_TABS}", "activeTab ===", "{ id: 'title', label: 'AI标题' }", "{ id: 'export', label: '平台刊登' }", "{ id: 'media', label: '素材工坊' }"):
         if forbidden in CONTENT_PLANNER_WORKSPACE:
             errors.append(f"content planner tabs must not expose split tool/module labels: {forbidden}")
@@ -974,12 +1035,18 @@ def validate() -> list[str]:
     for required in ("Listing标题", "商品描述", "PlatformFieldGroupEditor", "onDraftChange"):
         if required not in BATCH_PUBLISH_PREVIEW:
             errors.append(f"batch publish preview must keep editable listing draft field: {required}")
+    for required in ("draft_only", "保存草稿", "立即发布计划", "定时发布计划", "aria-label=\"发布计划模式说明\"", "data-ui=\"publish-plan-mode-guide\""):
+        if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_WORKSPACE + LISTING_API:
+            errors.append(f"batch publish preview must support draft-only/immediate/scheduled publish modes: {required}")
     for required in ("PlatformRealtimePreview", "平台适配实时预览", "Shopee 商品卡", "TEMU 商品卡", "TikTok Shop 商品卡"):
         if required not in BATCH_PUBLISH_PREVIEW:
             errors.append(f"batch publish preview must expose three-platform realtime listing preview: {required}")
     for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFieldGroupSummary"):
         if required not in BATCH_PUBLISH_RESULT:
             errors.append(f"batch publish result step must expose listing draft persistence diagnostics: {required}")
+    for required in ("aria-label=\"发布失败与重试处理队列\"", "data-ui=\"publish-result-retry-action-panel\"", "FailureActionCard", "ResultActions", "返回重选重试", "补 Listing 内容", "补图片/SKU", "补定价", "resultRepairHref", "resultPricingHref"):
+        if required not in BATCH_PUBLISH_RESULT:
+            errors.append(f"batch publish result step must expose failure reasons and repair/retry actions: {required}")
     for required in ("查看商品 Listing", "?tab=listings"):
         if required not in BATCH_PUBLISH_RESULT:
             errors.append(f"batch publish result step must link created drafts back to product listing detail: {required}")
@@ -1021,14 +1088,28 @@ def validate() -> list[str]:
     for required in ("field_sources", "override_boundary", "字段来源矩阵", "店铺 Listing 独立覆盖边界"):
         if required not in BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
             errors.append(f"batch publish preview must expose field source matrix for store override persistence: {required}")
+    for required in ("blocking_validation = [", "check.get(\"state\") == \"block\"", "Listing 发布前校验未通过", "listing_validation.", "test_confirm_publish_rechecks_blocking_validation_before_creating_draft"):
+        if required not in BATCH_PUBLISH_SERVICE + (ROOT / "backend/tests/test_business_closure.py").read_text(encoding="utf-8"):
+            errors.append(f"batch publish backend must recheck every blocking validation before draft creation: {required}")
+    for required in ("confirmed_image_slot_plan", "image_edit_plan", "listing_image_slots.v1", '"image_slots": item.get("image_slots")', "test_batch_preview_uses_confirmed_image_slot_plan"):
+        if required not in BATCH_PUBLISH_SERVICE + (ROOT / "backend/app/services/listing_draft_asset_service.py").read_text(encoding="utf-8") + (ROOT / "backend/tests/test_business_closure.py").read_text(encoding="utf-8"):
+            errors.append(f"batch publish backend must carry confirmed image_edit_plan slots into draft media assets: {required}")
+    if "check.get(\"state\") == \"block\" and check.get(\"code\") == \"platform_fields\"" in BATCH_PUBLISH_SERVICE:
+        errors.append("batch publish backend must not only block platform_fields validation failures")
     if "Array.from(selectedPlatforms)[0]" in BATCH_PUBLISH_SELECT:
         errors.append("batch publish select step must not inspect only the first selected platform for field requirements")
     for required in (
         "data-ui=\"publish-target-command-bar\"",
         "aria-label=\"发布目标批量操作条\"",
+        "data-ui=\"batch-publish-ready-list-toolbar\"",
+        "data-ui=\"batch-publish-ready-list-table\"",
+        "data-ui=\"publish-ready-pagination\"",
+        "选择本页",
+        "商品搜索",
+        "发布门禁",
         "目标平台 / 店铺",
-        "市场由店铺或商品目标归属自动带入",
-        "min-w-[1180px]",
+        "市场跟随店铺归属",
+        "min-w-[1240px]",
         "space-y-4",
     ):
         if required not in BATCH_PUBLISH_SELECT:
@@ -1295,6 +1376,28 @@ def validate() -> list[str]:
     for required in ("按三平台字段组编辑", "PlatformFieldGroupEditor", "selectedListingRequirements", "field_groups", "平台字段组编辑"):
         if required not in PRODUCT_LISTING_EDITOR_CONTENT:
             errors.append(f"product listing editor must render platform field group form: {required}")
+    for required in ("listing-inline-ai-title", "listing-inline-ai-description", "applyTitleCandidate", "applyDescriptionCandidate"):
+        if required not in SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"content factory AI assistance must be embedded beside concrete listing fields: {required}")
+    if "AI 辅助动作" in SELLER_PLATFORM_LISTING_EDITOR:
+        errors.append("content factory must not keep a standalone AI assistance card in the Listing editor")
+    for required in ("override_image_urls", "override_sku_rows", "image_slots", "sku_rows", "package_size", "platform_attributes", "boundary"):
+        if required not in LISTING_STORE_OVERRIDE_SERVICE + SELLER_PLATFORM_LISTING_EDITOR:
+            errors.append(f"listing store override must bridge V5 editor payload into publish/readiness services: {required}")
+    for required in (
+        "default_unified_field_dictionary.json",
+        "get_unified_field_dictionary",
+        "unified_field_dictionary",
+        "FIELD_KEY_ALIASES",
+        "unified_field_key",
+        "platform_field_name",
+        "miaoshou_field_name",
+        "FieldMetaHint",
+        "product_title",
+        "clear_image_status",
+    ):
+        if required not in CONFIG_SERVICE + CONFIG_API + USE_CONFIG_HOOK + PLATFORM_FIELD_GROUPS + UNIFIED_FIELD_DICTIONARY:
+            errors.append(f"FIELD-V5-P0-01 must keep unified CSV field dictionary and dynamic field metadata: {required}")
     for required in (
         "ProductListingEditOverview",
         "aria-label=\"当前商品编辑总览\"",
@@ -1396,9 +1499,12 @@ def validate() -> list[str]:
     for required in ("履约异常", "履约异常复盘", "fulfillment_exception", "shipping_overdue", "异常处理动作闭环", "create_shipment", "review_after_sales", "replenish_platform_bill"):
         if required not in ORDER_LIST_PAGE + ORDER_DETAIL_PAGE + ORDER_SERVICE:
             errors.append(f"orders pages must expose fulfillment exception queue context: {required}")
-    for required in ("exceptions: exceptionMode ? '1' : undefined", "exceptions: bool = Query(False", "exceptions: bool = False", "build_fulfillment_exception_context(order).get(\"status\") != \"clear\"", "当前筛选范围没有履约异常订单"):
+    for required in ("exceptions: exceptionMode ? '1' : undefined", "exceptions: bool = Query(False", "exceptions: bool = False", "fulfillment_context = build_fulfillment_exception_context(order)", "fulfillment_context.get(\"status\") == \"clear\"", "当前筛选范围没有履约异常订单"):
         if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_API + ORDER_SERVICE:
             errors.append(f"orders exception filter must use fulfillment exception context instead of order status: {required}")
+    for required in ("fulfillment_exception_status", "sync_status", "shipping_sla", "_matches_shipping_sla", "data-ui=\"order-fulfillment-filter-bar\"", "shippingSlaLabel"):
+        if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_API + ORDER_SERVICE:
+            errors.append(f"orders list must expose sync status, exception status and shipping SLA filters: {required}")
     for required in ("RelatedShipmentsPanel", "关联物流记录", "useShipmentList", "order_id", "新增物流", "本地物流渠道"):
         if required not in ORDER_DETAIL_PAGE + SHIPMENTS_API:
             errors.append(f"order detail must show related shipment records: {required}")
@@ -1447,6 +1553,10 @@ def validate() -> list[str]:
     for required in ("get_finance_summary", "_finance_signal_risks", "finance:{code}", "真实财务台账", "finance_signal_code", "action_label"):
         if required not in RISK_CONTROL_SERVICE:
             errors.append(f"risk control must convert backend finance risk_signals into risk events: {required}")
+    risk_source_content = RISK_CONTROL_SERVICE + RISK_CONTROL_SOURCE_SUMMARY_SERVICE
+    for required in ("get_order_stats", "build_risk_source_summary", "risk_source_summary", "履约超时", "库存断货", "利润异常", "shipping_sla=overdue"):
+        if required not in risk_source_content:
+            errors.append(f"risk control must summarize fulfillment/inventory/profit risk sources: {required}")
     for required in ("operation-action", "createRiskOperationAction", "生成运营台账动作", "operationSaving"):
         if required not in RISK_CONTROL_API + RISK_CONTROL_WORKSPACE + RISK_ACTION_PANEL:
             errors.append(f"risk control must create operation ledger actions from concrete risk events: {required}")

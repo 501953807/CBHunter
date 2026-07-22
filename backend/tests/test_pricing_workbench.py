@@ -154,6 +154,79 @@ def test_pricing_bound_to_ready_product_uses_cost_fee_and_exchange(tmp_path):
     asyncio.run(run_test())
 
 
+def test_pricing_applies_shipping_discount_and_profit_floor(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'pricing-adjustments.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            item = SourcingItem(
+                user_id="pricing-user",
+                product_name="活动款斜挎包",
+                source_name="1688",
+                source_price_rmb=18,
+                platform="shopee",
+                market="MY",
+                pipeline_stage="decision_passed",
+                extra_data={
+                    "content_tasks": {
+                        task_type: {
+                            "confirmed_version": 1,
+                            "versions": [{"version": 1, "content": "已确认内容", "provider": "manual"}],
+                        }
+                        for task_type, _label in REQUIRED_CONTENT_GAPS
+                    }
+                },
+            )
+            session.add_all([
+                item,
+                FeeTemplate(
+                    platform="shopee",
+                    market="MY",
+                    commission_pct=8,
+                    transaction_fee_pct=2,
+                    tech_service_pct=1,
+                    is_active=True,
+                ),
+                ExchangeRate(from_currency="CNY", to_currency="MYR", rate=0.65, source="test"),
+                SysDictItem(id="MY", type="market", label="马来西亚", extra={"currency": "MYR"}, is_active=True),
+            ])
+            await session.commit()
+            await session.refresh(item)
+
+            result = await recommend_price(
+                {
+                    "content_item_id": item.id,
+                    "target_profit_pct": 20,
+                    "pricing_mode": "cost_based",
+                    "shipping_cost_rmb": 4,
+                    "activity_discount_pct": 10,
+                    "min_profit_rmb": 12,
+                },
+                session,
+                SimpleNamespace(id="pricing-user"),
+            )
+        await engine.dispose()
+
+        balanced = result.data["recommendations"]["balanced"]
+        assert result.status == "ready"
+        assert result.data["pricing_adjustments"] == {
+            "base_cost_rmb": 18.0,
+            "shipping_cost_rmb": 4.0,
+            "total_cost_rmb": 22.0,
+            "activity_discount_pct": 10.0,
+            "min_profit_rmb": 12.0,
+        }
+        assert balanced["selling_price"] == 42.45
+        assert balanced["effective_selling_price_rmb"] == 38.21
+        assert balanced["net_profit_rmb"] >= 12.0
+        assert balanced["profit_floor_applied"] is True
+
+    asyncio.run(run_test())
+
+
 def test_pricing_bound_product_returns_competitor_price_band(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'pricing-competitors.db'}")

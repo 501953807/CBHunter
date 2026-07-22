@@ -4,6 +4,12 @@ type PlatformField = {
   required?: boolean
   placeholder?: string
   evidence_state?: 'observed' | 'needs_category_recheck' | 'needs_edit_page_recheck' | 'needs_api_recheck'
+  unified_field_key?: string
+  standard_label?: string
+  data_type?: string
+  country_difference?: string
+  platform_field_name?: string
+  miaoshou_field_name?: string
 }
 
 type PlatformFieldGroup = {
@@ -161,6 +167,7 @@ export function PlatformFieldGroupEditor({
                   <label key={key} className="text-[11px] text-[var(--color-muted)]">
                     {field.label || key}{field.required ? <span className="text-[var(--color-primary)]"> *</span> : null}
                     {field.evidence_state ? <span className="ml-1 text-[var(--color-warning)]">({evidenceStateLabel(field.evidence_state)})</span> : null}
+                    <FieldMetaHint field={field} />
                     <input
                       value={stringValue(values[key])}
                       onChange={event => updateValue(key, event.target.value)}
@@ -176,6 +183,18 @@ export function PlatformFieldGroupEditor({
       </div>
     </div>
   )
+}
+
+function FieldMetaHint({ field }: { field: PlatformField }) {
+  const details = [
+    field.unified_field_key ? `标准：${field.standard_label || field.unified_field_key}` : '',
+    field.data_type ? `类型：${field.data_type}` : '',
+    field.platform_field_name ? `平台：${field.platform_field_name}` : '',
+    field.miaoshou_field_name ? `妙手：${field.miaoshou_field_name}` : '',
+    field.country_difference ? `差异：${field.country_difference}` : '',
+  ].filter(Boolean)
+  if (!details.length) return null
+  return <span className="mt-0.5 block truncate text-[10px] text-[var(--color-muted)]">{details.join(' / ')}</span>
 }
 
 function CategoryProfileBadge({ requirements }: { requirements?: PlatformRequirementsLike }) {

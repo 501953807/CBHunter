@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, Clock, Database, FileWarning, RefreshCw, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Boxes, Clock, Database, FileWarning, RefreshCw, ShieldCheck, Truck, WalletCards } from 'lucide-react'
 import { updateBusinessFlowTasks } from '../../api/businessFlow'
 import { createRiskOperationAction, getRiskControlAudit, getRiskControlOverview, updateRiskControlState } from '../../api/riskControl'
 import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
@@ -163,6 +163,8 @@ export default function RiskControlWorkspace() {
         {data && <RiskSlaTemplateStrip data={data} onOpenConfig={() => navigate('/settings/keys')} />}
       </CommandCenterFrame>
 
+      {data && <RiskSourceSummaryPanel data={data} onNavigate={navigate} />}
+
       {data && <RiskStoreCommandBoard data={data} onNavigate={navigate} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[400px_minmax(0,1fr)_320px]">
@@ -289,6 +291,79 @@ export default function RiskControlWorkspace() {
         </section>
       </div>
     </div>
+  )
+}
+
+function RiskSourceSummaryPanel({ data, onNavigate }: { data: RiskControlOverview; onNavigate: (route: string) => void }) {
+  const rows = data.risk_source_summary || []
+  if (!rows.length) return null
+  return (
+    <section data-ui="risk-stage2-signal-summary" aria-label="履约库存利润风险源汇总" className="grid gap-3 md:grid-cols-3">
+      {rows.map((item) => {
+        const tone = item.severity === 'critical' ? 'danger' : item.severity === 'warning' ? 'warning' : 'success'
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onNavigate(item.route)}
+            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-md)]"
+          >
+            <div className="flex items-start gap-3">
+              <RiskSourceIcon type={item.key} severity={item.severity} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-[var(--color-fg)]">{riskSourceLabel(item.key, item.label)}</p>
+                  <Badge variant={tone}>{item.severity === 'critical' ? '高危' : item.severity === 'warning' ? '预警' : '正常'}</Badge>
+                </div>
+                <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.description}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <MiniSourceMetric label="主风险" value={String(item.count)} tone={tone === 'success' ? 'ready' : tone} />
+                  <MiniSourceMetric label={item.secondary_label} value={String(item.secondary_count)} tone={item.secondary_count ? 'warning' : 'ready'} />
+                  <MiniSourceMetric label="队列" value={String(item.active_risk_count)} tone={item.active_risk_count ? 'warning' : 'ready'} />
+                </div>
+                <p className="mt-3 inline-flex items-center gap-1 text-[11px] text-[var(--color-primary)]">
+                  {item.data_gaps.length ? `待补 ${item.data_gaps.length} 项数据` : '进入处理列表'}<ArrowRight className="h-3 w-3" />
+                </p>
+              </div>
+            </div>
+          </button>
+        )
+      })}
+    </section>
+  )
+}
+
+function RiskSourceIcon({ type, severity }: { type: string; severity: string }) {
+  const color = severity === 'critical' ? 'var(--color-danger)' : severity === 'warning' ? 'var(--color-warning)' : 'var(--color-success)'
+  const className = "h-5 w-5"
+  const icon = type === 'fulfillment_overdue'
+    ? <Truck className={className} style={{ color }} />
+    : type === 'inventory_stockout'
+      ? <Boxes className={className} style={{ color }} />
+      : type === 'profit_anomaly'
+        ? <WalletCards className={className} style={{ color }} />
+      : <WalletCards className={className} style={{ color }} />
+  return (
+    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+      {icon}
+    </span>
+  )
+}
+
+function riskSourceLabel(type: string, fallback: string) {
+  if (type === 'fulfillment_overdue') return '履约超时'
+  if (type === 'inventory_stockout') return '库存断货'
+  if (type === 'profit_anomaly') return '利润异常'
+  return fallback
+}
+
+function MiniSourceMetric({ label, value, tone }: { label: string; value: string; tone: 'danger' | 'warning' | 'ready' }) {
+  const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-success)'
+  return (
+    <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1">
+      <span className="block text-[10px] text-[var(--color-muted)]">{label}</span>
+      <span className="block text-sm font-semibold" style={{ color }}>{value}</span>
+    </span>
   )
 }
 

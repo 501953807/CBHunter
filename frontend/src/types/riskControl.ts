@@ -81,6 +81,18 @@ export interface RiskControlOverview {
     overdue: number
     total: number
   }>
+  risk_source_summary: Array<{
+    key: 'fulfillment_overdue' | 'inventory_stockout' | 'profit_anomaly' | string
+    label: string
+    count: number
+    secondary_count: number
+    secondary_label: string
+    active_risk_count: number
+    severity: 'critical' | 'warning' | 'clear' | string
+    route: string
+    description: string
+    data_gaps: string[]
+  }>
   location_gap_queue: Array<{
     gap_key: 'platform' | 'store' | 'market' | string
     label: string

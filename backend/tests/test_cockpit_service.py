@@ -289,6 +289,11 @@ def test_cockpit_negative_profit_has_actionable_finance_gap(tmp_path):
         assert finance_risk["title"] == "净利润为负"
         assert finance_risk["route"] == "/finance?entry_type=platform_fee#finance-ledger"
         assert "真实财务台账" in finance_risk["evidence_window"]
+        profit_source = next(item for item in risks["risk_source_summary"] if item["key"] == "profit_anomaly")
+        assert profit_source["label"] == "利润异常"
+        assert profit_source["count"] >= 1
+        assert profit_source["severity"] == "critical"
+        assert profit_source["route"] == "/finance#finance-ledger"
 
     asyncio.run(run_test())
 
@@ -338,6 +343,11 @@ def test_risk_control_uses_order_fulfillment_exception_context(tmp_path):
         assert logistics_risks[0]["estimated_impact"] == "订单金额 MYR 88，可能触发取消、退款或店铺履约扣分。"
         assert logistics_risks[0]["response_deadline_at"]
         assert logistics_risks[0]["remaining_time_label"] == "已超期"
+        fulfillment_source = next(item for item in risks["risk_source_summary"] if item["key"] == "fulfillment_overdue")
+        assert fulfillment_source["label"] == "履约超时"
+        assert fulfillment_source["count"] == 1
+        assert fulfillment_source["severity"] == "critical"
+        assert fulfillment_source["route"] == "/orders?shipping_sla=overdue"
         assert logistics_risks[0]["sla_hours"] == 0
 
     asyncio.run(run_test())
@@ -1133,6 +1143,11 @@ def test_risk_control_links_slow_inventory_capital_to_inventory_risk(tmp_path):
         assert risk["account_name"] == "TikTok PH 店铺"
         assert risk["route"] == f"/growth?listing_id={listing.id}"
         assert "库存资金占用 ¥180" in risk["detail"]
+        inventory_source = next(item for item in risks["risk_source_summary"] if item["key"] == "inventory_stockout")
+        assert inventory_source["label"] == "库存断货"
+        assert inventory_source["count"] == 0
+        assert inventory_source["active_risk_count"] == 1
+        assert inventory_source["secondary_label"] == "滞销资金"
         assert "近30天浏览 200、订单 0" in risk["estimated_impact"]
         assert any(ref["type"] == "platform_listing" and ref["id"] == listing.id for ref in risk["source_refs"])
 

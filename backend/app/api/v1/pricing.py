@@ -236,6 +236,9 @@ async def recommend_price(
         raise HTTPException(status_code=400, detail="定价策略无效")
 
     target_profit = float(target_profit_pct)
+    shipping_cost_rmb = _nonnegative_float(data.get("shipping_cost_rmb"), "物流费不能为负数")
+    activity_discount_pct = _bounded_pct(data.get("activity_discount_pct"), "活动折扣必须介于 0-95 之间", upper=95)
+    min_profit_rmb = _nonnegative_float(data.get("min_profit_rmb"), "最低利润额不能为负数")
     currency = None
     exchange_rate = None
     if bound_item:
@@ -316,11 +319,16 @@ async def recommend_price(
            evidence_window=missing["evidence_window"], confidence_reason=missing["confidence_reason"],
            data_gaps=missing["data_gaps"])
 
-    total_fee_pct = round(fee.commission_pct + fee.transaction_fee_pct + fee.tech_service_pct, 1)
+    total_fee_pct = round(fee.commission_pct + fee.transaction_fee_pct + fee.tech_service_pct + (fee.vat_pct or 0), 1)
+    total_cost_rmb = round(source_price + shipping_cost_rmb, 2)
+    fee_rate = total_fee_pct / 100
+    discount_rate = activity_discount_pct / 100
     fee_breakdown = {
         "commission_pct": fee.commission_pct,
         "transaction_fee_pct": fee.transaction_fee_pct,
         "tech_service_pct": fee.tech_service_pct,
+        "vat_pct": fee.vat_pct or 0,
+        "total_fee_pct": total_fee_pct,
         "source": "已配置费率",
     }
     competitor_band = None
@@ -336,9 +344,13 @@ async def recommend_price(
 
     def calc_price(margin_pct: float) -> float:
         if pricing_mode == "cost_based":
-            return round(source_price * (1 + margin_pct / 100) / (1 - total_fee_pct / 100), 2)
-        divisor = 1 - (total_fee_pct / 100) - (margin_pct / 100)
-        return round(source_price / divisor, 2)
+            effective_price = total_cost_rmb * (1 + margin_pct / 100) / (1 - fee_rate)
+        else:
+            divisor = 1 - fee_rate - (margin_pct / 100)
+            effective_price = total_cost_rmb / divisor
+        floor_effective_price = (total_cost_rmb + min_profit_rmb) / (1 - fee_rate) if min_profit_rmb else 0
+        effective_price = max(effective_price, floor_effective_price)
+        return round(effective_price / max(1 - discount_rate, 0.01), 2)
 
     if target_profit <= 0 or target_profit + 20 >= 100 - total_fee_pct:
         raise HTTPException(status_code=400, detail="目标利润率与平台费率组合无有效售价区间")
@@ -348,15 +360,19 @@ async def recommend_price(
     aggressive = calc_price(target_profit + 20)
 
     def margin_for(price: float) -> float:
-        return round(((price - source_price) / max(price, 0.01)) * 100 - total_fee_pct, 1)
+        effective_price = price * (1 - discount_rate)
+        return round(((effective_price - total_cost_rmb) / max(effective_price, 0.01)) * 100 - total_fee_pct, 1)
 
     def recommendation(price: float, margin_pct: float, label: str) -> dict:
-        net_profit = round(price * (1 - total_fee_pct / 100) - source_price, 2)
+        effective_price = round(price * (1 - discount_rate), 2)
+        net_profit = round(effective_price * (1 - fee_rate) - total_cost_rmb, 2)
         payload = {
             "selling_price": price,
+            "effective_selling_price_rmb": effective_price,
             "target_margin_pct": round(margin_pct, 1),
             "net_profit_pct": margin_for(price),
             "net_profit_rmb": net_profit,
+            "profit_floor_applied": bool(min_profit_rmb and net_profit <= min_profit_rmb + 0.01),
             "label": label,
         }
         if exchange_rate:
@@ -375,7 +391,10 @@ async def recommend_price(
             label=f"{platform}/{market} 费率模板",
             meta={"platform": platform, "market": market},
         ),
-        source_ref("pricing_request", fields=["source_price_rmb", "target_profit_pct", "pricing_mode"]),
+        source_ref(
+            "pricing_request",
+            fields=["source_price_rmb", "target_profit_pct", "pricing_mode", "shipping_cost_rmb", "activity_discount_pct", "min_profit_rmb"],
+        ),
     ]
     if bound_item:
         source_refs.append(source_ref(
@@ -414,6 +433,13 @@ async def recommend_price(
         "currency": currency,
         "exchange_rate": exchange_rate.rate if exchange_rate else None,
         "competitor_price_band": competitor_band,
+        "pricing_adjustments": {
+            "base_cost_rmb": source_price,
+            "shipping_cost_rmb": shipping_cost_rmb,
+            "total_cost_rmb": total_cost_rmb,
+            "activity_discount_pct": activity_discount_pct,
+            "min_profit_rmb": min_profit_rmb,
+        },
         "fee_breakdown": fee_breakdown,
         "estimated_fee_pct": total_fee_pct,
         "recommendations": {
@@ -600,6 +626,24 @@ def _positive_float(value, message: str) -> float:
     if number <= 0:
         raise HTTPException(status_code=400, detail=message)
     return number
+
+
+def _nonnegative_float(value, message: str) -> float:
+    if value in (None, ""):
+        return 0.0
+    number = float(value)
+    if number < 0:
+        raise HTTPException(status_code=400, detail=message)
+    return round(number, 2)
+
+
+def _bounded_pct(value, message: str, upper: float) -> float:
+    if value in (None, ""):
+        return 0.0
+    number = float(value)
+    if number < 0 or number > upper:
+        raise HTTPException(status_code=400, detail=message)
+    return round(number, 2)
 
 
 async def _select_pricing_account(

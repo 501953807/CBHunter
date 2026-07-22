@@ -21,6 +21,7 @@ def build_media_assets(item: dict) -> dict:
     return normalize_media_assets(
         {
             "images": item.get("images") or [],
+            "image_slots": item.get("image_slots") or [],
             "videos": item.get("videos") or [],
             "media_readiness": item.get("media_readiness"),
         },
@@ -80,10 +81,12 @@ def normalize_media_assets(raw: dict | None, images: list | str | None) -> dict:
     if not isinstance(image_list, list):
         image_list = []
     videos = data.get("videos") if isinstance(data.get("videos"), list) else []
+    image_slots = data.get("image_slots") if isinstance(data.get("image_slots"), list) else []
     main_image = data.get("main_image") or (image_list[0] if image_list else None)
     return {
         "main_image": main_image,
         "images": image_list,
+        "image_slots": image_slots,
         "videos": videos,
         "media_readiness": media_readiness_from_extra(data, image_list),
         "image_edit_status": data.get("image_edit_status") or "pending_review",

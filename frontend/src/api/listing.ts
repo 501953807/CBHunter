@@ -246,7 +246,7 @@ export interface BatchPreviewResponse {
 }
 
 export interface BatchPublishPlan {
-  mode: 'immediate' | 'scheduled'
+  mode: 'draft_only' | 'immediate' | 'scheduled'
   scheduled_at?: string
 }
 

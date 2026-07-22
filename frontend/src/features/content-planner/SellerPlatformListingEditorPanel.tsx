@@ -1,30 +1,23 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { CheckCircle2, ImagePlus, Sparkles, Wand2 } from 'lucide-react'
+import { CheckCircle2, ImagePlus, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { confirmContentTaskVersion, saveContentTaskVersion, type ContentWorkbenchItem } from '../../api/content'
 import { productImageSrc } from '../../utils/productImages'
 import { useToast } from '../../components/ui/Toast'
 import { logger } from '../../utils/logger'
 import { PlatformFieldGroupEditor, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
-
-type SellerSkuRow = {
-  id: string
-  variant: string
-  merchantSku: string
-  platformSku: string
-  price: string
-  stock: string
-  weight: string
-  enabled: boolean
-}
-
-type ListingImageSlot = {
-  id: string
-  label: string
-  imageUrl: string
-  required: boolean
-}
+import {
+  buildImageSlots,
+  buildListingGaps,
+  buildTaskPayloads,
+  defaultSkuRow,
+  hasAttributeValue,
+  mergePlatformAttributeValues,
+  relabelImageSlots,
+  type ListingImageSlot,
+  type SellerSkuRow,
+} from './SellerPlatformListingEditorUtils'
 
 export function SellerPlatformListingEditorPanel({ product, activeStore, changeTab, onSaved }: {
   product: ContentWorkbenchItem | null
@@ -55,11 +48,27 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   const [imageSlots, setImageSlots] = useState<ListingImageSlot[]>([])
   const [draggingImageIndex, setDraggingImageIndex] = useState<number | null>(null)
   const [platformRequirementsDraft, setPlatformRequirementsDraft] = useState<PlatformRequirementsLike | undefined>(sourcePlatformRequirements)
+  const [skuBatchDraft, setSkuBatchDraft] = useState({ price: '', stock: '', weight: '', dimensions: '' })
   const [saving, setSaving] = useState(false)
   const effectivePlatformRequirements = platformRequirementsDraft || sourcePlatformRequirements
   const requiredAttributes = effectivePlatformRequirements?.required_attributes || []
-  const attributeValues = effectivePlatformRequirements?.attribute_values || {}
-  const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(attributeValues, field)).length
+  const mergedAttributeValues = mergePlatformAttributeValues(draft, effectivePlatformRequirements)
+  const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(mergedAttributeValues, field)).length
+  const enabledSkuCount = skuRows.filter(row => row.enabled).length
+  const skuReadyCount = skuRows.filter(row => row.enabled && row.merchantSku.trim() && row.price.trim() && row.stock.trim()).length
+  const slotImageCount = imageSlots.filter(slot => Boolean(slot.imageUrl)).length
+  const listingImageCount = Math.max(imageCount, slotImageCount)
+  const listingGaps = buildListingGaps({
+    product,
+    activeStore,
+    draft,
+    imageCount: listingImageCount,
+    minImages,
+    requiredAttributes,
+    filledAttributes,
+    enabledSkuCount,
+    skuReadyCount,
+  })
 
   useEffect(() => {
     setDraft({
@@ -96,17 +105,30 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   const addSkuRow = () => {
     setSkuRows(current => [...current, {
       id: `sku-${Date.now()}`,
-      variant: '',
+      optionOne: '',
+      optionTwo: '',
       merchantSku: '',
       platformSku: '',
+      skuImageRole: '',
       price: draft.price || '',
       stock: '',
       weight: draft.weight || '',
+      dimensions: '',
       enabled: true,
     }])
   }
   const removeSkuRow = (rowId: string) => {
     setSkuRows(current => current.length <= 1 ? current : current.filter(row => row.id !== rowId))
+  }
+  const applySkuBatch = () => {
+    setSkuRows(current => current.map(row => row.enabled ? {
+      ...row,
+      price: skuBatchDraft.price || row.price,
+      stock: skuBatchDraft.stock || row.stock,
+      weight: skuBatchDraft.weight || row.weight,
+      dimensions: skuBatchDraft.dimensions || row.dimensions,
+    } : row))
+    toast.addToast('success', '已把批量销售资料填充到启用 SKU')
   }
   const setMainImage = (slotIndex: number) => {
     setImageSlots(current => {
@@ -130,15 +152,43 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   }
   const addImageSlot = () => {
     setImageSlots(current => relabelImageSlots([
-      ...current,
-      {
-        id: `image-slot-${Date.now()}`,
-        label: '',
-        imageUrl: '',
-        required: false,
-      },
+	      ...current,
+	      {
+	        id: `image-slot-${Date.now()}`,
+	        label: '',
+	        role: '',
+	        imageUrl: '',
+	        required: false,
+	      },
     ], minImages))
     toast.addToast('success', '已新增图片素材空位，可进入图片编辑页上传或处理图片')
+  }
+  const applyTitleCandidate = () => {
+    if (!product) return
+    const parts = [
+      draft.brand && draft.brand !== 'No Brand' ? draft.brand : '',
+      product.product_name,
+      draft.material,
+      draft.style,
+      draft.color,
+      draft.category,
+    ].filter(Boolean)
+    updateDraft('title', Array.from(new Set(parts)).join(' ').slice(0, 255))
+    toast.addToast('success', '已把标题候选写入商品名称，可继续人工调整')
+  }
+  const applyDescriptionCandidate = () => {
+    if (!product) return
+    const lines = [
+      `${draft.title || product.product_name}。`,
+      draft.category ? `适用类目：${draft.category}。` : '',
+      draft.material ? `主要材质：${draft.material}。` : '',
+      draft.size ? `规格尺寸：${draft.size}。` : '',
+      draft.capacity ? `容量信息：${draft.capacity}。` : '',
+      sourceBullets.length ? `已确认卖点：${sourceBullets.join('；')}。` : '',
+      '请在发布前按目标平台要求补齐包装清单、使用说明、售后说明和禁限售信息。',
+    ].filter(Boolean)
+    updateDraft('description', lines.join('\n'))
+    toast.addToast('success', '已把描述候选写入商品描述，可继续人工调整')
   }
 
   const jump = (anchor: string) => {
@@ -274,6 +324,36 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
             </button>
           ))}
         </nav>
+        <div
+          className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+          data-ui="listing-gap-clickable-summary"
+          aria-label="Listing 缺口点击定位摘要"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-[var(--color-fg)]">当前缺口定位</p>
+              <p className="mt-1 text-[11px] text-[var(--color-muted)]">只展示会影响当前商品 Listing 保存、店铺覆盖或后续刊登的缺口；点击标签直接定位到对应编辑区。</p>
+            </div>
+            <span className={listingGaps.length ? 'rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-[11px] font-semibold text-[var(--color-warning)]' : 'rounded-full bg-[var(--color-success-light)] px-2 py-1 text-[11px] font-semibold text-[var(--color-success)]'}>
+              {listingGaps.length ? `待补 ${listingGaps.length} 项` : '暂无阻断缺口'}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {listingGaps.length ? listingGaps.map(gap => (
+              <button
+                key={gap.id}
+                type="button"
+                onClick={() => jump(gap.anchor)}
+                className={gap.severity === 'blocker' ? 'rounded-full border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-3 py-1.5 text-xs font-semibold text-[var(--color-warning)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]' : 'rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}
+                data-ui="listing-gap-click-to-field"
+              >
+                {gap.label}
+              </button>
+            )) : (
+              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)]">图片、标题、属性、SKU、物流与合规已具备继续处理条件</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-5 p-5">
@@ -301,6 +381,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                   <span className="absolute bottom-0 left-0 right-0 bg-[var(--color-fg)]/70 px-1 py-1 text-[10px] text-[var(--color-surface)]">{slot.label}</span>
                   <span className="absolute right-1 top-1 hidden rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] text-[var(--color-primary)] shadow-[var(--shadow-sm)] group-hover:block">编辑图片</span>
                 </button>
+                <p className="truncate border-t border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-muted)]">{slot.role}</p>
                 <div className="grid grid-cols-2 gap-1 border-t border-[var(--color-border)] p-1 text-[10px]">
                   <button type="button" onClick={() => setMainImage(index)} disabled={index === 0 || !slot.imageUrl} className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-primary)] disabled:opacity-30">设主图</button>
                   <button type="button" onClick={() => changeTab('media')} className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-muted)]">编辑</button>
@@ -328,43 +409,82 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-copy" title="商品标题与商品描述" description="这里只编辑平台买家能看到的核心文字内容；AI 作为辅助候选，不把内部分析字段堆到页面上。">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-4">
+        <EditorSection id="listing-master-copy" title="商品标题与商品描述" description="这里只编辑平台买家能看到的核心文字内容；AI 辅助入口嵌在具体字段旁，候选写入后必须人工确认。">
+          <div className="space-y-4">
               <FieldBlock label="商品名称 / Listing 标题" required>
                 <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
                   <input value={draft.title || ''} onChange={event => updateDraft('title', event.target.value)} placeholder="按目标平台字数、关键词和类目规则编辑商品标题" className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-[var(--color-fg)] outline-none" />
-                  <button type="button" onClick={() => changeTab('title')} className="inline-flex items-center gap-1 border-l border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)]">
-                    <Sparkles className="h-3.5 w-3.5" />AI 标题
+                  <button type="button" onClick={applyTitleCandidate} disabled={!product} className="inline-flex items-center gap-1 border-l border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] disabled:opacity-40" data-ui="listing-inline-ai-title">
+                    <Sparkles className="h-3.5 w-3.5" />AI 候选
                   </button>
                   <span className="border-l border-[var(--color-border)] px-3 py-2.5 text-xs text-[var(--color-muted)]">{(draft.title || '').length}/255</span>
                 </div>
               </FieldBlock>
               <FieldBlock label="商品描述 / 图文详情" required>
-                <textarea value={draft.description || ''} onChange={event => updateDraft('description', event.target.value)} placeholder="按平台规则填写商品描述。可写材质、尺寸、适用场景、包装清单、使用说明、售后说明；图文详情图片在上方图片素材中管理。" className="min-h-[260px] w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-sm leading-6 text-[var(--color-fg)] outline-none" />
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+                  <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-2">
+                    <span className="text-xs text-[var(--color-muted)]">按平台规则填写材质、尺寸、场景、包装、使用和售后说明</span>
+                    <button type="button" onClick={applyDescriptionCandidate} disabled={!product} className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-primary)] disabled:opacity-40" data-ui="listing-inline-ai-description">
+                      <Sparkles className="h-3.5 w-3.5" />AI 描述候选
+                    </button>
+                  </div>
+                  <textarea value={draft.description || ''} onChange={event => updateDraft('description', event.target.value)} placeholder="商品描述支持纯文本。图文详情图片在上方图片素材中管理；正式发布前按目标平台字段映射。" className="min-h-[260px] w-full bg-transparent px-3 py-3 text-sm leading-6 text-[var(--color-fg)] outline-none" />
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
                   <span className="rounded-full border border-[var(--color-border)] px-2 py-1">支持纯文本详情</span>
                   <span className="rounded-full border border-[var(--color-border)] px-2 py-1">图文素材通过图片槽位引用</span>
                   <span className="rounded-full border border-[var(--color-border)] px-2 py-1">发布时按平台字段映射</span>
                 </div>
               </FieldBlock>
-            </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-              <p className="text-xs font-semibold text-[var(--color-fg)]">AI 辅助动作</p>
-              <div className="mt-3 grid gap-2">
-                <Button size="sm" variant="outline" onClick={() => changeTab('title')} disabled={!product}><Wand2 className="mr-1 h-3.5 w-3.5" />生成标题候选</Button>
-                <Button size="sm" variant="outline" onClick={() => changeTab('title')} disabled={!product}>优化商品描述</Button>
-                <Button size="sm" variant="outline" onClick={() => changeTab('media')} disabled={!product}>处理图片素材</Button>
-              </div>
-              <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[11px] leading-5 text-[var(--color-muted)]">
-                系统只在后台提取标题、描述、图片、类目属性与 SKU 信息用于 AI 辅助判断；用户编辑时只面对真实平台上架需要的字段。
-              </div>
-            </div>
           </div>
         </EditorSection>
 
         <EditorSection id="listing-master-attributes" title="类目属性" description="先按三平台字段组补齐类目属性，再维护系统统一共性字段。字段组来自商品当前平台要求，不再只展示少数固定属性。">
           <div className="space-y-4">
+            <div
+              className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+              data-ui="seller-listing-platform-attribute-editor"
+              aria-label="卖家后台平台属性编辑区"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-3">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-fg)]">平台必填属性状态</p>
+                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">字段来自目标平台/类目 Schema，缺口可直接在下方字段组和共性字段中补齐。</p>
+                </div>
+                <span className="rounded-full bg-[var(--color-primary-light)] px-2 py-1 text-[11px] font-semibold text-[var(--color-primary)]">
+                  已填写 {filledAttributes}/{requiredAttributes.length || 0}
+                </span>
+              </div>
+              <table className="w-full min-w-[720px] text-left text-xs" aria-label="平台必填字段状态表">
+                <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
+                  <tr>
+                    <th className="border-b border-[var(--color-border)] px-3 py-2">平台字段</th>
+                    <th className="border-b border-[var(--color-border)] px-3 py-2">当前值</th>
+                    <th className="border-b border-[var(--color-border)] px-3 py-2">状态</th>
+                    <th className="border-b border-[var(--color-border)] px-3 py-2">处理位置</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(requiredAttributes.length ? requiredAttributes : ['品牌/No Brand', '材质', '型号', '颜色', '尺寸']).map(field => {
+                    const lowerField = String(field).toLowerCase()
+                    const value = mergedAttributeValues[field] || mergedAttributeValues[lowerField] || ''
+                    const ready = hasAttributeValue(mergedAttributeValues, field) || hasAttributeValue(mergedAttributeValues, lowerField)
+                    return (
+                      <tr key={field}>
+                        <td className="border-b border-[var(--color-border)] px-3 py-2 font-medium text-[var(--color-fg)]">{field}</td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-muted)]">{String(value || '待填写')}</td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-2">
+                          <span className={ready ? 'rounded-full bg-[var(--color-success-light)] px-2 py-1 text-[11px] text-[var(--color-success)]' : 'rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-[11px] text-[var(--color-warning)]'}>
+                            {ready ? '已填写' : '待补'}
+                          </span>
+                        </td>
+                        <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-muted)]">字段组 / 共性字段</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
             <PlatformFieldGroupEditor
               requirements={effectivePlatformRequirements}
               onChange={setPlatformRequirementsDraft}
@@ -389,33 +509,57 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-sku" title="SKU、销售资料与库存" description="按电商后台方式维护变体组合。每一行都是一个可发布 SKU，可单独编辑商家 SKU、平台 SKU、售价、库存和重量。">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-2 text-[11px] text-[var(--color-muted)]">
-              <span className="rounded-full border border-[var(--color-border)] px-2 py-1">支持颜色 / 尺码 / 款式组合</span>
-              <span className="rounded-full border border-[var(--color-border)] px-2 py-1">行级启用 / 停用</span>
-              <span className="rounded-full border border-[var(--color-border)] px-2 py-1">保存到当前店铺覆盖</span>
+        <EditorSection id="listing-master-sku" title="SKU、销售资料与库存" description="按电商后台方式维护变体组合。每一行都是一个可发布 SKU，可单独编辑商家 SKU、平台 SKU、售价、库存、重量、包装尺寸和 SKU 图。">
+          <div
+            className="mb-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+            data-ui="seller-listing-sku-sales-editor"
+            aria-label="卖家后台 SKU 销售资料编辑区"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[var(--color-fg)]">SKU 销售资料主表</p>
+                <p className="mt-1 text-[11px] text-[var(--color-muted)]">启用 SKU {enabledSkuCount} 条，销售资料完整 {skuReadyCount} 条；规格一/规格二可表达 Shopee/TikTok 常规变体，SPU/SKC 在平台 SKU 或平台扩展字段中保留。</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={addSkuRow} disabled={!product}>新增 SKU 变体</Button>
             </div>
-            <Button size="sm" variant="outline" onClick={addSkuRow} disabled={!product}>新增 SKU 变体</Button>
+            <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]" aria-label="SKU 批量操作工具条">
+              <InlineInput value={skuBatchDraft.price} onChange={value => setSkuBatchDraft(current => ({ ...current, price: value }))} placeholder="批量售价" />
+              <InlineInput value={skuBatchDraft.stock} onChange={value => setSkuBatchDraft(current => ({ ...current, stock: value }))} placeholder="批量库存" />
+              <InlineInput value={skuBatchDraft.weight} onChange={value => setSkuBatchDraft(current => ({ ...current, weight: value }))} placeholder="批量重量" />
+              <InlineInput value={skuBatchDraft.dimensions} onChange={value => setSkuBatchDraft(current => ({ ...current, dimensions: value }))} placeholder="批量长宽高" />
+              <Button size="sm" onClick={applySkuBatch} disabled={!product || !skuRows.length}>填充启用 SKU</Button>
+            </div>
+          </div>
+          <div className="mb-3 flex flex-wrap gap-2 text-[11px] text-[var(--color-muted)]">
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-1">支持规格一 / 规格二组合</span>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-1">行级启用 / 停用</span>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-1">保存到当前店铺覆盖</span>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-1">SKU 图角色关联图片槽位</span>
           </div>
           <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-            <table className="w-full min-w-[1080px] text-left text-xs">
+            <table className="w-full min-w-[1320px] text-left text-xs" aria-label="卖家后台 SKU 销售资料编辑表">
               <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
                 <tr>
-                  {['变体组合', '商家 SKU', '平台 SKU', '售价', '库存', '重量', '状态', '操作'].map(header => <th key={header} className="border-b border-[var(--color-border)] px-3 py-2">{header}</th>)}
+                  {['规格一', '规格二', '商家 SKU', '平台 SKU / SPU/SKC', 'SKU 图角色', '售价', '库存', '重量', '包装尺寸', '状态', '操作'].map(header => <th key={header} className="border-b border-[var(--color-border)] px-3 py-2">{header}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {skuRows.map((row) => (
                   <tr key={row.id}>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 font-medium text-[var(--color-fg)]">
-                      <InlineInput value={row.variant} onChange={value => updateSkuRow(row.id, 'variant', value)} placeholder="如 Black / M 或默认款" />
+                      <InlineInput value={row.optionOne} onChange={value => updateSkuRow(row.id, 'optionOne', value)} placeholder="如 Black / 默认款" />
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-3 font-medium text-[var(--color-fg)]">
+                      <InlineInput value={row.optionTwo} onChange={value => updateSkuRow(row.id, 'optionTwo', value)} placeholder="如 M / 标准版" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
                       <InlineInput value={row.merchantSku} onChange={value => updateSkuRow(row.id, 'merchantSku', value)} placeholder="商家 SKU" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
                       <InlineInput value={row.platformSku} onChange={value => updateSkuRow(row.id, 'platformSku', value)} placeholder="平台 SKU / 发布后回写" />
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
+                      <InlineInput value={row.skuImageRole} onChange={value => updateSkuRow(row.id, 'skuImageRole', value)} placeholder="如 SKU图 1" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-fg)]">
                       <InlineInput value={row.price} onChange={value => updateSkuRow(row.id, 'price', value)} placeholder="售价" />
@@ -425,6 +569,9 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
                       <InlineInput value={row.weight} onChange={value => updateSkuRow(row.id, 'weight', value)} placeholder="重量" />
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
+                      <InlineInput value={row.dimensions} onChange={value => updateSkuRow(row.id, 'dimensions', value)} placeholder="长×宽×高" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3">
                       <button
@@ -531,140 +678,4 @@ function InlineInput({ value, onChange, placeholder }: { value: string; onChange
       className="w-full min-w-[88px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)]"
     />
   )
-}
-
-function buildTaskPayloads(
-  draft: Record<string, string>,
-  product: ContentWorkbenchItem,
-  activeStore: string,
-  skuRows: SellerSkuRow[],
-  imageSlots: ListingImageSlot[],
-  platformRequirements?: PlatformRequirementsLike,
-) {
-  const sellingPoints = getSellingPoints(draft)
-  const attributeSummary = Object.entries(mergePlatformAttributeValues(draft, platformRequirements))
-    .map(([label, value]) => `${label}: ${value || '待补'}`)
-    .join('\n')
-  const skuSummary = skuRows.map(row => [
-    `变体: ${row.variant || '待命名'}`,
-    `商家SKU: ${row.merchantSku || '待生成'}`,
-    `平台SKU: ${row.platformSku || '发布后回写'}`,
-    `售价: ${row.price || '待定价'}`,
-    `库存: ${row.stock || '待同步/待填'}`,
-    `重量: ${row.weight || '待补'}`,
-    `状态: ${row.enabled ? '启用' : '停用'}`,
-  ].join(' / ')).join('\n')
-  const logisticsSummary = [
-    `包裹重量: ${draft.weight || '待补'}`,
-    `包装长宽高: ${draft.packageSize || '待补'}`,
-    `发货地: ${draft.shipFrom || '待补'}`,
-    `发货时效: ${draft.leadTime || '待补'}`,
-  ].join('\n')
-  return [
-    {
-      taskType: 'listing_copy',
-      provider: 'manual_listing_master',
-      content: draft.title.trim(),
-    },
-    {
-      taskType: 'selling_points',
-      provider: 'manual_listing_master',
-      content: sellingPoints.join('\n') || draft.description.trim(),
-    },
-    {
-      taskType: 'description',
-      provider: 'manual_listing_master',
-      content: draft.description.trim(),
-    },
-    {
-      taskType: 'image_understanding',
-      provider: 'manual_listing_master',
-      content: `当前商品图片 ${product.media_readiness?.captured_image_count ?? (product.image_url ? 1 : 0)}/${product.media_readiness?.recommended_platform_images ?? 9}；主图来自真实商品图，缺口以媒体就绪度为准。`,
-    },
-    {
-      taskType: 'image_edit_plan',
-      provider: 'manual_listing_master',
-      content: [
-        '主图/辅图处理计划：保留真实商品主体，按目标平台补齐主图、场景图、尺寸图、细节图和 SKU 图；水印模板在图片/水印模板页单独配置。',
-        `当前发布槽位：${imageSlots.map((slot, index) => `${index + 1}.${slot.label}:${slot.imageUrl ? '有图' : '待补'}`).join(' / ')}`,
-      ].join('\n'),
-    },
-    {
-      taskType: 'compliance_check',
-      provider: 'manual_listing_master',
-      content: [
-        `目标店铺: ${activeStore || '未选择店铺'}`,
-        attributeSummary,
-        skuSummary,
-        logisticsSummary,
-        `禁限售复核: ${draft.compliance || '待复核'}`,
-        `品牌/认证材料: ${draft.certificate || '待补'}`,
-      ].filter(Boolean).join('\n'),
-    },
-  ]
-}
-
-function buildImageSlots(sourceImage: string, minImages: number, recommendedImages: number): ListingImageSlot[] {
-  return relabelImageSlots(Array.from({ length: recommendedImages }).map((_, index) => ({
-    id: `image-slot-${index}`,
-    label: '',
-    imageUrl: index === 0 ? sourceImage : '',
-    required: index < minImages,
-  })), minImages)
-}
-
-function relabelImageSlots(slots: ListingImageSlot[], minImages: number): ListingImageSlot[] {
-  return slots.map((slot, index) => ({
-    ...slot,
-    id: slot.id || `image-slot-${index}`,
-    label: index === 0 ? '主图' : `辅图 ${index}`,
-    required: index < minImages,
-  }))
-}
-
-function defaultSkuRow(merchantSku: string, price: string): SellerSkuRow {
-  return {
-    id: 'default',
-    variant: '默认款',
-    merchantSku,
-    platformSku: '',
-    price,
-    stock: '',
-    weight: '',
-    enabled: true,
-  }
-}
-
-function getSellingPoints(draft: Record<string, string>) {
-  return (draft.description || '')
-    .split(/\n+/)
-    .map(line => line.replace(/^[-*•\d.、\s]+/, '').trim())
-    .filter(Boolean)
-    .slice(0, 5)
-}
-
-function pickAttributes(draft: Record<string, string>) {
-  return {
-    brand: draft.brand || '',
-    material: draft.material || '',
-    model: draft.model || '',
-    audience: draft.audience || '',
-    color: draft.color || '',
-    size: draft.size || '',
-    capacity: draft.capacity || '',
-    style: draft.style || '',
-  }
-}
-
-function mergePlatformAttributeValues(draft: Record<string, string>, platformRequirements?: PlatformRequirementsLike) {
-  return {
-    ...(platformRequirements?.attribute_values || {}),
-    ...pickAttributes(draft),
-  }
-}
-
-function hasAttributeValue(values: Record<string, unknown>, field: string) {
-  const value = values[field]
-  if (Array.isArray(value)) return value.length > 0
-  return value !== undefined && value !== null && String(value).trim() !== ''
 }

@@ -28,6 +28,9 @@ export default function OrderListPage() {
   const [platform, setPlatform] = useState(searchParams.get('platform') || '')
   const platformAccountId = searchParams.get('platform_account_id') || ''
   const [exceptionMode, setExceptionMode] = useState(searchParams.get('exceptions') === '1')
+  const [fulfillmentExceptionStatus, setFulfillmentExceptionStatus] = useState(searchParams.get('fulfillment_exception_status') || '')
+  const [syncStatus, setSyncStatus] = useState(searchParams.get('sync_status') || '')
+  const [shippingSla, setShippingSla] = useState(searchParams.get('shipping_sla') || '')
   const [manualOpen, setManualOpen] = useState(false)
   const [importHelpOpen, setImportHelpOpen] = useState(false)
   const [importRows, setImportRows] = useState<ManualOrderCreate[]>([])
@@ -43,6 +46,9 @@ export default function OrderListPage() {
     platform: platform || undefined,
     platform_account_id: platformAccountId || undefined,
     exceptions: exceptionMode ? '1' : undefined,
+    fulfillment_exception_status: fulfillmentExceptionStatus || undefined,
+    sync_status: syncStatus || undefined,
+    shipping_sla: shippingSla || undefined,
     page,
     page_size: 20,
   })
@@ -56,6 +62,29 @@ export default function OrderListPage() {
   ]
   const platformLabelMap = new Map(platforms.map(p => [p.id, p.label]))
   const orderStatusOptions = toDomainOptions(order_statuses)
+  const fulfillmentExceptionOptions = [
+    { value: '', label: '全部履约状态' },
+    { value: 'shipping_overdue', label: '发货超期' },
+    { value: 'shipping_due_soon', label: '临近时限' },
+    { value: 'logistics_missing', label: '物流待补' },
+    { value: 'sync_required', label: '同步待补' },
+    { value: 'after_sales_open', label: '售后处理中' },
+    { value: 'clear', label: '正常' },
+  ]
+  const syncStatusOptions = [
+    { value: '', label: '全部同步状态' },
+    { value: 'synced', label: '已同步' },
+    { value: 'sync_failed', label: '同步异常' },
+    { value: 'manual_not_synced', label: '手工未同步' },
+    { value: 'not_synced', label: '未同步' },
+  ]
+  const shippingSlaOptions = [
+    { value: '', label: '全部发货时效' },
+    { value: 'overdue', label: '已超期' },
+    { value: 'due_soon', label: '12小时内临近' },
+    { value: 'within_24h', label: '24小时内到期' },
+    { value: 'missing_deadline', label: '缺发货时限' },
+  ]
 
   const columns: Column<OrderListRow>[] = [
     {
@@ -133,6 +162,7 @@ export default function OrderListPage() {
             {(row.fulfillment_exception?.reasons || [])[0]
               || (row.fulfillment_deadline_at ? `时限 ${new Date(row.fulfillment_deadline_at).toLocaleString('zh-CN')}` : '履约信息待平台同步')}
           </p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">{shippingSlaLabel(row.fulfillment_exception?.hours_to_deadline)}</p>
         </div>
       ),
     },
@@ -302,7 +332,7 @@ export default function OrderListPage() {
           platformLabelMap={platformLabelMap}
           onOpenExceptions={() => {
             setExceptionMode(true)
-            setSearchParams(buildOrderSearchParams(true, platformAccountId, platform))
+            setSearchParams(buildOrderSearchParams(true, platformAccountId, platform, fulfillmentExceptionStatus, syncStatus, shippingSla))
             setPage(1)
           }}
         />
@@ -329,18 +359,34 @@ export default function OrderListPage() {
               </Button>
             </div>
           )}
-          <div className="flex items-center gap-3 mb-4">
+          <div
+            data-ui="order-fulfillment-filter-bar"
+            className="mb-4 grid gap-3 lg:grid-cols-[minmax(130px,0.8fr)_minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_auto]"
+          >
             <Select
               options={withAllOption('全部状态', orderStatusOptions)}
               value={exceptionMode ? '' : status}
               onChange={(v) => { setStatus(v); setExceptionMode(false); setPage(1) }}
-              className="w-36"
             />
             <Select
               options={platformOptions}
               value={platform}
               onChange={(v) => { setPlatform(v); setPage(1) }}
-              className="w-32"
+            />
+            <Select
+              options={fulfillmentExceptionOptions}
+              value={fulfillmentExceptionStatus}
+              onChange={(v) => { setFulfillmentExceptionStatus(v); setPage(1) }}
+            />
+            <Select
+              options={syncStatusOptions}
+              value={syncStatus}
+              onChange={(v) => { setSyncStatus(v); setPage(1) }}
+            />
+            <Select
+              options={shippingSlaOptions}
+              value={shippingSla}
+              onChange={(v) => { setShippingSla(v); setPage(1) }}
             />
             <Button
               variant={exceptionMode ? 'primary' : 'secondary'}
@@ -349,7 +395,7 @@ export default function OrderListPage() {
               onClick={() => {
                 const next = !exceptionMode
                 setExceptionMode(next)
-                setSearchParams(buildOrderSearchParams(next, platformAccountId, platform))
+                setSearchParams(buildOrderSearchParams(next, platformAccountId, platform, fulfillmentExceptionStatus, syncStatus, shippingSla))
                 setPage(1)
               }}
             >
@@ -485,11 +531,21 @@ function FulfillmentMetric({
   )
 }
 
-function buildOrderSearchParams(exceptionMode: boolean, platformAccountId: string, platform: string) {
+function buildOrderSearchParams(
+  exceptionMode: boolean,
+  platformAccountId: string,
+  platform: string,
+  fulfillmentExceptionStatus = '',
+  syncStatus = '',
+  shippingSla = '',
+) {
   const params: Record<string, string> = {}
   if (exceptionMode) params.exceptions = '1'
   if (platformAccountId) params.platform_account_id = platformAccountId
   if (platform) params.platform = platform
+  if (fulfillmentExceptionStatus) params.fulfillment_exception_status = fulfillmentExceptionStatus
+  if (syncStatus) params.sync_status = syncStatus
+  if (shippingSla) params.shipping_sla = shippingSla
   return params
 }
 
@@ -650,4 +706,12 @@ function fulfillmentBadgeVariant(value?: string | null) {
   if (value === 'warning') return 'warning'
   if (value === 'clear') return 'success'
   return 'outline'
+}
+
+function shippingSlaLabel(hours?: number | null) {
+  if (hours == null || Number.isNaN(Number(hours))) return '发货时限待补'
+  if (hours < 0) return `已超期 ${Math.abs(hours).toFixed(1)} 小时`
+  if (hours <= 12) return `距发货截止 ${hours.toFixed(1)} 小时`
+  if (hours <= 24) return `24小时内到期：${hours.toFixed(1)} 小时`
+  return `距发货截止 ${hours.toFixed(1)} 小时`
 }

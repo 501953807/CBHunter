@@ -5,6 +5,7 @@ import { PageHeader } from '../components/shared/PageHeader'
 import { Card, CardContent } from '../components/ui/Card'
 import { StatCard } from '../components/shared/StatCard'
 import { confirmPricing, getPricingWorkbench, recommendPrice } from '../api/pricing'
+import { listFeeRates, updatePricingAdjustmentTemplates, type FeeRateItem, type PricingAdjustmentTemplateItem } from '../api/settings'
 import { useConfig } from '../hooks/useConfig'
 import { logger } from '../utils/logger'
 import { filterPlatformsByCapability } from '../utils/platformCapabilities'
@@ -26,12 +27,17 @@ export default function SmartPricingPage() {
   const [platform, setPlatform] = useState('')
   const [market, setMarket] = useState('')
   const [targetProfit, setTargetProfit] = useState('')
+  const [shippingCost, setShippingCost] = useState('')
+  const [activityDiscount, setActivityDiscount] = useState('')
+  const [minProfit, setMinProfit] = useState('')
+  const [selectedPricingTemplateId, setSelectedPricingTemplateId] = useState('')
   const [pricingMode, setPricingMode] = useState<'cost_based' | 'selling_based' | ''>('')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [result, setResult] = useState<PriceRecommendationData | null>(null)
   const [evidence, setEvidence] = useState<ApiResponse<PriceRecommendationData> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const [confirmingTier, setConfirmingTier] = useState('')
   const [confirmMessage, setConfirmMessage] = useState('')
   const [confirmedProductId, setConfirmedProductId] = useState('')
@@ -39,11 +45,19 @@ export default function SmartPricingPage() {
     queryKey: ['pricing-workbench'],
     queryFn: getPricingWorkbench,
   })
+  const feeRatesQuery = useQuery({
+    queryKey: ['settings-fee-rates'],
+    queryFn: listFeeRates,
+  })
   const pricingItems = pricingWorkbenchQuery.data?.data?.items || []
+  const feeTemplates = feeRatesQuery.data?.data?.flat || []
+  const pricingAdjustmentTemplates = feeRatesQuery.data?.data?.pricing_adjustment_templates || []
   const pricingPlatforms = filterPlatformsByCapability(platforms, 'pricing')
   const isConfigurationRequired = result?.status === 'configuration_required'
   const pricingDataGaps = result?.data_gaps || []
   const selectedPricingItem = pricingItems.find(item => item.id === selectedItemId)
+  const selectedFeeTemplate = findFeeTemplate(feeTemplates, platform, market)
+  const matchingPricingTemplates = pricingAdjustmentTemplates.filter(template => template.platform === platform && template.market === market)
   const targetProfitSliderValue = normalizeProfitSliderValue(targetProfit)
 
   useEffect(() => {
@@ -73,12 +87,53 @@ export default function SmartPricingPage() {
     const defaultStoreId = item.store_options.some(store => store.id === overrideStoreId) ? overrideStoreId : item.store_options[0]?.id || ''
     setSelectedStoreId(defaultStoreId)
     setSourcePrice(String(item.source_price_rmb))
+    setShippingCost('')
+    setActivityDiscount('')
+    setMinProfit('')
+    setSelectedPricingTemplateId('')
     setPlatform(item.platform)
     setMarket(item.market)
     setResult(null)
     setEvidence(null)
     setConfirmMessage('')
     setConfirmedProductId('')
+  }
+
+  const handleApplyPricingTemplate = (templateId: string) => {
+    setSelectedPricingTemplateId(templateId)
+    const template = pricingAdjustmentTemplates.find(item => item.id === templateId)
+    if (!template) return
+    setShippingCost(String(template.shipping_cost_rmb))
+    setActivityDiscount(String(template.activity_discount_pct))
+    setMinProfit(String(template.min_profit_rmb))
+    setTargetProfit(String(template.target_profit_pct))
+  }
+
+  const handleSavePricingTemplate = async () => {
+    if (!platform || !market) return
+    setSavingTemplate(true)
+    try {
+      const id = `${platform}_${market}_default`
+      const nextTemplate: PricingAdjustmentTemplateItem = {
+        id,
+        label: `${platform}/${market} 常规定价模板`,
+        platform,
+        market,
+        shipping_cost_rmb: optionalNumber(shippingCost) ?? 0,
+        activity_discount_pct: optionalNumber(activityDiscount) ?? 0,
+        min_profit_rmb: optionalNumber(minProfit) ?? 0,
+        target_profit_pct: optionalNumber(targetProfit) ?? 20,
+      }
+      const others = pricingAdjustmentTemplates.filter(template => template.id !== id)
+      await updatePricingAdjustmentTemplates([...others, nextTemplate])
+      setSelectedPricingTemplateId(id)
+      await feeRatesQuery.refetch()
+      setConfirmMessage('定价附加模板已保存，可在同平台/市场商品中复用')
+    } catch (e: any) {
+      logger.error('Save pricing adjustment template failed', e)
+      setConfirmMessage(e?.response?.data?.detail || '定价附加模板保存失败')
+    }
+    setSavingTemplate(false)
   }
 
   const handleRecommend = async () => {
@@ -90,6 +145,9 @@ export default function SmartPricingPage() {
         target_profit_pct: Number(targetProfit),
         pricing_mode: pricingMode as 'cost_based' | 'selling_based',
         content_item_id: selectedItemId || undefined,
+        shipping_cost_rmb: optionalNumber(shippingCost),
+        activity_discount_pct: optionalNumber(activityDiscount),
+        min_profit_rmb: optionalNumber(minProfit),
       })
       setEvidence(res)
       if (res.data) setResult(res.data)
@@ -230,6 +288,82 @@ export default function SmartPricingPage() {
                 </div>
               </div>
 
+              <div
+                data-ui="pricing-adjustment-template-inputs"
+                className="grid grid-cols-3 gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+              >
+                <div className="col-span-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--color-fg)]">定价附加模板</p>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">复用当前平台/市场的物流费、活动折扣和最低利润底线。</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={selectedPricingTemplateId}
+                      onChange={e => handleApplyPricingTemplate(e.target.value)}
+                      className="min-w-56 rounded-lg px-3 py-2 text-xs outline-none"
+                      style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
+                    >
+                      <option value="">{matchingPricingTemplates.length ? '选择定价模板' : '当前平台/市场暂无模板'}</option>
+                      {matchingPricingTemplates.map(template => (
+                        <option key={template.id} value={template.id}>{template.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleSavePricingTemplate}
+                      disabled={!platform || !market || savingTemplate}
+                      className="rounded-lg border border-[var(--color-primary)] px-3 py-2 text-xs text-[var(--color-primary)] disabled:opacity-40 hover:bg-[var(--color-primary-light)]"
+                    >
+                      {savingTemplate ? '保存中...' : '保存当前为模板'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">物流费 (RMB)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={shippingCost}
+                    onChange={e => setShippingCost(e.target.value)}
+                    placeholder="如 4.00"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">活动折扣 (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="95"
+                    step="0.1"
+                    value={activityDiscount}
+                    onChange={e => setActivityDiscount(e.target.value)}
+                    placeholder="如 10"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">最低利润额 (RMB)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={minProfit}
+                    onChange={e => setMinProfit(e.target.value)}
+                    placeholder="如 12.00"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
+                  />
+                </div>
+                <p className="col-span-3 text-[11px] leading-5 text-[var(--color-muted)]">
+                  物流费计入总成本；活动折扣按成交后实收折算；最低利润额用于防止活动价或平台费压穿利润底线。
+                </p>
+              </div>
+
               <button
                 onClick={handleRecommend}
                 disabled={loading || !platform || !market || !sourcePrice || !targetProfit || !pricingMode}
@@ -305,8 +439,14 @@ export default function SmartPricingPage() {
                         <p className="text-[11px] mb-1" style={{ color: 'var(--color-muted)' }}>{rec.label}</p>
                         <p className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>¥{rec.selling_price}</p>
                         {rec.selling_price_local != null && <p className="text-xs mt-1" style={{ color: 'var(--color-primary)' }}>{rec.currency} {rec.selling_price_local}</p>}
+                        {rec.effective_selling_price_rmb != null && rec.effective_selling_price_rmb !== rec.selling_price && (
+                          <p className="text-[11px] mt-1 text-[var(--color-muted)]">折后实收 ¥{rec.effective_selling_price_rmb.toFixed(2)}</p>
+                        )}
                         {rec.competition_position && <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>{rec.competition_position === 'below_band' ? '低于竞品价格带' : rec.competition_position === 'above_band' ? '高于竞品价格带' : '位于竞品价格带内'}</p>}
                         <p className="text-xs mt-1" style={{ color: 'var(--color-success)' }}>净利润率 {rec.net_profit_pct}%</p>
+                        {rec.profit_floor_applied && (
+                          <p className="mt-1 rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-[11px] text-[var(--color-warning)]">已触发最低利润底线</p>
+                        )}
                         <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
                           <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                             净利润 ¥{rec.net_profit_rmb.toFixed(2)}
@@ -328,8 +468,8 @@ export default function SmartPricingPage() {
         {/* Right: Summary cards */}
         <div className="space-y-3">
           <StatCard
-            label="采购成本"
-            value={sourcePrice ? `¥${sourcePrice}` : '--'}
+            label="采购+物流成本"
+            value={result?.pricing_adjustments ? `¥${result.pricing_adjustments.total_cost_rmb}` : sourcePrice ? `¥${sourcePrice}` : '--'}
             icon={<TrendingUp className="w-4 h-4" />}
           />
           <StatCard
@@ -350,6 +490,13 @@ export default function SmartPricingPage() {
               icon={<Shield className="w-4 h-4" />}
             />
           )}
+          <PricingFeeTemplatePanel
+            template={selectedFeeTemplate}
+            platform={platform || selectedPricingItem?.platform || ''}
+            market={market || selectedPricingItem?.market || ''}
+            loading={feeRatesQuery.isLoading}
+            onOpenSettings={() => navigate('/settings/fees')}
+          />
           <div
             className="rounded-2xl p-4"
             style={{ background: 'var(--color-primary-light)', border: '1px solid var(--color-primary)' }}
@@ -375,22 +522,122 @@ function matchesPricingProduct(item: PricingWorkbenchItem, productId: string) {
   ))
 }
 
+function findFeeTemplate(templates: FeeRateItem[], platform: string, market: string) {
+  if (!platform || !market) return undefined
+  const expectedId = `${platform}_${market}`
+  return templates.find(template => template.id === expectedId)
+}
+
 function normalizeProfitSliderValue(value: string) {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return 20
   return Math.min(Math.max(numeric, 0.1), 60)
 }
 
+function optionalNumber(value: string) {
+  if (!value.trim()) return undefined
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : undefined
+}
+
+function PricingFeeTemplatePanel({
+  template,
+  platform,
+  market,
+  loading,
+  onOpenSettings,
+}: {
+  template?: FeeRateItem
+  platform: string
+  market: string
+  loading: boolean
+  onOpenSettings: () => void
+}) {
+  const hasSelection = Boolean(platform && market)
+  const rows = template
+    ? [
+      { label: '平台佣金', value: template.commission },
+      { label: '交易/支付费', value: template.transaction },
+      { label: '技术服务费', value: template.tech },
+      { label: '税费/VAT', value: template.low_value_tax },
+    ]
+    : []
+  return (
+    <section
+      aria-label="定价模板与费用口径"
+      data-ui="pricing-fee-template-panel"
+      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[var(--color-fg)]">定价模板 / 费用口径</p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            {hasSelection ? `${platform}/${market}` : '选择商品后自动匹配平台和市场'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="rounded-lg border border-[var(--color-border)] px-2.5 py-1 text-[11px] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+        >
+          配置
+        </button>
+      </div>
+      {loading ? (
+        <p className="mt-3 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">
+          正在读取费率模板...
+        </p>
+      ) : template ? (
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between rounded-xl bg-[var(--color-bg)] px-3 py-2 text-xs">
+            <span className="text-[var(--color-muted)]">综合费率</span>
+            <span className="font-semibold text-[var(--color-fg)]">{template.total_pct || percentLabel(template.total)}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {rows.map(row => (
+              <div key={row.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-[11px]">
+                <p className="text-[var(--color-muted)]">{row.label}</p>
+                <p className="font-medium text-[var(--color-fg)]">{percentLabel(row.value)}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] leading-5 text-[var(--color-muted)]">
+            计算推荐售价时读取当前模板；平台真实账单同步后由财务护卫复核，不用前端估算冒充最终利润。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <p className="rounded-xl border border-dashed border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3 text-xs text-[var(--color-warning)]">
+            {hasSelection ? '当前平台/市场缺少费率模板，无法输出真实推荐售价。' : '请选择待定价商品以匹配费率模板。'}
+          </p>
+          {hasSelection && (
+            <button type="button" onClick={onOpenSettings} className="text-xs text-[var(--color-primary)] hover:underline">
+              前往设置中心维护费率与汇率
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function percentLabel(value: number | null | undefined) {
+  if (value == null || Number.isNaN(Number(value))) return '待配置'
+  return `${(Number(value) * 100).toFixed(1)}%`
+}
+
 function PricingDecisionContext({ result, item }: { result: PriceRecommendationData; item?: PricingWorkbenchItem }) {
   const balanced = result.recommendations.balanced
   const feePct = result.estimated_fee_pct ?? 0
   const sellingPrice = balanced?.selling_price ?? 0
-  const platformFee = sellingPrice * feePct / 100
-  const sourceCost = result.source_price_rmb
+  const effectiveSellingPrice = balanced?.effective_selling_price_rmb ?? sellingPrice
+  const platformFee = effectiveSellingPrice * feePct / 100
+  const totalCost = result.pricing_adjustments?.total_cost_rmb ?? result.source_price_rmb
   const netProfit = balanced?.net_profit_rmb ?? null
-  const maxAbs = Math.max(sourceCost, platformFee, Math.abs(netProfit ?? 0), 1)
+  const maxAbs = Math.max(totalCost, effectiveSellingPrice, platformFee, Math.abs(netProfit ?? 0), 1)
   const profitRows = [
-    { label: '采购成本 source_price_rmb', value: sourceCost, tone: 'var(--color-danger)' },
+    { label: '采购+物流总成本', value: totalCost, tone: 'var(--color-danger)' },
+    { label: '折后实收价格', value: effectiveSellingPrice, tone: 'var(--color-success)' },
     { label: '平台费 estimated_fee_pct', value: platformFee, tone: 'var(--color-warning)' },
     { label: '净利润', value: netProfit ?? 0, tone: (netProfit ?? 0) < 0 ? 'var(--color-danger)' : 'var(--color-primary)' },
   ]
@@ -459,7 +706,7 @@ function PricingDecisionContext({ result, item }: { result: PriceRecommendationD
             ))}
           </div>
           <p className="mt-2 text-[11px] text-[var(--color-muted)]">
-            以平衡档售价拆分采购成本、平台费和净利润，确认后写入本地 Listing 草稿，平台实际费用以账单同步为准。
+            以平衡档售价拆分采购成本、物流费、活动折扣、平台费和净利润，确认后写入本地 Listing 草稿，平台实际费用以账单同步为准。
           </p>
         </CardContent>
       </Card>

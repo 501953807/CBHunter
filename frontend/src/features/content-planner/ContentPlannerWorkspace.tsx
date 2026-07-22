@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { Select } from '../../components/ui/Select'
@@ -93,63 +93,99 @@ export default function ContentPlannerPage() {
         }
       />
 
-      {workspaceMode === 'queue' && (
-        <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="min-h-[calc(100vh-190px)] space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
-          <div data-ui="content-queue-command-toolbar" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-[var(--color-fg)]">待制作商品列表</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">先从商品队列选择对象，再进入 Listing 详情处理标题、描述、图片、SKU 和平台字段。</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" disabled>批量生成文案</Button>
-              <Button variant="outline" disabled>批量校验素材</Button>
-              <Button variant="secondary" disabled>推送到定价队列</Button>
-            </div>
+      <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="min-h-[calc(100vh-190px)] space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
+        <div data-ui="content-queue-command-toolbar" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 一体化内容工作台</p>
+            <p className="text-sm font-semibold text-[var(--color-fg)]">待制作商品列表</p>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">先从商品队列选择对象，再打开 Listing 详情处理标题、描述、图片、SKU 和平台字段。列表始终保留为主页面，详情以覆盖式工作台打开。</p>
           </div>
-          <ContentProductQueue
-            onSelect={handleSelectProduct}
-            onOpenListing={openListing}
-            initialProductId={initialProductId}
-            layout="table"
-          />
-        </section>
-      )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled>批量生成文案</Button>
+            <Button variant="outline" disabled>批量校验素材</Button>
+            <Button variant="secondary" disabled>推送到定价队列</Button>
+          </div>
+        </div>
+        <ContentProductQueue
+          onSelect={handleSelectProduct}
+          onOpenListing={openListing}
+          initialProductId={initialProductId}
+          layout="table"
+          autoSelect={Boolean(initialProductId)}
+        />
+      </section>
 
       {workspaceMode === 'listing' && (
-        <section aria-label="单商品 Listing 详情编辑工作区" data-ui="content-listing-detail-workspace" className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button variant="outline" onClick={backToQueue}>
-              <ArrowLeft className="mr-1 h-4 w-4" />返回待制作产品列表
-            </Button>
-            <Button variant="secondary" onClick={() => selectedProduct && openImageEditor(selectedProduct)} disabled={!selectedProduct}>
-              处理商品图片
-            </Button>
-          </div>
-          <SellerPlatformListingEditorPanel product={selectedProduct} activeStore={activeStoreLabel} changeTab={changeTab} onSaved={refreshContentTasks} />
-        </section>
+        <ContentEditorOverlay title="单商品 Listing 详情编辑" onClose={backToQueue}>
+          <section aria-label="单商品 Listing 详情编辑工作区" data-ui="content-listing-detail-overlay-workspace" className="min-w-0 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button variant="outline" onClick={backToQueue}>
+                <ArrowLeft className="mr-1 h-4 w-4" />返回待制作产品列表
+              </Button>
+              <Button variant="secondary" onClick={() => selectedProduct && openImageEditor(selectedProduct)} disabled={!selectedProduct}>
+                处理商品图片
+              </Button>
+            </div>
+            <SellerPlatformListingEditorPanel product={selectedProduct} activeStore={activeStoreLabel} changeTab={changeTab} onSaved={refreshContentTasks} />
+          </section>
+        </ContentEditorOverlay>
       )}
 
       {workspaceMode === 'image' && (
-        <section aria-label="当前商品主图编辑工作区" data-ui="content-image-edit-workspace" className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button variant="outline" onClick={backToQueue}>
-              <ArrowLeft className="mr-1 h-4 w-4" />返回待制作产品列表
-            </Button>
-            <Button variant="secondary" onClick={() => selectedProduct && openListing(selectedProduct)} disabled={!selectedProduct}>
-              <ArrowRight className="mr-1 h-4 w-4" />回到 Listing 详情
-            </Button>
-          </div>
-          <CurrentListingHeader product={selectedProduct} onGapClick={jumpToListingSection} />
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-[var(--color-primary)]">图片专用编辑页</p>
-              <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">主图、辅图、尺寸图、场景图集中处理</h3>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">图片处理独立于 Listing 字段编辑，处理完成后再回到当前商品 Listing 详情继续完善平台字段。</p>
+        <ContentEditorOverlay title="商品图片专用编辑" onClose={backToQueue}>
+          <section aria-label="当前商品主图编辑工作区" data-ui="content-image-edit-overlay-workspace" className="min-w-0 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button variant="outline" onClick={backToQueue}>
+                <ArrowLeft className="mr-1 h-4 w-4" />返回待制作产品列表
+              </Button>
+              <Button variant="secondary" onClick={() => selectedProduct && openListing(selectedProduct)} disabled={!selectedProduct}>
+                <ArrowRight className="mr-1 h-4 w-4" />回到 Listing 详情
+              </Button>
             </div>
-            <ContentMediaStudio mode="image" product={selectedProduct} />
+            <CurrentListingHeader product={selectedProduct} onGapClick={jumpToListingSection} />
+            <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-[var(--color-primary)]">图片专用编辑工作台</p>
+                <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">主图、辅图、SKU 图、尺寸图、场景图集中处理</h3>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">图片处理独立于 Listing 字段编辑，支持拖拽排序、新增图片空位和槽位计划保存。</p>
+              </div>
+              <ContentMediaStudio mode="image" product={selectedProduct} />
+            </section>
           </section>
-        </section>
+        </ContentEditorOverlay>
       )}
+    </div>
+  )
+}
+
+function ContentEditorOverlay({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-[var(--color-overlay)] p-3 backdrop-blur-sm md:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      data-ui="content-factory-editor-overlay"
+    >
+      <div className="mx-auto flex h-full max-w-[1760px] flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">内容工厂覆盖式工作台</p>
+            <h2 className="text-base font-semibold text-[var(--color-fg)]">{title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-full border border-[var(--color-border)] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            aria-label="关闭编辑工作台"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+          {children}
+        </div>
+      </div>
     </div>
   )
 }

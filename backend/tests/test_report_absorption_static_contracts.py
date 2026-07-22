@@ -100,7 +100,21 @@ def test_finance_import_exposes_platform_bill_json_example_and_balance_action():
 def test_smart_pricing_exposes_history_competitor_and_profit_breakdown_panels():
     source = read("frontend/src/pages/SmartPricingPage.tsx")
 
-    for marker in ("定价历史", "竞品价格带对比", "利润拆分", "data-ui=\"pricing-profit-breakdown\""):
+    for marker in (
+        "定价历史",
+        "竞品价格带对比",
+        "利润拆分",
+        "定价模板 / 费用口径",
+        "物流费 (RMB)",
+        "活动折扣 (%)",
+        "最低利润额 (RMB)",
+        "定价附加模板",
+        "保存当前为模板",
+        "updatePricingAdjustmentTemplates",
+        "data-ui=\"pricing-profit-breakdown\"",
+        "data-ui=\"pricing-fee-template-panel\"",
+        "data-ui=\"pricing-adjustment-template-inputs\"",
+    ):
         assert marker in source
     assert "source_price_rmb" in source
     assert "estimated_fee_pct" in source
@@ -130,6 +144,28 @@ def test_manual_order_form_covers_fulfillment_payment_address_and_import_entry()
     assert "ManualOrderImportRequest" in schema
 
 
+def test_order_list_exposes_sync_fulfillment_and_shipping_sla_filters():
+    page = read("frontend/src/pages/OrderListPage.tsx")
+    api = read("frontend/src/api/orders.ts")
+    route = read("backend/app/api/v1/orders.py")
+    service = read("backend/app/services/order_service.py")
+
+    for marker in (
+        "data-ui=\"order-fulfillment-filter-bar\"",
+        "全部履约状态",
+        "全部同步状态",
+        "全部发货时效",
+        "shippingSlaLabel",
+        "距发货截止",
+    ):
+        assert marker in page
+    for marker in ("fulfillment_exception_status", "sync_status", "shipping_sla"):
+        assert marker in api
+        assert marker in route
+        assert marker in service
+    assert "_matches_shipping_sla" in service
+
+
 def test_settings_home_exposes_config_health_summary():
     source = read("frontend/src/features/settings/SettingsWorkspace.tsx")
 
@@ -140,6 +176,7 @@ def test_settings_home_exposes_config_health_summary():
 def test_risk_control_exposes_sla_templates_and_config_entry():
     service = read("backend/app/services/risk_control_service.py")
     sla_service = read("backend/app/services/risk_control_sla_service.py")
+    source_summary_service = read("backend/app/services/risk_control_source_summary_service.py")
     workspace = read("frontend/src/features/risk-control/RiskControlWorkspace.tsx")
     types = read("frontend/src/types/riskControl.ts")
     catalog = read("backend/app/data/default_system_configs.json")
@@ -157,6 +194,10 @@ def test_risk_control_exposes_sla_templates_and_config_entry():
     assert "location_gap_queue" in types
     for marker in ("待定位信息合并队列", "LocationGapQueuePanel", "补齐平台归属", "补齐店铺归属", "补齐目标市场"):
         assert marker in workspace
+    for marker in ("risk_source_summary", "build_risk_source_summary", "履约超时", "库存断货", "利润异常"):
+        assert marker in service or marker in source_summary_service or marker in types or marker in workspace
+    for marker in ("data-ui=\"risk-stage2-signal-summary\"", "RiskSourceSummaryPanel", "fulfillment_overdue", "inventory_stockout", "profit_anomaly"):
+        assert marker in workspace or marker in types
 
 
 def test_scout_selection_exposes_signal_repair_pagination_and_candidate_detail():

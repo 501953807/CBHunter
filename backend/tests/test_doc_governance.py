@@ -10,6 +10,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _doc_path(*parts: str) -> str:
+    return "docs/" + "".join(parts)
+
+
 def _load_validator():
     path = ROOT / "scripts" / "validate_doc_governance.py"
     spec = importlib.util.spec_from_file_location("validate_doc_governance", path)
@@ -49,15 +53,17 @@ def test_core_docs_have_governance_and_ordered_recent_changelog():
         pytest.skip("docs are local-only and absent from the code repository")
 
     assert result["checked"] == [
-        "docs/实施任务进度.md",
-        "docs/模块功能说明.md",
-        "docs/系统建设方案4.0-实施任务总表.md",
+        "docs/00_CBHunter_V5.0系统建设方案.md",
+        "docs/01_CBHunter_V5.0全局业务数据流与模块关联总览.md",
+        "docs/02_CBHunter_V5.0模块功能说明.md",
+        "docs/03_CBHunter_V5.0实施任务总表.md",
+        "docs/迭代改造清单_V5.0/04_CBHunter_V5.0分阶段迭代开发排期与实施进度.md",
     ]
     assert result["module_recent_dates"] == ["2026-06-30", "2026-07-01", "2026-07-02"]
     assert result["obsolete_docs_absent"] == [
-        "docs/测试报告整改统一规划-20260620.md",
-        "docs/系统业务架构与菜单整改-20260621.md",
-        "docs/系统建设方案4.0.html",
+        _doc_path("测试报告", "整改统一规划-20260620.md"),
+        _doc_path("系统业务架构", "与菜单整改-20260621.md"),
+        _doc_path("系统建设", "方案4.0.html"),
     ]
 
 

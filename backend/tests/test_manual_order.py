@@ -761,3 +761,93 @@ def test_order_sync_review_combines_order_snapshot_and_store_sync_log(tmp_path):
         assert "platform_order_sync" in manual_review["data_gaps"]
 
     asyncio.run(run_test())
+
+
+def test_order_list_filters_by_sync_status_exception_status_and_shipping_sla(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-filter-contract.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            synced_account = PlatformAccount(user_id="order-user", platform="shopee", account_name="Shopee MY 店")
+            manual_account = PlatformAccount(user_id="order-user", platform="temu", account_name="TEMU 手工店")
+            session.add_all([synced_account, manual_account])
+            await session.flush()
+            overdue = Order(
+                user_id="order-user",
+                platform_account_id=synced_account.id,
+                platform_order_id="SP-OVERDUE-FILTER",
+                order_number="SP-OVERDUE-FILTER",
+                status="ready_to_ship",
+                total=120,
+                currency="MYR",
+                ordered_at=now,
+                last_synced_at=now,
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": (now - timedelta(hours=3)).isoformat(),
+                    "logistics_channel": "Shopee Xpress",
+                },
+            )
+            due_soon = Order(
+                user_id="order-user",
+                platform_account_id=synced_account.id,
+                platform_order_id="SP-DUE-FILTER",
+                order_number="SP-DUE-FILTER",
+                status="ready_to_ship",
+                total=88,
+                currency="MYR",
+                ordered_at=now,
+                last_synced_at=now,
+                platform_data={
+                    "source": "platform",
+                    "fulfillment_deadline_at": (now + timedelta(hours=6)).isoformat(),
+                    "logistics_channel": "Shopee Xpress",
+                },
+            )
+            manual = Order(
+                user_id="order-user",
+                platform_account_id=manual_account.id,
+                platform_order_id="manual:TEMU-FILTER",
+                order_number="TEMU-FILTER",
+                status="pending",
+                total=77,
+                currency="MYR",
+                ordered_at=now,
+                platform_data={"source": "manual"},
+            )
+            session.add_all([
+                overdue,
+                due_soon,
+                manual,
+                SyncLog(
+                    user_id="order-user",
+                    platform_account_id=manual_account.id,
+                    sync_type="orders",
+                    status="success",
+                    started_at=now,
+                    completed_at=now,
+                ),
+            ])
+            await session.commit()
+
+            overdue_orders, overdue_total = await list_orders(
+                session,
+                "order-user",
+                fulfillment_exception_status="shipping_overdue",
+            )
+            due_orders, due_total = await list_orders(session, "order-user", shipping_sla="due_soon")
+            manual_orders, manual_total = await list_orders(session, "order-user", sync_status="manual_not_synced")
+
+        await engine.dispose()
+
+        assert overdue_total == 1
+        assert [order.order_number for order in overdue_orders] == ["SP-OVERDUE-FILTER"]
+        assert due_total == 1
+        assert [order.order_number for order in due_orders] == ["SP-DUE-FILTER"]
+        assert manual_total == 1
+        assert [order.order_number for order in manual_orders] == ["TEMU-FILTER"]
+
+    asyncio.run(run_test())

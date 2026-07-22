@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException, UploadFile
 import httpx
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,6 +111,9 @@ def process_image_bytes(content: bytes, options: dict[str, Any]) -> tuple[bytes,
     except (UnidentifiedImageError, OSError) as exc:
         raise HTTPException(status_code=400, detail="无法识别上传的图片文件") from exc
     source = ImageOps.exif_transpose(source).convert("RGB")
+    crop_box = _parse_crop_box(options, source.size)
+    if crop_box:
+        source = source.crop(crop_box)
     background = _parse_color(options.get("background", "#FFFFFF"))
     if fit == "cover":
         image = ImageOps.fit(source, (width, height), method=Image.Resampling.LANCZOS)
@@ -130,6 +133,9 @@ def process_image_bytes(content: bytes, options: dict[str, Any]) -> tuple[bytes,
         image = ImageOps.autocontrast(image)
     if options.get("unsharp_mask"):
         image = image.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=3))
+    watermark = _parse_watermark(options)
+    if watermark:
+        _draw_watermark(image, watermark)
 
     output = io.BytesIO()
     pil_format = IMAGE_FORMATS[output_format][0]
@@ -149,8 +155,70 @@ def process_image_bytes(content: bytes, options: dict[str, Any]) -> tuple[bytes,
         "unsharp_mask": bool(options.get("unsharp_mask")),
         "output_format": output_format,
         "quality": save_options.get("quality"),
+        "crop": _crop_metadata(crop_box),
+        "watermark": watermark,
     }
     return output.getvalue(), {"width": width, "height": height, "options": applied}
+
+
+def _parse_crop_box(options: dict[str, Any], source_size: tuple[int, int]) -> tuple[int, int, int, int] | None:
+    mode = str(options.get("crop_mode") or "none").lower()
+    if mode == "none":
+        return None
+    if mode != "manual":
+        raise HTTPException(status_code=400, detail="裁剪模式仅支持 none 或 manual")
+    source_width, source_height = source_size
+    x = _bounded_int(options.get("crop_x", 0), "裁剪X", 0, source_width - 1)
+    y = _bounded_int(options.get("crop_y", 0), "裁剪Y", 0, source_height - 1)
+    width = _bounded_int(options.get("crop_width", source_width - x), "裁剪宽度", 1, source_width)
+    height = _bounded_int(options.get("crop_height", source_height - y), "裁剪高度", 1, source_height)
+    right = min(source_width, x + width)
+    bottom = min(source_height, y + height)
+    if right <= x or bottom <= y:
+        raise HTTPException(status_code=400, detail="裁剪区域无效")
+    return (x, y, right, bottom)
+
+
+def _crop_metadata(crop_box: tuple[int, int, int, int] | None) -> dict[str, int | str]:
+    if not crop_box:
+        return {"mode": "none"}
+    left, top, right, bottom = crop_box
+    return {"mode": "manual", "x": left, "y": top, "width": right - left, "height": bottom - top}
+
+
+def _parse_watermark(options: dict[str, Any]) -> dict[str, Any] | None:
+    text = str(options.get("watermark_text") or "").strip()
+    if not text:
+        return None
+    if len(text) > 40:
+        raise HTTPException(status_code=400, detail="水印文字不能超过 40 个字符")
+    position = str(options.get("watermark_position") or "bottom_right").lower()
+    if position not in {"top_left", "top_right", "bottom_left", "bottom_right", "center"}:
+        raise HTTPException(status_code=400, detail="水印位置无效")
+    opacity = _bounded_float(options.get("watermark_opacity", 0.32), "水印透明度", 0.05, 0.8)
+    color = _parse_color(options.get("watermark_color", "#FFFFFF"))
+    return {"text": text, "position": position, "opacity": opacity, "color": options.get("watermark_color", "#FFFFFF"), "rgb": color}
+
+
+def _draw_watermark(image: Image.Image, watermark: dict[str, Any]) -> None:
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    text = watermark["text"]
+    box = draw.textbbox((0, 0), text)
+    text_width = box[2] - box[0]
+    text_height = box[3] - box[1]
+    padding = max(16, min(image.size) // 40)
+    positions = {
+        "top_left": (padding, padding),
+        "top_right": (image.width - text_width - padding, padding),
+        "bottom_left": (padding, image.height - text_height - padding),
+        "bottom_right": (image.width - text_width - padding, image.height - text_height - padding),
+        "center": ((image.width - text_width) // 2, (image.height - text_height) // 2),
+    }
+    rgb = watermark["rgb"]
+    alpha = int(255 * watermark["opacity"])
+    draw.text(positions[watermark["position"]], text, fill=(rgb[0], rgb[1], rgb[2], alpha))
+    image.paste(Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB"))
 
 
 async def render_slideshow_video(

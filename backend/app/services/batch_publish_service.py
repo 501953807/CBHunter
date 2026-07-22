@@ -18,6 +18,7 @@ from app.services.listing_draft_asset_service import (
     videos_from_attributes,
 )
 from app.services.listing_store_override_service import (
+    confirmed_image_slot_plan,
     listing_store_override,
     listing_store_override_summary,
     merge_override_platform_attributes,
@@ -443,15 +444,19 @@ async def confirm_publish(
         )
         blocking_validation = [
             check for check in validation_checks
-            if check.get("state") == "block" and check.get("code") == "platform_fields"
+            if check.get("state") == "block"
         ]
         if blocking_validation:
+            validation_gaps = [
+                "platform_fields.required" if check.get("code") == "platform_fields" else f"listing_validation.{check.get('code')}"
+                for check in blocking_validation
+            ]
             results.append({
                 **draft,
                 "validation_checks": validation_checks,
                 "publish_status": "skipped",
-                "error": "Listing 校验未通过：" + " / ".join(check["message"] for check in blocking_validation),
-                "data_gaps": list(dict.fromkeys([*(draft.get("data_gaps") or []), "platform_fields.required"])),
+                "error": "Listing 发布前校验未通过：" + " / ".join(check["message"] for check in blocking_validation),
+                "data_gaps": list(dict.fromkeys([*(draft.get("data_gaps") or []), *validation_gaps])),
             })
             continue
 
@@ -579,6 +584,8 @@ async def generate_listing_assist(db: AsyncSession, draft: dict) -> dict:
 def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
     listing_store_override_payload = listing_store_override(item)
     override_logistics_payload = override_logistics(listing_store_override_payload)
+    image_plan = confirmed_image_slot_plan(item)
+    image_urls = image_plan["images"] or ([item.source_image] if item.source_image else [])
     platform_requirements = merge_platform_requirements_map((item.extra_data or {}).get("platform_requirements") or {}, field_schemas)
     if item.platform and item.platform in platform_requirements:
         platform_requirements[item.platform] = merge_override_platform_attributes(
@@ -602,8 +609,9 @@ def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
         "platform_requirements": platform_requirements,
         "listing_master_status": _listing_master_status(item),
         "listing_store_override": listing_store_override_payload,
-        "images": [item.source_image] if item.source_image else [],
-        "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
+        "images": image_urls,
+        "image_slots": image_plan["image_slots"],
+        "media_readiness": media_readiness_from_extra(item.extra_data or {}, image_urls),
         "master_sku": override_master_sku(listing_store_override_payload),
         "brand": None,
         "weight_g": override_logistics_payload.get("weight_g"),
@@ -612,7 +620,6 @@ def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
         "videos": videos_from_attributes(item.extra_data or {}),
         "compliance": override_compliance(listing_store_override_payload) or (item.extra_data or {}).get("compliance") or {},
     }
-
 
 def _source_from_product(product, field_schemas: dict | None = None, draft_listings: dict | None = None) -> dict:
     images = product.images if isinstance(product.images, list) else []

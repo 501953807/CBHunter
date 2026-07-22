@@ -47,6 +47,30 @@ def test_image_edit_rejects_unreadable_or_invalid_options():
         process_image_bytes(_image_bytes(), {"width": 100, "height": 1080})
 
 
+def test_image_edit_applies_crop_and_watermark_options():
+    output, metadata = process_image_bytes(_image_bytes(600, 400), {
+        "width": 800,
+        "height": 800,
+        "fit": "cover",
+        "crop_mode": "manual",
+        "crop_x": 100,
+        "crop_y": 50,
+        "crop_width": 300,
+        "crop_height": 300,
+        "watermark_text": "CBHunter",
+        "watermark_position": "bottom_right",
+        "watermark_opacity": 0.4,
+        "watermark_color": "#FFFFFF",
+        "output_format": "png",
+    })
+
+    image = Image.open(io.BytesIO(output))
+    assert image.size == (800, 800)
+    assert metadata["options"]["crop"] == {"mode": "manual", "x": 100, "y": 50, "width": 300, "height": 300}
+    assert metadata["options"]["watermark"]["text"] == "CBHunter"
+    assert metadata["options"]["watermark"]["position"] == "bottom_right"
+
+
 def test_image_edit_from_source_url_persists_real_asset(tmp_path, monkeypatch):
     async def fake_fetch(url: str) -> tuple[bytes, str]:
         assert url == "https://cbu01.alicdn.com/img/ibank/real-product.webp"

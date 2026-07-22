@@ -57,6 +57,7 @@ export function normalizeRiskControlOverview(input: RiskControlOverview | null):
     })),
     risk_store_matrix: Array.isArray(raw.risk_store_matrix) ? raw.risk_store_matrix : [],
     risk_platform_matrix: Array.isArray(raw.risk_platform_matrix) ? raw.risk_platform_matrix : [],
+    risk_source_summary: Array.isArray(raw.risk_source_summary) ? raw.risk_source_summary : [],
     location_gap_queue: Array.isArray(raw.location_gap_queue) ? raw.location_gap_queue : [],
     comparison: {
       current: { ...emptySnapshot, ...(raw.comparison?.current || {}) },

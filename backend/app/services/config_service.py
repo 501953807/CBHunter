@@ -6,6 +6,7 @@ Every service and API handler that needs config MUST go through this service.
 
 import logging
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,22 @@ from app.services.system_config_service import get_config_catalog, get_gemini_ke
 
 logger = logging.getLogger(__name__)
 PLATFORM_PRODUCT_FIELD_GROUPS_PATH = Path(__file__).resolve().parents[1] / "data" / "default_platform_product_field_groups.json"
+UNIFIED_FIELD_DICTIONARY_PATH = Path(__file__).resolve().parents[1] / "data" / "default_unified_field_dictionary.json"
+FIELD_KEY_ALIASES = {
+    "category": "category_l3",
+    "platform_product_id": "product_id",
+    "product_name_cn": "product_title",
+    "global_product_sku": "sku_id",
+    "seller_sku": "sku_id",
+    "model_id": "sku_id",
+    "stock": "sku_stock",
+    "selling_price": "sku_price",
+    "retail_price": "sku_price",
+    "declared_price_cny": "supply_price_cny",
+    "main_image": "product_images",
+    "short_video_required": "product_video",
+    "sku_attributes": "sku_name",
+}
 
 
 async def get_platforms(db: AsyncSession) -> list[dict]:
@@ -35,10 +52,40 @@ async def get_platform_product_field_groups(db: AsyncSession) -> dict:
     """Get platform-specific product field groups observed from seller backends."""
     configured = await get_config_json(db, "platform.product_field_groups")
     if configured:
-        return configured
+        return _enrich_platform_field_groups(configured, await get_unified_field_dictionary(db))
     with PLATFORM_PRODUCT_FIELD_GROUPS_PATH.open("r", encoding="utf-8") as f:
         value = json.load(f)
-    return value if isinstance(value, dict) else {}
+    return _enrich_platform_field_groups(value, await get_unified_field_dictionary(db)) if isinstance(value, dict) else {}
+
+
+async def get_unified_field_dictionary(db: AsyncSession) -> dict:
+    """Get V5 unified field dictionary converted from the 03 field standard table."""
+    configured = await get_config_json(db, "platform.unified_field_dictionary")
+    if configured:
+        return configured
+    with UNIFIED_FIELD_DICTIONARY_PATH.open("r", encoding="utf-8") as f:
+        value = json.load(f)
+    return value if isinstance(value, dict) else {"fields": []}
+
+
+def _enrich_platform_field_groups(schemas: dict, field_dictionary: dict) -> dict:
+    index = {item.get("key"): item for item in field_dictionary.get("fields", []) if isinstance(item, dict)}
+    enriched = deepcopy(schemas)
+    for platform, schema in enriched.items():
+        for group in schema.get("groups", []) if isinstance(schema, dict) else []:
+            for field in group.get("fields", []) if isinstance(group, dict) else []:
+                key = field.get("key")
+                standard = index.get(key) or index.get(FIELD_KEY_ALIASES.get(key))
+                if not standard:
+                    continue
+                platform_map = standard.get("platforms") or {}
+                field.setdefault("unified_field_key", standard.get("key"))
+                field.setdefault("standard_label", standard.get("label"))
+                field.setdefault("data_type", standard.get("data_type"))
+                field.setdefault("country_difference", standard.get("country_difference"))
+                field.setdefault("platform_field_name", (platform_map.get(platform) or {}).get("field"))
+                field.setdefault("miaoshou_field_name", (platform_map.get("miaoshou") or {}).get("field"))
+    return enriched
 
 
 async def get_fee_templates(db: AsyncSession, platform: Optional[str] = None, market: Optional[str] = None) -> list[dict]:
@@ -163,6 +210,7 @@ async def get_all_config(db: AsyncSession) -> dict:
         "sourcing_pipeline_stages": dict_data.get("sourcing_pipeline_stages", []),
         "competitor_alert_conditions": dict_data.get("competitor_alert_conditions", []),
         "platform_product_field_groups": await get_platform_product_field_groups(db),
+        "unified_field_dictionary": await get_unified_field_dictionary(db),
     }
 
 

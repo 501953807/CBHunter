@@ -12,6 +12,7 @@ def test_split_settings_routes_keep_original_urls_registered():
     paths = {getattr(route, "path", "") for route in api_router.routes}
 
     assert "/api/v1/settings/fee-rates" in paths
+    assert "/api/v1/settings/pricing-adjustment-templates" in paths
     assert "/api/v1/settings/warehouses" in paths
     assert "/api/v1/settings/warehouses/{wh_id}" in paths
 

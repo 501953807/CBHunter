@@ -222,6 +222,15 @@ async def create_edited_image(
     sharpness: float = Form(1),
     auto_contrast: bool = Form(False),
     unsharp_mask: bool = Form(False),
+    crop_mode: str = Form("none"),
+    crop_x: int = Form(0),
+    crop_y: int = Form(0),
+    crop_width: int = Form(1080),
+    crop_height: int = Form(1080),
+    watermark_text: str = Form(""),
+    watermark_position: str = Form("bottom_right"),
+    watermark_opacity: float = Form(0.32),
+    watermark_color: str = Form("#FFFFFF"),
     output_format: str = Form("jpeg"),
     quality: int = Form(88),
     current_user: User = Depends(get_current_user),
@@ -231,6 +240,10 @@ async def create_edited_image(
         "width": width, "height": height, "fit": fit, "background": background,
         "brightness": brightness, "contrast": contrast, "sharpness": sharpness,
         "auto_contrast": auto_contrast, "unsharp_mask": unsharp_mask,
+        "crop_mode": crop_mode, "crop_x": crop_x, "crop_y": crop_y,
+        "crop_width": crop_width, "crop_height": crop_height,
+        "watermark_text": watermark_text, "watermark_position": watermark_position,
+        "watermark_opacity": watermark_opacity, "watermark_color": watermark_color,
         "output_format": output_format, "quality": quality,
     })
     await record_audit_event(
@@ -257,6 +270,15 @@ class SourceImageEditRequest(BaseModel):
     sharpness: float = 1
     auto_contrast: bool = False
     unsharp_mask: bool = False
+    crop_mode: str = "none"
+    crop_x: int = 0
+    crop_y: int = 0
+    crop_width: int = 1080
+    crop_height: int = 1080
+    watermark_text: str = ""
+    watermark_position: str = "bottom_right"
+    watermark_opacity: float = 0.32
+    watermark_color: str = "#FFFFFF"
     output_format: str = "jpeg"
     quality: int = 88
 
@@ -271,6 +293,10 @@ async def create_edited_image_from_url(
         "width": req.width, "height": req.height, "fit": req.fit, "background": req.background,
         "brightness": req.brightness, "contrast": req.contrast, "sharpness": req.sharpness,
         "auto_contrast": req.auto_contrast, "unsharp_mask": req.unsharp_mask,
+        "crop_mode": req.crop_mode, "crop_x": req.crop_x, "crop_y": req.crop_y,
+        "crop_width": req.crop_width, "crop_height": req.crop_height,
+        "watermark_text": req.watermark_text, "watermark_position": req.watermark_position,
+        "watermark_opacity": req.watermark_opacity, "watermark_color": req.watermark_color,
         "output_format": req.output_format, "quality": req.quality,
     }, content_item_id=req.content_item_id)
     await record_audit_event(
@@ -287,7 +313,7 @@ async def create_edited_image_from_url(
         status="ready",
         source_refs=[source_ref("content_asset", asset.id, label=asset.original_name), source_ref("source_image", req.image_url)],
         evidence_window="当前商品源图 URL 与处理参数",
-        confidence_reason="图片处理基于用户选中商品的真实源图 URL，只做尺寸、背景、亮度、对比度和锐化处理，不生成虚构画面。",
+        confidence_reason="图片处理基于用户选中商品的真实源图 URL，只做尺寸、裁剪、背景、亮度、对比度、锐化和水印等确定性处理，不生成虚构画面。",
         data_gaps=[],
     )
 

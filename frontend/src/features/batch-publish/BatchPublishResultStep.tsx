@@ -1,4 +1,4 @@
-import { AlertTriangle, Check } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, RotateCcw } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/Card'
 import type { BatchPublishResponse } from '../../api/listing'
 import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
@@ -9,7 +9,12 @@ interface Props {
 }
 
 export function BatchPublishResultStep({ result, onReset }: Props) {
-  const planMode = result.publish_plan?.mode === 'scheduled' ? '定时发布计划' : '立即发布计划'
+  const planMode = result.publish_plan?.mode === 'draft_only'
+    ? '保存草稿'
+    : result.publish_plan?.mode === 'scheduled'
+      ? '定时发布计划'
+      : '立即发布计划'
+  const blockedResults = result.results.filter(item => item.publish_status !== 'draft' || item.blocking_reasons?.length || item.error)
   return (
     <Card>
       <CardContent className="space-y-4 pt-4">
@@ -26,10 +31,32 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
               平台 Open API 未接通前仅保存本地计划，不代表 Shopee / TEMU / TikTok Shop 已发布成功。
             </p>
           </div>
-          <button onClick={onReset} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)]">
-            继续创建
-          </button>
-        </div>
+            <button onClick={onReset} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)]">
+              继续创建
+            </button>
+          </div>
+        {blockedResults.length > 0 && (
+          <section
+            className="rounded-xl border border-[var(--color-warning-light)] bg-[var(--color-warning-light)] p-4"
+            aria-label="发布失败与重试处理队列"
+            data-ui="publish-result-retry-action-panel"
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-[var(--color-warning)]">发布失败 / 跳过处理队列</h3>
+                <p className="mt-1 text-xs text-[var(--color-warning)]">逐条回写阻断原因，先补内容、补字段或补定价，再返回本页重新生成发布计划。</p>
+              </div>
+              <button onClick={onReset} className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-warning)] px-3 py-2 text-xs font-medium text-[var(--color-warning)]">
+                <RotateCcw className="h-3.5 w-3.5" /> 返回重选重试
+              </button>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {blockedResults.map((item, index) => (
+                <FailureActionCard key={`${item.platform}-${item.product_name}-${index}`} item={item} />
+              ))}
+            </div>
+          </section>
+        )}
         <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="草稿结果明细">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -47,6 +74,7 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
                   <th className="px-3 py-2 font-medium">售价</th>
                   <th className="px-3 py-2 font-medium">状态</th>
                   <th className="px-3 py-2 font-medium">平台字段落库诊断</th>
+                  <th className="px-3 py-2 font-medium">处理入口</th>
                 </tr>
               </thead>
               <tbody>
@@ -70,6 +98,9 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
                     <td className="px-3 py-3">
                       <PlatformFieldGroupSummary requirements={item.platform_requirements as PlatformRequirementsLike | undefined} compact maxGroups={2} />
                     </td>
+                    <td className="px-3 py-3">
+                      <ResultActions item={item} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -80,6 +111,56 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
       </CardContent>
     </Card>
   )
+}
+
+function FailureActionCard({ item }: { item: BatchPublishResponse['results'][number] }) {
+  const reasons = item.blocking_reasons?.length ? item.blocking_reasons : [item.error || '平台返回或本地校验未通过']
+  return (
+    <div className="rounded-lg border border-[var(--color-warning)] bg-[var(--color-surface)] p-3" aria-label="发布失败原因卡片">
+      <p className="line-clamp-2 text-sm font-semibold text-[var(--color-fg)]">{item.template_title || item.product_name || '未命名 Listing'}</p>
+      <p className="mt-1 text-xs text-[var(--color-muted)]">{item.platform} / {item.store?.account_name || item.market_label || item.market}</p>
+      <ul className="mt-2 space-y-1 text-xs text-[var(--color-warning)]">
+        {reasons.slice(0, 4).map(reason => <li key={reason}>· {reason}</li>)}
+      </ul>
+      <ResultActions item={item} compact />
+    </div>
+  )
+}
+
+function ResultActions({ item, compact = false }: { item: BatchPublishResponse['results'][number]; compact?: boolean }) {
+  const actions = [
+    ['补 Listing 内容', resultRepairHref(item, 'fields')],
+    ['补图片/SKU', resultRepairHref(item, 'media')],
+    ['补定价', resultPricingHref(item)],
+  ] as const
+  return (
+    <div className={compact ? 'mt-3 flex flex-wrap gap-2' : 'flex flex-col gap-1'}>
+      {actions.map(([label, href]) => (
+        <a
+          key={label}
+          href={href}
+          className="inline-flex items-center gap-1 rounded-full border border-[var(--color-primary)] px-2 py-1 text-[11px] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+        >
+          {label}<ArrowRight className="h-3 w-3" />
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function resultRepairHref(item: BatchPublishResponse['results'][number], section: 'media' | 'fields') {
+  const productId = item.product_id || item.source_product_id
+  const targetSection = section === 'media' ? 'media' : 'attributes'
+  if (productId) return `/products/${encodeURIComponent(productId)}?tab=listings&listing_section=${targetSection}`
+  if (item.sourcing_item_id) return `/content?sourcing_item_id=${encodeURIComponent(item.sourcing_item_id)}&listing_section=${targetSection}`
+  return `/content?listing_section=${targetSection}`
+}
+
+function resultPricingHref(item: BatchPublishResponse['results'][number]) {
+  const productId = item.product_id || item.source_product_id
+  if (productId) return `/pricing?product_id=${encodeURIComponent(productId)}`
+  if (item.sourcing_item_id) return `/pricing?sourcing_item_id=${encodeURIComponent(item.sourcing_item_id)}`
+  return '/pricing'
 }
 
 function ResultStatus({ status, reason }: { status: string; reason?: string }) {
