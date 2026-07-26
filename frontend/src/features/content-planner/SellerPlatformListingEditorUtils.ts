@@ -30,6 +30,19 @@ export type ListingGap = {
   severity: 'blocker' | 'warning'
 }
 
+type PlatformFieldLike = {
+  key?: string
+  label?: string
+  unified_field_key?: string
+  standard_label?: string
+  platform_field_name?: string
+  miaoshou_field_name?: string
+}
+
+type PlatformFieldGroupLike = {
+  fields?: PlatformFieldLike[]
+}
+
 export function buildListingGaps({
   product,
   activeStore,
@@ -219,10 +232,17 @@ export function defaultSkuRow(merchantSku: string, price: string): SellerSkuRow 
 }
 
 export function mergePlatformAttributeValues(draft: Record<string, string>, platformRequirements?: PlatformRequirementsLike): Record<string, unknown> {
-  return {
-    ...(platformRequirements?.attribute_values || {}),
-    ...pickAttributes(draft),
+  const merged: Record<string, unknown> = { ...(platformRequirements?.attribute_values || {}) }
+  const legacyAttributes = pickLegacyAttributes(draft)
+  const aliasesByLegacyKey = platformAttributeAliases(platformRequirements)
+  for (const [legacyKey, value] of Object.entries(legacyAttributes)) {
+    if (!value) continue
+    if (!hasAttributeValue(merged, legacyKey)) merged[legacyKey] = value
+    for (const alias of aliasesByLegacyKey[legacyKey] || []) {
+      if (!hasAttributeValue(merged, alias)) merged[alias] = value
+    }
   }
+  return merged
 }
 
 export function hasAttributeValue(values: Record<string, unknown>, field: string) {
@@ -239,8 +259,8 @@ function getSellingPoints(draft: Record<string, string>) {
     .slice(0, 5)
 }
 
-function pickAttributes(draft: Record<string, string>) {
-  return {
+function pickLegacyAttributes(draft: Record<string, string>) {
+  return Object.fromEntries(Object.entries({
     brand: draft.brand || '',
     material: draft.material || '',
     model: draft.model || '',
@@ -249,5 +269,48 @@ function pickAttributes(draft: Record<string, string>) {
     size: draft.size || '',
     capacity: draft.capacity || '',
     style: draft.style || '',
+  }).filter(([, value]) => value.trim()))
+}
+
+function platformAttributeAliases(platformRequirements?: PlatformRequirementsLike) {
+  const aliases: Record<string, string[]> = {
+    brand: ['brand', 'Brand', '品牌', '品牌/No Brand'],
+    material: ['material', 'Material', '材质'],
+    model: ['model', 'Model', '型号'],
+    audience: ['audience', '适用人群', '适用对象'],
+    color: ['color', 'Color', '颜色'],
+    size: ['size', 'Size', '尺寸', '尺码'],
+    capacity: ['capacity', '容量'],
+    style: ['style', '风格', '款式'],
   }
+  for (const field of platformFields(platformRequirements)) {
+    const candidates = [
+      field.key,
+      field.label,
+      field.unified_field_key,
+      field.standard_label,
+      field.platform_field_name,
+      field.miaoshou_field_name,
+    ].filter((item): item is string => Boolean(item && item.trim()))
+    for (const [legacyKey, knownAliases] of Object.entries(aliases)) {
+      if (candidates.some(candidate => knownAliases.includes(candidate))) {
+        aliases[legacyKey] = Array.from(new Set([...knownAliases, ...candidates]))
+      }
+    }
+  }
+  for (const attr of platformRequirements?.required_attributes || []) {
+    for (const [legacyKey, knownAliases] of Object.entries(aliases)) {
+      if (knownAliases.includes(attr)) {
+        aliases[legacyKey] = Array.from(new Set([...knownAliases, attr]))
+      }
+    }
+  }
+  return aliases
+}
+
+function platformFields(platformRequirements?: PlatformRequirementsLike): PlatformFieldLike[] {
+  return (platformRequirements?.field_groups || [])
+    .filter((group): group is PlatformFieldGroupLike => Boolean(group && typeof group === 'object'))
+    .flatMap(group => Array.isArray(group.fields) ? group.fields : [])
+    .filter((field): field is PlatformFieldLike => Boolean(field && typeof field === 'object'))
 }

@@ -12,7 +12,9 @@ from app.schemas.order import (
 )
 from app.schemas.common import ApiResponse
 from app.services.order_service import (
-    build_fulfillment_exception_context, build_order_fee_context, build_order_finance_entry_context, build_order_list_context, create_manual_order, import_manual_orders, get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
+    build_fulfillment_exception_context, build_order_fee_context, build_order_finance_entry_context,
+    build_order_item_v5_sku_contexts, build_order_list_context, create_manual_order, import_manual_orders,
+    get_order_sync_reviews, list_orders, get_order, update_order_status, update_order_notes, get_order_stats
 )
 from app.services.audit_service import record_audit_event
 from app.services.evidence_service import source_ref
@@ -199,7 +201,10 @@ async def get_order_endpoint(
     resp = OrderDetailResponse.model_validate(order)
     resp.platform = order.platform_account.platform if order.platform_account else ""
     resp.source = (order.platform_data or {}).get("source", "platform")
+    item_v5_contexts = await build_order_item_v5_sku_contexts(db, order)
     resp.items = [OrderItemResponse.model_validate(i) for i in (order.items or [])]
+    for item in resp.items:
+        item.v5_sku_context = item_v5_contexts.get(item.id, {})
     fee_context = build_order_fee_context(order)
     for key, value in fee_context.items():
         setattr(resp, key, value)
@@ -209,6 +214,9 @@ async def get_order_endpoint(
     gaps = []
     if not resp.items:
         gaps.append("订单缺少商品明细")
+    for item in resp.items:
+        item_gaps = item.v5_sku_context.get("data_gaps") if item.v5_sku_context else []
+        gaps.extend(item_gaps or [])
     if resp.shipping_address is None:
         gaps.append("订单缺少收货地址")
     for field in ("subtotal", "shipping_fee", "platform_fee", "discount"):

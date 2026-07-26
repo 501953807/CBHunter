@@ -104,13 +104,16 @@ export function PlatformFieldGroupSummary({
 export function PlatformFieldGroupEditor({
   requirements,
   onChange,
+  highlightedFieldKey,
 }: {
   requirements?: PlatformRequirementsLike
   onChange: (next: PlatformRequirementsLike) => void
+  highlightedFieldKey?: string
 }) {
   const groups = normalizeGroups(requirements)
   const values = requirements?.attribute_values || {}
   const fallbackAttrs = requirements?.required_attributes || []
+  const normalizedHighlightedFieldKey = highlightedFieldKey?.trim() || ''
 
   const updateValue = (key: string, value: string) => {
     onChange({
@@ -123,17 +126,34 @@ export function PlatformFieldGroupEditor({
     return (
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">平台属性编辑</p>
+        {normalizedHighlightedFieldKey ? (
+          <p
+            data-ui="platform-field-highlight-target"
+            className="mt-2 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2.5 py-2 text-[11px] font-medium text-[var(--color-primary)]"
+          >
+            已从批量刊登定位字段：{normalizedHighlightedFieldKey}
+          </p>
+        ) : null}
         <div className="mt-2 grid grid-cols-2 xl:grid-cols-4 gap-2">
-          {fallbackAttrs.slice(0, 12).map(attr => (
-            <label key={attr} className="text-[11px] text-[var(--color-muted)]">
-              {attr}
-              <input
-                value={stringValue(values[attr])}
-                onChange={event => updateValue(attr, event.target.value)}
-                className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-fg)]"
-              />
-            </label>
-          ))}
+          {fallbackAttrs.slice(0, 12).map(attr => {
+            const highlighted = matchesHighlightedField({ key: attr, label: attr }, normalizedHighlightedFieldKey)
+            return (
+              <label
+                key={attr}
+                className={highlighted
+                  ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-2 text-[11px] font-medium text-[var(--color-primary)]'
+                  : 'text-[11px] text-[var(--color-muted)]'
+                }
+              >
+                {attr}
+                <input
+                  value={stringValue(values[attr])}
+                  onChange={event => updateValue(attr, event.target.value)}
+                  className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-fg)]"
+                />
+              </label>
+            )
+          })}
         </div>
       </div>
     )
@@ -147,6 +167,14 @@ export function PlatformFieldGroupEditor({
           {requirements?.evidence_source && <p className="mt-1 text-[11px] text-[var(--color-muted)]">{requirements.evidence_source}</p>}
           {requirements?.evidence?.needs_recheck?.length ? (
             <p className="mt-1 text-[11px] text-[var(--color-warning)]">待补证：{requirements.evidence.needs_recheck.join('；')}</p>
+          ) : null}
+          {normalizedHighlightedFieldKey ? (
+            <p
+              data-ui="platform-field-highlight-target"
+              className="mt-2 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2.5 py-2 text-[11px] font-medium text-[var(--color-primary)]"
+            >
+              已从批量刊登定位字段：{normalizedHighlightedFieldKey}
+            </p>
           ) : null}
           <CategoryProfileBadge requirements={requirements} />
         </div>
@@ -163,8 +191,15 @@ export function PlatformFieldGroupEditor({
             <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
               {(group.fields || []).map(field => {
                 const key = field.key || field.label || ''
+                const highlighted = matchesHighlightedField(field, normalizedHighlightedFieldKey)
                 return (
-                  <label key={key} className="text-[11px] text-[var(--color-muted)]">
+                  <label
+                    key={key}
+                    className={highlighted
+                      ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-2 text-[11px] font-medium text-[var(--color-primary)]'
+                      : 'text-[11px] text-[var(--color-muted)]'
+                    }
+                  >
                     {field.label || key}{field.required ? <span className="text-[var(--color-primary)]"> *</span> : null}
                     {field.evidence_state ? <span className="ml-1 text-[var(--color-warning)]">({evidenceStateLabel(field.evidence_state)})</span> : null}
                     <FieldMetaHint field={field} />
@@ -183,6 +218,18 @@ export function PlatformFieldGroupEditor({
       </div>
     </div>
   )
+}
+
+function matchesHighlightedField(field: PlatformField, highlightedFieldKey: string) {
+  if (!highlightedFieldKey) return false
+  return [
+    field.key,
+    field.label,
+    field.unified_field_key,
+    field.standard_label,
+    field.platform_field_name,
+    field.miaoshou_field_name,
+  ].filter(Boolean).some(value => String(value) === highlightedFieldKey)
 }
 
 function FieldMetaHint({ field }: { field: PlatformField }) {

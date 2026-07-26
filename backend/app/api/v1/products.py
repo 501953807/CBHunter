@@ -41,6 +41,7 @@ from app.services.audit_service import record_audit_event
 from app.services.evidence_service import source_ref
 from app.services.sync_service import SyncService
 from app.services.product_image_service import attach_product_image_from_url, attach_product_image_upload
+from app.services.product_object_model_service import product_object_snapshot
 
 router = APIRouter(prefix="/products", tags=["products"])
 MAX_PROXY_IMAGE_BYTES = 10 * 1024 * 1024
@@ -350,6 +351,25 @@ async def proxy_product_image_endpoint(
             "Cache-Control": "public, max-age=86400",
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+
+@router.get("/{product_id}/object-model", response_model=ApiResponse)
+async def get_product_object_model_endpoint(
+    product_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    snapshot = await product_object_snapshot(db, current_user.id, product_id)
+    if snapshot.get("status") == "missing":
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ApiResponse(
+        data=snapshot,
+        status="ready",
+        source_refs=[source_ref("product", product_id, fields=["base_versions", "listing_instances", "sku_variants", "field_validations"])],
+        evidence_window="当前商品 V5 对象模型快照",
+        confidence_reason="读取 ProductBaseVersion、PlatformListing、ProductSkuVariant 和 PlatformFieldValidation 当前持久化记录。",
+        data_gaps=snapshot.get("data_gaps", []),
     )
 
 

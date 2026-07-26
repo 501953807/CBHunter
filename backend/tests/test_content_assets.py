@@ -4,14 +4,14 @@ import asyncio
 import io
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.database import Base
 from app.models import all_models  # noqa: F401
 from app.services import content_asset_service
-from app.services.content_asset_service import edit_image_from_url, process_image_bytes
+from app.services.content_asset_service import edit_image, edit_image_from_url, process_image_bytes
 
 
 def _image_bytes(width=400, height=200):
@@ -69,6 +69,53 @@ def test_image_edit_applies_crop_and_watermark_options():
     assert metadata["options"]["crop"] == {"mode": "manual", "x": 100, "y": 50, "width": 300, "height": 300}
     assert metadata["options"]["watermark"]["text"] == "CBHunter"
     assert metadata["options"]["watermark"]["position"] == "bottom_right"
+
+
+def test_image_edit_applies_orientation_transform_options():
+    output, metadata = process_image_bytes(_image_bytes(300, 500), {
+        "width": 800,
+        "height": 800,
+        "fit": "contain",
+        "rotate_degrees": 90,
+        "flip_horizontal": True,
+        "flip_vertical": True,
+        "output_format": "png",
+    })
+
+    image = Image.open(io.BytesIO(output))
+    assert image.size == (800, 800)
+    assert metadata["options"]["orientation"] == {
+        "rotate_degrees": 90,
+        "flip_horizontal": True,
+        "flip_vertical": True,
+    }
+
+
+def test_uploaded_image_edit_binds_content_item_id(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'content-assets-upload.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        upload = UploadFile(filename="real-product-main.png", file=io.BytesIO(_image_bytes()))
+        async with sessions() as session:
+            asset = await edit_image(
+                session,
+                "content-user",
+                upload,
+                {"width": 800, "height": 800, "output_format": "jpeg", "content_item_id": "sourcing-item-2"},
+            )
+
+        await engine.dispose()
+
+        assert asset.asset_type == "image"
+        assert asset.operation == "image_edit"
+        assert asset.width == 800
+        assert asset.height == 800
+        assert asset.extra["content_item_id"] == "sourcing-item-2"
+
+    asyncio.run(run_test())
 
 
 def test_image_edit_from_source_url_persists_real_asset(tmp_path, monkeypatch):

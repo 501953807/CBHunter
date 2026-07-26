@@ -58,6 +58,12 @@ export type FinanceTraceback = {
     product_count: number
     store_count: number
     entry_count: number
+    total_revenue_rmb: number | null
+    total_cost_rmb: number | null
+    net_profit_rmb: number | null
+    refund_rmb: number
+    platform_bill_rmb: number
+    settlement_movement_rmb: number
   }
   by_order: FinanceTracebackOrder[]
   by_product: FinanceTracebackProduct[]
@@ -85,6 +91,24 @@ export type FinanceTracebackOrder = FinanceTracebackBase & {
 export type FinanceTracebackProduct = FinanceTracebackBase & {
   product_id: string
   product_name: string
+  v5_sku_contexts?: Array<{
+    status?: 'matched' | 'unmatched' | string
+    source?: 'v5_product_sku_variants' | string
+    platform_listing_id?: string | null
+    sku_variant_id?: string
+    ledger_sku?: string | null
+    merchant_sku?: string
+    platform_sku?: string | null
+    spu?: string | null
+    skc?: string | null
+    option_1?: { name?: string | null; value?: string | null } | null
+    option_2?: { name?: string | null; value?: string | null } | null
+    listing_stock?: number | null
+    listing_price?: number | null
+    source_entry_id?: string
+    available_sku_count?: number
+    data_gaps?: string[]
+  }>
 }
 
 export type FinanceTracebackStore = FinanceTracebackBase & {

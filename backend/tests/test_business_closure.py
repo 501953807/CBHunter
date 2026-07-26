@@ -15,6 +15,7 @@ from app.models import all_models  # noqa: F401
 from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.models.product import Product
+from app.models.product_object_model import PlatformFieldValidation, ProductBaseVersion, ProductSkuVariant
 from app.models.content_asset import ContentAsset
 from app.models.fee_template import FeeTemplate
 from app.models.inventory_alert import InventoryAlertRule
@@ -25,16 +26,19 @@ from app.models.order import Order
 from app.models.shipment import Shipment
 from app.models.product_discovery import ProductDiscovery
 from app.models.sourcing_item import SourcingItem
+from app.models.sourcing_supplier import SourcingSupplier
 from app.models.supply_product import SupplyProduct
 from app.models.trend_keyword import TrendKeyword
 from app.models.trending_product import TrendingProduct
 from app.models.sys_dict import SysDictItem
+from app.models.user import User
 from app.services.batch_publish_service import confirm_publish, generate_listing_assist, generate_listing_drafts, list_publish_ready_items
 from app.services.content_workbench_service import REQUIRED_CONTENT_GAPS
 from app.services.dashboard_service import get_dashboard_summary
 from app.services.discovery_service import analyze_discovery
 from app.services.inventory_alert_service import check_inventory, get_inventory_risk_workbench
 from app.services.inventory_risk_action_service import create_operation_record_from_inventory_slow_moving
+from app.services.listing_draft_asset_service import platform_field_gaps_for_requirements
 from app.services.listing_instance_service import get_product_listing_matrix, promote_listing_to_base_version, update_listing_overrides
 from app.services.promotion_service import (
     add_promotion_campaign_items,
@@ -91,9 +95,14 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
             }])
             product = (await session.execute(select(Product))).scalar_one()
             listing = (await session.execute(select(PlatformListing))).scalar_one()
+            base_version = (await session.execute(select(ProductBaseVersion))).scalar_one()
+            sku_variants = (await session.execute(select(ProductSkuVariant))).scalars().all()
+            field_validations = (await session.execute(select(PlatformFieldValidation))).scalars().all()
         await engine.dispose()
 
         assert result[0]["publish_status"] == "draft"
+        assert result[0]["object_model"]["base_version_id"] == base_version.id
+        assert result[0]["object_model"]["field_validation_count"] == 3
         assert product.cost_price == 12.5
         assert product.sku
         assert listing.price == 28
@@ -101,6 +110,11 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
         assert listing.description == "确认后的平台商品描述"
         assert listing.platform_data["stock_status"] == "missing"
         assert listing.platform_data["platform_requirements"]["attribute_values"]["材质"] == "毛毡"
+        assert base_version.title == product.name
+        assert sku_variants[0].scope == "listing_override"
+        assert sku_variants[0].platform_listing_id == listing.id
+        assert {row.field_key for row in field_validations} == {"类目", "品牌", "材质"}
+        assert all(row.state == "present" for row in field_validations)
 
     asyncio.run(run_test())
 
@@ -1651,8 +1665,67 @@ def test_batch_preview_blocks_confirmed_required_platform_fields(tmp_path):
         assert checks["platform_fields"]["state"] == "block"
         assert "类目" in checks["platform_fields"]["message"]
         assert "待补证动态字段" in checks["platform_fields"]["message"]
+        assert checks["platform_fields"]["details"]["blocking_fields"][0]["key"] == "category"
+        assert checks["platform_fields"]["details"]["recheck_fields"][0]["key"] == "draft_dynamic"
+        assert checks["platform_fields"]["details"]["recheck_fields"][0]["severity"] == "recheck"
 
     asyncio.run(run_test())
+
+
+def test_platform_field_gaps_include_structured_field_metadata():
+    gaps = platform_field_gaps_for_requirements({
+        "required_attributes": ["category", "draft_dynamic"],
+        "attribute_values": {},
+        "field_groups": [{
+            "id": "identity",
+            "label": "基础信息",
+            "fields": [
+                {
+                    "key": "category",
+                    "label": "类目",
+                    "required": True,
+                    "unified_field_key": "category_l3",
+                    "standard_label": "三级类目",
+                    "data_type": "string",
+                    "platform_field_name": "商品类目",
+                    "miaoshou_field_name": "预发布类目",
+                    "country_difference": "国别差异化",
+                },
+                {
+                    "key": "draft_dynamic",
+                    "label": "待补证动态字段",
+                    "required": True,
+                    "evidence_state": "needs_category_recheck",
+                    "unified_field_key": "material",
+                    "standard_label": "材质",
+                    "data_type": "string",
+                    "platform_field_name": "材质",
+                    "miaoshou_field_name": "材质",
+                },
+            ],
+        }],
+    })
+
+    assert gaps["blocking"] == ["类目"]
+    assert gaps["recheck"] == ["待补证动态字段"]
+    assert gaps["blocking_fields"][0] == {
+        "key": "category",
+        "label": "类目",
+        "severity": "blocking",
+        "required": True,
+        "unified_field_key": "category_l3",
+        "standard_label": "三级类目",
+        "data_type": "string",
+        "platform_field_name": "商品类目",
+        "miaoshou_field_name": "预发布类目",
+        "country_difference": "国别差异化",
+        "evidence_state": None,
+        "group_id": "identity",
+        "group_label": "基础信息",
+    }
+    assert gaps["recheck_fields"][0]["key"] == "draft_dynamic"
+    assert gaps["recheck_fields"][0]["evidence_state"] == "needs_category_recheck"
+    assert gaps["recheck_fields"][0]["severity"] == "recheck"
 
 
 def test_batch_preview_warns_recheck_platform_fields_without_blocking(tmp_path):
@@ -1716,6 +1789,8 @@ def test_batch_preview_warns_recheck_platform_fields_without_blocking(tmp_path):
         assert "platform_fields.required" not in drafts[0]["data_gaps"]
         assert checks["platform_fields"]["state"] == "warning"
         assert "待补证" in checks["platform_fields"]["message"]
+        assert checks["platform_fields"]["details"]["blocking_fields"] == []
+        assert checks["platform_fields"]["details"]["recheck_fields"][0]["key"] == "draft_dynamic"
 
     asyncio.run(run_test())
 
@@ -1739,7 +1814,18 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
                   "store_id": "store-shopee-my",
                   "store_label": "Shopee MY 主店",
                   "title": "Shopee MY 覆盖标题",
-                  "skus": [{"seller_sku": "BAG-MY-BEIGE", "variation": "米色", "price": "39", "stock": "12"}],
+                  "sku_rows": [{
+                    "merchantSku": "BAG-MY-BEIGE",
+                    "platformSku": "SPU-1001/SKC-BEIGE",
+                    "skuImageRole": "SKU图 1",
+                    "optionOne": "米色",
+                    "optionTwo": "标准版",
+                    "price": "39",
+                    "stock": "12",
+                    "weight": "320",
+                    "dimensions": "28x12x22",
+                    "enabled": true
+                  }],
                   "platform_attributes_note": "{\\"类目\\": \\"女包\\", \\"品牌\\": \\"No Brand\\", \\"材质\\": \\"草编\\", \\"重量\\": \\"320g\\", \\"category\\": \\"bags\\", \\"brand\\": \\"No Brand\\", \\"seller_sku\\": \\"BAG-MY-BEIGE\\", \\"风格\\": \\"通勤\\"}",
                   "logistics_note": "{\\"weight\\": \\"320\\", \\"length\\": \\"28\\", \\"width\\": \\"12\\", \\"height\\": \\"22\\"}",
                   "compliance_note": "禁限售复核通过"
@@ -1832,6 +1918,13 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
         assert items[0]["data_gaps"] == []
         assert drafts[0]["sku_plan"]["variants"][0]["sku"] == "BAG-MY-BEIGE"
+        assert drafts[0]["sku_plan"]["variants"][0]["platform_sku"] == "SPU-1001/SKC-BEIGE"
+        assert drafts[0]["sku_plan"]["variants"][0]["spu_skc"] == "SPU-1001/SKC-BEIGE"
+        assert drafts[0]["sku_plan"]["variants"][0]["option_1_value"] == "米色"
+        assert drafts[0]["sku_plan"]["variants"][0]["option_2_value"] == "标准版"
+        assert drafts[0]["sku_plan"]["variants"][0]["sku_image_role"] == "SKU图 1"
+        assert drafts[0]["sku_plan"]["variants"][0]["weight_g"] == 320
+        assert drafts[0]["sku_plan"]["variants"][0]["dimensions"]["length_cm"] == 28
         assert drafts[0]["logistics"]["weight_g"] == 320
         assert drafts[0]["logistics"]["dimensions"]["length_cm"] == 28
         assert drafts[0]["compliance"]["restricted_check_status"] == "passed"
@@ -2239,6 +2332,22 @@ def test_inventory_risk_workbench_uses_real_cost_stock_and_deadline_data(tmp_pat
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
+            session.add(User(
+                id="user-a",
+                username="inventory-user",
+                email="inventory-user@example.com",
+                hashed_password="x",
+                settings={
+                    "warehouses": [
+                        {
+                            "id": "wh-1",
+                            "name": "本地轻仓",
+                            "integration_status": "connected",
+                            "inventory_sync_mode": "manual_periodic",
+                        }
+                    ]
+                },
+            ))
             account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", is_active=True)
             product = Product(user_id="user-a", sku="SKU-RISK", name="真实库存风险商品", cost_price=10)
             no_cost_product = Product(user_id="user-a", sku="SKU-NOCOST", name="缺成本商品", cost_price=None)
@@ -2257,9 +2366,32 @@ def test_inventory_risk_workbench_uses_real_cost_stock_and_deadline_data(tmp_pat
                     performance={"views_30d": 0, "orders_30d": 0},
                     platform_data={"stock_status": "confirmed"},
                 ),
+                PlatformListing(
+                    user_id="user-a", product_id=product.id, platform_account_id=account.id,
+                    title="平台库存待同步商品", price=28, stock=99, status="active",
+                    performance={"views_30d": 10, "orders_30d": 1},
+                    platform_data={"stock_status": "missing"},
+                ),
                 InventoryAlertRule(
                     user_id="user-a", product_id=product.id, sku=product.sku,
                     product_name=product.name, safety_stock=8, severity="warning",
+                ),
+                SupplyProduct(
+                    user_id="user-a",
+                    platform="ali1688",
+                    name="真实库存风险商品",
+                    sku="SKU-RISK",
+                    price_min=6,
+                    price_max=8,
+                    moq=2,
+                    is_active=True,
+                ),
+                SourcingItem(
+                    user_id="user-a",
+                    product_name="真实库存风险商品",
+                    source_name="1688",
+                    source_url="https://detail.1688.com/offer/1.html",
+                    pipeline_stage="approved",
                 ),
                 Order(
                     user_id="user-a",
@@ -2274,6 +2406,16 @@ def test_inventory_risk_workbench_uses_real_cost_stock_and_deadline_data(tmp_pat
                     ordered_at=datetime(2025, 12, 31, tzinfo=timezone.utc),
                 ),
             ])
+            await session.flush()
+            sourcing_item = (await session.execute(select(SourcingItem).where(SourcingItem.user_id == "user-a"))).scalar_one()
+            session.add(SourcingSupplier(
+                user_id="user-a",
+                sourcing_item_id=sourcing_item.id,
+                supplier_name="优选供应商",
+                purchase_price_rmb=6,
+                moq=2,
+                is_preferred=True,
+            ))
             await session.commit()
             await check_inventory(session, "user-a")
             workbench = await get_inventory_risk_workbench(
@@ -2286,7 +2428,78 @@ def test_inventory_risk_workbench_uses_real_cost_stock_and_deadline_data(tmp_pat
         assert "product.cost_price:SKU-NOCOST" in workbench["data_gaps"]
         assert workbench["slow_moving"]["count"] == 1
         assert workbench["fulfillment_overdue"]["count"] == 1
+        assert workbench["stock_sources"]["confirmed_listing_count"] == 2
+        assert workbench["stock_sources"]["legacy_listing_stock_count"] == 2
+        assert workbench["stock_sources"]["v5_sku_listing_count"] == 0
+        assert workbench["stock_sources"]["missing_platform_stock_count"] == 1
+        assert workbench["stock_sources"]["confirmed_stock_units"] == 10
+        assert workbench["stock_sources"]["local_warehouse_count"] == 1
+        assert workbench["stock_sources"]["warehouse_sync_ready_count"] == 1
+        assert workbench["supply_readiness"]["active_supply_product_count"] == 1
+        assert workbench["supply_readiness"]["matched_listing_supply_count"] == 1
+        assert workbench["supply_readiness"]["supply_with_price_count"] == 1
+        assert workbench["supply_readiness"]["supply_with_moq_count"] == 1
+        assert workbench["supply_readiness"]["preferred_supplier_count"] == 1
+        assert "user.settings.warehouses" not in workbench["data_gaps"]
         assert any(action["label"] == "复核发货超期订单" for action in workbench["actions"])
+
+    asyncio.run(run_test())
+
+
+def test_inventory_risk_workbench_prefers_v5_listing_sku_stock(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'inventory-risk-v5-sku.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", is_active=True)
+            product = Product(user_id="user-a", sku="SKU-V5-STOCK", name="V5 SKU库存商品", cost_price=10)
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="user-a", product_id=product.id, platform_account_id=account.id,
+                title="V5 SKU库存商品", price=28, stock=999, status="active",
+                performance={"views_30d": 120, "orders_30d": 0},
+                platform_data={"stock_status": "confirmed"},
+            )
+            session.add(listing)
+            await session.flush()
+            session.add_all([
+                ProductSkuVariant(
+                    user_id="user-a",
+                    product_id=product.id,
+                    platform_listing_id=listing.id,
+                    scope="listing_override",
+                    merchant_sku="SKU-V5-STOCK-BLACK",
+                    stock=3,
+                    price=28,
+                    enabled=True,
+                ),
+                ProductSkuVariant(
+                    user_id="user-a",
+                    product_id=product.id,
+                    platform_listing_id=listing.id,
+                    scope="listing_override",
+                    merchant_sku="SKU-V5-STOCK-KHAKI",
+                    stock=2,
+                    price=28,
+                    enabled=True,
+                ),
+            ])
+            await session.commit()
+            workbench = await get_inventory_risk_workbench(session, "user-a")
+        await engine.dispose()
+
+        assert workbench["capital"]["total_rmb"] == 50
+        assert workbench["capital"]["items"][0]["stock"] == 5
+        assert workbench["capital"]["items"][0]["sku_source"] == "v5_product_sku_variants"
+        assert workbench["capital"]["items"][0]["sku_count"] == 2
+        assert workbench["slow_moving"]["items"][0]["sku_source"] == "v5_product_sku_variants"
+        assert workbench["stock_sources"]["confirmed_listing_count"] == 1
+        assert workbench["stock_sources"]["v5_sku_listing_count"] == 1
+        assert workbench["stock_sources"]["legacy_listing_stock_count"] == 0
+        assert workbench["stock_sources"]["confirmed_stock_units"] == 5
 
     asyncio.run(run_test())
 

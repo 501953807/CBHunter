@@ -126,6 +126,12 @@ class FinanceTracebackSummary(BaseModel):
     product_count: int
     store_count: int
     entry_count: int
+    total_revenue_rmb: Optional[float] = None
+    total_cost_rmb: Optional[float] = None
+    net_profit_rmb: Optional[float] = None
+    refund_rmb: float = 0
+    platform_bill_rmb: float = 0
+    settlement_movement_rmb: float = 0
 
 
 class FinanceOrderTraceback(BaseModel):
@@ -154,6 +160,7 @@ class FinanceProductTraceback(BaseModel):
     entry_count: int
     source_entry_ids: list[str] = Field(default_factory=list)
     data_gaps: list[str] = Field(default_factory=list)
+    v5_sku_contexts: list[dict] = Field(default_factory=list)
 
 
 class FinanceStoreTraceback(BaseModel):

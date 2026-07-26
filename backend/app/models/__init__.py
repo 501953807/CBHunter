@@ -2,6 +2,7 @@ from app.models.user import User
 from app.models.platform_account import PlatformAccount
 from app.models.category import Category
 from app.models.product import Product
+from app.models.product_object_model import ProductBaseVersion, ProductSkuVariant, PlatformFieldValidation
 from app.models.platform_listing import PlatformListing
 from app.models.order import Order
 from app.models.order_item import OrderItem
@@ -54,6 +55,9 @@ all_models = [
     PlatformAccount,
     Category,
     Product,
+    ProductBaseVersion,
+    ProductSkuVariant,
+    PlatformFieldValidation,
     PlatformListing,
     Order,
     OrderItem,

@@ -70,6 +70,7 @@ PRICING_ITEM_SELECTOR = (ROOT / "frontend/src/features/pricing/PricingItemSelect
 SMART_PRICING_PAGE = (ROOT / "frontend/src/pages/SmartPricingPage.tsx").read_text(encoding="utf-8")
 PRICING_API = (ROOT / "frontend/src/api/pricing.ts").read_text(encoding="utf-8")
 CONTENT_MEDIA_STUDIO = (ROOT / "frontend/src/features/content-planner/ContentMediaStudio.tsx").read_text(encoding="utf-8")
+SELLER_IMAGE_EDITOR_WORKBENCH = (ROOT / "frontend/src/features/content-planner/SellerImageEditorWorkbench.tsx").read_text(encoding="utf-8")
 CONTENT_TITLE_GENERATOR = (ROOT / "frontend/src/features/content-planner/ContentTitleGenerator.tsx").read_text(encoding="utf-8")
 SELLER_PLATFORM_LISTING_EDITOR = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorPanel.tsx").read_text(encoding="utf-8")
 SELLER_PLATFORM_LISTING_EDITOR_UTILS = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorUtils.ts").read_text(encoding="utf-8")
@@ -433,9 +434,12 @@ def validate() -> list[str]:
     for required in ("avg_wait_label", "max_wait_item", "平均停留", "最长停留", "stage_dwell_stats", "stage_dwell", "阶段停留对比"):
         if required not in business_flow_dwell_content:
             errors.append(f"business flow monitor must expose real stage dwell time and longest waiting object: {required}")
-    for forbidden in ("业务对象范围对比", "业务对象对比范围说明", "业务对象周期对比", "业务对象窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "统计日期范围 / 环比日期范围 / 同比日期范围", "name=\"业务对象\"", "name=\"卡点对象\"", "name=\"待补对象\"", "label=\"业务对象\"", "label=\"卡点对象\"", "label=\"待补资料\""):
+    for forbidden in ("业务对象范围对比", "业务对象对比范围说明", "业务对象周期对比", "业务对象窗口对比", "当前窗口", "上一同长窗口", "去年同窗", "当前周期", "上一周期", "去年同期", "本次统计", "前N天", "去年同N天", "上一个${days}天", "上一个30天", "去年同日${days}天", "去年同日30天", "当前范围", "前一范围", "去年同日期范围", "本期 / 上期 / 去年同期", "统计区间 / 前一等长区间", "当前统计日期区间", "前一等长日期区间", "去年同日期等长区间", "统计日期范围 / 环比日期范围 / 同比日期范围", "本周/上周/去年同周；本月/上月/去年同月", "name=\"业务对象\"", "name=\"卡点对象\"", "name=\"待补对象\"", "label=\"业务对象\"", "label=\"卡点对象\"", "label=\"待补资料\""):
         if forbidden in BUSINESS_FLOW_COMMAND_BOARD:
             errors.append(f"business monitor must not use vague period/object labels: {forbidden}")
+    for required in ("stageDwellWindowLabel", "comparisonRangeLabel('current', data.comparison.windows.current)", "comparisonRangeLabel('previous', data.comparison.windows.previous)", "comparisonRangeLabel('lastYear', data.comparison.windows.last_year)"):
+        if required not in BUSINESS_FLOW_COMMAND_BOARD:
+            errors.append(f"business monitor stage dwell badge must use explicit comparison windows: {required}")
     for required in ("流程商品数", "阻塞商品数", "待补资料商品数"):
         if required not in BUSINESS_FLOW_COMMAND_BOARD:
             errors.append(f"business monitor object chart must use concrete product-flow labels: {required}")
@@ -473,6 +477,11 @@ def validate() -> list[str]:
         errors.append("risk control must put the platform/store risk total-and-breakdown board in the main visual area")
     if "aria-label=\"风险处置指标\"" not in RISK_CONTROL_WORKSPACE:
         errors.append("risk control metric strip must expose an accessible risk indicator label")
+    for required in ("data-ui=\"risk-date-range-filter\"", "aria-label=\"风险日期快捷窗口\"", "应用风险范围", "getRiskControlOverview(cleanRiskDateRange(appliedRiskDateRange))"):
+        if required not in RISK_CONTROL_WORKSPACE:
+            errors.append(f"risk control must expose explicit date range filter tied to backend query: {required}")
+    if "{ params }" not in RISK_CONTROL_API:
+        errors.append("risk control API client must pass explicit date range query params")
     for required in ("data-ui=\"risk-stage2-signal-summary\"", "履约库存利润风险源汇总", "RiskSourceSummaryPanel", "履约超时", "库存断货", "利润异常", "fulfillment_overdue", "inventory_stockout", "profit_anomaly"):
         if required not in RISK_CONTROL_WORKSPACE:
             errors.append(f"risk control must expose fulfillment/inventory/profit source summary cards: {required}")
@@ -666,25 +675,31 @@ def validate() -> list[str]:
         errors.append("content media studio must expose the selected product context before image/video processing")
     if "使用当前商品源图处理" not in CONTENT_MEDIA_STUDIO:
         errors.append("content media studio must support using the selected product source image")
+    content_media_surface = CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH
     for required in (
         "ListingMediaSlotBoard",
         "data-ui=\"listing-media-editor-seller-console\"",
         "SellerImageEditorWorkbench",
         "data-ui=\"listing-image-editor-workbench\"",
-        "2xl:grid-cols-[220px_minmax(640px,1fr)_150px]",
+        "2xl:grid-cols-[220px_minmax(640px,1fr)_180px]",
         "aria-label=\"Listing 图片编辑工作台\"",
         "aria-label=\"左侧图片工具栏\"",
         "aria-label=\"图片编辑画布\"",
         "aria-label=\"右侧图片槽位缩略图\"",
-        "批量编辑模式",
+        "真实素材绑定",
         "消除笔",
         "裁剪旋转",
         "修改尺寸",
         "AI设计",
-        "保存图片修改",
+        "上传/替换当前槽位",
         "保存槽位顺序",
         "setAsMainImage",
         "reorderSlot",
+        "replaceActiveSlotWithAsset",
+        "uploadSlotImage",
+        "data-ui=\"image-slot-file-input\"",
+        "data-ui=\"listing-image-empty-slot\"",
+        "data-ui=\"replace-active-slot-with-asset\"",
         "{activeSlot.index}/{imageSlots.length}",
         "aria-label=\"Listing 媒体字段快速定位\"",
         "data-ui=\"media-editor-section-nav\"",
@@ -706,7 +721,7 @@ def validate() -> list[str]:
         "productImageAssets",
         "productVideoAssets",
     ):
-        if required not in CONTENT_MEDIA_STUDIO:
+        if required not in content_media_surface:
             errors.append(f"content media studio must expose seller-console listing media slots: {required}")
     for forbidden in ("grid-cols-[220px_minmax(520px,1fr)_150px]",):
         if forbidden in CONTENT_MEDIA_STUDIO:
@@ -818,7 +833,7 @@ def validate() -> list[str]:
         "role: slot.role || roleMeta.role",
         "label: slot.label || roleMeta.label",
     ):
-        if required not in CONTENT_MEDIA_STUDIO:
+        if required not in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH:
             errors.append(f"content media studio must preserve V5 image slot roles in saved image plans: {required}")
     for required in (
         "SellerPlatformListingEditorPanel",
@@ -941,9 +956,17 @@ def validate() -> list[str]:
     for required in ("draggable", "onDragStart", "onDragOver", "onDrop", "reorderSlot", "新增图片空位", "aria-label=\"新增图片空位\"", "拖拽缩略图调整主图/辅图顺序"):
         if required not in CONTENT_MEDIA_STUDIO:
             errors.append(f"content media studio must support drag-sort image slots and add empty slots: {required}")
-    for required in ("aria-label=\"图片裁剪参数表\"", "aria-label=\"图片水印参数表\"", "crop_mode", "crop_x", "crop_width", "watermark_text", "watermark_position", "image_edit_options"):
+    for required in ("aria-label=\"图片裁剪参数表\"", "aria-label=\"图片水印参数表\"", "crop_mode", "crop_x", "crop_width", "watermark_text", "watermark_position", "rotate_degrees", "flip_horizontal", "flip_vertical", "image_edit_options"):
         if required not in CONTENT_MEDIA_STUDIO:
             errors.append(f"content media studio must persist crop/watermark image edit options: {required}")
+    for required in ("data-ui=\"image-orientation-controls\"", "旋转90°", "水平翻转", "垂直翻转"):
+        if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+            errors.append(f"seller image editor must expose deterministic orientation controls: {required}")
+    for required in ("platformAttributeAliases", "platformFields(platformRequirements)", "pickLegacyAttributes"):
+        if required not in SELLER_PLATFORM_LISTING_EDITOR_UTILS:
+            errors.append(f"listing editor must merge dynamic platform field schema before legacy compatibility fields: {required}")
+    if "...pickAttributes(draft)" in SELLER_PLATFORM_LISTING_EDITOR_UTILS:
+        errors.append("listing editor must not blindly overwrite platform schema attribute values with old hardcoded pickAttributes")
     for forbidden in ("moveSlot(", "上移</button>", "下移</button>"):
         if forbidden in CONTENT_MEDIA_STUDIO:
             errors.append(f"content media studio must not rely on old up/down image sorting buttons: {forbidden}")
@@ -1041,6 +1064,15 @@ def validate() -> list[str]:
     for required in ("PlatformRealtimePreview", "平台适配实时预览", "Shopee 商品卡", "TEMU 商品卡", "TikTok Shop 商品卡"):
         if required not in BATCH_PUBLISH_PREVIEW:
             errors.append(f"batch publish preview must expose three-platform realtime listing preview: {required}")
+    for required in ("PlatformFieldGapDetails", "data-ui=\"platform-field-gap-details\"", "aria-label=\"平台字段结构化缺口\"", "blocking_fields", "recheck_fields", "unified_field_key", "platform_field_name"):
+        if required not in BATCH_PUBLISH_PREVIEW + LISTING_API:
+            errors.append(f"batch publish preview must expose structured platform field gaps from backend validation details: {required}")
+    for required in ("field-gaps-content-link", "platform_field_key", "fieldRepairHref", "encodeURIComponent(field.key)", "/content?"):
+        if required not in BATCH_PUBLISH_PREVIEW:
+            errors.append(f"batch publish structured field gaps must link back to content factory field repair context: {required}")
+    for required in ("searchParams.get('platform_field_key')", "highlightPlatformFieldKey", "highlightedFieldKey", "data-ui=\"platform-field-highlight-target\"", "decodeURIComponent(highlightPlatformFieldKey)"):
+        if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + PLATFORM_FIELD_GROUPS:
+            errors.append(f"content factory must consume platform_field_key and highlight the dynamic platform field: {required}")
     for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFieldGroupSummary"):
         if required not in BATCH_PUBLISH_RESULT:
             errors.append(f"batch publish result step must expose listing draft persistence diagnostics: {required}")
@@ -1158,6 +1190,9 @@ def validate() -> list[str]:
         "triggerProductSync",
         "同步平台商品库存",
         "平台商品同步未完成",
+        "sku_source",
+        "v5_product_sku_variants",
+        "V5 SKU结构",
     ):
         if required not in inventory_alert_content:
             errors.append(f"inventory alerts must expose platform/store inventory risk workbench: {required}")
@@ -1277,6 +1312,12 @@ def validate() -> list[str]:
     for required in ("ProductEditObjectOverview", "aria-label=\"商品编辑对象总览\"", "data-ui=\"product-edit-object-overview\"", "基础商品版本", "店铺 Listing 实例", "发布准备度", "仅用当前商品真实字段判断", "不回写污染其他店铺"):
         if required not in PRODUCT_EDIT_PAGE:
             errors.append(f"product detail page must show current product object overview before edit sections: {required}")
+    for required in ("getProductObjectModel", "/object-model", "ProductObjectModelSnapshot"):
+        if required not in PRODUCTS_API + PRODUCT_EDIT_PAGE:
+            errors.append(f"product detail page must consume V5 product object model snapshot: {required}")
+    for required in ("useProductObjectModel", "data-ui=\"product-v5-object-model-summary\"", "data-ui=\"product-v5-object-model-gaps\"", "基础版本", "V5 SKU", "字段缺口"):
+        if required not in PRODUCT_EDIT_PAGE:
+            errors.append(f"product detail page must expose V5 object model state: {required}")
     for required in ("useSearchParams", "initialTab", "initialListingSection", "ProductEditSectionNav", "aria-label=\"商品编辑字段快速定位\"", "ProductEditSection", "scrollIntoView", "product-section-${initialTab}"):
         if required not in PRODUCT_EDIT_PAGE:
             errors.append(f"product detail page must use route-driven quick定位 and continuous sections: {required}")
@@ -1384,6 +1425,9 @@ def validate() -> list[str]:
     for required in ("override_image_urls", "override_sku_rows", "image_slots", "sku_rows", "package_size", "platform_attributes", "boundary"):
         if required not in LISTING_STORE_OVERRIDE_SERVICE + SELLER_PLATFORM_LISTING_EDITOR:
             errors.append(f"listing store override must bridge V5 editor payload into publish/readiness services: {required}")
+    for required in ("platform_sku", "spu_skc", "sku_image_role", "weight_g", "option_2_value", "test_listing_store_override_supports_v5_editor_payload"):
+        if required not in LISTING_STORE_OVERRIDE_SERVICE + (ROOT / "backend/app/services/listing_draft_asset_service.py").read_text(encoding="utf-8") + (ROOT / "backend/tests/test_listing_store_override_compat.py").read_text(encoding="utf-8"):
+            errors.append(f"listing SKU plan must preserve seller-console SKU fields into publish payload: {required}")
     for required in (
         "default_unified_field_dictionary.json",
         "get_unified_field_dictionary",

@@ -18,6 +18,7 @@ export default function ContentPlannerPage() {
   const { tab } = useParams()
   const [searchParams] = useSearchParams()
   const initialProductId = searchParams.get('product_id') || ''
+  const highlightPlatformFieldKey = searchParams.get('platform_field_key') || ''
   const { data: platformsData } = usePlatforms()
   const storeOptions = (platformsData?.data || []).map((account: any) => ({
     value: account.id,
@@ -126,7 +127,13 @@ export default function ContentPlannerPage() {
                 处理商品图片
               </Button>
             </div>
-            <SellerPlatformListingEditorPanel product={selectedProduct} activeStore={activeStoreLabel} changeTab={changeTab} onSaved={refreshContentTasks} />
+            <SellerPlatformListingEditorPanel
+              product={selectedProduct}
+              activeStore={activeStoreLabel}
+              changeTab={changeTab}
+              onSaved={refreshContentTasks}
+              highlightPlatformFieldKey={highlightPlatformFieldKey}
+            />
           </section>
         </ContentEditorOverlay>
       )}

@@ -14,6 +14,8 @@ from app.models.platform_account import PlatformAccount
 from app.models.sync_log import SyncLog
 from app.models.sys_dict import SysDictItem
 from app.services.evidence_service import evidence_payload, source_ref
+from app.services.finance_traceback_summary_service import build_finance_traceback_summary
+from app.services.finance_v5_sku_context_service import finance_v5_sku_contexts_by_product
 from app.utils.encryption import decrypt
 
 REVENUE_TYPES = {"revenue", "sales_income", "refund_reversal", "receivable", "accounts_receivable", "receivable_collection"}
@@ -470,6 +472,13 @@ async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "d
     entries = list(result.scalars().all())
     by_order = _traceback_groups(entries, "order")
     by_product = _traceback_groups(entries, "product")
+    sku_contexts_by_product = await finance_v5_sku_contexts_by_product(db, user_id, entries)
+    for row in by_product:
+        contexts = sku_contexts_by_product.get(row["product_id"], [])
+        row["v5_sku_contexts"] = contexts
+        for context in contexts:
+            row["data_gaps"].extend(context.get("data_gaps") or [])
+        row["data_gaps"] = list(dict.fromkeys(row["data_gaps"]))
     by_store = _traceback_groups(entries, "store")
     data_gaps = []
     if not entries:
@@ -482,12 +491,16 @@ async def get_finance_traceback(db: AsyncSession, user_id: str, period: str = "d
         data_gaps.append("finance_ledger_entries.platform_bill")
     return {
         "period": period,
-        "summary": {
-            "order_count": len(by_order),
-            "product_count": len(by_product),
-            "store_count": len(by_store),
-            "entry_count": len(entries),
-        },
+        "summary": build_finance_traceback_summary(
+            entries=entries,
+            order_count=len(by_order),
+            product_count=len(by_product),
+            store_count=len(by_store),
+            revenue_types=REVENUE_TYPES,
+            non_profit_loss_types=NON_PROFIT_LOSS_TYPES,
+            settlement_movement_types=SETTLEMENT_MOVEMENT_TYPES,
+            platform_bill_types=PLATFORM_BILL_TYPES,
+        ),
         "by_order": by_order,
         "by_product": by_product,
         "by_store": by_store,

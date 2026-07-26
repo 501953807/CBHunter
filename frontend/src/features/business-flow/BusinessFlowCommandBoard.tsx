@@ -52,6 +52,11 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
     { period: comparisonRangeLabel('lastYear', data.comparison.windows.last_year), window: data.comparison.windows.last_year, items: data.comparison.last_year?.items ?? 0, blocked: data.comparison.last_year?.blocked ?? 0, dataRequired: data.comparison.last_year?.data_required ?? 0 },
   ]
   const stageDwellRows = [...data.comparison.stage_dwell].sort((a, b) => (b.current.avg_wait_hours ?? -1) - (a.current.avg_wait_hours ?? -1))
+  const stageDwellWindowLabel = [
+    comparisonRangeLabel('current', data.comparison.windows.current),
+    comparisonRangeLabel('previous', data.comparison.windows.previous),
+    comparisonRangeLabel('lastYear', data.comparison.windows.last_year),
+  ].join(' / ')
   const currentWindow = data.comparison.windows.current || '业务日期范围待补'
   const bottleneckStage = [...stageRows].sort((a, b) => ((b.blocked + b.data_required) - (a.blocked + a.data_required)))[0]
   const primaryAction = data.next_actions.find((action) => action.primary) || data.next_actions[0]
@@ -286,7 +291,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
             <p className="text-sm font-semibold text-[var(--color-fg)]">阶段停留对比</p>
             <p className="mt-1 text-[11px] text-[var(--color-muted)]">按真实业务对象更新时间计算当前、环比、同比平均停留，定位哪个阶段正在拖慢上架链路。</p>
           </div>
-          <Badge variant="outline">本周/上周/去年同周；本月/上月/去年同月</Badge>
+          <Badge variant="outline">{stageDwellWindowLabel}</Badge>
         </div>
         <div className="grid gap-2 lg:grid-cols-4">
           {stageDwellRows.map((stage) => (

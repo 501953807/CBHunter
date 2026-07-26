@@ -11,6 +11,10 @@ from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.services.store_access_service import list_accessible_store_ids_for_user_id
 from app.models.product import Product
+from app.models.product_object_model import ProductSkuVariant
+from app.models.sourcing_supplier import SourcingSupplier
+from app.models.supply_product import SupplyProduct
+from app.models.user import User
 from app.services.order_service import build_fulfillment_exception_context
 
 logger = logging.getLogger(__name__)
@@ -287,6 +291,7 @@ async def get_inventory_risk_workbench(
     ]
 
     confirmed_listings: list[tuple[PlatformListing, Product, PlatformAccount]] = []
+    missing_platform_stock_count = 0
     if store_ids:
         result = await db.execute(
             select(PlatformListing, Product, PlatformAccount)
@@ -303,6 +308,7 @@ async def get_inventory_risk_workbench(
         for listing, product, account in result.all():
             platform_data = listing.platform_data if isinstance(listing.platform_data, dict) else {}
             if platform_data.get("stock_status") == "missing":
+                missing_platform_stock_count += 1
                 data_gaps.append(f"platform_listing.confirmed_stock:{listing.id}")
                 continue
             confirmed_listings.append((listing, product, account))
@@ -312,8 +318,20 @@ async def get_inventory_risk_workbench(
     missing_cost_count = 0
     slow_moving_items: list[dict] = []
     missing_performance_count = 0
+    v5_sku_listing_count = 0
+    legacy_listing_stock_count = 0
+    confirmed_stock_units = 0
+    sku_variants_by_listing = await _sku_variants_by_listing(db, user_id, [listing.id for listing, _, _ in confirmed_listings])
     for listing, product, account in confirmed_listings:
-        stock = int(listing.stock or 0)
+        sku_variants = sku_variants_by_listing.get(listing.id, [])
+        stock = sum(int(item.stock or 0) for item in sku_variants) if sku_variants else int(listing.stock or 0)
+        sku_label = _sku_label(product.sku, sku_variants)
+        sku_source = "v5_product_sku_variants" if sku_variants else "platform_listing.stock"
+        confirmed_stock_units += stock
+        if sku_variants:
+            v5_sku_listing_count += 1
+        else:
+            legacy_listing_stock_count += 1
         account_settings = account.settings if isinstance(account.settings, dict) else {}
         if product.cost_price is None:
             missing_cost_count += 1
@@ -328,7 +346,9 @@ async def get_inventory_risk_workbench(
                 "platform_account_id": account.id,
                 "account_name": account.account_name,
                 "market": account_settings.get("market"),
-                "sku": product.sku,
+                "sku": sku_label,
+                "sku_source": sku_source,
+                "sku_count": len(sku_variants) or 1,
                 "title": listing.title,
                 "stock": stock,
                 "unit_cost_rmb": float(product.cost_price),
@@ -350,7 +370,9 @@ async def get_inventory_risk_workbench(
                 "platform_account_id": account.id,
                 "account_name": account.account_name,
                 "market": account_settings.get("market"),
-                "sku": product.sku,
+                "sku": sku_label,
+                "sku_source": sku_source,
+                "sku_count": len(sku_variants) or 1,
                 "title": listing.title,
                 "stock": stock,
                 "views_30d": views_30d,
@@ -409,6 +431,12 @@ async def get_inventory_risk_workbench(
             "priority": "critical" if fulfillment_items else "normal",
         },
     ]
+    supply_readiness = await _supply_readiness_summary(
+        db,
+        user_id,
+        [product for _, product, _ in confirmed_listings],
+    )
+    data_gaps.extend(supply_readiness.pop("data_gaps", []))
 
     return {
         "stockout": {
@@ -429,6 +457,101 @@ async def get_inventory_risk_workbench(
             "count": len(fulfillment_items),
             "items": fulfillment_items[:20],
         },
+        "stock_sources": {
+            "confirmed_listing_count": len(confirmed_listings),
+            "v5_sku_listing_count": v5_sku_listing_count,
+            "legacy_listing_stock_count": legacy_listing_stock_count,
+            "manual_rule_alert_count": len(stockout_items),
+            "missing_platform_stock_count": missing_platform_stock_count,
+            "confirmed_stock_units": confirmed_stock_units,
+            "local_warehouse_count": supply_readiness["local_warehouse_count"],
+            "warehouse_sync_ready_count": supply_readiness["warehouse_sync_ready_count"],
+        },
+        "supply_readiness": supply_readiness,
         "actions": actions,
         "data_gaps": list(dict.fromkeys(data_gaps)),
     }
+
+
+async def _sku_variants_by_listing(
+    db: AsyncSession,
+    user_id: str,
+    listing_ids: list[str],
+) -> dict[str, list[ProductSkuVariant]]:
+    if not listing_ids:
+        return {}
+    rows = (await db.execute(
+        select(ProductSkuVariant).where(
+            ProductSkuVariant.user_id == user_id,
+            ProductSkuVariant.scope == "listing_override",
+            ProductSkuVariant.platform_listing_id.in_(listing_ids),
+            ProductSkuVariant.enabled.is_(True),
+        )
+    )).scalars().all()
+    grouped: dict[str, list[ProductSkuVariant]] = {}
+    for row in rows:
+        if row.platform_listing_id:
+            grouped.setdefault(row.platform_listing_id, []).append(row)
+    return grouped
+
+
+async def _supply_readiness_summary(
+    db: AsyncSession,
+    user_id: str,
+    products: list[Product],
+) -> dict:
+    supply_products = (await db.execute(
+        select(SupplyProduct).where(
+            SupplyProduct.user_id == user_id,
+            SupplyProduct.is_active.is_(True),
+        )
+    )).scalars().all()
+    preferred_suppliers = (await db.execute(
+        select(func.count(SourcingSupplier.id)).where(
+            SourcingSupplier.user_id == user_id,
+            SourcingSupplier.is_preferred.is_(True),
+        )
+    )).scalar_one()
+    user = await db.get(User, user_id)
+    warehouses = []
+    if user and isinstance(user.settings, dict):
+        warehouses = user.settings.get("warehouses") if isinstance(user.settings.get("warehouses"), list) else []
+    warehouse_items = [item for item in warehouses if isinstance(item, dict)]
+    warehouse_sync_ready_count = sum(
+        1
+        for item in warehouse_items
+        if item.get("inventory_sync_mode") in {"api_sync", "platform_sync", "manual_with_sync", "manual_periodic"}
+        or item.get("integration_status") in {"connected", "ready", "enabled"}
+    )
+    product_skus = {item.sku for item in products if item.sku}
+    product_names = {item.name for item in products if item.name}
+    matched_supply = [
+        item
+        for item in supply_products
+        if (item.sku and item.sku in product_skus) or (item.name and item.name in product_names)
+    ]
+    data_gaps: list[str] = []
+    if not supply_products:
+        data_gaps.append("supply_products.active")
+    if not warehouses:
+        data_gaps.append("user.settings.warehouses")
+    if not warehouse_sync_ready_count:
+        data_gaps.append("warehouse.inventory_sync_mode")
+    return {
+        "active_supply_product_count": len(supply_products),
+        "matched_listing_supply_count": len(matched_supply),
+        "supply_with_price_count": sum(1 for item in supply_products if item.price_min is not None or item.price_max is not None),
+        "supply_with_moq_count": sum(1 for item in supply_products if item.moq is not None),
+        "preferred_supplier_count": int(preferred_suppliers or 0),
+        "local_warehouse_count": len(warehouse_items),
+        "warehouse_sync_ready_count": warehouse_sync_ready_count,
+        "data_gaps": data_gaps,
+    }
+
+
+def _sku_label(product_sku: str, sku_variants: list[ProductSkuVariant]) -> str:
+    if not sku_variants:
+        return product_sku
+    if len(sku_variants) == 1:
+        return sku_variants[0].merchant_sku or product_sku
+    return f"{product_sku} · {len(sku_variants)}个V5 SKU"

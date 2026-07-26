@@ -334,16 +334,18 @@ export default function FinancePage() {
               </button>
             </div>
           )}
-          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-6">
             {[
-              ['订单', traceback?.summary.order_count ?? 0],
-              ['商品', traceback?.summary.product_count ?? 0],
-              ['店铺', traceback?.summary.store_count ?? 0],
-              ['流水', traceback?.summary.entry_count ?? 0],
+              ['回溯收入', traceback?.summary.total_revenue_rmb == null ? '--' : formatMoney(traceback.summary.total_revenue_rmb)],
+              ['回溯成本', traceback?.summary.total_cost_rmb == null ? '--' : formatMoney(traceback.summary.total_cost_rmb)],
+              ['回溯净利', traceback?.summary.net_profit_rmb == null ? '--' : formatMoney(traceback.summary.net_profit_rmb)],
+              ['退款/售后', formatMoney(traceback?.summary.refund_rmb ?? 0)],
+              ['结算流动', formatMoney(traceback?.summary.settlement_movement_rmb ?? 0)],
+              ['对象数', `${traceback?.summary.order_count ?? 0}单 / ${traceback?.summary.product_count ?? 0}品 / ${traceback?.summary.store_count ?? 0}店`],
             ].map(([label, value]) => (
               <div key={label as string} className="rounded-xl bg-[var(--color-bg)] p-3">
                 <p className="text-[11px] text-[var(--color-muted)]">{label as string}</p>
-                <p className="mt-1 text-lg font-semibold text-[var(--color-fg)]">{value as number}</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-fg)]">{value as string}</p>
               </div>
             ))}
           </div>

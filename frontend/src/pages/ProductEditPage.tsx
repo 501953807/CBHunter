@@ -5,14 +5,14 @@ import { Card, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
-import { useProduct, useCreateProduct, useUpdateProduct } from '../hooks/useProducts'
+import { useProduct, useProductObjectModel, useCreateProduct, useUpdateProduct } from '../hooks/useProducts'
 import { useToast } from '../components/ui/Toast'
 import { Skeleton } from '../components/shared/LoadingSkeleton'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import { useConfig } from '../hooks/useConfig'
 import { toDomainOptions } from '../utils/domainOptions'
 import { CompliancePanel, ListingsPanel, VariationsPanel } from '../features/products/ProductDetailTabs'
-import type { ProductCompliance, ProductVariant } from '../types/product'
+import type { ProductCompliance, ProductObjectModelSnapshot, ProductVariant } from '../types/product'
 import { ProductImagesPanel } from '../features/products/ProductImagesPanel'
 import { ProductPlatformAttributesPanel, type PlatformRequirementsByPlatform } from '../features/products/ProductPlatformAttributesPanel'
 import { productImageSrc } from '../utils/productImages'
@@ -40,7 +40,9 @@ export default function ProductEditPage() {
   const { product_statuses = [], platforms = [], platform_product_field_groups } = useConfig()
 
   const { data: productData, isLoading } = useProduct(id || '')
+  const { data: productObjectModelData } = useProductObjectModel(id || '')
   const product = productData?.data
+  const productObjectModel = productObjectModelData?.data || null
 
   const [activeSection, setActiveSection] = useState('basic')
   const [nameError, setNameError] = useState('')
@@ -198,6 +200,7 @@ export default function ProductEditPage() {
         platformFieldCount={platformFieldCount}
         listingCount={listingCount}
         listingPlatforms={listingPlatforms}
+        objectSnapshot={productObjectModel}
         onFocus={focusSection}
       />
 
@@ -321,6 +324,7 @@ function ProductEditObjectOverview({
   platformFieldCount,
   listingCount,
   listingPlatforms,
+  objectSnapshot,
   onFocus,
 }: {
   isNew: boolean
@@ -334,6 +338,7 @@ function ProductEditObjectOverview({
   platformFieldCount: number
   listingCount: number
   listingPlatforms: string[]
+  objectSnapshot: ProductObjectModelSnapshot | null
   onFocus: (sectionId: string) => void
 }) {
   const mainImage = imageUrls[0]
@@ -368,6 +373,23 @@ function ProductEditObjectOverview({
             <ProductOverviewMetric label="成本价" value={costPrice ? `¥${costPrice}` : '待补'} warning={!costPrice} />
             <ProductOverviewMetric label="重量" value={weightG ? `${weightG}g` : '待补'} warning={!weightG} />
           </div>
+          {objectSnapshot ? (
+            <div data-ui="product-v5-object-model-summary" className="mt-3 grid gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 sm:grid-cols-4">
+              <ProductOverviewMetric label="基础版本" value={`${objectSnapshot.summary.base_version_count}`} warning={objectSnapshot.summary.base_version_count === 0} />
+              <ProductOverviewMetric label="店铺实例" value={`${objectSnapshot.summary.listing_instance_count}`} warning={objectSnapshot.summary.listing_instance_count === 0} />
+              <ProductOverviewMetric label="V5 SKU" value={`${objectSnapshot.summary.sku_variant_count}`} warning={objectSnapshot.summary.sku_variant_count === 0} />
+              <ProductOverviewMetric label="字段缺口" value={`${objectSnapshot.summary.missing_required_field_count}`} warning={objectSnapshot.summary.missing_required_field_count > 0} />
+            </div>
+          ) : null}
+          {objectSnapshot?.data_gaps?.length ? (
+            <div data-ui="product-v5-object-model-gaps" className="mt-2 flex flex-wrap gap-1.5">
+              {objectSnapshot.data_gaps.slice(0, 4).map(gap => (
+                <button key={gap} type="button" onClick={() => onFocus(gap.includes('Listing') ? 'listings' : gap.includes('SKU') ? 'variations' : 'basic')} className="rounded-full border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-2 py-0.5 text-[11px] text-[var(--color-warning)]">
+                  {gap}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => onFocus('images')} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">商品图片素材 {imageUrls.length}</button>
             <button type="button" onClick={() => onFocus('variations')} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">SKU/规格 {variantCount}</button>

@@ -210,6 +210,17 @@ async def generate_content_task_candidate(
        data_gaps=evidence["data_gaps"])
 
 
+def _image_edit_options(**values) -> dict:
+    keys = {
+        "width", "height", "fit", "background", "brightness", "contrast", "sharpness",
+        "auto_contrast", "unsharp_mask", "crop_mode", "crop_x", "crop_y", "crop_width",
+        "crop_height", "rotate_degrees", "flip_horizontal", "flip_vertical",
+        "watermark_text", "watermark_position", "watermark_opacity", "watermark_color",
+        "output_format", "quality", "content_item_id",
+    }
+    return {key: values[key] for key in keys if key in values}
+
+
 @router.post("/assets/image-edit", response_model=ApiResponse, status_code=201)
 async def create_edited_image(
     file: UploadFile = File(...),
@@ -227,25 +238,20 @@ async def create_edited_image(
     crop_y: int = Form(0),
     crop_width: int = Form(1080),
     crop_height: int = Form(1080),
+    rotate_degrees: int = Form(0),
+    flip_horizontal: bool = Form(False),
+    flip_vertical: bool = Form(False),
     watermark_text: str = Form(""),
     watermark_position: str = Form("bottom_right"),
     watermark_opacity: float = Form(0.32),
     watermark_color: str = Form("#FFFFFF"),
     output_format: str = Form("jpeg"),
     quality: int = Form(88),
+    content_item_id: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    asset = await edit_image(db, current_user.id, file, {
-        "width": width, "height": height, "fit": fit, "background": background,
-        "brightness": brightness, "contrast": contrast, "sharpness": sharpness,
-        "auto_contrast": auto_contrast, "unsharp_mask": unsharp_mask,
-        "crop_mode": crop_mode, "crop_x": crop_x, "crop_y": crop_y,
-        "crop_width": crop_width, "crop_height": crop_height,
-        "watermark_text": watermark_text, "watermark_position": watermark_position,
-        "watermark_opacity": watermark_opacity, "watermark_color": watermark_color,
-        "output_format": output_format, "quality": quality,
-    })
+    asset = await edit_image(db, current_user.id, file, _image_edit_options(**locals()))
     await record_audit_event(
         db,
         user=current_user,
@@ -275,6 +281,9 @@ class SourceImageEditRequest(BaseModel):
     crop_y: int = 0
     crop_width: int = 1080
     crop_height: int = 1080
+    rotate_degrees: int = 0
+    flip_horizontal: bool = False
+    flip_vertical: bool = False
     watermark_text: str = ""
     watermark_position: str = "bottom_right"
     watermark_opacity: float = 0.32
@@ -289,16 +298,7 @@ async def create_edited_image_from_url(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    asset = await edit_image_from_url(db, current_user.id, req.image_url, {
-        "width": req.width, "height": req.height, "fit": req.fit, "background": req.background,
-        "brightness": req.brightness, "contrast": req.contrast, "sharpness": req.sharpness,
-        "auto_contrast": req.auto_contrast, "unsharp_mask": req.unsharp_mask,
-        "crop_mode": req.crop_mode, "crop_x": req.crop_x, "crop_y": req.crop_y,
-        "crop_width": req.crop_width, "crop_height": req.crop_height,
-        "watermark_text": req.watermark_text, "watermark_position": req.watermark_position,
-        "watermark_opacity": req.watermark_opacity, "watermark_color": req.watermark_color,
-        "output_format": req.output_format, "quality": req.quality,
-    }, content_item_id=req.content_item_id)
+    asset = await edit_image_from_url(db, current_user.id, req.image_url, _image_edit_options(**req.model_dump()), content_item_id=req.content_item_id)
     await record_audit_event(
         db,
         user=current_user,

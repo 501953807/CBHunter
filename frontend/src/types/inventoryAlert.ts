@@ -61,6 +61,8 @@ export interface InventoryRiskWorkbenchSnapshot {
       account_name?: string | null
       market?: string | null
       sku: string
+      sku_source?: string
+      sku_count?: number
       title: string
       stock: number
       unit_cost_rmb: number
@@ -78,6 +80,8 @@ export interface InventoryRiskWorkbenchSnapshot {
       account_name?: string | null
       market?: string | null
       sku: string
+      sku_source?: string
+      sku_count?: number
       title: string
       stock: number
       views_30d: number
@@ -98,6 +102,25 @@ export interface InventoryRiskWorkbenchSnapshot {
       hours_to_deadline: number | null
       route: string
     }>
+  }
+  stock_sources: {
+    confirmed_listing_count: number
+    v5_sku_listing_count: number
+    legacy_listing_stock_count: number
+    manual_rule_alert_count: number
+    missing_platform_stock_count: number
+    confirmed_stock_units: number
+    local_warehouse_count: number
+    warehouse_sync_ready_count: number
+  }
+  supply_readiness: {
+    active_supply_product_count: number
+    matched_listing_supply_count: number
+    supply_with_price_count: number
+    supply_with_moq_count: number
+    preferred_supplier_count: number
+    local_warehouse_count: number
+    warehouse_sync_ready_count: number
   }
   actions: Array<{
     label: string

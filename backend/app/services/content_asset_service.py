@@ -47,7 +47,10 @@ async def edit_image(
         width=metadata["width"],
         height=metadata["height"],
         operation="image_edit",
-        extra=metadata["options"],
+        extra={
+            **metadata["options"],
+            "content_item_id": options.get("content_item_id") or None,
+        },
     )
     db.add(asset)
     await db.commit()
@@ -111,6 +114,7 @@ def process_image_bytes(content: bytes, options: dict[str, Any]) -> tuple[bytes,
     except (UnidentifiedImageError, OSError) as exc:
         raise HTTPException(status_code=400, detail="无法识别上传的图片文件") from exc
     source = ImageOps.exif_transpose(source).convert("RGB")
+    source = _apply_orientation_transform(source, options)
     crop_box = _parse_crop_box(options, source.size)
     if crop_box:
         source = source.crop(crop_box)
@@ -157,8 +161,37 @@ def process_image_bytes(content: bytes, options: dict[str, Any]) -> tuple[bytes,
         "quality": save_options.get("quality"),
         "crop": _crop_metadata(crop_box),
         "watermark": watermark,
+        "orientation": _orientation_metadata(options),
     }
     return output.getvalue(), {"width": width, "height": height, "options": applied}
+
+
+def _apply_orientation_transform(image: Image.Image, options: dict[str, Any]) -> Image.Image:
+    rotate_degrees = _parse_rotate_degrees(options.get("rotate_degrees", 0))
+    transformed = image.rotate(-rotate_degrees, expand=True) if rotate_degrees else image
+    if options.get("flip_horizontal"):
+        transformed = ImageOps.mirror(transformed)
+    if options.get("flip_vertical"):
+        transformed = ImageOps.flip(transformed)
+    return transformed
+
+
+def _parse_rotate_degrees(value: Any) -> int:
+    try:
+        degrees = int(value or 0)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="旋转角度仅支持 0、90、180、270") from exc
+    if degrees not in {0, 90, 180, 270}:
+        raise HTTPException(status_code=400, detail="旋转角度仅支持 0、90、180、270")
+    return degrees
+
+
+def _orientation_metadata(options: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "rotate_degrees": _parse_rotate_degrees(options.get("rotate_degrees", 0)),
+        "flip_horizontal": bool(options.get("flip_horizontal")),
+        "flip_vertical": bool(options.get("flip_vertical")),
+    }
 
 
 def _parse_crop_box(options: dict[str, Any], source_size: tuple[int, int]) -> tuple[int, int, int, int] | None:

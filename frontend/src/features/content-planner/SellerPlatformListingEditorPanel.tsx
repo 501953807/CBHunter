@@ -19,11 +19,12 @@ import {
   type SellerSkuRow,
 } from './SellerPlatformListingEditorUtils'
 
-export function SellerPlatformListingEditorPanel({ product, activeStore, changeTab, onSaved }: {
+export function SellerPlatformListingEditorPanel({ product, activeStore, changeTab, onSaved, highlightPlatformFieldKey = '' }: {
   product: ContentWorkbenchItem | null
   activeStore: string
   changeTab: (nextTab: string) => void
   onSaved?: () => void
+  highlightPlatformFieldKey?: string
 }) {
   const toast = useToast()
   const [activeAnchor, setActiveAnchor] = useState('listing-master-media')
@@ -51,6 +52,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   const [skuBatchDraft, setSkuBatchDraft] = useState({ price: '', stock: '', weight: '', dimensions: '' })
   const [saving, setSaving] = useState(false)
   const effectivePlatformRequirements = platformRequirementsDraft || sourcePlatformRequirements
+  const highlightedFieldKey = highlightPlatformFieldKey ? decodeURIComponent(highlightPlatformFieldKey) : ''
   const requiredAttributes = effectivePlatformRequirements?.required_attributes || []
   const mergedAttributeValues = mergePlatformAttributeValues(draft, effectivePlatformRequirements)
   const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(mergedAttributeValues, field)).length
@@ -97,6 +99,14 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
     setImageSlots(buildImageSlots(product?.image_url || '', minImages, recommendedImages))
     setPlatformRequirementsDraft(sourcePlatformRequirements)
   }, [product?.id, title, description, product?.category, product?.selling_price_local, sourcePlatformRequirements, sourceAttributeValues, sourceBulletsKey, minImages, recommendedImages])
+
+  useEffect(() => {
+    if (!highlightedFieldKey) return
+    setActiveAnchor('listing-master-attributes')
+    window.setTimeout(() => {
+      document.getElementById('listing-master-attributes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }, [highlightedFieldKey])
 
   const updateDraft = (field: string, value: string) => setDraft(current => ({ ...current, [field]: value }))
   const updateSkuRow = (rowId: string, field: keyof SellerSkuRow, value: string | boolean) => {
@@ -488,6 +498,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
             <PlatformFieldGroupEditor
               requirements={effectivePlatformRequirements}
               onChange={setPlatformRequirementsDraft}
+              highlightedFieldKey={highlightedFieldKey}
             />
             <div>
               <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">统一共性字段补充</p>

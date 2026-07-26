@@ -10,6 +10,9 @@ from app.database import Base
 from app.models import all_models  # noqa: F401
 from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.platform_account import PlatformAccount
+from app.models.platform_listing import PlatformListing
+from app.models.product import Product
+from app.models.product_object_model import ProductSkuVariant
 from app.integrations.base import BasePlatformClient, PlatformBillRecord
 from app.integrations.factory import PlatformClientFactory
 from app.integrations.status import PLATFORM_CONNECTORS
@@ -47,6 +50,185 @@ def test_finance_summary_and_breakdown_share_one_ledger_scope(tmp_path):
         assert summary["cost_breakdown"] == {"purchase_cost": 400, "shipping_cost": 50}
         assert summary["cash_balance_rmb"] == 3000
         assert len(summary["source_refs"]) == summary["entry_count"] == 5
+
+    asyncio.run(run_test())
+
+
+def test_finance_traceback_product_rows_include_v5_sku_context(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-v5-sku-context.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="finance-user", platform="shopee", account_name="Shopee 财务店")
+            product = Product(user_id="finance-user", sku="BAG-BASE", name="财务 SKU 商品", cost_price=30)
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="finance-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="财务 SKU Listing",
+                price=99,
+                stock=99,
+                status="active",
+            )
+            session.add(listing)
+            await session.flush()
+            session.add_all([
+                ProductSkuVariant(
+                    user_id="finance-user",
+                    product_id=product.id,
+                    platform_listing_id=listing.id,
+                    scope="listing_override",
+                    merchant_sku="MER-RED",
+                    platform_sku="PLAT-RED",
+                    skc="SKC-RED",
+                    option_1_name="Color",
+                    option_1_value="Red",
+                    price=99,
+                    stock=8,
+                    enabled=True,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=198,
+                    platform="shopee",
+                    sourcing_item_id=product.id,
+                    extra={
+                        "platform_account_id": account.id,
+                        "account_name": account.account_name,
+                        "product_id": product.id,
+                        "product_name": product.name,
+                        "platform_listing_id": listing.id,
+                        "sku": "PLAT-RED",
+                    },
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="platform_fee",
+                    amount_rmb=18,
+                    platform="shopee",
+                    sourcing_item_id=product.id,
+                    extra={
+                        "platform_account_id": account.id,
+                        "account_name": account.account_name,
+                        "product_id": product.id,
+                        "product_name": product.name,
+                        "platform_listing_id": listing.id,
+                        "sku": "UNKNOWN-SKU",
+                    },
+                    occurred_at=now,
+                ),
+            ])
+            await session.commit()
+
+            traceback = await get_finance_traceback(session, "finance-user", "daily", platform_account_id=account.id)
+
+        await engine.dispose()
+
+        product_row = traceback["by_product"][0]
+        contexts = product_row["v5_sku_contexts"]
+        assert product_row["product_id"] == product.id
+        assert contexts[0]["status"] == "matched"
+        assert contexts[0]["source"] == "v5_product_sku_variants"
+        assert contexts[0]["merchant_sku"] == "MER-RED"
+        assert contexts[0]["platform_sku"] == "PLAT-RED"
+        assert contexts[0]["listing_stock"] == 8
+        assert contexts[1]["status"] == "unmatched"
+        assert "财务台账 SKU 未匹配" in contexts[1]["data_gaps"][0]
+        assert "财务台账 SKU 未匹配" in product_row["data_gaps"][0]
+
+    asyncio.run(run_test())
+
+
+def test_finance_traceback_summary_exposes_real_refund_settlement_and_profit(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'finance-traceback-summary.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        now = datetime.now(timezone.utc)
+        async with sessions() as session:
+            session.add_all([
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="sales_income",
+                    amount_rmb=500,
+                    order_id="ORDER-1",
+                    sourcing_item_id="PRODUCT-1",
+                    platform="shopee",
+                    extra={"product_id": "PRODUCT-1", "platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="purchase_cost",
+                    amount_rmb=200,
+                    order_id="ORDER-1",
+                    sourcing_item_id="PRODUCT-1",
+                    platform="shopee",
+                    extra={"product_id": "PRODUCT-1", "platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="platform_fee",
+                    amount_rmb=30,
+                    order_id="ORDER-1",
+                    sourcing_item_id="PRODUCT-1",
+                    platform="shopee",
+                    extra={"product_id": "PRODUCT-1", "platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="refund",
+                    amount_rmb=25,
+                    order_id="ORDER-1",
+                    sourcing_item_id="PRODUCT-1",
+                    platform="shopee",
+                    extra={"product_id": "PRODUCT-1", "platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="withdrawal",
+                    amount_rmb=100,
+                    platform="shopee",
+                    extra={"platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+                FinanceLedgerEntry(
+                    user_id="finance-user",
+                    entry_type="platform_wallet_balance",
+                    amount_rmb=900,
+                    platform="shopee",
+                    extra={"platform_account_id": "STORE-1", "account_name": "Shopee 店"},
+                    occurred_at=now,
+                ),
+            ])
+            await session.commit()
+
+            traceback = await get_finance_traceback(session, "finance-user", "daily")
+
+        await engine.dispose()
+
+        summary = traceback["summary"]
+        assert summary["entry_count"] == 6
+        assert summary["order_count"] == 1
+        assert summary["product_count"] == 1
+        assert summary["store_count"] == 1
+        assert summary["total_revenue_rmb"] == 500
+        assert summary["total_cost_rmb"] == 255
+        assert summary["net_profit_rmb"] == 245
+        assert summary["refund_rmb"] == 25
+        assert summary["platform_bill_rmb"] == 55
+        assert summary["settlement_movement_rmb"] == 155
 
     asyncio.run(run_test())
 

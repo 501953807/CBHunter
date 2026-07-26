@@ -96,6 +96,42 @@ export function InventoryRiskWorkbench({
         ))}
       </div>
 
+      {snapshot?.stock_sources ? (
+        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" data-ui="inventory-stock-source-summary">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-fg)]">库存来源质量</h3>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">区分 V5 SKU、店铺 Listing 库存、规则扫描预警和平台库存缺口；未知库存不按 0 处理。</p>
+            </div>
+            <Badge variant={snapshot.stock_sources.missing_platform_stock_count ? "warning" : "success"}>
+              缺口 {snapshot.stock_sources.missing_platform_stock_count}
+            </Badge>
+          </div>
+          <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+            {buildInventoryStockSourceCards(snapshot).map(item => (
+              <article key={item.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                <p className="text-[11px] text-[var(--color-muted)]">{item.label}</p>
+                <p className="mt-1 text-base font-bold text-[var(--color-fg)]">{item.value}</p>
+              </article>
+            ))}
+          </div>
+          {snapshot.supply_readiness ? (
+            <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3" data-ui="inventory-supply-readiness-summary">
+              <p className="text-xs font-semibold text-[var(--color-fg)]">供应与轻仓准备度</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                供应商品 {snapshot.supply_readiness.active_supply_product_count} 个，
+                匹配当前可售商品 {snapshot.supply_readiness.matched_listing_supply_count} 个，
+                有价格 {snapshot.supply_readiness.supply_with_price_count} 个，
+                有 MOQ {snapshot.supply_readiness.supply_with_moq_count} 个，
+                优选供应商 {snapshot.supply_readiness.preferred_supplier_count} 个；
+                轻仓/货代配置 {snapshot.supply_readiness.local_warehouse_count} 个，
+                库存同步可用 {snapshot.supply_readiness.warehouse_sync_ready_count} 个。
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {evidence ? (
         <div className="mt-4">
           <EvidenceBanner evidence={evidence} compact />
@@ -150,6 +186,9 @@ export function InventoryRiskWorkbench({
                     <p className="truncate text-sm font-semibold text-[var(--color-fg)]">{item.title}</p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">
                       {item.platform || "平台待补"} · {item.account_name || "店铺待补"} · SKU {item.sku}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+                      库存来源：{item.sku_source === "v5_product_sku_variants" ? `V5 SKU结构（${item.sku_count || 0} 个）` : "店铺 Listing 库存"}
                     </p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">
                       库存 {item.stock} · 近30天浏览 {item.views_30d} · 订单 {item.orders_30d} · 占用 {item.capital_rmb != null ? `¥${item.capital_rmb}` : "成本待补"}
@@ -241,6 +280,20 @@ export function buildInventoryRiskLanes(
       tone: snapshot?.fulfillment_overdue.count ? "danger" : "success",
       icon: <Truck className="h-4 w-4" />,
     },
+  ]
+}
+
+function buildInventoryStockSourceCards(snapshot: InventoryRiskWorkbenchSnapshot) {
+  const sources = snapshot.stock_sources
+  return [
+    { label: "已确认店铺 Listing", value: `${sources.confirmed_listing_count} 个` },
+    { label: "V5 SKU 库存", value: `${sources.v5_sku_listing_count} 个 Listing` },
+    { label: "旧 Listing 库存", value: `${sources.legacy_listing_stock_count} 个 Listing` },
+    { label: "规则扫描预警", value: `${sources.manual_rule_alert_count} 条` },
+    { label: "平台库存缺口", value: `${sources.missing_platform_stock_count} 个` },
+    { label: "确认库存合计", value: `${sources.confirmed_stock_units} 件` },
+    { label: "轻仓/货代配置", value: `${sources.local_warehouse_count} 个` },
+    { label: "库存同步可用", value: `${sources.warehouse_sync_ready_count} 个` },
   ]
 }
 

@@ -21,52 +21,14 @@ import { logger } from '../../utils/logger'
 import { productImageSrc } from '../../utils/productImages'
 import { EvidenceBanner } from '../../components/shared/EvidenceBanner'
 import type { ApiResponse } from '../../types/common'
+import {
+  SellerImageEditorWorkbench,
+  listingImageRoleByIndex,
+  type ImageEditOptions,
+  type MediaSlotPlan,
+} from './SellerImageEditorWorkbench'
 
 const inputClass = 'text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]'
-
-type ImageEditOptions = {
-  width: number
-  height: number
-  fit: string
-  background: string
-  brightness: number
-  contrast: number
-  sharpness: number
-  auto_contrast: boolean
-  unsharp_mask: boolean
-  crop_mode: string
-  crop_x: number
-  crop_y: number
-  crop_width: number
-  crop_height: number
-  watermark_text: string
-  watermark_position: string
-  watermark_opacity: number
-  watermark_color: string
-  output_format: string
-  quality: number
-}
-
-type MediaSlotPlan = {
-  index: number
-  role: string
-  label: string
-  imageUrl: string
-  assetName: string
-  sizeText: string
-}
-
-const listingImageRoleByIndex = (index: number) => {
-  const roles = [
-    { role: 'main_image', label: '主图' },
-    { role: 'scene_image', label: '场景辅图' },
-    { role: 'dimension_image', label: '尺寸图' },
-    { role: 'detail_image', label: '细节图' },
-    { role: 'sku_image', label: 'SKU图' },
-    { role: 'description_image', label: '详情图' },
-  ]
-  return roles[index] || { role: `extra_image_${index + 1}`, label: `辅图 ${index + 1}` }
-}
 
 export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | 'image' | 'video'; product?: ContentWorkbenchItem | null }) {
   const toast = useToast()
@@ -81,6 +43,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
     brightness: 1, contrast: 1, sharpness: 1, auto_contrast: true,
     unsharp_mask: true, crop_mode: 'none', crop_x: 0, crop_y: 0,
     crop_width: 800, crop_height: 800, watermark_text: '',
+    rotate_degrees: 0, flip_horizontal: false, flip_vertical: false,
     watermark_position: 'bottom_right', watermark_opacity: 0.32,
     watermark_color: '#FFFFFF', output_format: 'jpeg', quality: 88,
   })
@@ -105,12 +68,38 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
     if (!imageFile) return
     setLoading(true)
     try {
-      const response = await editContentImage(imageFile, imageOptions)
+      const response = await editContentImage(imageFile, {
+        ...imageOptions,
+        content_item_id: product?.id || '',
+      })
       toast.addToast('success', `图片已处理：${response.data?.width} × ${response.data?.height}`)
       await loadAssets()
     } catch (error: any) {
       logger.error('Edit content image failed', error)
       toast.addToast('error', error?.response?.data?.detail || '图片处理失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const uploadSlotImage = async (file: File) => {
+    if (!product) {
+      toast.addToast('warning', '请先选择要编辑的商品')
+      return null
+    }
+    setLoading(true)
+    try {
+      const response = await editContentImage(file, {
+        ...imageOptions,
+        content_item_id: product.id,
+      })
+      toast.addToast('success', `已上传并处理当前槽位图片：${response.data?.width} × ${response.data?.height}`)
+      await loadAssets()
+      return response.data || null
+    } catch (error: any) {
+      logger.error('Upload listing slot image failed', error)
+      toast.addToast('error', error?.response?.data?.detail || '槽位图片上传失败')
+      return null
     } finally {
       setLoading(false)
     }
@@ -243,6 +232,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
         imageOptions={imageOptions}
         setImageOptions={setImageOptions}
         onUseSourceImage={runSourceImageEdit}
+        onUploadSlotImage={uploadSlotImage}
         onSaveImageSlotPlan={saveImageSlotPlan}
         loading={loading}
       />
@@ -275,6 +265,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
               <NumberField label="高度" value={imageOptions.height} onChange={height => setImageOptions({...imageOptions, height})} />
               <SelectField label="适配" value={imageOptions.fit} options={[['contain', '完整留白'], ['cover', '居中裁切']]} onChange={fit => setImageOptions({...imageOptions, fit})} />
               <SelectField label="格式" value={imageOptions.output_format} options={[['jpeg', 'JPEG'], ['png', 'PNG'], ['webp', 'WebP']]} onChange={output_format => setImageOptions({...imageOptions, output_format})} />
+              <SelectField label="旋转" value={String(imageOptions.rotate_degrees)} options={[['0', '不旋转'], ['90', '右转90°'], ['180', '旋转180°'], ['270', '右转270°']]} onChange={rotate_degrees => setImageOptions({...imageOptions, rotate_degrees: Number(rotate_degrees)})} />
               <RangeField label="亮度" value={imageOptions.brightness} min={0.5} max={1.5} step={0.05} onChange={brightness => setImageOptions({...imageOptions, brightness})} />
               <RangeField label="对比度" value={imageOptions.contrast} min={0.5} max={1.5} step={0.05} onChange={contrast => setImageOptions({...imageOptions, contrast})} />
 	              <RangeField label="锐化" value={imageOptions.sharpness} min={0} max={3} step={0.1} onChange={sharpness => setImageOptions({...imageOptions, sharpness})} />
@@ -302,8 +293,10 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
 	              </div>
 	            </div>
 	            <div className="flex gap-4 text-xs text-[var(--color-muted)]">
-	              <label><input type="checkbox" checked={imageOptions.auto_contrast} onChange={event => setImageOptions({...imageOptions, auto_contrast: event.target.checked})} /> 自动对比度</label>
+              <label><input type="checkbox" checked={imageOptions.auto_contrast} onChange={event => setImageOptions({...imageOptions, auto_contrast: event.target.checked})} /> 自动对比度</label>
               <label><input type="checkbox" checked={imageOptions.unsharp_mask} onChange={event => setImageOptions({...imageOptions, unsharp_mask: event.target.checked})} /> 清晰度增强</label>
+              <label><input type="checkbox" checked={imageOptions.flip_horizontal} onChange={event => setImageOptions({...imageOptions, flip_horizontal: event.target.checked})} /> 水平翻转</label>
+              <label><input type="checkbox" checked={imageOptions.flip_vertical} onChange={event => setImageOptions({...imageOptions, flip_vertical: event.target.checked})} /> 垂直翻转</label>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={runSourceImageEdit} disabled={!product?.image_url || loading}><SlidersHorizontal className="w-4 h-4 mr-1" />使用当前商品源图处理</Button>
@@ -359,7 +352,7 @@ export function ContentMediaStudio({ mode = 'all', product }: { mode?: 'all' | '
   )
 }
 
-function SellerImageEditorWorkbench({
+export function LegacySellerImageEditorWorkbench({
   product,
   productImageAssets,
   imageOptions,

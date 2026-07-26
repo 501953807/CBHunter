@@ -12,11 +12,15 @@ from app.models.platform_account import PlatformAccount
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.finance_ledger import FinanceLedgerEntry
+from app.models.platform_listing import PlatformListing
+from app.models.product import Product
+from app.models.product_object_model import ProductSkuVariant
 from app.models.sys_dict import SysDictItem
 from app.models.sync_log import SyncLog
 from app.schemas.order import ManualOrderCreate, ManualOrderItemCreate, OrderStatusUpdate
 from app.services.order_service import (
     build_fulfillment_exception_context,
+    build_order_item_v5_sku_contexts,
     build_order_finance_entry_context,
     build_order_fee_context,
     build_order_list_context,
@@ -68,6 +72,97 @@ def test_manual_order_binds_store_marks_source_and_persists_items(tmp_path):
             with pytest.raises(ValueError, match="platform_account_not_accessible"):
                 await create_manual_order(session, "manual-user", unauthorized)
         await engine.dispose()
+
+    asyncio.run(run_test())
+
+
+def test_order_item_v5_sku_context_matches_listing_override_sku(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'order-item-v5-sku.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="order-user", platform="shopee", account_name="Shopee SKU 店铺")
+            product = Product(user_id="order-user", sku="BASE-SKU", name="V5 SKU 商品", cost_price=20)
+            session.add_all([account, product])
+            await session.flush()
+            listing = PlatformListing(
+                user_id="order-user",
+                product_id=product.id,
+                platform_account_id=account.id,
+                title="V5 SKU 商品店铺 Listing",
+                price=88,
+                stock=999,
+                status="active",
+            )
+            order = Order(
+                user_id="order-user",
+                platform_account_id=account.id,
+                platform_order_id="PLAT-ORDER-V5-SKU",
+                order_number="ORDER-V5-SKU",
+                status="pending",
+                total=176,
+                currency="MYR",
+                ordered_at=datetime.now(timezone.utc),
+            )
+            session.add_all([listing, order])
+            await session.flush()
+            matched_item = OrderItem(
+                order_id=order.id,
+                platform_listing_id=listing.id,
+                product_id=product.id,
+                name="黑色款",
+                sku="PLAT-BLACK",
+                quantity=1,
+                unit_price=88,
+                total_price=88,
+            )
+            unmatched_item = OrderItem(
+                order_id=order.id,
+                platform_listing_id=listing.id,
+                product_id=product.id,
+                name="未知款",
+                sku="UNKNOWN-SKU",
+                quantity=1,
+                unit_price=88,
+                total_price=88,
+            )
+            session.add_all([
+                matched_item,
+                unmatched_item,
+                ProductSkuVariant(
+                    user_id="order-user",
+                    product_id=product.id,
+                    platform_listing_id=listing.id,
+                    scope="listing_override",
+                    merchant_sku="MER-BLACK",
+                    platform_sku="PLAT-BLACK",
+                    spu="SPU-BAG",
+                    skc="SKC-BLACK",
+                    option_1_name="Color",
+                    option_1_value="Black",
+                    price=88,
+                    stock=5,
+                    enabled=True,
+                ),
+            ])
+            await session.flush()
+            await session.refresh(order, ["items"])
+
+            contexts = await build_order_item_v5_sku_contexts(session, order)
+
+        await engine.dispose()
+
+        assert contexts[matched_item.id]["status"] == "matched"
+        assert contexts[matched_item.id]["source"] == "v5_product_sku_variants"
+        assert contexts[matched_item.id]["merchant_sku"] == "MER-BLACK"
+        assert contexts[matched_item.id]["platform_sku"] == "PLAT-BLACK"
+        assert contexts[matched_item.id]["skc"] == "SKC-BLACK"
+        assert contexts[matched_item.id]["listing_stock"] == 5
+        assert contexts[unmatched_item.id]["status"] == "unmatched"
+        assert contexts[unmatched_item.id]["available_sku_count"] == 1
+        assert "订单项 SKU 未匹配" in contexts[unmatched_item.id]["data_gaps"][0]
 
     asyncio.run(run_test())
 

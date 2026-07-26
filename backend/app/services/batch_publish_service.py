@@ -324,6 +324,7 @@ async def confirm_publish(
     from app.services.product_service import product_name_quality_flags
     from app.services.store_access_service import list_accessible_store_ids_for_user_id
     from app.services.listing_publish_plan_service import build_local_publish_plan
+    from app.services.product_object_model_service import persist_listing_object_model
     from datetime import datetime, timezone
 
     store_ids = await list_accessible_store_ids_for_user_id(db, user_id)
@@ -526,13 +527,18 @@ async def confirm_publish(
         )
         db.add(listing)
         await db.flush()
+        object_model = await persist_listing_object_model(
+            db, user_id=user_id, product=product, listing=listing, platform=draft["platform"],
+            market=draft.get("market"), sku_plan=sku_plan, platform_requirements=draft.get("platform_requirements") or {},
+        )
 
         results.append({**draft, "validation_checks": validation_checks,
                         "product_id": product.id, "listing_id": listing.id,
                         "drafted_at": now.isoformat(), "publish_status": "draft",
                         "platform_account_id": acct.id, "store": _store_payload(acct),
                         "publish_plan": local_plan, "plan_status": local_plan["status"],
-                        "platform_publish_status": "not_attempted"})
+                        "platform_publish_status": "not_attempted",
+                        "object_model": object_model})
 
     await db.commit()
     return results

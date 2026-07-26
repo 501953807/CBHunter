@@ -156,6 +156,34 @@ export interface ListingWorkbench {
   confidence_reason: string
 }
 
+export interface PlatformFieldGapDetail {
+  key: string
+  label: string
+  severity: 'blocking' | 'recheck' | string
+  required?: boolean
+  unified_field_key?: string | null
+  standard_label?: string | null
+  data_type?: string | null
+  platform_field_name?: string | null
+  miaoshou_field_name?: string | null
+  country_difference?: string | null
+  evidence_state?: string | null
+  group_id?: string | null
+  group_label?: string | null
+}
+
+export interface ListingValidationCheck {
+  code: string
+  label: string
+  state: 'pass' | 'warning' | 'block'
+  message: string
+  details?: {
+    blocking_fields?: PlatformFieldGapDetail[]
+    recheck_fields?: PlatformFieldGapDetail[]
+    [key: string]: unknown
+  }
+}
+
 export interface BatchListingDraft {
   source_type?: 'sourcing' | 'product'
   source_product_id?: string | null
@@ -208,12 +236,7 @@ export interface BatchListingDraft {
     restricted_check_status?: string
     [key: string]: unknown
   }
-  validation_checks?: Array<{
-    code: string
-    label: string
-    state: 'pass' | 'warning' | 'block'
-    message: string
-  }>
+  validation_checks?: ListingValidationCheck[]
   template_title: string
   template_description: string
   platform_requirements?: PlatformListingRequirements

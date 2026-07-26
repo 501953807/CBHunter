@@ -1,5 +1,7 @@
 """Risk-control API for V2 operating shell."""
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,10 +25,12 @@ router = APIRouter(prefix="/risk-control", tags=["risk-control"])
 
 @router.get("/overview", response_model=ApiResponse)
 async def risk_control_overview(
+    start_date: date | None = None,
+    end_date: date | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return evidence_response(await get_risk_control_overview(db, current_user.id))
+    return evidence_response(await get_risk_control_overview(db, current_user.id, start_date=start_date, end_date=end_date))
 
 
 @router.post("/events/{risk_id}/state", response_model=ApiResponse)

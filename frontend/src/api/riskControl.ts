@@ -3,8 +3,13 @@ import type { ApiResponse } from '../types/common'
 import type { OperationRecord } from './operations'
 import type { RiskAuditItem, RiskControlOverview, RiskControlRisk, RiskStateUpdateRequest } from '../types/riskControl'
 
-export async function getRiskControlOverview() {
-  const response = await client.get<ApiResponse<RiskControlOverview>>('/risk-control/overview')
+export interface RiskControlOverviewParams {
+  start_date?: string
+  end_date?: string
+}
+
+export async function getRiskControlOverview(params?: RiskControlOverviewParams) {
+  const response = await client.get<ApiResponse<RiskControlOverview>>('/risk-control/overview', { params })
   return response.data
 }
 

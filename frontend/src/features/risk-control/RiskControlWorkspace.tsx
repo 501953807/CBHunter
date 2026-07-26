@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, Boxes, Clock, Database, FileWarning, RefreshCw, ShieldCheck, Truck, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Boxes, CalendarRange, Clock, Database, FileWarning, RefreshCw, ShieldCheck, Truck, WalletCards } from 'lucide-react'
 import { updateBusinessFlowTasks } from '../../api/businessFlow'
 import { createRiskOperationAction, getRiskControlAudit, getRiskControlOverview, updateRiskControlState } from '../../api/riskControl'
 import { CommandCenterFrame } from '../../components/shared/CommandCenterFrame'
@@ -16,6 +16,9 @@ import { RiskStoreCommandBoard } from './RiskStoreCommandBoard'
 
 export default function RiskControlWorkspace() {
   const navigate = useNavigate()
+  const riskDateShortcuts = useMemo(() => buildRiskDateShortcuts(new Date()), [])
+  const [riskDateDraft, setRiskDateDraft] = useState<RiskDateRange>({})
+  const [appliedRiskDateRange, setAppliedRiskDateRange] = useState<RiskDateRange>({})
   const [data, setData] = useState<RiskControlOverview | null>(null)
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -29,7 +32,7 @@ export default function RiskControlWorkspace() {
     setLoading(true)
     setError('')
     try {
-      const response = await getRiskControlOverview()
+      const response = await getRiskControlOverview(cleanRiskDateRange(appliedRiskDateRange))
       const next = normalizeRiskControlOverview(response.data || null)
       setData(next)
       setSelectedId((current) => current || next?.risks[0]?.id || '')
@@ -39,7 +42,7 @@ export default function RiskControlWorkspace() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [appliedRiskDateRange])
 
   useEffect(() => { load() }, [load])
 
@@ -152,6 +155,18 @@ export default function RiskControlWorkspace() {
           </>
         )}
       >
+        <RiskDateRangeFilter
+          value={riskDateDraft}
+          shortcuts={riskDateShortcuts}
+          loading={loading}
+          activeWindow={data?.comparison.windows.current}
+          onChange={setRiskDateDraft}
+          onApply={() => setAppliedRiskDateRange(cleanRiskDateRange(riskDateDraft))}
+          onReset={() => {
+            setRiskDateDraft({})
+            setAppliedRiskDateRange({})
+          }}
+        />
         <div aria-label="风险处置指标" className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-6">
           <Metric label="高风险" value={String(data?.metrics.critical ?? 0)} tone="danger" />
           <Metric label="警告" value={String(data?.metrics.warning ?? 0)} tone="warning" />
@@ -292,6 +307,150 @@ export default function RiskControlWorkspace() {
       </div>
     </div>
   )
+}
+
+interface RiskDateRange {
+  start_date?: string
+  end_date?: string
+}
+
+interface RiskDateShortcut {
+  key: 'week_to_date' | 'month_to_date' | 'quarter_to_date'
+  label: string
+  detail: string
+  startDate: string
+  endDate: string
+}
+
+function RiskDateRangeFilter({
+  value,
+  shortcuts,
+  loading,
+  activeWindow,
+  onChange,
+  onApply,
+  onReset,
+}: {
+  value: RiskDateRange
+  shortcuts: RiskDateShortcut[]
+  loading: boolean
+  activeWindow?: string
+  onChange: (value: RiskDateRange) => void
+  onApply: () => void
+  onReset: () => void
+}) {
+  const applyShortcut = (shortcut: RiskDateShortcut) => {
+    onChange({ start_date: shortcut.startDate, end_date: shortcut.endDate })
+  }
+
+  return (
+    <section
+      aria-label="风险日期快捷窗口"
+      data-ui="risk-date-range-filter"
+      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <CalendarRange className="h-4 w-4 text-[var(--color-primary)]" />
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-fg)]">风险日期范围</p>
+            <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">当前风险统计：{activeWindow || '后端默认最近 30 个自然日'}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {shortcuts.map((shortcut) => {
+            const active = value.start_date === shortcut.startDate && value.end_date === shortcut.endDate
+            return (
+              <button
+                key={shortcut.key}
+                type="button"
+                disabled={loading}
+                title={`${shortcut.label}：${shortcut.detail}`}
+                onClick={() => applyShortcut(shortcut)}
+                className="rounded-full border px-3 py-1.5 text-xs transition disabled:opacity-50"
+                style={{
+                  borderColor: active ? 'var(--color-primary)' : 'var(--color-border)',
+                  background: active ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                  color: active ? 'var(--color-primary)' : 'var(--color-muted)',
+                }}
+              >
+                <span className="font-semibold">{shortcut.label}</span>
+                <span className="ml-1 text-[11px]">{shortcut.detail}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+        <label className="text-xs text-[var(--color-muted)]">
+          <span className="mb-1 block">开始日期</span>
+          <input
+            type="date"
+            value={value.start_date || ''}
+            onChange={(event) => onChange({ ...value, start_date: event.target.value })}
+            className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-fg)] outline-none transition focus:border-[var(--color-primary)]"
+          />
+        </label>
+        <label className="text-xs text-[var(--color-muted)]">
+          <span className="mb-1 block">结束日期</span>
+          <input
+            type="date"
+            value={value.end_date || ''}
+            onChange={(event) => onChange({ ...value, end_date: event.target.value })}
+            className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-fg)] outline-none transition focus:border-[var(--color-primary)]"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={onApply}
+          className="self-end rounded-md bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary-text)] transition hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
+        >
+          应用风险范围
+        </button>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={onReset}
+          className="self-end rounded-md border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50"
+        >
+          重置默认
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function buildRiskDateShortcuts(now: Date): RiskDateShortcut[] {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const dayOfWeek = today.getDay()
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = addDays(today, -mondayOffset)
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1)
+  const endDate = formatDateLocal(today)
+  return [
+    { key: 'week_to_date', label: '本周', detail: `${formatDateLocal(weekStart)} 至 ${endDate}`, startDate: formatDateLocal(weekStart), endDate },
+    { key: 'month_to_date', label: '本月', detail: `${formatDateLocal(monthStart)} 至 ${endDate}`, startDate: formatDateLocal(monthStart), endDate },
+    { key: 'quarter_to_date', label: '本季度', detail: `${formatDateLocal(quarterStart)} 至 ${endDate}`, startDate: formatDateLocal(quarterStart), endDate },
+  ]
+}
+
+function cleanRiskDateRange(value: RiskDateRange): RiskDateRange {
+  return value.start_date && value.end_date ? value : {}
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date)
+  copy.setDate(copy.getDate() + days)
+  return copy
+}
+
+function formatDateLocal(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function RiskSourceSummaryPanel({ data, onNavigate }: { data: RiskControlOverview; onNavigate: (route: string) => void }) {

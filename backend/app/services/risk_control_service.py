@@ -24,8 +24,8 @@ from app.services.risk_control_sla_service import RISK_SLA_TEMPLATES, get_risk_s
 from app.services.risk_control_source_summary_service import build_risk_source_summary
 
 
-async def get_risk_control_overview(db: AsyncSession, user_id: str) -> dict:
-    cockpit = await get_operating_cockpit(db, user_id)
+async def get_risk_control_overview(db: AsyncSession, user_id: str, start_date: Optional[date] = None, end_date: Optional[date] = None) -> dict:
+    cockpit = await get_operating_cockpit(db, user_id, start_date=start_date, end_date=end_date)
     inventory_workbench = await get_inventory_risk_workbench(db, user_id)
     finance_summary = await get_finance_summary(db, user_id, "monthly")
     order_stats = await get_order_stats(db, user_id)

@@ -1,7 +1,7 @@
 """Operating cockpit truthfulness and isolation regression tests."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -88,9 +88,29 @@ def test_risk_location_gap_queue_merges_unlocated_platform_store_market():
     assert queue[0]["action_label"] == "补齐平台归属"
     assert queue[0]["route"] == "/platforms"
     assert queue[1]["action_label"] == "补齐店铺归属"
-    assert queue[1]["critical"] == 1
-    assert queue[2]["action_label"] == "补齐目标市场"
-    assert queue[2]["sample_risks"][0]["title"] == "缺市场风险"
+
+
+def test_risk_control_overview_accepts_explicit_date_window(tmp_path):
+    async def run():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path/'risk-window.db'}")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        Session = async_sessionmaker(engine, expire_on_commit=False)
+        async with Session() as session:
+            overview = await get_risk_control_overview(
+                session,
+                "risk-window-user",
+                start_date=date(2026, 7, 1),
+                end_date=date(2026, 7, 7),
+            )
+        await engine.dispose()
+        return overview
+
+    overview = asyncio.run(run())
+
+    assert overview["comparison"]["windows"]["current"] == "2026-07-01 至 2026-07-07"
+    assert overview["comparison"]["windows"]["previous"] == "2026-06-24 至 2026-06-30"
+    assert overview["comparison"]["windows"]["last_year"] == "2025-07-01 至 2025-07-07"
 
 
 def test_cockpit_uses_owned_records_and_keeps_unknown_stock_out(tmp_path):

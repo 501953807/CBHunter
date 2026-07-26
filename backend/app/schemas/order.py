@@ -16,6 +16,7 @@ class OrderItemResponse(BaseModel):
     unit_price: float
     total_price: float
     variation_info: Optional[dict] = None
+    v5_sku_context: dict = Field(default_factory=dict)
 
 class OrderListResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

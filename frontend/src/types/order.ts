@@ -24,12 +24,30 @@ export interface OrderListRow {
 export interface OrderItem {
   id: string
   order_id: string
+  platform_listing_id?: string | null
+  product_id?: string | null
   name: string
   sku?: string | null
   quantity: number
   unit_price: number
   total_price: number
   variation_info?: Record<string, unknown> | null
+  v5_sku_context?: {
+    status?: 'matched' | 'unmatched' | string
+    source?: 'v5_product_sku_variants' | string
+    sku_variant_id?: string
+    merchant_sku?: string
+    platform_sku?: string | null
+    spu?: string | null
+    skc?: string | null
+    option_1?: { name?: string | null; value?: string | null } | null
+    option_2?: { name?: string | null; value?: string | null } | null
+    sku_image_url?: string | null
+    listing_stock?: number | null
+    listing_price?: number | null
+    available_sku_count?: number
+    data_gaps?: string[]
+  }
 }
 
 export interface OrderDetail {

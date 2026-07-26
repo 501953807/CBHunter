@@ -4,7 +4,14 @@ import { Badge } from '../../components/ui/Badge'
 import { Card, CardContent } from '../../components/ui/Card'
 import { StatCard } from '../../components/shared/StatCard'
 import { PlatformFieldGroupEditor } from '../../components/shared/PlatformFieldGroups'
-import { generateListingDraftAssist, type BatchListingDraft, type BatchPreviewSummary, type PlatformListingRequirements } from '../../api/listing'
+import {
+  generateListingDraftAssist,
+  type BatchListingDraft,
+  type BatchPreviewSummary,
+  type ListingValidationCheck,
+  type PlatformFieldGapDetail,
+  type PlatformListingRequirements,
+} from '../../api/listing'
 import { labelBusinessCode } from '../../utils/businessLabels'
 import { logger } from '../../utils/logger'
 import { getProviderTaskMatrix } from '../../api/settings'
@@ -407,6 +414,7 @@ function ReadinessPanel({
           </span>
         ))}
       </div>
+      <PlatformFieldGapDetails draft={draft} check={platformFieldCheck(checks)} />
       <div className="grid grid-cols-2 gap-1.5">
         <label className="col-span-2 text-[11px] font-medium text-[var(--color-muted)]">
           辅助 Provider
@@ -448,6 +456,86 @@ function ReadinessPanel({
         </div>
       )}
     </div>
+  )
+}
+
+function platformFieldCheck(checks: ListingValidationCheck[]) {
+  return checks.find(check => check.code === 'platform_fields')
+}
+
+function PlatformFieldGapDetails({ draft, check }: { draft: BatchListingDraft; check?: ListingValidationCheck }) {
+  const blockingFields = check?.details?.blocking_fields || []
+  const recheckFields = check?.details?.recheck_fields || []
+  if (!blockingFields.length && !recheckFields.length) return null
+  return (
+    <div
+      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5"
+      aria-label="平台字段结构化缺口"
+      data-ui="platform-field-gap-details"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold text-[var(--color-fg)]">平台字段结构化缺口</p>
+        <Badge variant={blockingFields.length ? 'danger' : 'warning'}>
+          {blockingFields.length ? `${blockingFields.length} 阻断` : `${recheckFields.length} 待复核`}
+        </Badge>
+      </div>
+      <div className="mt-2 space-y-2">
+        <FieldGapSection draft={draft} title="阻断字段" tone="danger" fields={blockingFields} />
+        <FieldGapSection draft={draft} title="待复核字段" tone="warning" fields={recheckFields} />
+      </div>
+    </div>
+  )
+}
+
+function FieldGapSection({ draft, title, tone, fields }: { draft: BatchListingDraft; title: string; tone: 'danger' | 'warning'; fields: PlatformFieldGapDetail[] }) {
+  if (!fields.length) return null
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-medium" style={{ color: tone === 'danger' ? 'var(--color-danger)' : 'var(--color-warning)' }}>{title}</p>
+      {fields.slice(0, 6).map(field => (
+        <div key={`${field.key}-${field.group_id || 'group'}`} className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[11px] font-semibold text-[var(--color-fg)]">{field.label || field.standard_label || field.key}</p>
+            <span className="shrink-0 text-[10px] text-[var(--color-muted)]">{field.key}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {field.unified_field_key && <FieldMetaChip label={`统一字段 ${field.unified_field_key}`} />}
+            {field.platform_field_name && <FieldMetaChip label={`平台字段 ${field.platform_field_name}`} />}
+            {field.data_type && <FieldMetaChip label={`类型 ${field.data_type}`} />}
+            {field.group_label && <FieldMetaChip label={field.group_label} />}
+            {field.evidence_state && <FieldMetaChip label={`资料状态 ${field.evidence_state}`} />}
+          </div>
+          <a
+            href={fieldRepairHref(draft, field)}
+            className="mt-1.5 inline-flex text-[10px] font-medium text-[var(--color-primary)] hover:underline"
+            data-ui="field-gaps-content-link"
+          >
+            回内容工厂补字段
+          </a>
+        </div>
+      ))}
+      {fields.length > 6 && <p className="text-[10px] text-[var(--color-muted)]">还有 {fields.length - 6} 个字段缺口，后续在字段组编辑区继续补齐。</p>}
+    </div>
+  )
+}
+
+function fieldRepairHref(draft: BatchListingDraft, field: PlatformFieldGapDetail) {
+  const params = new URLSearchParams()
+  if (draft.source_product_id) params.set('product_id', String(draft.source_product_id))
+  if (draft.sourcing_item_id) params.set('source_id', String(draft.sourcing_item_id))
+  if (draft.platform) params.set('platform', draft.platform)
+  if (draft.store?.id) params.set('store_id', String(draft.store.id))
+  if (draft.market) params.set('market', draft.market)
+  params.set('platform_field_key', encodeURIComponent(field.key))
+  params.set('section', 'platform_fields')
+  return `/content?${params.toString()}`
+}
+
+function FieldMetaChip({ label }: { label: string }) {
+  return (
+    <span className="rounded-full border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-muted)]">
+      {label}
+    </span>
   )
 }
 
@@ -496,7 +584,7 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
   const logistics = draft.logistics || {}
   const dimensions = logistics.dimensions || {}
   const attributeValues = draft.platform_requirements?.attribute_values || {}
-  const fieldGaps = getPlatformRequiredFieldGaps(draft.platform_requirements)
+  const fieldGaps = getPlatformRequiredFieldGaps(draft.platform_requirements, platformFieldCheck(draft.validation_checks || []))
   const hasDimensions = Boolean(dimensions.length_cm && dimensions.width_cm && dimensions.height_cm)
   const titleOk = Boolean(draft.template_title?.trim())
   const descriptionOk = Boolean(draft.template_description?.trim())
@@ -564,7 +652,17 @@ function normalizePlatformName(platform: string) {
   return 'shopee'
 }
 
-function getPlatformRequiredFieldGaps(requirements?: PlatformListingRequirements) {
+function getPlatformRequiredFieldGaps(requirements?: PlatformListingRequirements, validationCheck?: ListingValidationCheck) {
+  const detailBlocking = validationCheck?.details?.blocking_fields || []
+  const detailRecheck = validationCheck?.details?.recheck_fields || []
+  if (detailBlocking.length || detailRecheck.length) {
+    return {
+      blocking: detailBlocking.map(fieldGapLabel),
+      recheck: detailRecheck.map(fieldGapLabel),
+      blockingFields: detailBlocking,
+      recheckFields: detailRecheck,
+    }
+  }
   const values = requirements?.attribute_values || {}
   const fieldMeta = new Map<string, { label: string; evidenceState: string }>()
   for (const group of requirements?.field_groups || []) {
@@ -588,14 +686,32 @@ function getPlatformRequiredFieldGaps(requirements?: PlatformListingRequirements
   }
   const blocking: string[] = []
   const recheck: string[] = []
+  const blockingFields: PlatformFieldGapDetail[] = []
+  const recheckFields: PlatformFieldGapDetail[] = []
   Array.from(required).sort().forEach(key => {
     if (values[key]) return
     const meta = fieldMeta.get(key)
     const label = meta?.label || key
-    if (meta?.evidenceState?.startsWith('needs_')) recheck.push(label)
-    else blocking.push(label)
+    const detail: PlatformFieldGapDetail = {
+      key,
+      label,
+      severity: meta?.evidenceState?.startsWith('needs_') ? 'recheck' : 'blocking',
+      required: true,
+      evidence_state: meta?.evidenceState || null,
+    }
+    if (meta?.evidenceState?.startsWith('needs_')) {
+      recheck.push(label)
+      recheckFields.push(detail)
+    } else {
+      blocking.push(label)
+      blockingFields.push(detail)
+    }
   })
-  return { blocking, recheck }
+  return { blocking, recheck, blockingFields, recheckFields }
+}
+
+function fieldGapLabel(field: PlatformFieldGapDetail) {
+  return field.standard_label || field.label || field.platform_field_name || field.key
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -606,6 +722,7 @@ function buildReadinessChecks(draft: BatchListingDraft) {
   const images = draft.media_assets?.images || (Array.isArray(draft.images) ? draft.images : draft.images ? [draft.images] : [])
   const variants = draft.sku_plan?.variants || []
   const attributeValues = draft.platform_requirements?.attribute_values || {}
+  const fieldGaps = getPlatformRequiredFieldGaps(draft.platform_requirements)
   return [
     { code: 'title', label: '标题', state: draft.template_title ? 'pass' : 'block', message: '平台标题必须在发布前确认。' },
     { code: 'price', label: '售价', state: draft.selling_price && draft.selling_price > 0 ? 'pass' : 'block', message: '售价必须大于 0。' },
@@ -613,7 +730,16 @@ function buildReadinessChecks(draft: BatchListingDraft) {
     { code: 'media', label: '图片', state: images.length ? 'pass' : 'warning', message: '建议至少维护主图。' },
     { code: 'logistics', label: '物流', state: draft.logistics?.weight_g ? 'pass' : 'warning', message: '建议维护重量和尺寸，便于平台运费校验。' },
     { code: 'compliance', label: '合规', state: draft.compliance?.restricted_check_status === 'passed' ? 'pass' : 'warning', message: '禁限售和资质状态需复核。' },
-    { code: 'platform_fields', label: '平台字段', state: Object.keys(attributeValues).length ? 'pass' : 'warning', message: '平台字段值越完整，越接近真实卖家后台提交要求。' },
+    {
+      code: 'platform_fields',
+      label: '平台字段',
+      state: fieldGaps.blocking.length ? 'block' : Object.keys(attributeValues).length ? 'pass' : 'warning',
+      message: fieldGaps.blocking.length ? `缺少 ${fieldGaps.blocking.join('、')}` : '平台字段值越完整，越接近真实卖家后台提交要求。',
+      details: {
+        blocking_fields: fieldGaps.blockingFields,
+        recheck_fields: fieldGaps.recheckFields,
+      },
+    },
     { code: 'fees', label: '费率', state: draft.fee_missing ? 'block' : 'pass', message: '平台费率缺失时只能保存前置补数状态。' },
-  ] as Array<{ code: string; label: string; state: 'pass' | 'warning' | 'block'; message: string }>
+  ] as ListingValidationCheck[]
 }

@@ -64,8 +64,15 @@ def test_listing_store_override_supports_v5_editor_payload():
     }
     assert override_variants(payload) == [{
         "sku": "BAG-BLACK-M",
-        "option_1_name": "规格",
-        "option_1_value": "Black / M",
+        "platform_sku": "SPU-001/SKC-002",
+        "spu_skc": "SPU-001/SKC-002",
+        "option_1_name": "规格一",
+        "option_1_value": "Black",
+        "option_2_name": "规格二",
+        "option_2_value": "M",
+        "sku_image_role": "SKU图 1",
         "price": 89.9,
         "stock": 12,
+        "weight_g": 450,
+        "dimensions": {"length_cm": 20, "width_cm": 10, "height_cm": 8},
     }]

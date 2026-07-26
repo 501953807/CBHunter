@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProducts, getProduct, createProduct, updateProduct, deleteProduct } from '../api/products'
+import { getProducts, getProduct, getProductObjectModel, createProduct, updateProduct, deleteProduct } from '../api/products'
 import { useToast } from '../components/ui/Toast'
 import type { ProductListParams } from '../api/products'
 
@@ -14,6 +14,14 @@ export function useProduct(id: string) {
   return useQuery({
     queryKey: ['product', id],
     queryFn: () => getProduct(id),
+    enabled: !!id,
+  })
+}
+
+export function useProductObjectModel(id: string) {
+  return useQuery({
+    queryKey: ['product-object-model', id],
+    queryFn: () => getProductObjectModel(id),
     enabled: !!id,
   })
 }

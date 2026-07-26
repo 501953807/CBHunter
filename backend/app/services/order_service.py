@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.models.order import Order
 from app.models.finance_ledger import FinanceLedgerEntry
 from app.models.platform_account import PlatformAccount
+from app.models.product_object_model import ProductSkuVariant
 from app.models.sync_log import SyncLog
 from app.schemas.order import OrderStatusUpdate, OrderNoteUpdate
 from app.services.dictionary import get_all_dicts
@@ -118,6 +119,55 @@ async def get_order(db: AsyncSession, order_id: str, user_id: str) -> Optional[O
         .where(Order.id == order_id, Order.platform_account_id.in_(store_ids))
     )
     return result.scalar_one_or_none()
+
+
+async def build_order_item_v5_sku_contexts(db: AsyncSession, order: Order) -> dict[str, dict]:
+    """Return V5 SKU object-model context for order items without mutating order facts."""
+    items = list(order.items or [])
+    listing_ids = list({item.platform_listing_id for item in items if item.platform_listing_id})
+    if not listing_ids:
+        return {}
+    result = await db.execute(
+        select(ProductSkuVariant).where(
+            ProductSkuVariant.user_id == order.user_id,
+            ProductSkuVariant.scope == "listing_override",
+            ProductSkuVariant.platform_listing_id.in_(listing_ids),
+            ProductSkuVariant.enabled.is_(True),
+        )
+    )
+    variants = list(result.scalars().all())
+    by_listing: dict[str, list[ProductSkuVariant]] = {}
+    for variant in variants:
+        if variant.platform_listing_id:
+            by_listing.setdefault(variant.platform_listing_id, []).append(variant)
+    contexts: dict[str, dict] = {}
+    for item in items:
+        variants_for_listing = by_listing.get(item.platform_listing_id or "", [])
+        matched = _match_order_item_sku_variant(item.sku, variants_for_listing)
+        if matched:
+            contexts[item.id] = {
+                "status": "matched",
+                "source": "v5_product_sku_variants",
+                "sku_variant_id": matched.id,
+                "merchant_sku": matched.merchant_sku,
+                "platform_sku": matched.platform_sku,
+                "spu": matched.spu,
+                "skc": matched.skc,
+                "option_1": _option_value(matched.option_1_name, matched.option_1_value),
+                "option_2": _option_value(matched.option_2_name, matched.option_2_value),
+                "sku_image_url": matched.sku_image_url,
+                "listing_stock": matched.stock,
+                "listing_price": matched.price,
+            }
+        elif variants_for_listing:
+            contexts[item.id] = {
+                "status": "unmatched",
+                "source": "v5_product_sku_variants",
+                "sku": item.sku,
+                "available_sku_count": len(variants_for_listing),
+                "data_gaps": ["订单项 SKU 未匹配到当前店铺 Listing 的 V5 SKU 结构"],
+            }
+    return contexts
 
 
 def build_order_fee_context(order: Order) -> dict:
@@ -378,6 +428,26 @@ def build_order_list_context(order: Order, now: datetime | None = None) -> dict:
         "financial_reconciliation_status": platform_data.get("financial_reconciliation_status", "not_reconciled"),
         "fulfillment_exception": build_fulfillment_exception_context(order, now=now),
     }
+
+
+def _match_order_item_sku_variant(
+    sku: str | None,
+    variants: list[ProductSkuVariant],
+) -> ProductSkuVariant | None:
+    if not sku:
+        return None
+    normalized = sku.strip().lower()
+    for variant in variants:
+        candidates = [variant.merchant_sku, variant.platform_sku, variant.spu, variant.skc]
+        if any((candidate or "").strip().lower() == normalized for candidate in candidates):
+            return variant
+    return None
+
+
+def _option_value(name: str | None, value: str | None) -> dict | None:
+    if not name and not value:
+        return None
+    return {"name": name, "value": value}
 
 
 def _matches_shipping_sla(fulfillment_context: dict, shipping_sla: str) -> bool:

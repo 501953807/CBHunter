@@ -59,12 +59,17 @@ def normalize_sku_plan(raw: dict | None, master_sku: str | None, selling_price: 
         sku = variant.get("sku") or f"{master_sku or 'SKU'}-{index + 1}"
         normalized_variants.append({
             "sku": sku,
+            "platform_sku": variant.get("platform_sku") or variant.get("platformSku"),
+            "spu_skc": variant.get("spu_skc") or variant.get("spuSkc"),
             "option_1_name": variant.get("option_1_name") or variant.get("option_name") or "",
             "option_1_value": variant.get("option_1_value") or variant.get("option_value") or "",
             "option_2_name": variant.get("option_2_name") or "",
             "option_2_value": variant.get("option_2_value") or "",
+            "sku_image_role": variant.get("sku_image_role") or variant.get("skuImageRole"),
             "price": variant.get("price") if variant.get("price") is not None else selling_price,
             "stock": variant.get("stock") if variant.get("stock") is not None else 0,
+            "weight_g": variant.get("weight_g") or variant.get("weight"),
+            "dimensions": variant.get("dimensions") if isinstance(variant.get("dimensions"), dict) else {},
         })
     return {
         "master_sku": data.get("master_sku") or master_sku,
@@ -177,6 +182,10 @@ def build_validation_checks(
             "平台字段",
             "block" if missing_blocking_attrs else ("warning" if missing_recheck_attrs or not attribute_values else "pass"),
             _platform_fields_message(missing_blocking_attrs, missing_recheck_attrs, bool(attribute_values)),
+            {
+                "blocking_fields": platform_field_gaps["blocking_fields"],
+                "recheck_fields": platform_field_gaps["recheck_fields"],
+            },
         ),
         _validation_check(
             "fees",
@@ -193,15 +202,18 @@ def build_validation_checks(
     ]
 
 
-def platform_field_gaps_for_requirements(platform_requirements: dict) -> dict[str, list[str]]:
+def platform_field_gaps_for_requirements(platform_requirements: dict) -> dict:
     values = platform_requirements.get("attribute_values") if isinstance(platform_requirements.get("attribute_values"), dict) else {}
     field_meta: dict[str, dict] = {}
+    field_groups: dict[str, dict] = {}
     for group in platform_requirements.get("field_groups") or []:
         if not isinstance(group, dict):
             continue
         for field in group.get("fields") or []:
             if isinstance(field, dict) and field.get("key"):
-                field_meta[str(field["key"])] = field
+                key = str(field["key"])
+                field_meta[key] = field
+                field_groups[key] = group
 
     required_keys = set()
     for key in platform_requirements.get("required_attributes") or []:
@@ -213,17 +225,54 @@ def platform_field_gaps_for_requirements(platform_requirements: dict) -> dict[st
 
     blocking: list[str] = []
     recheck: list[str] = []
+    blocking_fields: list[dict] = []
+    recheck_fields: list[dict] = []
     for key in sorted(required_keys):
-        if values.get(key):
+        if _has_platform_field_value(values.get(key)):
             continue
         field = field_meta.get(key) or {}
         label = field.get("label") or key
         evidence_state = str(field.get("evidence_state") or "")
         if evidence_state.startswith("needs_"):
             recheck.append(label)
+            recheck_fields.append(_platform_field_gap_detail(key, field, field_groups.get(key), "recheck"))
         else:
             blocking.append(label)
-    return {"blocking": blocking, "recheck": recheck}
+            blocking_fields.append(_platform_field_gap_detail(key, field, field_groups.get(key), "blocking"))
+    return {
+        "blocking": blocking,
+        "recheck": recheck,
+        "blocking_fields": blocking_fields,
+        "recheck_fields": recheck_fields,
+    }
+
+
+def _has_platform_field_value(value) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict, tuple, set)):
+        return bool(value)
+    return True
+
+
+def _platform_field_gap_detail(key: str, field: dict, group: dict | None, severity: str) -> dict:
+    return {
+        "key": key,
+        "label": field.get("label") or key,
+        "severity": severity,
+        "required": True,
+        "unified_field_key": field.get("unified_field_key"),
+        "standard_label": field.get("standard_label"),
+        "data_type": field.get("data_type"),
+        "platform_field_name": field.get("platform_field_name"),
+        "miaoshou_field_name": field.get("miaoshou_field_name"),
+        "country_difference": field.get("country_difference"),
+        "evidence_state": field.get("evidence_state"),
+        "group_id": group.get("id") if isinstance(group, dict) else None,
+        "group_label": group.get("label") if isinstance(group, dict) else None,
+    }
 
 
 def videos_from_attributes(attributes: dict) -> list[str]:
@@ -234,13 +283,16 @@ def videos_from_attributes(attributes: dict) -> list[str]:
     return [video] if isinstance(video, str) and video else []
 
 
-def _validation_check(code: str, label: str, state: str, message: str) -> dict:
-    return {
+def _validation_check(code: str, label: str, state: str, message: str, details: dict | None = None) -> dict:
+    check = {
         "code": code,
         "label": label,
         "state": state,
         "message": message,
     }
+    if details:
+        check["details"] = details
+    return check
 
 
 def _platform_fields_message(blocking: list[str], recheck: list[str], has_values: bool) -> str:

@@ -108,23 +108,27 @@ def override_sku_rows(payload: dict) -> list[dict]:
         if not isinstance(row, dict):
             continue
         sku = (row.get("seller_sku") or row.get("merchantSku") or row.get("merchant_sku") or "").strip()
+        option_one = str(row.get("optionOne") or row.get("option_1_value") or row.get("option1") or "").strip()
+        option_two = str(row.get("optionTwo") or row.get("option_2_value") or row.get("option2") or "").strip()
         price = row.get("price")
         stock = row.get("stock")
-        variation = (row.get("variation") or " / ".join(
-            str(value).strip()
-            for value in (row.get("optionOne"), row.get("optionTwo"), row.get("option_1_value"), row.get("option_2_value"))
-            if value
-        )).strip()
+        variation = (row.get("variation") or " / ".join(value for value in (option_one, option_two) if value)).strip()
         if not sku and not variation and price in (None, "") and stock in (None, ""):
             continue
+        platform_sku = row.get("platformSku") or row.get("platform_sku") or row.get("sku_id")
+        dimensions = parse_dimensions(row.get("dimensions") or row.get("package_size") or row.get("packageSize"))
         normalized.append({
             "seller_sku": sku,
-            "platform_sku": row.get("platformSku") or row.get("platform_sku") or row.get("sku_id"),
+            "platform_sku": platform_sku,
+            "spu_skc": row.get("spuSkc") or row.get("spu_skc") or row.get("spu") or row.get("skc") or platform_sku,
             "variation": variation,
+            "option_1_value": option_one,
+            "option_2_value": option_two,
             "price": price,
             "stock": stock,
             "weight": row.get("weight"),
-            "dimensions": row.get("dimensions"),
+            "weight_g": numeric_value(row.get("weight"), integer=True),
+            "dimensions": dimensions,
             "sku_image_role": row.get("skuImageRole") or row.get("sku_image_role"),
             "enabled": row.get("enabled", True),
         })
@@ -143,10 +147,17 @@ def override_variants(payload: dict) -> list[dict]:
             continue
         variants.append({
             "sku": sku,
-            "option_1_name": "规格" if variation else "",
-            "option_1_value": variation,
+            "platform_sku": row.get("platform_sku"),
+            "spu_skc": row.get("spu_skc"),
+            "option_1_name": "规格一" if row.get("option_1_value") else ("规格" if variation else ""),
+            "option_1_value": row.get("option_1_value") or variation,
+            "option_2_name": "规格二" if row.get("option_2_value") else "",
+            "option_2_value": row.get("option_2_value") or "",
+            "sku_image_role": row.get("sku_image_role"),
             "price": numeric_value(row.get("price")),
             "stock": numeric_value(row.get("stock"), integer=True),
+            "weight_g": row.get("weight_g"),
+            "dimensions": row.get("dimensions") or {},
         })
     return variants
 

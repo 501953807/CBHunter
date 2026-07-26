@@ -1,6 +1,6 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
-import type { Product, ProductListRow, ProductCreateRequest } from '../types/product'
+import type { Product, ProductListRow, ProductCreateRequest, ProductObjectModelSnapshot } from '../types/product'
 
 export interface ProductListParams {
   status?: string
@@ -86,6 +86,11 @@ export async function getPlatformStoreProducts(params?: PlatformStoreProductPara
 
 export async function getProduct(id: string) {
   const res = await client.get<ApiResponse<Product>>(`/products/${id}`)
+  return res.data
+}
+
+export async function getProductObjectModel(id: string) {
+  const res = await client.get<ApiResponse<ProductObjectModelSnapshot>>(`/products/${id}/object-model`)
   return res.data
 }
 
