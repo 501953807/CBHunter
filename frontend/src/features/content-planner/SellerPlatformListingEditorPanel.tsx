@@ -15,6 +15,7 @@ import {
   hasAttributeValue,
   mergePlatformAttributeValues,
   relabelImageSlots,
+  type ListingGap,
   type ListingImageSlot,
   type SellerSkuRow,
 } from './SellerPlatformListingEditorUtils'
@@ -28,6 +29,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
 }) {
   const toast = useToast()
   const [activeAnchor, setActiveAnchor] = useState('listing-master-media')
+  const [activeGap, setActiveGap] = useState<ListingGap | null>(null)
   const title = product?.content_brief?.title || product?.product_name || ''
   const sourceBullets = product?.content_brief?.bullets || []
   const sourceBulletsKey = sourceBullets.join('\n')
@@ -103,10 +105,21 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   useEffect(() => {
     if (!highlightedFieldKey) return
     setActiveAnchor('listing-master-attributes')
+    setActiveGap({
+      id: 'platform-field',
+      label: `平台字段 ${highlightedFieldKey}`,
+      anchor: 'listing-master-attributes',
+      severity: 'warning',
+    })
     window.setTimeout(() => {
       document.getElementById('listing-master-attributes')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 0)
   }, [highlightedFieldKey])
+
+  useEffect(() => {
+    if (!activeGap || activeGap.id === 'platform-field') return
+    if (!listingGaps.some(gap => gap.id === activeGap.id)) setActiveGap(null)
+  }, [activeGap, listingGaps])
 
   const updateDraft = (field: string, value: string) => setDraft(current => ({ ...current, [field]: value }))
   const updateSkuRow = (rowId: string, field: keyof SellerSkuRow, value: string | boolean) => {
@@ -201,8 +214,10 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
     toast.addToast('success', '已把描述候选写入商品描述，可继续人工调整')
   }
 
-  const jump = (anchor: string) => {
+  const anchorLabel = (anchor: string) => anchors.find(([id]) => id === anchor)?.[1] || '对应编辑区'
+  const jump = (anchor: string, gap?: ListingGap) => {
     setActiveAnchor(anchor)
+    setActiveGap(gap || null)
     document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -353,21 +368,32 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
               <button
                 key={gap.id}
                 type="button"
-                onClick={() => jump(gap.anchor)}
+                onClick={() => jump(gap.anchor, gap)}
                 className={gap.severity === 'blocker' ? 'rounded-full border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-3 py-1.5 text-xs font-semibold text-[var(--color-warning)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]' : 'rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}
                 data-ui="listing-gap-click-to-field"
               >
-                {gap.label}
-              </button>
-            )) : (
-              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)]">图片、标题、属性、SKU、物流与合规已具备继续处理条件</span>
-            )}
-          </div>
-        </div>
-      </div>
+	                {gap.label}
+	              </button>
+	            )) : (
+	              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)]">图片、标题、属性、SKU、物流与合规已具备继续处理条件</span>
+	            )}
+	          </div>
+	          <div
+	            className="mt-3 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-2 text-xs text-[var(--color-primary)]"
+	            data-ui="listing-active-gap-context"
+	            aria-label="当前定位的 Listing 缺口"
+	          >
+	            {activeGap ? (
+	              <span>正在处理：{activeGap.label}，已定位到「{anchorLabel(activeGap.anchor)}」。请在高亮编辑区内补齐字段后保存。</span>
+	            ) : (
+	              <span>当前定位：{anchorLabel(activeAnchor)}。点击上方缺口标签可直接跳到对应字段区域。</span>
+	            )}
+	          </div>
+	        </div>
+	      </div>
 
-      <div className="space-y-5 p-5">
-        <EditorSection id="listing-master-media" title="商品图片与素材" description="顶部先处理商品图片。素材池可以保留多张，发布到平台时只取前 9 个槽位；槽位顺序决定平台主图和辅图顺序。">
+	      <div className="space-y-5 p-5">
+	        <EditorSection id="listing-master-media" title="商品图片与素材" description="顶部先处理商品图片。素材池可以保留多张，发布到平台时只取前 9 个槽位；槽位顺序决定平台主图和辅图顺序。" active={activeAnchor === 'listing-master-media'}>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9" data-ui="listing-master-image-slot-grid">
             {imageSlots.map((slot, index) => (
               <div
@@ -419,7 +445,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-copy" title="商品标题与商品描述" description="这里只编辑平台买家能看到的核心文字内容；AI 辅助入口嵌在具体字段旁，候选写入后必须人工确认。">
+        <EditorSection id="listing-master-copy" title="商品标题与商品描述" description="这里只编辑平台买家能看到的核心文字内容；AI 辅助入口嵌在具体字段旁，候选写入后必须人工确认。" active={activeAnchor === 'listing-master-copy'}>
           <div className="space-y-4">
               <FieldBlock label="商品名称 / Listing 标题" required>
                 <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
@@ -449,7 +475,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-attributes" title="类目属性" description="先按三平台字段组补齐类目属性，再维护系统统一共性字段。字段组来自商品当前平台要求，不再只展示少数固定属性。">
+        <EditorSection id="listing-master-attributes" title="类目属性" description="先按三平台字段组补齐类目属性，再维护系统统一共性字段。字段组来自商品当前平台要求，不再只展示少数固定属性。" active={activeAnchor === 'listing-master-attributes'}>
           <div className="space-y-4">
             <div
               className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
@@ -520,7 +546,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-sku" title="SKU、销售资料与库存" description="按电商后台方式维护变体组合。每一行都是一个可发布 SKU，可单独编辑商家 SKU、平台 SKU、售价、库存、重量、包装尺寸和 SKU 图。">
+        <EditorSection id="listing-master-sku" title="SKU、销售资料与库存" description="按电商后台方式维护变体组合。每一行都是一个可发布 SKU，可单独编辑商家 SKU、平台 SKU、售价、库存、重量、包装尺寸和 SKU 图。" active={activeAnchor === 'listing-master-sku'}>
           <div
             className="mb-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
             data-ui="seller-listing-sku-sales-editor"
@@ -610,7 +636,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
         </EditorSection>
 
-        <EditorSection id="listing-master-logistics" title="物流、包装与合规" description="发布前必须补齐重量、包装长宽高、发货地、禁限售和认证材料。">
+        <EditorSection id="listing-master-logistics" title="物流、包装与合规" description="发布前必须补齐重量、包装长宽高、发货地、禁限售和认证材料。" active={activeAnchor === 'listing-master-logistics'}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {[
               ['weight', '包裹重量'],
@@ -636,9 +662,9 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   )
 }
 
-function EditorSection({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
+function EditorSection({ id, title, description, active, children }: { id: string; title: string; description: string; active?: boolean; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+    <section id={id} className={active ? 'scroll-mt-24 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 shadow-[var(--shadow-md)] transition' : 'scroll-mt-24 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 transition'}>
       <div className="mb-4">
         <h4 className="text-base font-semibold text-[var(--color-fg)]">{title}</h4>
         <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">{description}</p>

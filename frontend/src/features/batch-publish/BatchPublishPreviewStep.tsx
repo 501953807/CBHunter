@@ -19,6 +19,7 @@ import { ListingDraftQueue } from './ListingDraftQueue'
 import { ListingCompletenessPanel } from './ListingCompletenessPanel'
 import { StoreOverridePreviewPanel } from './StoreOverridePreviewPanel'
 import { ComplianceEditor, LogisticsEditor, MediaEditor, numberOrNull, VariantEditor } from './BatchPublishDraftEditors'
+import { BatchPublishSkuReadinessPanel, skuReadinessDetails } from './BatchPublishSkuReadinessPanel'
 
 interface Props {
   summary: BatchPreviewSummary | null
@@ -415,6 +416,7 @@ function ReadinessPanel({
         ))}
       </div>
       <PlatformFieldGapDetails draft={draft} check={platformFieldCheck(checks)} />
+      <BatchPublishSkuReadinessPanel draft={draft} check={skuValidationCheck(checks)} />
       <div className="grid grid-cols-2 gap-1.5">
         <label className="col-span-2 text-[11px] font-medium text-[var(--color-muted)]">
           辅助 Provider
@@ -461,6 +463,10 @@ function ReadinessPanel({
 
 function platformFieldCheck(checks: ListingValidationCheck[]) {
   return checks.find(check => check.code === 'platform_fields')
+}
+
+function skuValidationCheck(checks: ListingValidationCheck[]) {
+  return checks.find(check => check.code === 'sku')
 }
 
 function PlatformFieldGapDetails({ draft, check }: { draft: BatchListingDraft; check?: ListingValidationCheck }) {
@@ -585,6 +591,9 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
   const dimensions = logistics.dimensions || {}
   const attributeValues = draft.platform_requirements?.attribute_values || {}
   const fieldGaps = getPlatformRequiredFieldGaps(draft.platform_requirements, platformFieldCheck(draft.validation_checks || []))
+  const skuCheck = skuValidationCheck(draft.validation_checks || [])
+  const skuDetails = skuReadinessDetails(skuCheck)
+  const skuBlocked = skuCheck?.state === 'block'
   const hasDimensions = Boolean(dimensions.length_cm && dimensions.width_cm && dimensions.height_cm)
   const titleOk = Boolean(draft.template_title?.trim())
   const descriptionOk = Boolean(draft.template_description?.trim())
@@ -594,7 +603,7 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
   const commonMetrics = [
     { label: '标题长度', value: titleOk ? `${draft.template_title.length} 字符` : '待补' },
     { label: '素材', value: `${images.length} 图 / ${videos.length} 视频` },
-    { label: 'SKU', value: variants.length ? `${variants.length} 规格` : draft.sku_plan?.master_sku ? '主 SKU' : '待补' },
+    { label: 'SKU', value: skuBlocked ? `${skuDetails.blocking_gaps.length} 阻断` : variants.length ? `${variants.length} 规格` : draft.sku_plan?.master_sku ? '主 SKU' : '待补' },
     { label: '字段', value: `${Object.keys(attributeValues).length} 已填 / ${fieldGaps.blocking.length} 缺失` },
   ]
   const byPlatform = {
@@ -605,7 +614,7 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
         platformCheck('标题/描述', titleOk && descriptionOk ? 'pass' : 'block', titleOk && descriptionOk ? '标题与描述已维护' : 'Shopee 上架前必须补齐标题与描述'),
         platformCheck('类目属性', fieldGaps.blocking.length ? 'block' : fieldGaps.recheck.length ? 'warning' : 'pass', fieldGaps.blocking.length ? `缺 ${fieldGaps.blocking.join('、')}` : fieldGaps.recheck.length ? `待补证 ${fieldGaps.recheck.join('、')}` : '已填平台属性值'),
         platformCheck('图片素材', images.length ? 'pass' : 'warning', images.length ? `已维护 ${images.length} 张图` : '建议至少维护主图'),
-        platformCheck('规格库存', skuOk ? 'pass' : 'warning', skuOk ? '可映射 SKU/规格' : '建议维护主 SKU 与规格库存'),
+        platformCheck('规格库存', skuBlocked ? 'block' : skuOk ? 'pass' : 'warning', skuBlocked ? skuCheck?.message || 'SKU发布准备度未通过' : skuOk ? '可映射 SKU/规格' : '建议维护主 SKU 与规格库存'),
         platformCheck('重量物流', logisticsOk ? 'pass' : 'warning', logisticsOk ? '已维护重量，可继续匹配物流模板' : 'Shopee 运费校验需要重量信息'),
       ],
     },
@@ -613,7 +622,7 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
       cardTitle: 'TEMU 商品卡',
       layoutHint: '货号、供货/售价、包装尺寸和合规优先',
       checks: [
-        platformCheck('货号/SPU/SKC', skuOk ? 'pass' : 'warning', skuOk ? '已有商品货号或规格' : '建议补主 SKU、SPU/SKC 映射'),
+        platformCheck('货号/SPU/SKC', skuBlocked ? 'block' : skuOk ? 'pass' : 'warning', skuBlocked ? skuCheck?.message || 'TEMU SKU/SPU/SKC发布准备度未通过' : skuOk ? '已有商品货号或规格' : '建议补主 SKU、SPU/SKC 映射'),
         platformCheck('价格成本', draft.selling_price && draft.source_price_rmb ? 'pass' : 'block', draft.selling_price && draft.source_price_rmb ? '售价和成本可试算' : 'TEMU 刊登前需补成本与目标售价'),
         platformCheck('包装尺寸', logisticsOk && hasDimensions ? 'pass' : 'warning', logisticsOk && hasDimensions ? '重量与长宽高已维护' : '建议补重量和包装长宽高'),
         platformCheck('属性合规', fieldGaps.blocking.length ? 'block' : complianceOk ? 'pass' : 'warning', fieldGaps.blocking.length ? `缺 ${fieldGaps.blocking.join('、')}` : complianceOk ? '合规复核已通过' : '需复核禁限售和资质'),
@@ -627,7 +636,7 @@ function buildPlatformRealtimePreview(draft: BatchListingDraft) {
         platformCheck('标题卖点', titleOk && descriptionOk ? 'pass' : 'block', titleOk && descriptionOk ? '标题和卖点可用于商品详情' : 'TikTok Shop 商品卡需补标题和卖点描述'),
         platformCheck('短视频素材', videos.length ? 'pass' : 'warning', videos.length ? `已维护 ${videos.length} 条视频` : '建议补短视频或脚本，提高内容转化'),
         platformCheck('商品图片', images.length ? 'pass' : 'warning', images.length ? `已维护 ${images.length} 张图` : '建议至少维护商品主图'),
-        platformCheck('变体库存', skuOk ? 'pass' : 'warning', skuOk ? 'SKU/规格可进入平台映射' : '建议补规格、价格和库存'),
+        platformCheck('变体库存', skuBlocked ? 'block' : skuOk ? 'pass' : 'warning', skuBlocked ? skuCheck?.message || 'SKU发布准备度未通过' : skuOk ? 'SKU/规格可进入平台映射' : '建议补规格、价格和库存'),
         platformCheck('禁限售', complianceOk ? 'pass' : 'warning', complianceOk ? '禁限售复核已通过' : 'TikTok Shop 发布前需复核禁限售'),
       ],
     },

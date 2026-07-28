@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Edit3, FileText, PackageOpen, Search, TriangleAlert } from 'lucide-react'
 import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
@@ -12,23 +12,30 @@ const STATUS_LABELS: Record<string, string> = {
   ready: '内容完成',
 }
 
+type BulkActionKind = 'copy' | 'media' | 'pricing'
+
 export function ContentProductQueue({
   onSelect,
   onOpenListing,
+  onOpenMediaWorkbench,
   initialProductId = '',
   layout = 'table',
   autoSelect = false,
 }: {
   onSelect: (item: ContentWorkbenchItem) => void
   onOpenListing?: (item: ContentWorkbenchItem) => void
+  onOpenMediaWorkbench?: (item: ContentWorkbenchItem) => void
   initialProductId?: string
   layout?: 'table' | 'rail'
   autoSelect?: boolean
 }) {
   const [selectedId, setSelectedId] = useState('')
+  const [checkedIds, setCheckedIds] = useState<string[]>([])
   const [queuePage, setQueuePage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [tablePageSize, setTablePageSize] = useState(20)
+  const [bulkAction, setBulkAction] = useState<BulkActionKind | null>(null)
   const contentWorkbenchQuery = useQuery({
     queryKey: ['content-workbench'],
     queryFn: getContentWorkbench,
@@ -40,9 +47,9 @@ export function ContentProductQueue({
     if (!first) return
     setSelectedId(first.work_item_id)
     const firstIndex = workbench?.items?.findIndex(item => item.work_item_id === first.work_item_id) ?? 0
-    setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout)) + 1)
+    setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout, tablePageSize)) + 1)
     onSelect(first)
-  }, [onSelect, initialProductId, layout, workbench, autoSelect])
+  }, [onSelect, initialProductId, layout, workbench, autoSelect, tablePageSize])
 
   const items = (workbench?.items || []).filter(item => {
     const statusMatched = statusFilter === 'all' || item.content_status === statusFilter
@@ -50,12 +57,35 @@ export function ContentProductQueue({
     const keywordMatched = !keyword || [item.product_name, item.target_platform, item.target_market, item.category].some(value => (value || '').toLowerCase().includes(keyword))
     return statusMatched && keywordMatched
   })
-  const pageSize = getPageSize(layout)
+  const pageSize = getPageSize(layout, tablePageSize)
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize))
   const safePage = Math.min(queuePage, totalPages)
   const visibleItems = items.slice((safePage - 1) * pageSize, safePage * pageSize)
   const startIndex = items.length === 0 ? 0 : (safePage - 1) * pageSize + 1
   const endIndex = Math.min(safePage * pageSize, items.length)
+  const visibleIds = visibleItems.map(item => item.work_item_id)
+  const selectedItems = useMemo(
+    () => items.filter(item => checkedIds.includes(item.work_item_id)),
+    [items, checkedIds],
+  )
+  const allVisibleChecked = visibleIds.length > 0 && visibleIds.every(id => checkedIds.includes(id))
+  const partiallyChecked = visibleIds.some(id => checkedIds.includes(id)) && !allVisibleChecked
+
+  const toggleVisible = () => {
+    setCheckedIds(current => {
+      if (allVisibleChecked) return current.filter(id => !visibleIds.includes(id))
+      return Array.from(new Set([...current, ...visibleIds]))
+    })
+  }
+
+  const toggleRow = (id: string) => {
+    setCheckedIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id])
+  }
+
+  const runBulkAction = (action: BulkActionKind) => {
+    if (selectedItems.length === 0) return
+    setBulkAction(action)
+  }
 
   return (
     <Card className="h-full">
@@ -95,7 +125,85 @@ export function ContentProductQueue({
                 {label}
               </button>
             ))}
+            <label className="ml-auto flex items-center gap-2 text-xs text-[var(--color-muted)]">
+              每页
+              <select
+                value={tablePageSize}
+                onChange={event => { setTablePageSize(Number(event.target.value)); setQueuePage(1) }}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-xs text-[var(--color-fg)] outline-none"
+                aria-label="内容商品列表每页条数"
+              >
+                {[20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
           </div>
+        )}
+        {layout === 'table' && items.length > 0 && (
+          <div
+            aria-label="内容商品批量操作工具栏"
+            data-ui="content-product-bulk-action-toolbar"
+            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs shadow-[var(--shadow-sm)]"
+          >
+            <label className="flex items-center gap-2 text-[var(--color-fg)]">
+              <input
+                type="checkbox"
+                checked={allVisibleChecked}
+                ref={element => { if (element) element.indeterminate = partiallyChecked }}
+                onChange={toggleVisible}
+                aria-label="选择当前页内容商品"
+              />
+              当前页全选
+            </label>
+            <span className="text-[var(--color-muted)]">已选择 {selectedItems.length} 个商品</span>
+            <span className="text-[var(--color-muted)]">图片缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
+            <span className="text-[var(--color-muted)]">内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={selectedItems.length === 0}
+                onClick={() => runBulkAction('copy')}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                title="生成批量文案处理队列，逐个进入 Listing 编辑区处理"
+              >
+                批量生成文案
+              </button>
+              <button
+                type="button"
+                disabled={selectedItems.length === 0}
+                onClick={() => runBulkAction('media')}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                title="生成批量素材处理队列，逐个进入图片工作台补图/校验"
+              >
+                批量校验素材
+              </button>
+              <button
+                type="button"
+                disabled={selectedItems.length === 0}
+                onClick={() => runBulkAction('pricing')}
+                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                title="生成定价校验处理队列，逐个进入定价页或 Listing 价格区"
+              >
+                送入定价校验
+              </button>
+            </div>
+          </div>
+        )}
+        {layout === 'table' && bulkAction && selectedItems.length > 0 && (
+          <BulkActionWorkbench
+            action={bulkAction}
+            items={selectedItems}
+            onClose={() => setBulkAction(null)}
+            onOpenListing={(item) => {
+              setSelectedId(item.work_item_id)
+              onSelect(item)
+              onOpenListing?.(item)
+            }}
+            onOpenMediaWorkbench={onOpenMediaWorkbench ? (item) => {
+              setSelectedId(item.work_item_id)
+              onSelect(item)
+              onOpenMediaWorkbench(item)
+            } : undefined}
+          />
         )}
         {items.length > 0 && (
           <div aria-label="内容商品队列分页" className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
@@ -184,8 +292,17 @@ export function ContentProductQueue({
           <div className="min-h-[calc(100vh-300px)] overflow-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]" style={{ scrollbarWidth: 'thin' }} data-ui="content-product-seller-console-table">
             <table className="w-full min-w-[1480px] text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
-                <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
-                  <th className="px-3 py-2">商品信息</th>
+	                <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
+	                  <th className="w-10 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleChecked}
+                        ref={element => { if (element) element.indeterminate = partiallyChecked }}
+                        onChange={toggleVisible}
+                        aria-label="选择当前页全部商品"
+                      />
+                    </th>
+	                  <th className="px-3 py-2">商品信息</th>
                   <th className="px-3 py-2">平台 / 店铺 / 市场</th>
                   <th className="px-3 py-2">内容状态</th>
                   <th className="px-3 py-2">图片 / 视频</th>
@@ -203,13 +320,22 @@ export function ContentProductQueue({
               const mediaReadiness = item.media_readiness
               const mediaGaps = mediaReadiness?.gaps || []
               return (
-                <tr
-                  key={item.work_item_id}
-                  onClick={() => { setSelectedId(item.work_item_id); onSelect(item) }}
+	                <tr
+	                  key={item.work_item_id}
+	                  onClick={() => { setSelectedId(item.work_item_id); onSelect(item) }}
                   className="cursor-pointer border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
                   style={{ backgroundColor: active ? 'var(--color-primary-light)' : 'transparent' }}
-                >
-                  <td className="px-3 py-3">
+	                >
+	                  <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={checkedIds.includes(item.work_item_id)}
+                        onClick={event => event.stopPropagation()}
+                        onChange={() => toggleRow(item.work_item_id)}
+                        aria-label={`选择商品 ${item.product_name}`}
+                      />
+                    </td>
+	                  <td className="px-3 py-3">
                     <div className="flex min-w-0 gap-2">
                       {item.image_url && (
                         <img
@@ -292,8 +418,141 @@ export function ContentProductQueue({
   )
 }
 
-function getPageSize(layout: 'table' | 'rail') {
-  return layout === 'rail' ? 6 : 20
+function BulkActionWorkbench({
+  action,
+  items,
+  onClose,
+  onOpenListing,
+  onOpenMediaWorkbench,
+}: {
+  action: BulkActionKind
+  items: ContentWorkbenchItem[]
+  onClose: () => void
+  onOpenListing: (item: ContentWorkbenchItem) => void
+  onOpenMediaWorkbench?: (item: ContentWorkbenchItem) => void
+}) {
+  const meta = bulkActionMeta(action)
+  return (
+    <section
+      aria-label="内容商品批量处理队列"
+      data-ui="content-product-bulk-action-workbench"
+      className="space-y-3 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 text-xs shadow-[var(--shadow-sm)]"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-[var(--color-primary)]">{meta.title}</p>
+          <p className="mt-1 text-[var(--color-muted)]">{meta.description}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+        >
+          收起队列
+        </button>
+      </div>
+      <div className="overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <table className="w-full min-w-[880px] text-left">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
+              <th className="px-3 py-2">商品</th>
+              <th className="px-3 py-2">平台/市场</th>
+              <th className="px-3 py-2">当前缺口</th>
+              <th className="px-3 py-2 text-right">处理动作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(item => (
+              <tr key={`${action}-${item.work_item_id}`} className="border-b border-[var(--color-border)] align-top last:border-b-0">
+                <td className="px-3 py-2">
+                  <p className="font-medium text-[var(--color-fg)]">{item.product_name}</p>
+                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">状态：{STATUS_LABELS[item.content_status] || item.content_status}</p>
+                </td>
+                <td className="px-3 py-2 text-[var(--color-muted)]">
+                  <p>{item.target_platform || '--'}</p>
+                  <p className="mt-1">{item.target_market || '--'}</p>
+                </td>
+                <td className="px-3 py-2 text-[var(--color-warning)]">
+                  {bulkActionGaps(action, item).join('、') || '未发现该类阻断缺口，可进入人工复核'}
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex justify-end gap-2">
+                    {action === 'media' && onOpenMediaWorkbench ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenMediaWorkbench(item)}
+                        className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[var(--color-primary)]"
+                      >
+                        处理图片
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onOpenListing(item)}
+                        className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[var(--color-primary)]"
+                      >
+                        打开 Listing
+                      </button>
+                    )}
+                    {action === 'pricing' && (
+                      <a
+                        href={`/pricing?product_id=${encodeURIComponent(productIdForAction(item))}`}
+                        className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                      >
+                        定价页
+                      </a>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-[var(--color-muted)]">
+        该队列只组织本地处理入口，不声明已批量生成、已完成素材校验或已完成定价；实际写入仍在 Listing、图片或定价页面人工确认后发生。
+      </p>
+    </section>
+  )
+}
+
+function bulkActionMeta(action: BulkActionKind) {
+  if (action === 'copy') {
+    return {
+      title: '批量文案处理队列',
+      description: '把已选商品集中为文案处理清单，逐个进入 Listing 编辑区生成或确认标题、描述和卖点。',
+    }
+  }
+  if (action === 'media') {
+    return {
+      title: '批量素材校验队列',
+      description: '把已选商品集中为图片/视频处理清单，逐个进入图片工作台补图、排序、设主图或处理素材缺口。',
+    }
+  }
+  return {
+    title: '批量定价校验队列',
+    description: '把已选商品集中为价格处理清单，逐个进入定价页或 Listing 价格区核对成本、售价和利润缺口。',
+  }
+}
+
+function bulkActionGaps(action: BulkActionKind, item: ContentWorkbenchItem) {
+  if (action === 'media') return item.media_readiness?.gaps || []
+  if (action === 'pricing') {
+    return [
+      item.selling_price_local == null ? '售价待定价' : '',
+      item.profit_margin_pct == null ? '利润待校验' : '',
+      item.source_price_rmb == null ? '采购成本待补' : '',
+    ].filter(Boolean)
+  }
+  return item.content_gaps.length > 0 ? item.content_gaps : ['标题/描述/卖点需人工复核']
+}
+
+function productIdForAction(item: ContentWorkbenchItem) {
+  return item.object_refs?.find(ref => ref.type === 'product')?.id || item.id || item.work_item_id
+}
+
+function getPageSize(layout: 'table' | 'rail', tablePageSize: number) {
+  return layout === 'rail' ? 6 : tablePageSize
 }
 
 function matchesProduct(item: ContentWorkbenchItem, productId: string) {

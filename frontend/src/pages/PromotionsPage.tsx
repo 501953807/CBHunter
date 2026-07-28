@@ -16,6 +16,8 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Select } from '../components/ui/Select'
+import type { UnifiedFieldDictionary } from '../api/config'
+import { useConfig } from '../hooks/useConfig'
 import { usePlatforms } from '../hooks/usePlatforms'
 import { logger } from '../utils/logger'
 import { productImageSrc } from '../utils/productImages'
@@ -51,6 +53,7 @@ export default function PromotionsPage() {
   const [message, setMessage] = useState('')
   const [form, setForm] = useState<PromotionCreateFormState>(EMPTY_CREATE_FORM)
   const [selectedListingIds, setSelectedListingIds] = useState<string[]>([])
+  const { unified_field_dictionary } = useConfig()
   const { data: platformsData } = usePlatforms()
   const stores = platformsData?.data || []
   const effectivePlatformAccountId = actionMode === 'add-items' && actionCampaign ? actionCampaign.store.id : form.platformAccountId
@@ -367,6 +370,7 @@ export default function PromotionsPage() {
                     key={listing.id}
                     item={listing}
                     selected={selectedListingIds.includes(listing.id)}
+                    unified_field_dictionary={unified_field_dictionary}
                     onToggle={() => toggleListing(listing.id)}
                   />
                 ))}
@@ -417,7 +421,13 @@ export default function PromotionsPage() {
               ) : (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {candidateListings.map((listing) => (
-                    <PromotionCandidateCard key={listing.id} item={listing} selected={selectedListingIds.includes(listing.id)} onToggle={() => toggleListing(listing.id)} />
+                    <PromotionCandidateCard
+                      key={listing.id}
+                      item={listing}
+                      selected={selectedListingIds.includes(listing.id)}
+                      unified_field_dictionary={unified_field_dictionary}
+                      onToggle={() => toggleListing(listing.id)}
+                    />
                   ))}
                 </div>
               )}
@@ -465,6 +475,7 @@ export default function PromotionsPage() {
                     <td className="px-3 py-3">
                       <p className="text-[var(--color-fg)]">{item.product_count} 个产品参与</p>
                       <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">{item.items.map((entry) => entry.product_name).join('、') || '待添加商品'}</p>
+                      <PromotionListingFieldDictionary campaign={item} unified_field_dictionary={unified_field_dictionary} />
                     </td>
                     <td className="px-3 py-3">
                       <PromotionEffectSummary campaign={item} />
@@ -538,7 +549,24 @@ function formatMoney(value: number) {
   return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function PromotionCandidateCard({ item, selected, onToggle }: { item: PlatformStoreProduct; selected: boolean; onToggle: () => void }) {
+function PromotionCandidateCard({
+  item,
+  selected,
+  unified_field_dictionary,
+  onToggle,
+}: {
+  item: PlatformStoreProduct
+  selected: boolean
+  unified_field_dictionary?: UnifiedFieldDictionary
+  onToggle: () => void
+}) {
+  const fieldRows = promotionListingFieldRows([
+    ['product_title', item.title],
+    ['platform_product_id', item.platform_product_id],
+    ['sku_id', item.product_master?.sku],
+    ['sku_stock', item.stock],
+    ['sku_price', item.price],
+  ], item.platform || item.store.platform, unified_field_dictionary)
   return (
     <button
       type="button"
@@ -552,9 +580,99 @@ function PromotionCandidateCard({ item, selected, onToggle }: { item: PlatformSt
           <p className="line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.title}</p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">{item.store.account_name} · 库存 {item.stock} · 售价 {item.price.toLocaleString()}</p>
           <p className="mt-1 text-[11px] text-[var(--color-muted)]">平台商品ID：{item.platform_product_id || '本地草稿'}</p>
+          <PromotionFieldChips rows={fieldRows} />
         </div>
         <span className="text-xs font-semibold text-[var(--color-primary)]">{selected ? '已选' : '选择'}</span>
       </div>
     </button>
   )
+}
+
+function PromotionListingFieldDictionary({
+  campaign,
+  unified_field_dictionary,
+}: {
+  campaign: PromotionCampaign
+  unified_field_dictionary?: UnifiedFieldDictionary
+}) {
+  const rows = campaign.items.slice(0, 2).flatMap(item =>
+    promotionListingFieldRows([
+      ['product_title', item.listing_title || item.product_name],
+      ['sku_id', item.sku],
+      ['sku_stock', item.stock_limit],
+      ['sku_price', item.original_price],
+      ['promotion_price', item.promotion_price],
+    ], campaign.platform, unified_field_dictionary).map(row => ({ ...row, productName: item.product_name || item.listing_title })),
+  )
+  if (!rows.length) return null
+  return (
+    <div data-ui="promotion-v5-listing-field-dictionary" className="mt-2 space-y-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+      <p className="text-[11px] font-medium text-[var(--color-fg)]">促销商品字段字典</p>
+      {rows.slice(0, 6).map(row => (
+        <p key={`${row.productName}-${row.key}-${row.value}`} className="text-[11px] text-[var(--color-muted)]">
+          <span className="text-[var(--color-fg)]">{row.label}</span> · {row.platformField}：{row.value}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+function PromotionFieldChips({ rows }: { rows: PromotionV5FieldRow[] }) {
+  if (!rows.length) return null
+  return (
+    <div data-ui="promotion-v5-candidate-field-dictionary" className="mt-2 flex flex-wrap gap-1">
+      {rows.slice(0, 3).map(row => (
+        <span key={`${row.key}-${row.value}`} className="rounded-full border border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-muted)]">
+          {row.label} · {row.value}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+type PromotionV5FieldRow = {
+  key: string
+  label: string
+  platformField: string
+  value: string
+}
+
+function promotionListingFieldRows(
+  values: Array<[string, string | number | null | undefined]>,
+  platform: string,
+  unified_field_dictionary?: UnifiedFieldDictionary,
+): PromotionV5FieldRow[] {
+  return values
+    .map(([key, value]) => {
+      const field = unified_field_dictionary?.fields.find(item => item.key === key)
+      const platformKey = normalizePromotionPlatformKey(platform)
+      const platformField = field?.platforms?.[platformKey]?.field || field?.platforms?.miaoshou?.field || '平台字段待映射'
+      return {
+        key,
+        label: field?.label || promotionFallbackLabel(key),
+        platformField: `${platform || '平台待识别'} 字段：${platformField}`,
+        value: value == null || value === '' ? '' : String(value),
+      }
+    })
+    .filter(row => row.value)
+}
+
+function promotionFallbackLabel(key: string) {
+  const labels: Record<string, string> = {
+    product_title: '商品标题',
+    platform_product_id: '平台商品 ID',
+    sku_id: 'SKU',
+    sku_stock: '库存',
+    sku_price: '售价',
+    promotion_price: '促销价',
+  }
+  return labels[key] || key
+}
+
+function normalizePromotionPlatformKey(platform: string) {
+  const value = platform.toLowerCase()
+  if (value.includes('tiktok')) return 'tiktok'
+  if (value.includes('temu')) return 'temu'
+  if (value.includes('shopee')) return 'shopee'
+  return value
 }

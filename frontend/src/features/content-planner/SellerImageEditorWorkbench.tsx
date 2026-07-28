@@ -364,7 +364,7 @@ export function SellerImageEditorWorkbench({
                 onDragOver={event => event.preventDefault()}
                 onDrop={event => {
                   event.preventDefault()
-                  if (draggingSlotIndex) reorderSlot(draggingSlotIndex, slot.index)
+                  if (draggingSlotIndex !== null) reorderSlot(draggingSlotIndex, slot.index)
                   setDraggingSlotIndex(null)
                 }}
                 onDragEnd={() => setDraggingSlotIndex(null)}

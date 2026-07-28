@@ -14,7 +14,9 @@ from app.models.exchange_rate import ExchangeRate
 from app.models.product import Product
 from app.integrations.factory import PlatformClientFactory
 from app.integrations.status import is_order_sync_ready, is_product_sync_ready
+from app.services.config_service import get_platform_product_field_groups
 from app.services.media_readiness_service import media_readiness_from_extra
+from app.services.platform_product_validation_service import build_synced_product_platform_validation
 from app.utils.encryption import decrypt
 
 logger = logging.getLogger(__name__)
@@ -88,12 +90,13 @@ class SyncService:
 
             now = datetime.now(timezone.utc)
             remote_products = await self._fetch_product_pages(client)
+            field_schemas = await get_platform_product_field_groups(self.db)
             created = 0
             updated = 0
             failed = 0
             for remote_product in remote_products:
                 try:
-                    changed = await self._upsert_platform_product(account, remote_product, now)
+                    changed = await self._upsert_platform_product(account, remote_product, now, field_schemas)
                     if changed == "created":
                         created += 1
                     else:
@@ -359,7 +362,13 @@ class SyncService:
             page += 1
         return products
 
-    async def _upsert_platform_product(self, account: PlatformAccount, remote_product, synced_at: datetime) -> str:
+    async def _upsert_platform_product(
+        self,
+        account: PlatformAccount,
+        remote_product,
+        synced_at: datetime,
+        field_schemas: dict | None = None,
+    ) -> str:
         if not remote_product.platform_product_id:
             raise ValueError("Remote product is missing platform_product_id")
         if not remote_product.title:
@@ -420,10 +429,18 @@ class SyncService:
         listing.variations = remote_product.variations or []
         listing.images = remote_product.images or []
         listing.status = remote_product.status or "draft"
+        field_validation = build_synced_product_platform_validation(
+            platform=account.platform,
+            remote_product=remote_product,
+            field_schemas=field_schemas,
+        )
         listing.platform_data = {
             **(listing.platform_data or {}),
             "source": "platform_product_sync",
             "raw_data": remote_product.raw_data,
+            "attribute_values": field_validation["attribute_values"],
+            "platform_requirements": field_validation["platform_requirements"],
+            "validation_checks": field_validation["validation_checks"],
             "listing_snapshot": {
                 "title": remote_product.title,
                 "description": remote_product.description,

@@ -12,6 +12,7 @@ import {
   type PlatformBillImportRecord,
 } from '../api/finance'
 import { FinanceLedgerPanel } from '../features/finance/FinanceLedgerPanel'
+import { FinanceV5SkuFieldDictionary } from '../features/finance/FinanceV5SkuFieldDictionary'
 import { logger } from '../utils/logger'
 import { EvidenceBanner } from '../components/shared/EvidenceBanner'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -72,7 +73,7 @@ export default function FinancePage() {
   const [billSyncAccountId, setBillSyncAccountId] = useState(platformAccountId)
   const [billSyncing, setBillSyncing] = useState(false)
   const [billSyncMessage, setBillSyncMessage] = useState('')
-  const { finance_entry_types, platforms, markets } = useConfig()
+  const { finance_entry_types, platforms, markets, unified_field_dictionary } = useConfig()
   const platformStatusQuery = usePlatformStatuses()
   const platformStatuses = platformStatusQuery.data?.data || []
   const financeSummaryQuery = useQuery({
@@ -378,6 +379,10 @@ export default function FinancePage() {
               gaps: item.data_gaps,
             }))} />
           </div>
+          <FinanceV5SkuFieldDictionary
+            products={traceback?.by_product || []}
+            unified_field_dictionary={unified_field_dictionary}
+          />
         </CardContent>
       </Card>
 

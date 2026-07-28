@@ -24,6 +24,8 @@ from app.api.v1.scout import router as scout_router
 from app.api.v1.scout_supply import router as scout_supply_router
 from app.api.v1.scout_trending import router as scout_trending_router
 from app.api.v1.settings import router as settings_router
+from app.api.v1.settings_field_dictionary import router as settings_field_dictionary_router
+from app.api.v1.settings_system_config import router as settings_system_config_router
 from app.api.v1.settings_fee_rates import router as settings_fee_rates_router
 from app.api.v1.settings_warehouses import router as settings_warehouses_router
 from app.api.v1.content import router as content_router
@@ -74,6 +76,8 @@ api_router.include_router(scout_router)
 api_router.include_router(scout_trending_router)
 api_router.include_router(scout_supply_router)
 api_router.include_router(settings_router)
+api_router.include_router(settings_field_dictionary_router)
+api_router.include_router(settings_system_config_router)
 api_router.include_router(settings_fee_rates_router)
 api_router.include_router(settings_warehouses_router)
 api_router.include_router(content_router)

@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -19,6 +19,10 @@ export default function ContentPlannerPage() {
   const [searchParams] = useSearchParams()
   const initialProductId = searchParams.get('product_id') || ''
   const highlightPlatformFieldKey = searchParams.get('platform_field_key') || ''
+  const initialListingAnchor = useMemo(
+    () => listingSectionAnchor(searchParams.get('section') || searchParams.get('listing_section') || ''),
+    [searchParams],
+  )
   const { data: platformsData } = usePlatforms()
   const storeOptions = (platformsData?.data || []).map((account: any) => ({
     value: account.id,
@@ -30,6 +34,7 @@ export default function ContentPlannerPage() {
   const [workspaceMode, setWorkspaceMode] = useState<ContentWorkspaceMode>(() => {
     if (tab === 'image') return 'image'
     if (tab && tab !== 'queue') return 'listing'
+    if (initialListingAnchor) return 'listing'
     return initialProductId ? 'listing' : 'queue'
   })
   const refreshContentTasks = useCallback(() => setSelectedProduct(current => current ? { ...current } : current), [])
@@ -69,6 +74,13 @@ export default function ContentPlannerPage() {
   const jumpToListingSection = useCallback((sectionId: string) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
+
+  useEffect(() => {
+    if (!initialListingAnchor || workspaceMode !== 'listing' || !selectedProduct) return
+    window.setTimeout(() => {
+      document.getElementById(initialListingAnchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }, [initialListingAnchor, selectedProduct, workspaceMode])
 
   return (
     <div className="space-y-6">
@@ -110,6 +122,7 @@ export default function ContentPlannerPage() {
         <ContentProductQueue
           onSelect={handleSelectProduct}
           onOpenListing={openListing}
+          onOpenMediaWorkbench={openImageEditor}
           initialProductId={initialProductId}
           layout="table"
           autoSelect={Boolean(initialProductId)}
@@ -163,6 +176,24 @@ export default function ContentPlannerPage() {
       )}
     </div>
   )
+}
+
+function listingSectionAnchor(section: string) {
+  const normalized = section.trim().toLowerCase()
+  const anchors: Record<string, string> = {
+    sku: 'listing-master-sku',
+    specs: 'listing-master-sku',
+    specification: 'listing-master-sku',
+    attributes: 'listing-master-attributes',
+    platform_fields: 'listing-master-attributes',
+    media: 'listing-master-media',
+    images: 'listing-master-media',
+    copy: 'listing-master-copy',
+    title: 'listing-master-copy',
+    logistics: 'listing-master-logistics',
+    compliance: 'listing-master-logistics',
+  }
+  return anchors[normalized] || ''
 }
 
 function ContentEditorOverlay({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {

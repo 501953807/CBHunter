@@ -8,6 +8,7 @@ import { EvidenceBanner } from "../../components/shared/EvidenceBanner"
 import { useAcknowledgeAlert, useAlertLogs, useAlertRules, useCheckInventory, useClearAlert, useCreateInventorySlowMovingOperationAction, useDeleteAlertRule, useUpdateAlertRule } from "../../hooks/useInventoryAlerts"
 import { useConfig } from "../../hooks/useConfig"
 import { useTriggerProductSync } from "../../hooks/useSync"
+import type { UnifiedFieldDictionary } from "../../api/config"
 import type { ApiResponse } from "../../types/common"
 import type { AlertStats, InventoryAlertLog, InventoryRiskWorkbenchSnapshot } from "../../types/inventoryAlert"
 
@@ -53,6 +54,7 @@ export function InventoryRiskWorkbench({
   const slowMovingItems = snapshot?.slow_moving.items ?? []
   const createOperationAction = useCreateInventorySlowMovingOperationAction()
   const productSync = useTriggerProductSync()
+  const { unified_field_dictionary } = useConfig()
   return (
     <section
       aria-label="库存风险处理工作台"
@@ -193,6 +195,7 @@ export function InventoryRiskWorkbench({
                     <p className="mt-1 text-xs text-[var(--color-muted)]">
                       库存 {item.stock} · 近30天浏览 {item.views_30d} · 订单 {item.orders_30d} · 占用 {item.capital_rmb != null ? `¥${item.capital_rmb}` : "成本待补"}
                     </p>
+                    <InventoryV5SkuFieldDictionary item={item} unified_field_dictionary={unified_field_dictionary} />
                   </div>
                   <button
                     type="button"
@@ -211,6 +214,76 @@ export function InventoryRiskWorkbench({
       ) : null}
     </section>
   )
+}
+
+function InventoryV5SkuFieldDictionary({
+  item,
+  unified_field_dictionary,
+}: {
+  item: InventoryRiskWorkbenchSnapshot["slow_moving"]["items"][number]
+  unified_field_dictionary?: UnifiedFieldDictionary
+}) {
+  const rows = inventoryV5SkuFieldRows(item, unified_field_dictionary)
+  return (
+    <div data-ui="inventory-v5-sku-field-dictionary" className="mt-2 flex flex-wrap gap-1.5">
+      {rows.map(row => (
+        <span key={row.key} className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] text-[var(--color-muted)]">
+          <span className="font-medium text-[var(--color-fg)]">{row.label}</span>
+          <span className="mx-1">·</span>
+          <span>{row.value}</span>
+          {row.platformField ? <span className="ml-1 text-[var(--color-primary)]">({row.platformField})</span> : null}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+type InventoryV5SkuFieldRow = {
+  key: string
+  label: string
+  value: string
+  platformField?: string
+}
+
+function inventoryV5SkuFieldRows(
+  item: InventoryRiskWorkbenchSnapshot["slow_moving"]["items"][number],
+  unified_field_dictionary?: UnifiedFieldDictionary,
+): InventoryV5SkuFieldRow[] {
+  const platformKey = normalizeInventoryPlatformKey(item.platform || "")
+  const build = (key: string, value: string): InventoryV5SkuFieldRow => {
+    const field = unified_field_dictionary?.fields.find(entry => entry.key === key)
+    const platformField = platformKey ? field?.platforms?.[platformKey]?.field : undefined
+    return {
+      key,
+      label: field?.label || inventoryFallbackLabel(key),
+      value,
+      platformField: platformField || field?.platforms?.miaoshou?.field || undefined,
+    }
+  }
+  return [
+    build("product_title", item.title || "标题待补"),
+    build("sku_id", item.sku || "SKU待补"),
+    build("sku_stock", `${item.stock ?? "库存待补"}`),
+    build("sku_price", item.capital_rmb != null ? `占用 ¥${item.capital_rmb}` : "成本/售价待补"),
+  ]
+}
+
+function inventoryFallbackLabel(key: string) {
+  const labels: Record<string, string> = {
+    product_title: "商品标题",
+    sku_id: "SKU",
+    sku_stock: "库存",
+    sku_price: "售价/资金",
+  }
+  return labels[key] || key
+}
+
+function normalizeInventoryPlatformKey(platform: string) {
+  const normalized = platform.toLowerCase().replace(/[\s-]+/g, "_")
+  if (normalized.includes("tiktok")) return "tiktok"
+  if (normalized.includes("temu")) return "temu"
+  if (normalized.includes("shopee")) return "shopee"
+  return normalized
 }
 
 function InventoryRiskLaneCard({ lane }: { lane: InventoryRiskLane }) {

@@ -103,6 +103,7 @@ export type FinanceTracebackProduct = FinanceTracebackBase & {
     skc?: string | null
     option_1?: { name?: string | null; value?: string | null } | null
     option_2?: { name?: string | null; value?: string | null } | null
+    sku_image_url?: string | null
     listing_stock?: number | null
     listing_price?: number | null
     source_entry_id?: string

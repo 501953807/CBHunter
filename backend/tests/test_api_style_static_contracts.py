@@ -21,15 +21,25 @@ def test_audited_routes_use_keyword_http_exception_arguments():
 def test_settings_warehouse_routes_are_split_from_large_settings_router():
     settings_path = ROOT / "backend/app/api/v1/settings.py"
     warehouse_path = ROOT / "backend/app/api/v1/settings_warehouses.py"
+    system_config_path = ROOT / "backend/app/api/v1/settings_system_config.py"
+    field_dictionary_path = ROOT / "backend/app/api/v1/settings_field_dictionary.py"
     router_path = ROOT / "backend/app/api/router.py"
     settings_source = settings_path.read_text(encoding="utf-8")
     router_source = router_path.read_text(encoding="utf-8")
 
     assert warehouse_path.exists()
-    assert len(settings_source.splitlines()) < 1000
+    assert system_config_path.exists()
+    assert field_dictionary_path.exists()
+    assert len(settings_source.splitlines()) < 800
     assert '@router.get("/warehouses"' not in settings_source
+    assert '@router.get("/system-config"' not in settings_source
+    assert '@router.get("/field-dictionary"' not in settings_source
     assert "settings_warehouses_router" in router_source
+    assert "settings_system_config_router" in router_source
+    assert "settings_field_dictionary_router" in router_source
     assert "api_router.include_router(settings_warehouses_router)" in router_source
+    assert "api_router.include_router(settings_system_config_router)" in router_source
+    assert "api_router.include_router(settings_field_dictionary_router)" in router_source
 
 
 def test_discovery_trend_routes_are_split_from_large_discovery_router():

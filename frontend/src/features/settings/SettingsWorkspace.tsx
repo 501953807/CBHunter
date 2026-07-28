@@ -7,7 +7,7 @@ import { getConfigQuality, type ConfigQuality } from "../../api/config"
 import { AIProviderSettings, ProfileSettings } from "./SettingsAccountPanels"
 import { AccessControlSettings } from "./SettingsAccessPanel"
 import { BillingSettings } from "./SettingsBillingPanel"
-import { DictSettingsCRUD, FeeRateSettings } from "./SettingsDataPanels"
+import { DictSettingsCRUD, FeeRateSettings, FieldDictionarySettings } from "./SettingsDataPanels"
 import { ConfigQualitySettings } from "./SettingsQualityPanel"
 import { ApiKeySettings, WarehouseSettings } from "./SettingsSystemPanels"
 import { useFullConfig } from "../../hooks/useConfig"
@@ -16,12 +16,12 @@ import { logger } from "../../utils/logger"
 
 const TITLE_MAP: Record<string, string> = {
   profile: "账号信息", access: "权限授权", aiproviders: "AI 引擎",
-  dict: "业务字典", fees: "费率与汇率", keys: "接口密钥",
+  dict: "业务字典", fields: "字段字典", fees: "费率与汇率", keys: "接口密钥",
   quality: "配置巡检", billing: "套餐权益", warehouse: "仓储配置", tasks: "系统任务", audit: "审计日志",
 }
 
 const SETTINGS_NAV_GROUPS = [
-  { title: '基础设置', tabs: ['profile', 'dict'] },
+  { title: '基础设置', tabs: ['profile', 'dict', 'fields'] },
   { title: '业务参数', tabs: ['fees', 'warehouse', 'keys', 'quality'] },
   { title: '智能与订阅', tabs: ['aiproviders', 'billing'] },
   { title: '治理审计', tabs: ['access', 'tasks', 'audit'] },
@@ -84,6 +84,7 @@ export default function SettingsPage() {
           {effectiveTab === 'access' && <AccessControlSettings toast={toast} />}
           {effectiveTab === 'aiproviders' && <AIProviderSettings toast={toast} />}
           {effectiveTab === 'dict' && <DictSettingsCRUD toast={toast} />}
+          {effectiveTab === 'fields' && <FieldDictionarySettings />}
           {effectiveTab === 'fees' && <FeeRateSettings toast={toast} />}
           {effectiveTab === 'keys' && <ApiKeySettings toast={toast} />}
           {effectiveTab === 'quality' && <ConfigQualitySettings toast={toast} />}

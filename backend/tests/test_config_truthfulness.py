@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.v1 import inventory_alerts as inventory_alerts_api
 from app.api.v1 import settings as settings_api
+from app.api.v1 import settings_warehouses as settings_warehouses_api
 from app.api.v1 import sourcing as sourcing_api
 from app.database import Base
 from app.models import all_models  # noqa: F401
@@ -21,7 +22,16 @@ from app.models.sys_dict import SysDictItem
 from app.models.user import User
 from app.schemas.profitability import ProfitabilityRequest
 from app.schemas.inventory_alert import InventoryAlertRuleCreate
-from app.services.config_service import get_all_config, get_dictionary_admin_config, get_exchange_rates, get_platform_product_field_groups
+from app.services.config_service import (
+    get_all_config,
+    get_dictionary_admin_config,
+    get_exchange_rates,
+    get_platform_product_field_groups,
+    get_unified_field_dictionary,
+    get_unified_field_dictionary_versions,
+    publish_unified_field_dictionary_draft,
+    save_unified_field_dictionary_draft,
+)
 from app.services.sourcing_service import advance_stage, get_pipeline_summary
 from app.services.smart_radar_service import get_latest_exchange_rates
 from app.services.sys_dict_service import seed_sys_dict
@@ -445,7 +455,7 @@ def test_inventory_alert_api_rejects_unknown_runtime_options(tmp_path):
 
 def test_warehouse_request_requires_runtime_dictionary_options():
     with pytest.raises(ValidationError):
-        settings_api.WarehouseItem(name="测试仓", address="地址")
+        settings_warehouses_api.WarehouseItem(name="测试仓", address="地址")
 
 
 def test_warehouse_request_rejects_unknown_runtime_option(tmp_path):
@@ -459,15 +469,15 @@ def test_warehouse_request_rejects_unknown_runtime_option(tmp_path):
             user = User(id="warehouse-user", username="warehouse", email="warehouse@example.com", hashed_password="x")
             session.add(user)
             await session.commit()
-            req = settings_api.WarehouseItem(
+            req = settings_warehouses_api.WarehouseItem(
                 name="测试仓",
                 address="地址",
                 service_type="unknown_type",
                 integration_status="manual",
                 inventory_sync_mode="order_shipment_link",
             )
-            with pytest.raises(settings_api.HTTPException) as exc:
-                await settings_api.create_warehouse(req, current_user=user, db=session)
+            with pytest.raises(settings_warehouses_api.HTTPException) as exc:
+                await settings_warehouses_api.create_warehouse(req, current_user=user, db=session)
         await engine.dispose()
 
         assert exc.value.status_code == 400
@@ -572,6 +582,174 @@ def test_platform_field_groups_are_enriched_by_unified_field_dictionary(tmp_path
         assert tiktok_fields["main_image"]["unified_field_key"] == "product_images"
         assert temu_fields["declared_price_cny"]["unified_field_key"] == "supply_price_cny"
         assert temu_fields["declared_price_cny"]["country_difference"] == "仅Temu"
+
+    asyncio.run(run_test())
+
+
+def test_unified_field_dictionary_draft_does_not_affect_runtime_config(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'field-dictionary-draft.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            runtime_before = await get_unified_field_dictionary(session)
+            draft_payload = {
+                "source": "测试字段字典草稿",
+                "fields": [
+                    {
+                        "key": "custom_listing_quality_score",
+                        "label": "Listing质量分",
+                        "data_type": "decimal",
+                        "module": "content",
+                        "platforms": {
+                            "shopee": {"field": "quality_score"},
+                            "tiktok": {"field": "quality_score"},
+                            "temu": {"field": "quality_score"},
+                            "miaoshou": {"field": "质量分"},
+                        },
+                    }
+                ],
+            }
+            draft = await save_unified_field_dictionary_draft(
+                session,
+                draft_payload,
+                updated_by="admin",
+                change_note="测试草稿不影响运行时字段",
+            )
+            runtime_after = await get_unified_field_dictionary(session)
+            versions = await get_unified_field_dictionary_versions(session)
+        await engine.dispose()
+
+        assert draft["status"] == "draft"
+        assert draft["updated_by"] == "admin"
+        assert {item["key"] for item in runtime_before["fields"]} == {item["key"] for item in runtime_after["fields"]}
+        assert "product_title" in {item["key"] for item in runtime_after["fields"]}
+        assert "custom_listing_quality_score" not in {item["key"] for item in runtime_after["fields"]}
+        assert versions["draft"]["version"] == draft["version"]
+        assert versions["active"]["fields"] == runtime_before["fields"]
+
+    asyncio.run(run_test())
+
+
+def test_unified_field_dictionary_publish_activates_draft_and_archives_previous(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'field-dictionary-publish.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            draft = await save_unified_field_dictionary_draft(
+                session,
+                {
+                    "source": "测试字段字典发布",
+                    "fields": [
+                        {
+                            "key": "product_title",
+                            "label": "商品标题",
+                            "data_type": "text",
+                            "module": "listing",
+                            "platforms": {
+                                "shopee": {"field": "商品名称"},
+                                "tiktok": {"field": "Product name"},
+                                "temu": {"field": "商品名称"},
+                                "miaoshou": {"field": "商品名称"},
+                            },
+                        },
+                        {
+                            "key": "custom_listing_quality_score",
+                            "label": "Listing质量分",
+                            "data_type": "decimal",
+                            "module": "content",
+                            "platforms": {
+                                "shopee": {"field": "quality_score"},
+                                "tiktok": {"field": "quality_score"},
+                                "temu": {"field": "quality_score"},
+                                "miaoshou": {"field": "质量分"},
+                            },
+                        },
+                    ],
+                },
+                updated_by="admin",
+                change_note="测试发布字段字典",
+            )
+            active = await publish_unified_field_dictionary_draft(
+                session,
+                published_by="admin",
+                expected_version=draft["version"],
+            )
+            runtime = await get_unified_field_dictionary(session)
+            versions = await get_unified_field_dictionary_versions(session)
+        await engine.dispose()
+
+        assert active["status"] == "active"
+        assert active["version"] == draft["version"]
+        assert active["published_by"] == "admin"
+        assert runtime["version"] == draft["version"]
+        assert {item["key"] for item in runtime["fields"]} == {"product_title", "custom_listing_quality_score"}
+        assert not versions["draft"]
+        assert versions["history"][0]["version"] != draft["version"]
+        assert versions["history"][0]["field_count"] == 108
+
+    asyncio.run(run_test())
+
+
+def test_unified_field_dictionary_publish_rejects_stale_expected_version(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'field-dictionary-stale.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            await save_unified_field_dictionary_draft(
+                session,
+                {
+                    "fields": [
+                        {
+                            "key": "product_title",
+                            "label": "商品标题",
+                            "data_type": "text",
+                            "platforms": {
+                                "shopee": {"field": "商品名称"},
+                                "tiktok": {"field": "Product name"},
+                                "temu": {"field": "商品名称"},
+                                "miaoshou": {"field": "商品名称"},
+                            },
+                        },
+                    ],
+                },
+                updated_by="admin",
+            )
+            with pytest.raises(ValueError, match="版本不匹配"):
+                await publish_unified_field_dictionary_draft(
+                    session,
+                    published_by="admin",
+                    expected_version="fd-stale-version",
+                )
+        await engine.dispose()
+
+    asyncio.run(run_test())
+
+
+def test_unified_field_dictionary_rejects_duplicate_keys(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'field-dictionary-duplicate.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            with pytest.raises(ValueError, match="key 重复"):
+                await save_unified_field_dictionary_draft(
+                    session,
+                    {
+                        "fields": [
+                            {"key": "product_title", "label": "商品标题", "data_type": "text"},
+                            {"key": "product_title", "label": "重复商品标题", "data_type": "text"},
+                        ],
+                    },
+                    updated_by="admin",
+                )
+        await engine.dispose()
 
     asyncio.run(run_test())
 

@@ -1,5 +1,6 @@
 import client from './client'
 import type { ApiResponse } from '../types/common'
+import type { UnifiedFieldDictionary } from './config'
 
 export interface WarehouseConfig {
   id?: string
@@ -214,6 +215,60 @@ export interface DictionaryAdminConfig {
 
 export async function listDicts() {
   const res = await client.get<ApiResponse<DictionaryAdminConfig>>('/settings/dict')
+  return res.data
+}
+
+export interface UnifiedFieldDictionaryVersions {
+  active: UnifiedFieldDictionary
+  draft?: UnifiedFieldDictionary | Record<string, never> | null
+  history: UnifiedFieldDictionary[]
+}
+
+export async function getFieldDictionaryVersions() {
+  const res = await client.get<ApiResponse<UnifiedFieldDictionaryVersions>>('/settings/field-dictionary')
+  return res.data
+}
+
+export async function saveFieldDictionaryDraft(dictionary: UnifiedFieldDictionary, changeNote: string) {
+  const res = await client.patch<ApiResponse<{ version: string; status: string; field_count: number }>>(
+    '/settings/field-dictionary/draft',
+    { dictionary, change_note: changeNote },
+  )
+  return res.data
+}
+
+export async function publishFieldDictionaryDraft(expectedVersion?: string | null) {
+  const res = await client.post<ApiResponse<{ version: string; status: string; field_count: number }>>(
+    '/settings/field-dictionary/publish',
+    { expected_version: expectedVersion || null },
+  )
+  return res.data
+}
+
+export interface PlatformFieldGroupVersions {
+  active: Record<string, unknown>
+  draft?: Record<string, unknown> | null
+  history: Array<Record<string, unknown>>
+}
+
+export async function getPlatformFieldGroupVersions() {
+  const res = await client.get<ApiResponse<PlatformFieldGroupVersions>>('/settings/platform-field-groups')
+  return res.data
+}
+
+export async function savePlatformFieldGroupDraft(schema: Record<string, unknown>, changeNote: string) {
+  const res = await client.patch<ApiResponse<{ version: string; status: string }>>(
+    '/settings/platform-field-groups/draft',
+    { schema, change_note: changeNote },
+  )
+  return res.data
+}
+
+export async function publishPlatformFieldGroupDraft(expectedVersion?: string | null) {
+  const res = await client.post<ApiResponse<{ version: string; status: string }>>(
+    '/settings/platform-field-groups/publish',
+    { expected_version: expectedVersion || null },
+  )
   return res.data
 }
 

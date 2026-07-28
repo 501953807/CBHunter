@@ -212,7 +212,12 @@ def test_product_sync_imports_remote_products_as_store_listing_instances(tmp_pat
                     images=["https://img.example.com/remote-1.jpg", "https://img.example.com/remote-2.jpg"],
                     status="active",
                     platform_category_id="CAT-01",
-                    raw_data={"merchant_sku": "REMOTE-SKU-1"},
+                    raw_data={
+                        "merchant_sku": "REMOTE-SKU-1",
+                        "brand": "No Brand",
+                        "weight_g": 350,
+                        "attributes": [{"name": "category", "value": "女包"}],
+                    },
                 )
             ], 1
 
@@ -263,6 +268,17 @@ def test_product_sync_imports_remote_products_as_store_listing_instances(tmp_pat
         assert listing.title == "远程真实商品"
         assert listing.images == ["https://img.example.com/remote-1.jpg", "https://img.example.com/remote-2.jpg"]
         assert listing.platform_data["source"] == "platform_product_sync"
+        assert listing.platform_data["attribute_values"]["platform_product_id"] == "SP-REMOTE-001"
+        assert listing.platform_data["attribute_values"]["seller_sku"] == "REMOTE-SKU-1"
+        assert listing.platform_data["attribute_values"]["selling_price"] == 29.9
+        assert listing.platform_data["platform_requirements"]["field_groups"]
+        assert listing.platform_data["platform_requirements"]["attribute_values"]["brand"] == "No Brand"
+        field_check = next(
+            check for check in listing.platform_data["validation_checks"]
+            if check["code"] == "platform_fields"
+        )
+        assert "blocking_fields" in field_check["details"]
+        assert "recheck_fields" in field_check["details"]
         assert product.attributes["platform_product_source"]["platform_product_id"] == "SP-REMOTE-001"
         assert account.settings["sync_state"]["products"]["status"] == "success"
         assert account.settings["sync_state"]["products"]["records_processed"] == 1
@@ -1503,6 +1519,75 @@ def test_batch_preview_returns_listing_validation_checks(tmp_path):
     asyncio.run(run_test())
 
 
+def test_batch_preview_blocks_incomplete_sku_publish_readiness(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'listing-sku-readiness.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="temu", account_name="TEMU SG", is_active=True)
+            product = Product(
+                user_id="user-a",
+                sku="BAG-SKU-READINESS",
+                name="SKU发布校验包",
+                cost_price=25,
+                weight_g=None,
+                dimensions={},
+                images=["https://img.example.com/bag-main.jpg"],
+                attributes={
+                    "variants": [{
+                        "sku": "BAG-SKU-READINESS-BLACK",
+                        "option_1_name": "Color",
+                        "option_1_value": "Black",
+                        "price": 68,
+                        "stock": 12,
+                    }],
+                    "compliance": {"restricted_check_status": "passed"},
+                },
+            )
+            session.add_all([
+                account,
+                product,
+                ListingTemplate(
+                    user_id="user-a",
+                    name="TEMU 默认模板",
+                    platform="temu",
+                    template_data={"title_template": "{{product_name}}"},
+                    is_default=True,
+                ),
+                FeeTemplate(platform="temu", market="SG", commission_pct=8, transaction_fee_pct=2, tech_service_pct=1, is_active=True),
+            ])
+            await session.commit()
+
+            drafts = await generate_listing_drafts(
+                db=session,
+                user_id="user-a",
+                sourcing_item_ids=[],
+                product_ids=[product.id],
+                platforms=["temu"],
+                markets=["SG"],
+                pricing_mode="cost_based",
+                target_profit_pct=20,
+                platform_account_ids=[account.id],
+            )
+        await engine.dispose()
+
+        assert len(drafts) == 1
+        draft = drafts[0]
+        checks = {check["code"]: check for check in draft["validation_checks"]}
+        assert draft["publishable"] is False
+        assert "listing_validation.sku" in draft["data_gaps"]
+        assert checks["sku"]["state"] == "block"
+        assert "SKU发布阻断" in checks["sku"]["message"]
+        assert "重量" in checks["sku"]["message"]
+        assert "包裹尺寸" in checks["sku"]["message"]
+        assert "SPU/SKC" in checks["sku"]["message"]
+        assert checks["sku"]["details"]["active_sku_count"] == 1
+
+    asyncio.run(run_test())
+
+
 def test_confirm_publish_persists_listing_validation_checks(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'listing-validation-persist.db'}")
@@ -1527,9 +1612,23 @@ def test_confirm_publish_persists_listing_validation_checks(tmp_path):
                 "template_title": "Shopee 校验标题",
                 "template_description": "校验描述",
                 "platform_requirements": {"attribute_values": {"品牌": "No Brand"}},
-                "sku_plan": {"master_sku": "SKU-CHECK-PERSIST", "variants": []},
+                "sku_plan": {
+                    "master_sku": "SKU-CHECK-PERSIST",
+                    "variants": [{
+                        "sku": "SKU-CHECK-PERSIST-BLACK",
+                        "option_1_name": "Color",
+                        "option_1_value": "Black",
+                        "platform_sku": "SKU-CHECK-PERSIST-BLACK",
+                        "price": 49,
+                        "stock": 8,
+                        "weight_g": 260,
+                        "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 6},
+                        "sku_image_role": "SKU图 1",
+                        "barcode": "SKU-CHECK-PERSIST-BLACK",
+                    }],
+                },
                 "media_assets": {"images": [], "videos": []},
-                "logistics": {"weight_g": None, "dimensions": {}},
+                "logistics": {"weight_g": 260, "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 6}},
                 "compliance": {"condition": "new"},
                 "source_price_rmb": 20,
             }])
@@ -1541,6 +1640,51 @@ def test_confirm_publish_persists_listing_validation_checks(tmp_path):
         assert checks["media"]["state"] == "warning"
         assert checks["platform_fields"]["state"] == "pass"
         assert listing.platform_data["listing_snapshot"]["validation_checks"] == listing.platform_data["validation_checks"]
+
+    asyncio.run(run_test())
+
+
+def test_confirm_publish_blocks_incomplete_sku_even_if_marked_publishable(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'publish-sku-readiness-blocks.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            store = PlatformAccount(user_id="user-a", platform="temu", account_name="TEMU SG", is_active=True)
+            product = Product(user_id="user-a", sku="SKU-TEMU-BLOCK", name="TEMU SKU缺口商品", cost_price=20)
+            session.add_all([store, product])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "source_type": "product",
+                "source_product_id": product.id,
+                "platform": "temu",
+                "platform_account_id": store.id,
+                "market": "SG",
+                "selling_price": 59,
+                "template_title": "TEMU SKU缺口商品标题",
+                "template_description": "校验描述",
+                "platform_requirements": {"attribute_values": {"品牌": "No Brand"}},
+                "sku_plan": {
+                    "master_sku": "SKU-TEMU-BLOCK",
+                    "variants": [{"sku": "SKU-TEMU-BLOCK-BLACK", "option_1_value": "Black", "price": 59, "stock": 5}],
+                },
+                "media_assets": {"images": ["https://img.example.com/main.jpg"]},
+                "logistics": {"weight_g": None, "dimensions": {}},
+                "compliance": {"restricted_check_status": "passed"},
+                "source_price_rmb": 20,
+            }], publish_plan={"mode": "draft_only"})
+            listings = (await session.execute(select(PlatformListing))).scalars().all()
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "skipped"
+        assert result[0]["error"].startswith("Listing 发布前校验未通过")
+        assert "listing_validation.sku" in result[0]["data_gaps"]
+        assert any(check["code"] == "sku" and check["state"] == "block" for check in result[0]["validation_checks"])
+        assert listings == []
 
     asyncio.run(run_test())
 

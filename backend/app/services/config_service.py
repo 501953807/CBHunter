@@ -7,10 +7,13 @@ Every service and API handler that needs config MUST go through this service.
 import logging
 import json
 from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.system_config import SystemConfig
 from app.services.dictionary import get_all_dicts
 from app.services.system_config_service import get_config as _get_sys_config
 from app.services.system_config_service import get_config_catalog, get_gemini_key, get_pinterest_credentials
@@ -18,6 +21,12 @@ from app.services.system_config_service import get_config_catalog, get_gemini_ke
 logger = logging.getLogger(__name__)
 PLATFORM_PRODUCT_FIELD_GROUPS_PATH = Path(__file__).resolve().parents[1] / "data" / "default_platform_product_field_groups.json"
 UNIFIED_FIELD_DICTIONARY_PATH = Path(__file__).resolve().parents[1] / "data" / "default_unified_field_dictionary.json"
+UNIFIED_FIELD_DICTIONARY_CONFIG_KEY = "platform.unified_field_dictionary"
+UNIFIED_FIELD_DICTIONARY_DRAFT_KEY = "platform.unified_field_dictionary.draft"
+UNIFIED_FIELD_DICTIONARY_HISTORY_KEY = "platform.unified_field_dictionary.history"
+PLATFORM_PRODUCT_FIELD_GROUPS_CONFIG_KEY = "platform.product_field_groups"
+PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY = "platform.product_field_groups.draft"
+PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY = "platform.product_field_groups.history"
 FIELD_KEY_ALIASES = {
     "category": "category_l3",
     "platform_product_id": "product_id",
@@ -50,22 +59,294 @@ async def get_categories(db: AsyncSession) -> list[dict]:
 
 async def get_platform_product_field_groups(db: AsyncSession) -> dict:
     """Get platform-specific product field groups observed from seller backends."""
-    configured = await get_config_json(db, "platform.product_field_groups")
+    configured = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_CONFIG_KEY)
     if configured:
-        return _enrich_platform_field_groups(configured, await get_unified_field_dictionary(db))
+        return _enrich_platform_field_groups(_platform_field_group_runtime_payload(configured), await get_unified_field_dictionary(db))
     with PLATFORM_PRODUCT_FIELD_GROUPS_PATH.open("r", encoding="utf-8") as f:
         value = json.load(f)
     return _enrich_platform_field_groups(value, await get_unified_field_dictionary(db)) if isinstance(value, dict) else {}
 
 
-async def get_unified_field_dictionary(db: AsyncSession) -> dict:
-    """Get V5 unified field dictionary converted from the 03 field standard table."""
-    configured = await get_config_json(db, "platform.unified_field_dictionary")
+async def get_platform_product_field_group_versions(db: AsyncSession) -> dict:
+    """Return active/draft/history metadata for platform product field group Schema governance."""
+    active = await _get_platform_product_field_groups_raw(db)
+    draft = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY)
+    history = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY) or {"versions": []}
+    return {
+        "active": active,
+        "draft": draft,
+        "history": history.get("versions", []) if isinstance(history, dict) else [],
+    }
+
+
+async def save_platform_product_field_group_draft(
+    db: AsyncSession,
+    payload: dict,
+    *,
+    updated_by: str,
+    change_note: str = "",
+) -> dict:
+    """Save a platform product field group Schema draft without changing runtime config."""
+    draft = _versioned_platform_product_field_groups(
+        payload,
+        status="draft",
+        updated_by=updated_by,
+        change_note=change_note,
+    )
+    await _upsert_json_config(db, PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY, draft, "平台商品字段组草稿")
+    await db.commit()
+    return draft
+
+
+async def publish_platform_product_field_group_draft(
+    db: AsyncSession,
+    *,
+    published_by: str,
+    expected_version: str | None = None,
+) -> dict:
+    """Publish a platform product field group draft as active runtime Schema."""
+    draft = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY)
+    if not draft:
+        raise ValueError("没有可发布的平台字段组草稿")
+    if expected_version and draft.get("version") != expected_version:
+        raise ValueError("平台字段组草稿版本不匹配")
+
+    previous_active = await _get_platform_product_field_groups_raw(db)
+    history = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY) or {"versions": []}
+    versions = history.get("versions", []) if isinstance(history, dict) else []
+    if previous_active:
+        versions = [
+            {
+                "version": previous_active.get("version") or "default",
+                "status": previous_active.get("status") or "archived",
+                "platform_count": len([key for key in previous_active.keys() if key in {"shopee", "tiktok", "temu"}]),
+                "archived_at": _now_iso(),
+            },
+            *versions,
+        ][:20]
+
+    active = _versioned_platform_product_field_groups(
+        draft,
+        status="active",
+        updated_by=published_by,
+        change_note=draft.get("change_note") or "发布平台字段组草稿",
+        version=draft.get("version"),
+    )
+    active["published_at"] = _now_iso()
+    active["published_by"] = published_by
+
+    await _upsert_json_config(db, PLATFORM_PRODUCT_FIELD_GROUPS_CONFIG_KEY, active, "平台商品字段组")
+    await _upsert_json_config(db, PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY, {"versions": versions}, "平台商品字段组版本历史")
+    await _upsert_json_config(db, PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY, {}, "平台商品字段组草稿")
+    await db.commit()
+    return active
+
+
+async def _get_platform_product_field_groups_raw(db: AsyncSession) -> dict:
+    configured = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_CONFIG_KEY)
     if configured:
         return configured
+    with PLATFORM_PRODUCT_FIELD_GROUPS_PATH.open("r", encoding="utf-8") as f:
+        value = json.load(f)
+    return value if isinstance(value, dict) else {}
+
+
+def _platform_field_group_runtime_payload(payload: dict) -> dict:
+    """Remove version metadata before exposing platform schemas to runtime config."""
+    metadata_keys = {"schema_version", "version", "status", "updated_by", "updated_at", "change_note", "published_at", "published_by"}
+    return {key: value for key, value in payload.items() if key not in metadata_keys}
+
+
+async def get_unified_field_dictionary(db: AsyncSession) -> dict:
+    """Get V5 unified field dictionary converted from the 03 field standard table."""
+    configured = await get_config_json(db, UNIFIED_FIELD_DICTIONARY_CONFIG_KEY)
+    if configured:
+        return configured
+    return _load_default_unified_field_dictionary()
+
+
+def _load_default_unified_field_dictionary() -> dict:
     with UNIFIED_FIELD_DICTIONARY_PATH.open("r", encoding="utf-8") as f:
         value = json.load(f)
     return value if isinstance(value, dict) else {"fields": []}
+
+
+async def get_unified_field_dictionary_versions(db: AsyncSession) -> dict:
+    """Return active/draft/history metadata for field dictionary governance."""
+    active = await get_unified_field_dictionary(db)
+    draft = await get_config_json(db, UNIFIED_FIELD_DICTIONARY_DRAFT_KEY)
+    history = await get_config_json(db, UNIFIED_FIELD_DICTIONARY_HISTORY_KEY) or {"versions": []}
+    return {
+        "active": active,
+        "draft": draft,
+        "history": history.get("versions", []) if isinstance(history, dict) else [],
+    }
+
+
+async def save_unified_field_dictionary_draft(
+    db: AsyncSession,
+    payload: dict,
+    *,
+    updated_by: str,
+    change_note: str = "",
+) -> dict:
+    """Save a validated field dictionary draft without affecting active runtime config."""
+    draft = _versioned_field_dictionary(
+        payload,
+        status="draft",
+        updated_by=updated_by,
+        change_note=change_note,
+    )
+    await _upsert_json_config(db, UNIFIED_FIELD_DICTIONARY_DRAFT_KEY, draft, "统一字段字典草稿")
+    await db.commit()
+    return draft
+
+
+async def publish_unified_field_dictionary_draft(
+    db: AsyncSession,
+    *,
+    published_by: str,
+    expected_version: str | None = None,
+) -> dict:
+    """Publish the current field dictionary draft as active config and retain active history."""
+    draft = await get_config_json(db, UNIFIED_FIELD_DICTIONARY_DRAFT_KEY)
+    if not draft:
+        raise ValueError("没有可发布的字段字典草稿")
+    if expected_version and draft.get("version") != expected_version:
+        raise ValueError("字段字典草稿版本不匹配")
+
+    previous_active = await get_unified_field_dictionary(db)
+    history = await get_config_json(db, UNIFIED_FIELD_DICTIONARY_HISTORY_KEY) or {"versions": []}
+    versions = history.get("versions", []) if isinstance(history, dict) else []
+    if previous_active.get("fields"):
+        versions = [
+            {
+                "version": previous_active.get("version") or "default",
+                "status": previous_active.get("status") or "archived",
+                "field_count": len(previous_active.get("fields", [])),
+                "archived_at": _now_iso(),
+            },
+            *versions,
+        ][:20]
+
+    active = _versioned_field_dictionary(
+        draft,
+        status="active",
+        updated_by=published_by,
+        change_note=draft.get("change_note") or "发布字段字典草稿",
+        version=draft.get("version"),
+    )
+    active["published_at"] = _now_iso()
+    active["published_by"] = published_by
+
+    await _upsert_json_config(db, UNIFIED_FIELD_DICTIONARY_CONFIG_KEY, active, "统一字段字典")
+    await _upsert_json_config(db, UNIFIED_FIELD_DICTIONARY_HISTORY_KEY, {"versions": versions}, "统一字段字典版本历史")
+    await _upsert_json_config(db, UNIFIED_FIELD_DICTIONARY_DRAFT_KEY, {}, "统一字段字典草稿")
+    await db.commit()
+    return active
+
+
+def _versioned_field_dictionary(
+    payload: dict,
+    *,
+    status: str,
+    updated_by: str,
+    change_note: str,
+    version: str | None = None,
+) -> dict:
+    fields = payload.get("fields")
+    if not isinstance(fields, list) or not fields:
+        raise ValueError("字段字典必须包含非空 fields 数组")
+    seen: set[str] = set()
+    normalized_fields: list[dict] = []
+    for item in fields:
+        if not isinstance(item, dict):
+            raise ValueError("字段字典 fields 只能包含对象")
+        key = str(item.get("key") or "").strip()
+        label = str(item.get("label") or "").strip()
+        data_type = str(item.get("data_type") or "").strip()
+        if not key or not label or not data_type:
+            raise ValueError("字段字典字段必须包含 key、label、data_type")
+        if key in seen:
+            raise ValueError(f"字段字典 key 重复: {key}")
+        seen.add(key)
+        normalized_fields.append({**item, "key": key, "label": label, "data_type": data_type})
+    return {
+        **payload,
+        "fields": normalized_fields,
+        "schema_version": payload.get("schema_version") or "field-dictionary.v1",
+        "version": version or payload.get("version") or f"fd-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "status": status,
+        "updated_by": updated_by,
+        "updated_at": _now_iso(),
+        "change_note": change_note,
+    }
+
+
+def _versioned_platform_product_field_groups(
+    payload: dict,
+    *,
+    status: str,
+    updated_by: str,
+    change_note: str,
+    version: str | None = None,
+) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("平台字段组 Schema 必须是对象")
+    platform_keys = [key for key in ("shopee", "tiktok", "temu") if key in payload]
+    if not platform_keys:
+        raise ValueError("平台字段组 Schema 至少包含 Shopee、TikTok Shop 或 TEMU 之一")
+    normalized = deepcopy(payload)
+    for platform in platform_keys:
+        schema = normalized.get(platform)
+        if not isinstance(schema, dict):
+            raise ValueError(f"{platform} 字段组 Schema 必须是对象")
+        groups = schema.get("groups")
+        if not isinstance(groups, list) or not groups:
+            raise ValueError(f"{platform} 字段组 Schema 必须包含非空 groups")
+        for group in groups:
+            if not isinstance(group, dict):
+                raise ValueError(f"{platform} 字段组只能包含对象")
+            fields = group.get("fields")
+            if not isinstance(fields, list):
+                raise ValueError(f"{platform} 字段组 {group.get('id') or group.get('label') or ''} 必须包含 fields 数组")
+            seen: set[str] = set()
+            for field in fields:
+                if not isinstance(field, dict):
+                    raise ValueError(f"{platform} 字段组字段只能包含对象")
+                key = str(field.get("key") or "").strip()
+                label = str(field.get("label") or "").strip()
+                if not key or not label:
+                    raise ValueError(f"{platform} 字段组字段必须包含 key 和 label")
+                if key in seen:
+                    raise ValueError(f"{platform} 字段组 key 重复: {key}")
+                seen.add(key)
+                field["key"] = key
+                field["label"] = label
+    return {
+        **normalized,
+        "schema_version": normalized.get("schema_version") or "platform-product-field-groups.v1",
+        "version": version or normalized.get("version") or f"pfg-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "status": status,
+        "updated_by": updated_by,
+        "updated_at": _now_iso(),
+        "change_note": change_note,
+    }
+
+
+async def _upsert_json_config(db: AsyncSession, key: str, value: dict, label: str) -> None:
+    result = await db.execute(select(SystemConfig).where(SystemConfig.key == key))
+    row = result.scalar_one_or_none()
+    raw_value = json.dumps(value, ensure_ascii=False)
+    if row:
+        row.value = raw_value
+        row.label = row.label or label
+    else:
+        db.add(SystemConfig(key=key, value=raw_value, label=label))
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _enrich_platform_field_groups(schemas: dict, field_dictionary: dict) -> dict:

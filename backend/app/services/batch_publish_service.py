@@ -268,7 +268,22 @@ async def generate_listing_drafts(
                         platform_requirements=platform_requirements,
                         fee_missing=not bool(fee),
                         blocking_reasons=blocking_reasons,
+                        platform=platform,
                     )
+                    validation_blocks = [check for check in validation_checks if check.get("state") == "block"]
+                    for check in validation_blocks:
+                        blocking_reasons.append(check["message"])
+                        data_gaps.append(
+                            "platform_fields.required"
+                            if check.get("code") == "platform_fields"
+                            else f"listing_validation.{check.get('code')}"
+                        )
+                    data_gaps = list(dict.fromkeys(data_gaps))
+                    blocking_reasons = list(dict.fromkeys(blocking_reasons))
+                    if any(gap in data_gaps for gap in ("listing_templates", "fee_templates")):
+                        status = "configuration_required"
+                    elif data_gaps:
+                        status = "data_required"
 
                     drafts.append({
                         "source_type": item["source_type"],
@@ -442,6 +457,7 @@ async def confirm_publish(
             platform_requirements=draft.get("platform_requirements") or {},
             fee_missing=draft.get("fee_missing", False),
             blocking_reasons=draft.get("blocking_reasons") or [],
+            platform=draft.get("platform"),
         )
         blocking_validation = [
             check for check in validation_checks

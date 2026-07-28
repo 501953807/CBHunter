@@ -58,18 +58,22 @@ def normalize_sku_plan(raw: dict | None, master_sku: str | None, selling_price: 
             continue
         sku = variant.get("sku") or f"{master_sku or 'SKU'}-{index + 1}"
         normalized_variants.append({
+            "enabled": variant.get("enabled", True),
             "sku": sku,
             "platform_sku": variant.get("platform_sku") or variant.get("platformSku"),
             "spu_skc": variant.get("spu_skc") or variant.get("spuSkc"),
+            "variation": variant.get("variation"),
             "option_1_name": variant.get("option_1_name") or variant.get("option_name") or "",
             "option_1_value": variant.get("option_1_value") or variant.get("option_value") or "",
             "option_2_name": variant.get("option_2_name") or "",
             "option_2_value": variant.get("option_2_value") or "",
             "sku_image_role": variant.get("sku_image_role") or variant.get("skuImageRole"),
+            "sku_image_url": variant.get("sku_image_url") or variant.get("skuImageUrl"),
             "price": variant.get("price") if variant.get("price") is not None else selling_price,
             "stock": variant.get("stock") if variant.get("stock") is not None else 0,
             "weight_g": variant.get("weight_g") or variant.get("weight"),
             "dimensions": variant.get("dimensions") if isinstance(variant.get("dimensions"), dict) else {},
+            "barcode": variant.get("barcode"),
         })
     return {
         "master_sku": data.get("master_sku") or master_sku,
@@ -133,6 +137,7 @@ def build_validation_checks(
     platform_requirements: dict,
     fee_missing: bool,
     blocking_reasons: list[str],
+    platform: str | None = None,
 ) -> list[dict]:
     variants = sku_plan.get("variants") if isinstance(sku_plan.get("variants"), list) else []
     images = media_assets.get("images") if isinstance(media_assets.get("images"), list) else []
@@ -140,6 +145,7 @@ def build_validation_checks(
     platform_field_gaps = platform_field_gaps_for_requirements(platform_requirements)
     missing_blocking_attrs = platform_field_gaps["blocking"]
     missing_recheck_attrs = platform_field_gaps["recheck"]
+    sku_readiness = build_sku_readiness(sku_plan, selling_price, logistics, platform)
     return [
         _validation_check(
             "title",
@@ -156,8 +162,9 @@ def build_validation_checks(
         _validation_check(
             "sku",
             "SKU/规格",
-            "pass" if sku_plan.get("master_sku") or variants else "warning",
-            "SKU 信息可用于平台规格映射。" if sku_plan.get("master_sku") or variants else "建议维护主 SKU 或规格 SKU。",
+            "block" if sku_readiness["blocking_gaps"] else ("warning" if sku_readiness["warning_gaps"] else "pass"),
+            _sku_readiness_message(sku_readiness),
+            sku_readiness,
         ),
         _validation_check(
             "media",
@@ -200,6 +207,132 @@ def build_validation_checks(
             " / ".join(blocking_reasons) if blocking_reasons else "没有后端阻断项。",
         ),
     ]
+
+
+def build_sku_readiness(
+    sku_plan: dict,
+    selling_price: float | None,
+    logistics: dict | None,
+    platform: str | None = None,
+) -> dict:
+    """Return platform publish readiness for SKU rows.
+
+    This mirrors the frontend Listing SKU table contract: platform publishing needs
+    concrete SKU rows or a single-SKU fallback, positive price, stock, weight and
+    package dimensions. TEMU also requires SPU/SKC because its seller workflow
+    distinguishes SPU/SKC/SKU.
+    """
+    platform_code = (platform or "").lower()
+    variants = sku_plan.get("variants") if isinstance(sku_plan.get("variants"), list) else []
+    active_variants = [variant for variant in variants if isinstance(variant, dict) and variant.get("enabled", True) is not False]
+    if not active_variants and sku_plan.get("master_sku"):
+        active_variants = [{
+            "sku": sku_plan.get("master_sku"),
+            "price": selling_price,
+            "stock": None,
+            "dimensions": {},
+            "weight_g": None,
+        }]
+
+    blocking_gaps: list[str] = []
+    warning_gaps: list[str] = []
+    rows: list[dict] = []
+    if not active_variants:
+        blocking_gaps.append("至少需要一条启用 SKU")
+
+    for index, variant in enumerate(active_variants):
+        sku = str(variant.get("sku") or "").strip()
+        variation = _sku_variation_label(variant)
+        price = _as_positive_number(variant.get("price"))
+        stock = _as_non_negative_int(variant.get("stock"))
+        weight_g = _as_positive_number(variant.get("weight_g") or (logistics or {}).get("weight_g"))
+        dimensions = variant.get("dimensions") if isinstance(variant.get("dimensions"), dict) else {}
+        if not dimensions and isinstance((logistics or {}).get("dimensions"), dict):
+            dimensions = (logistics or {}).get("dimensions") or {}
+        row_blocking: list[str] = []
+        row_warnings: list[str] = []
+        if not sku:
+            row_blocking.append("商家SKU")
+        if len(active_variants) > 1 and not variation:
+            row_blocking.append("规格属性")
+        if price is None:
+            row_blocking.append("售价")
+        if stock is None:
+            row_blocking.append("库存")
+        if weight_g is None:
+            row_blocking.append("重量")
+        missing_dimensions = [
+            label for key, label in (
+                ("length_cm", "长"),
+                ("width_cm", "宽"),
+                ("height_cm", "高"),
+            )
+            if _as_positive_number(dimensions.get(key)) is None
+        ]
+        if missing_dimensions:
+            row_blocking.append("包裹尺寸(" + "/".join(missing_dimensions) + ")")
+        if platform_code == "temu" and not str(variant.get("spu_skc") or "").strip():
+            row_blocking.append("SPU/SKC")
+        if platform_code in {"shopee", "tiktok", "tiktok_shop"} and not str(variant.get("platform_sku") or "").strip():
+            row_warnings.append("平台SKU/Model ID")
+        if not str(variant.get("sku_image_url") or variant.get("sku_image_role") or "").strip():
+            row_warnings.append("SKU图")
+        if not str(variant.get("barcode") or "").strip():
+            row_warnings.append("条码/货号")
+        if row_blocking:
+            blocking_gaps.append(f"第{index + 1}条SKU缺少" + "、".join(row_blocking))
+        if row_warnings:
+            warning_gaps.append(f"第{index + 1}条SKU建议补充" + "、".join(row_warnings))
+        rows.append({
+            "index": index,
+            "sku": sku,
+            "variation": variation,
+            "blocking": row_blocking,
+            "warnings": row_warnings,
+        })
+
+    return {
+        "platform": platform_code or None,
+        "active_sku_count": len(active_variants),
+        "blocking_gaps": blocking_gaps,
+        "warning_gaps": warning_gaps,
+        "rows": rows,
+    }
+
+
+def _sku_variation_label(variant: dict) -> str:
+    explicit = str(variant.get("variation") or "").strip()
+    if explicit:
+        return explicit
+    parts = [
+        str(variant.get("option_1_value") or "").strip(),
+        str(variant.get("option_2_value") or "").strip(),
+    ]
+    return " / ".join(part for part in parts if part)
+
+
+def _as_positive_number(value) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _as_non_negative_int(value) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number >= 0 else None
+
+
+def _sku_readiness_message(readiness: dict) -> str:
+    if readiness["blocking_gaps"]:
+        return "SKU发布阻断：" + "；".join(readiness["blocking_gaps"])
+    if readiness["warning_gaps"]:
+        return "SKU可发布，建议补充：" + "；".join(readiness["warning_gaps"])
+    return f"SKU发布准备完成，共 {readiness['active_sku_count']} 条启用 SKU。"
 
 
 def platform_field_gaps_for_requirements(platform_requirements: dict) -> dict:
