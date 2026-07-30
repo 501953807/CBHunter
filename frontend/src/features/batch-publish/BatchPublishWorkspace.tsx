@@ -114,6 +114,8 @@ export default function BatchPublishPage() {
     name: item.name || '未命名发布商品',
     costPrice: item.cost_price ?? null,
     sellingPrice: item.selling_price_local ?? null,
+    pricingConfirmation: item.pricing_confirmation,
+    pricingSourceLabel: hasPricingTemplateSnapshot(item.pricing_confirmation) ? '已确认定价模板快照' : '待确认定价快照',
     imageUrl: item.image_url,
     mediaReadiness: item.media_readiness,
     platformRequirements: item.platform_requirements,
@@ -355,6 +357,12 @@ function productTargetPlatforms(product: Product) {
   const fromRequirements = Object.keys((attrs.platform_requirements || {}) as Record<string, unknown>)
   const fromListings = (product.listings || []).map(listing => listing.platform).filter(Boolean)
   return uniq([...fromTargets, ...fromRequirements, ...fromListings])
+}
+
+function hasPricingTemplateSnapshot(confirmation?: Record<string, unknown> | null) {
+  if (!confirmation || typeof confirmation !== 'object') return false
+  const snapshot = confirmation.pricing_template_snapshot
+  return Boolean(snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot))
 }
 
 function productTargetMarkets(product: Product) {

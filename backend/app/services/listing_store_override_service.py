@@ -31,6 +31,7 @@ def listing_store_override_summary(payload: dict) -> dict:
         return {}
     image_urls = override_image_urls(payload)
     skus = override_sku_rows(payload)
+    sku_platform_mapping = override_sku_platform_mapping(payload)
     return {
         "schema": payload.get("schema"),
         "store_id": payload.get("store_id"),
@@ -38,6 +39,8 @@ def listing_store_override_summary(payload: dict) -> dict:
         "title": payload.get("title"),
         "image_count": len(image_urls),
         "sku_count": len(skus),
+        "sku_platform_mapping_count": len(sku_platform_mapping),
+        "sku_platform_mapping_gap_count": sum(len(row.get("required_gaps") or []) for row in sku_platform_mapping),
         "has_platform_attributes": bool(override_platform_attributes(payload)),
         "has_logistics": bool(override_logistics(payload).get("weight_g")),
         "has_compliance": bool((payload.get("compliance_note") or payload.get("compliance") or "").strip()),
@@ -130,7 +133,29 @@ def override_sku_rows(payload: dict) -> list[dict]:
             "weight_g": numeric_value(row.get("weight"), integer=True),
             "dimensions": dimensions,
             "sku_image_role": row.get("skuImageRole") or row.get("sku_image_role"),
+            "sku_image_url": row.get("skuImageUrl") or row.get("sku_image_url"),
             "enabled": row.get("enabled", True),
+        })
+    return normalized
+
+
+def override_sku_platform_mapping(payload: dict) -> list[dict]:
+    rows = payload.get("sku_platform_mapping") if isinstance(payload.get("sku_platform_mapping"), list) else []
+    normalized = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        required_gaps = row.get("required_gaps") if isinstance(row.get("required_gaps"), list) else []
+        normalized.append({
+            "rowNumber": row.get("rowNumber") or row.get("row_number") or index + 1,
+            "platform": row.get("platform"),
+            "seller_sku": row.get("seller_sku"),
+            "platform_sku_field": row.get("platform_sku_field"),
+            "variation_field": row.get("variation_field"),
+            "stock_field": row.get("stock_field"),
+            "price_field": row.get("price_field"),
+            "image_field": row.get("image_field"),
+            "required_gaps": [str(gap) for gap in required_gaps if gap],
         })
     return normalized
 

@@ -20,6 +20,7 @@ import { ListingCompletenessPanel } from './ListingCompletenessPanel'
 import { StoreOverridePreviewPanel } from './StoreOverridePreviewPanel'
 import { ComplianceEditor, LogisticsEditor, MediaEditor, numberOrNull, VariantEditor } from './BatchPublishDraftEditors'
 import { BatchPublishSkuReadinessPanel, skuReadinessDetails } from './BatchPublishSkuReadinessPanel'
+import { BatchPublishTargetValidationPanel, buildTargetPublishValidation } from './BatchPublishTargetValidationPanel'
 
 interface Props {
   summary: BatchPreviewSummary | null
@@ -74,6 +75,17 @@ export function BatchPublishPreviewStep({
   const selectedAssistProviders = useMemo(() => (
     assistProvider === 'rule_engine' ? ['rule_engine'] : [assistProvider, 'rule_engine']
   ), [assistProvider])
+  const confirmedTargetBlockingCount = useMemo(() => (
+    drafts.reduce((count, draft, index) => (
+      confirmedDrafts.has(index) && buildTargetPublishValidation(draft, publishMode, scheduledAt).blocked ? count + 1 : count
+    ), 0)
+  ), [confirmedDrafts, drafts, publishMode, scheduledAt])
+  const publishDisabled = publishing || confirmedDrafts.size === 0 || missingSchedule || confirmedTargetBlockingCount > 0
+  const publishDisabledReason = buildPublishDisabledReason({
+    confirmedCount: confirmedDrafts.size,
+    missingSchedule,
+    confirmedTargetBlockingCount,
+  })
   const activeDraft = drafts[activeDraftIndex]
   const draftImage = (draft: BatchListingDraft) => {
     if (Array.isArray(draft.images)) return draft.images[0]
@@ -169,6 +181,8 @@ export function BatchPublishPreviewStep({
             <div className="max-h-[68vh] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }} aria-label="当前编辑商品">
             {activeDraft ? [activeDraft].map((draft) => {
               const index = activeDraftIndex
+              const targetValidation = buildTargetPublishValidation(draft, publishMode, scheduledAt)
+              const targetConfirmDisabled = !confirmedDrafts.has(index) && targetValidation.blocked
               return (
               <div
                 key={`${draft.sourcing_item_id || draft.source_product_id}-${draft.platform}-${draft.platform_account_id || draft.market}-${index}`}
@@ -183,7 +197,7 @@ export function BatchPublishPreviewStep({
                     type="checkbox"
                     checked={confirmedDrafts.has(index)}
                     onChange={() => onToggleDraft(index)}
-                    disabled={!draft.publishable}
+                    disabled={!draft.publishable || targetConfirmDisabled}
                     className="w-4 h-4 mt-3 shrink-0"
                   />
                   {draftImage(draft) && (
@@ -225,10 +239,16 @@ export function BatchPublishPreviewStep({
                     >
                       {draft.estimated_profit_margin == null ? '利润率待计算' : `利润率 ${draft.estimated_profit_margin > 0 ? '+' : ''}${draft.estimated_profit_margin}%`}
                     </p>
-                  </div>
-                </div>
+	                  </div>
+	                </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-3 2xl:grid-cols-[1.1fr_0.8fr_0.8fr]">
+	                <BatchPublishTargetValidationPanel
+	                  draft={draft}
+	                  publishMode={publishMode}
+	                  scheduledAt={scheduledAt}
+	                />
+
+	                <div className="mt-4 grid grid-cols-1 gap-3 2xl:grid-cols-[1.1fr_0.8fr_0.8fr]">
                   <Section title="Listing 内容" icon={<Tags className="h-4 w-4" />}>
                     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                       <label className="text-[11px] font-medium text-[var(--color-muted)]">
@@ -324,19 +344,39 @@ export function BatchPublishPreviewStep({
         <button onClick={onBack} className="text-sm inline-flex items-center gap-1 text-[var(--color-muted)]">
           <ArrowLeft className="w-3 h-3" /> 返回修改
         </button>
-        <button
-          onClick={onPublish}
-          disabled={publishing || confirmedDrafts.size === 0 || missingSchedule}
-          className="inline-flex items-center gap-2 px-8 py-3 rounded-lg text-[var(--color-primary-text)] font-semibold disabled:opacity-40 transition-all"
-          style={{ background: 'var(--gradient-accent)' }}
-        >
+	        <button
+	          onClick={onPublish}
+	          disabled={publishDisabled}
+	          className="inline-flex items-center gap-2 px-8 py-3 rounded-lg text-[var(--color-primary-text)] font-semibold disabled:opacity-40 transition-all"
+	          style={{ background: 'var(--gradient-accent)' }}
+	        >
           {publishing
             ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin" /> 创建中...</span>
-            : <span>创建 {confirmedDrafts.size} 个 Listing 草稿</span>}
-        </button>
-      </div>
-    </div>
-  )
+	            : <span>创建 {confirmedDrafts.size} 个 Listing 草稿</span>}
+	        </button>
+	      </div>
+	      {publishDisabledReason && (
+	        <p className="text-right text-xs text-[var(--color-warning)]" data-ui="batch-publish-preview-confirm-blocking-reason">
+	          {publishDisabledReason}
+	        </p>
+	      )}
+	    </div>
+	  )
+}
+
+function buildPublishDisabledReason({
+  confirmedCount,
+  missingSchedule,
+  confirmedTargetBlockingCount,
+}: {
+  confirmedCount: number
+  missingSchedule: boolean
+  confirmedTargetBlockingCount: number
+}) {
+  if (confirmedCount === 0) return '至少确认一个目标店铺 Listing 草稿后才能创建。'
+  if (missingSchedule) return '定时发布计划必须填写计划时间。'
+  if (confirmedTargetBlockingCount > 0) return `${confirmedTargetBlockingCount} 个已确认草稿仍存在目标店铺、平台字段或发布门禁阻断。`
+  return ''
 }
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {

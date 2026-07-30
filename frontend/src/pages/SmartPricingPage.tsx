@@ -16,6 +16,7 @@ import { businessActionForCode, labelBusinessCode } from '../utils/businessLabel
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PricingItemSelector } from '../features/pricing/PricingItemSelector'
 import { ContentListingStageRail } from '../features/content-planner/ContentListingStageRail'
+import { PricingTemplateStorePreview } from '../features/pricing/PricingTemplateStorePreview'
 
 export default function SmartPricingPage() {
   const navigate = useNavigate()
@@ -58,6 +59,7 @@ export default function SmartPricingPage() {
   const selectedPricingItem = pricingItems.find(item => item.id === selectedItemId)
   const selectedFeeTemplate = findFeeTemplate(feeTemplates, platform, market)
   const matchingPricingTemplates = pricingAdjustmentTemplates.filter(template => template.platform === platform && template.market === market)
+  const selectedAdjustmentTemplate = pricingAdjustmentTemplates.find(template => template.id === selectedPricingTemplateId)
   const targetProfitSliderValue = normalizeProfitSliderValue(targetProfit)
 
   useEffect(() => {
@@ -168,10 +170,19 @@ export default function SmartPricingPage() {
         selling_price_local: rec.selling_price_local,
         currency: rec.currency,
         pricing_tier: tier,
-        pricing_mode: pricingMode,
-        target_profit_pct: Number(targetProfit) + (tier === 'balanced' ? 10 : tier === 'aggressive' ? 20 : 0),
-        platform_account_id: selectedStoreId || undefined,
-      })
+	        pricing_mode: pricingMode,
+	        target_profit_pct: Number(targetProfit) + (tier === 'balanced' ? 10 : tier === 'aggressive' ? 20 : 0),
+	        platform_account_id: selectedStoreId || undefined,
+	        pricing_template_id: selectedAdjustmentTemplate?.id,
+	        pricing_template_label: selectedAdjustmentTemplate?.label,
+	        fee_template_id: selectedFeeTemplate?.id,
+	        fee_template_label: selectedFeeTemplate ? `${selectedFeeTemplate.platform}/${selectedFeeTemplate.market}` : undefined,
+	        shipping_cost_rmb: optionalNumber(shippingCost),
+	        activity_discount_pct: optionalNumber(activityDiscount),
+	        min_profit_rmb: optionalNumber(minProfit),
+	        estimated_fee_pct: result?.estimated_fee_pct,
+	        exchange_rate: result?.exchange_rate,
+	      })
       setConfirmedProductId(res.data?.product_id || '')
       setConfirmMessage(res.data?.listing_id ? '已确认价格并创建本地 Listing 草稿' : res.data?.note || '价格确认未完成')
     } catch (e: any) {
@@ -496,6 +507,17 @@ export default function SmartPricingPage() {
             market={market || selectedPricingItem?.market || ''}
             loading={feeRatesQuery.isLoading}
             onOpenSettings={() => navigate('/settings/fees')}
+          />
+          <PricingTemplateStorePreview
+            item={selectedPricingItem}
+            storeId={selectedStoreId}
+            feeTemplate={selectedFeeTemplate}
+            adjustmentTemplate={selectedAdjustmentTemplate}
+            result={result}
+            shippingCost={shippingCost}
+            activityDiscount={activityDiscount}
+            minProfit={minProfit}
+            targetProfit={targetProfit}
           />
           <div
             className="rounded-2xl p-4"

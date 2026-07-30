@@ -5,6 +5,8 @@ import { PlatformFieldGroupSummary, type PlatformRequirementsLike } from '../../
 import type { DictMarket, DictPlatform } from '../../api/config'
 import type { ListingMasterStatus } from '../../api/listing'
 import { productImageSrc } from '../../utils/productImages'
+import { BatchPublishPreflightSummary, type SelectedPublishBlockingCounts } from './BatchPublishPreflightSummary'
+import { PricingSnapshotBadge, PublishMediaSkuSummary } from './BatchPublishReadinessCells'
 
 export interface PublishableItem {
   key: string
@@ -14,6 +16,7 @@ export interface PublishableItem {
   costPrice: number | null
   sellingPrice?: number | null
   pricingSourceLabel?: string
+  pricingConfirmation?: Record<string, unknown> | null
   imageUrl?: string | null
   platformRequirements?: {
     required_attributes?: string[]
@@ -33,6 +36,8 @@ export interface PublishableItem {
     title?: string | null
     image_count?: number
     sku_count?: number
+    sku_platform_mapping_count?: number
+    sku_platform_mapping_gap_count?: number
     has_platform_attributes?: boolean
     has_logistics?: boolean
     has_compliance?: boolean
@@ -97,7 +102,25 @@ export function BatchPublishSelectStep({
   const masterBlockedRows = readinessRows.filter(row => !row.masterReady).length
   const fieldBlockedRows = readinessRows.filter(row => !row.fieldReady).length
   const targetBlockedRows = readinessRows.filter(row => !row.targetReady).length
-  const previewDisabledReason = buildPreviewDisabledReason(loading, selectedItems, selectedPlatforms, selectedMarkets, selectedStores)
+  const selectedBlockingRows = items
+    .map(item => ({ item, readiness: publishReadiness(item, selectedPlatforms, selectedMarkets, selectedStores) }))
+    .filter(row => selectedItems.has(row.item.key) && !row.readiness.ready)
+  const selectedBlockingCounts: SelectedPublishBlockingCounts = {
+    total: selectedBlockingRows.length,
+    master: selectedBlockingRows.filter(row => !row.readiness.masterReady).length,
+    media: selectedBlockingRows.filter(row => !row.readiness.mediaReady).length,
+    fields: selectedBlockingRows.filter(row => !row.readiness.fieldReady).length,
+    price: selectedBlockingRows.filter(row => !row.readiness.priceReady).length,
+    target: selectedBlockingRows.filter(row => !row.readiness.targetReady).length,
+  }
+  const selectedBlockingReason = buildSelectedBlockingReason(selectedBlockingCounts)
+  const previewDisabledReason = selectedBlockingReason || buildPreviewDisabledReason(loading, selectedItems, selectedPlatforms, selectedMarkets, selectedStores)
+  const previewDisabled = loading
+    || selectedItems.size === 0
+    || selectedPlatforms.size === 0
+    || selectedMarkets.size === 0
+    || selectedStores.size === 0
+    || selectedBlockingCounts.total > 0
   const platformRequirementsForSelection = (item: PublishableItem) => {
     if (selectedPlatformsList.length === 0) {
       return [{ platform: '', label: '未选择平台', requirements: item.platformRequirements }]
@@ -258,8 +281,9 @@ export function BatchPublishSelectStep({
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
                   <th className="w-10 px-3 py-2">选</th>
                   <th className="px-3 py-2">商品</th>
-                  <th className="px-3 py-2">成本/售价</th>
+                  <th className="px-3 py-2">价格/定价快照</th>
                   <th className="px-3 py-2">目标归属</th>
+                  <th className="px-3 py-2">图片/SKU</th>
                   <th className="px-3 py-2">母版/店铺覆盖</th>
                   <th className="px-3 py-2">阶段</th>
                   <th className="px-3 py-2">平台字段组</th>
@@ -302,9 +326,10 @@ export function BatchPublishSelectStep({
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-[var(--color-fg)]">
-                    <p>成本 {item.costPrice == null ? '待录入' : `¥${item.costPrice}`}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">售价 {item.sellingPrice == null ? item.pricingSourceLabel || '待确认' : `¥${item.sellingPrice}`}</p>
+                  <td className="min-w-44 px-3 py-3 text-[var(--color-fg)]">
+                    <p>售价 {item.sellingPrice == null ? '待确认' : `¥${item.sellingPrice}`}</p>
+                    <p className="mt-1 text-[var(--color-muted)]">成本 {item.costPrice == null ? '待录入' : `¥${item.costPrice}`}</p>
+                    <PricingSnapshotBadge item={item} />
                   </td>
                   <td className="min-w-48 px-3 py-3">
                     <ItemTargetContext
@@ -313,6 +338,9 @@ export function BatchPublishSelectStep({
                       marketLabelMap={marketLabelMap}
                       storeLabelMap={storeLabelMap}
                     />
+                  </td>
+                  <td className="min-w-48 px-3 py-3">
+                    <PublishMediaSkuSummary item={item} />
                   </td>
                   <td className="min-w-56 px-3 py-3">
                     <div className="space-y-2">
@@ -357,7 +385,13 @@ export function BatchPublishSelectStep({
 
       <Card>
         <CardContent className="pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-4">
+            <BatchPublishPreflightSummary
+              selectedCount={selectedItems.size}
+              blockingCounts={selectedBlockingCounts}
+              blockingReason={selectedBlockingReason}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calculator className="w-4 h-4 text-[var(--color-warning)]" />
@@ -383,7 +417,7 @@ export function BatchPublishSelectStep({
               )}
               <button
                 onClick={onPreview}
-                disabled={loading || selectedItems.size === 0 || selectedPlatforms.size === 0 || selectedMarkets.size === 0 || selectedStores.size === 0}
+                disabled={previewDisabled}
                 title={previewDisabledReason}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
                 style={{ background: 'var(--gradient-accent)' }}
@@ -392,6 +426,7 @@ export function BatchPublishSelectStep({
                   ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-pulse" /> 生成中...</span>
                   : <span className="flex items-center gap-2">预览 Listing <ArrowRight className="w-4 h-4" /></span>}
               </button>
+            </div>
             </div>
           </div>
         </CardContent>
@@ -494,7 +529,7 @@ function publishReadiness(
   const attrValues = requirements?.attribute_values || {}
   const missingAttrs = requiredAttrs.filter(attr => !hasAttributeValue(attrValues[attr]))
   const fieldReady = requiredAttrs.length > 0 && missingAttrs.length === 0
-  const priceReady = item.sellingPrice != null || item.costPrice != null
+  const priceReady = item.sellingPrice != null || Boolean(pricingTemplateSnapshot(item))
   const targetReady = selectedPlatforms.size > 0 && selectedMarkets.size > 0 && selectedStores.size > 0
   const masterReady = item.listingMasterStatus?.ready ?? (item.sourceType === 'product')
   const ready = masterReady && mediaReady && fieldReady && priceReady && targetReady && !item.disabled
@@ -571,7 +606,8 @@ function PublishGateStack({ item, readiness, disabledReason }: { item: Publishab
       {!readiness.mediaReady && <RepairAction href={repairHref(item, 'media')} label="补齐图片" />}
       <GatePill label="字段" ok={readiness.fieldReady} detail={readiness.missingAttrs.length ? `缺 ${readiness.missingAttrs.length}` : '通过'} />
       {!readiness.fieldReady && <RepairAction href={repairHref(item, 'fields')} label="补齐字段" />}
-      <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '可试算' : '待补'} />
+      <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '已确认' : '待确认'} />
+      {!readiness.priceReady && <RepairAction href={repairHref(item, 'pricing')} label="确认定价" />}
       <GatePill label="目标" ok={readiness.targetReady} detail={readiness.targetReady ? '已选' : '待选'} />
       {!readiness.targetReady && <RepairAction href="#target-store-panel" label="补齐目标" />}
     </div>
@@ -642,12 +678,25 @@ function RepairAction({ href, label }: { href: string; label: string }) {
   )
 }
 
-function repairHref(item: PublishableItem, section: 'media' | 'fields') {
+function repairHref(item: PublishableItem, section: 'media' | 'fields' | 'pricing') {
+  if (section === 'pricing') {
+    return item.sourceType === 'product'
+      ? `/pricing?product_id=${encodeURIComponent(item.id)}`
+      : `/pricing?sourcing_item_id=${encodeURIComponent(item.id)}`
+  }
   const targetSection = section === 'media' ? 'media' : 'attributes'
   if (item.sourceType === 'product') {
     return `/products/${encodeURIComponent(item.id)}/edit?listing_section=${targetSection}`
   }
   return `/content?sourcing_item_id=${encodeURIComponent(item.id)}&listing_section=${targetSection}`
+}
+
+function pricingTemplateSnapshot(item: PublishableItem) {
+  const confirmation = item.pricingConfirmation
+  if (!confirmation || typeof confirmation !== 'object') return null
+  const snapshot = confirmation.pricing_template_snapshot
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null
+  return snapshot as Record<string, unknown>
 }
 
 function buildPreviewDisabledReason(
@@ -663,6 +712,18 @@ function buildPreviewDisabledReason(
   if (selectedStores.size === 0) return '请选择至少一个目标店铺'
   if (selectedMarkets.size === 0) return '目标店铺缺少市场归属，请先在店铺配置维护市场'
   return '生成 Listing 预览'
+}
+
+function buildSelectedBlockingReason(counts: { total: number; master: number; media: number; fields: number; price: number; target: number }) {
+  if (counts.total === 0) return ''
+  const parts = [
+    counts.master ? `Listing母版 ${counts.master}` : '',
+    counts.media ? `图片 ${counts.media}` : '',
+    counts.fields ? `平台字段 ${counts.fields}` : '',
+    counts.price ? `定价 ${counts.price}` : '',
+    counts.target ? `目标归属 ${counts.target}` : '',
+  ].filter(Boolean)
+  return `已选商品仍有发布阻断：${parts.join('、')}。请先处理后再生成 Listing 预览。`
 }
 
 function hasAttributeValue(value: unknown) {

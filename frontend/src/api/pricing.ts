@@ -135,6 +135,15 @@ export interface PricingConfirmRequest {
   pricing_mode: 'cost_based' | 'selling_based'
   target_profit_pct: number
   platform_account_id?: string
+  pricing_template_id?: string
+  pricing_template_label?: string
+  fee_template_id?: string
+  fee_template_label?: string
+  shipping_cost_rmb?: number
+  activity_discount_pct?: number
+  min_profit_rmb?: number
+  estimated_fee_pct?: number | null
+  exchange_rate?: number
 }
 
 export interface PricingConfirmResponse {

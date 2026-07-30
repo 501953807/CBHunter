@@ -126,6 +126,7 @@ async def confirm_pricing(
            data_gaps=missing["data_gaps"])
 
     product = await _product_for_pricing_item(db, current_user.id, item)
+    pricing_template_snapshot = _pricing_template_snapshot(data)
     confirmation = {
         "selling_price_rmb": selling_price_rmb,
         "selling_price_local": selling_price_local,
@@ -136,6 +137,8 @@ async def confirm_pricing(
         "platform_account_id": account.id,
         "product_id": product.id,
     }
+    if pricing_template_snapshot:
+        confirmation["pricing_template_snapshot"] = pricing_template_snapshot
     listing = await _upsert_pricing_listing_draft(db, current_user.id, product, item, account, selling_price_local, confirmation)
     item.selling_price_local = selling_price_local
     item.pipeline_stage = "price_confirmed"
@@ -744,6 +747,31 @@ def _confirmed_title(item: SourcingItem) -> str:
     content = _confirmed_task_content(item, "listing_copy")
     first_line = next((line.strip() for line in content.splitlines() if line.strip()), "")
     return first_line or item.product_name
+
+
+def _pricing_template_snapshot(data: dict) -> dict:
+    snapshot = {
+        "pricing_template_id": data.get("pricing_template_id"),
+        "pricing_template_label": data.get("pricing_template_label"),
+        "fee_template_id": data.get("fee_template_id"),
+        "fee_template_label": data.get("fee_template_label"),
+        "shipping_cost_rmb": _optional_number(data.get("shipping_cost_rmb")),
+        "activity_discount_pct": _optional_number(data.get("activity_discount_pct")),
+        "min_profit_rmb": _optional_number(data.get("min_profit_rmb")),
+        "estimated_fee_pct": _optional_number(data.get("estimated_fee_pct")),
+        "exchange_rate": _optional_number(data.get("exchange_rate")),
+        "source": "smart_pricing_template_engine.v1",
+    }
+    return {key: value for key, value in snapshot.items() if value not in (None, "")}
+
+
+def _optional_number(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _confirmed_task_content(item: SourcingItem, task_type: str) -> str:

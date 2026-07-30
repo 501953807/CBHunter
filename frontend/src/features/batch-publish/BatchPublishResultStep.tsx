@@ -30,6 +30,14 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
             <p className="mt-2 text-xs text-[var(--color-warning)]">
               平台 Open API 未接通前仅保存本地计划，不代表 Shopee / TEMU / TikTok Shop 已发布成功。
             </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]" data-ui="publish-result-platform-api-status">
+              <span className="rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-[var(--color-warning)]">
+                平台 Open API 状态：{result.platform_api_status || 'not_connected'}
+              </span>
+              <span className="rounded-full bg-[var(--color-bg)] px-2 py-1 text-[var(--color-muted)]">
+                平台发布状态：{result.platform_publish_status || 'not_attempted'}
+              </span>
+            </div>
           </div>
             <button onClick={onReset} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)]">
               继续创建
@@ -57,11 +65,11 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
             </div>
           </section>
         )}
-        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="草稿结果明细">
+        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="草稿结果明细" data-ui="publish-result-receipt-status-table">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-semibold text-[var(--color-fg)]">草稿结果明细</h3>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">逐条核对标题、平台、价格、发布计划和平台字段落库结果。</p>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">逐条核对标题、平台、价格、发布计划、本地回执和失败重试入口。</p>
             </div>
             <span className="rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-xs text-[var(--color-warning)]">platform_publish_status: {result.platform_publish_status || 'not_attempted'}</span>
           </div>
@@ -73,6 +81,7 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
                   <th className="px-3 py-2 font-medium">平台/市场</th>
                   <th className="px-3 py-2 font-medium">售价</th>
                   <th className="px-3 py-2 font-medium">状态</th>
+                  <th className="px-3 py-2 font-medium">本地发布回执</th>
                   <th className="px-3 py-2 font-medium">平台字段落库诊断</th>
                   <th className="px-3 py-2 font-medium">处理入口</th>
                 </tr>
@@ -96,6 +105,9 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
                     <td className="px-3 py-3 text-[var(--color-fg)]">{item.selling_price == null ? '待补' : item.selling_price}</td>
                     <td className="px-3 py-3"><ResultStatus status={item.publish_status} reason={item.error || item.blocking_reasons?.[0]} /></td>
                     <td className="px-3 py-3">
+                      <PublishReceiptSummary item={item} />
+                    </td>
+                    <td className="px-3 py-3">
                       <PlatformFieldGroupSummary requirements={item.platform_requirements as PlatformRequirementsLike | undefined} compact maxGroups={2} />
                     </td>
                     <td className="px-3 py-3">
@@ -110,6 +122,21 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
         </section>
       </CardContent>
     </Card>
+  )
+}
+
+function PublishReceiptSummary({ item }: { item: BatchPublishResponse['results'][number] }) {
+  const receipt = item.publish_receipt
+  const apiStatus = receipt?.platform_api_status || item.platform_api_status || item.publish_plan?.platform_api_status || 'not_connected'
+  const platformStatus = receipt?.platform_publish_status || item.platform_publish_status || 'not_attempted'
+  const nextAction = receipt?.next_action || (item.retryable ? '修正后返回批量刊登重试' : '查看失败原因后人工处理')
+  return (
+    <div className="space-y-1 text-[11px]" data-ui="publish-result-local-receipt">
+      <p className="font-medium text-[var(--color-fg)]">{receipt?.status === 'local_draft_created' ? '本地草稿已创建' : '未创建平台草稿'}</p>
+      <p className="text-[var(--color-muted)]">API：{apiStatus} · 平台：{platformStatus}</p>
+      <p className="text-[var(--color-muted)]">计划：{receipt?.plan_status || item.plan_status || item.publish_plan?.status || '待补'}</p>
+      <p className="text-[var(--color-warning)]" data-ui="publish-result-retry-entry">失败重试：{nextAction}</p>
+    </div>
   )
 }
 

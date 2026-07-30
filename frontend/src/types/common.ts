@@ -30,6 +30,7 @@ export interface PlatformAccount {
   platform: string
   account_name: string
   shop_id: string | null
+  settings?: Record<string, unknown> | null
   is_active: boolean
   last_sync_at: string | null
   created_at: string | null

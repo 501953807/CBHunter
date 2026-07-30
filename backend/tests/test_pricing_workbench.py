@@ -521,6 +521,15 @@ def test_confirm_pricing_creates_local_listing_draft(tmp_path):
                     "pricing_tier": "balanced",
                     "pricing_mode": "cost_based",
                     "target_profit_pct": 30,
+                    "pricing_template_id": "shopee_MY_default",
+                    "pricing_template_label": "Shopee/MY 常规定价模板",
+                    "fee_template_id": "shopee_MY",
+                    "fee_template_label": "shopee/MY",
+                    "shipping_cost_rmb": 4.5,
+                    "activity_discount_pct": 8,
+                    "min_profit_rmb": 6,
+                    "estimated_fee_pct": 10.5,
+                    "exchange_rate": 0.66,
                 },
                 current_user=SimpleNamespace(id="pricing-user", is_admin=False),
                 db=session,
@@ -536,6 +545,9 @@ def test_confirm_pricing_creates_local_listing_draft(tmp_path):
         assert item.pipeline_stage == "price_confirmed"
         assert item.selling_price_local == 17.09
         assert item.extra_data["pricing_confirmation"]["selling_price_local"] == 17.09
+        assert item.extra_data["pricing_confirmation"]["pricing_template_snapshot"]["pricing_template_id"] == "shopee_MY_default"
+        assert item.extra_data["pricing_confirmation"]["pricing_template_snapshot"]["shipping_cost_rmb"] == 4.5
+        assert item.extra_data["pricing_confirmation"]["pricing_template_snapshot"]["exchange_rate"] == 0.66
         assert product.name == "越南风编织包"
         assert product.cost_price == 18
         assert listing.status == "draft"
@@ -546,6 +558,8 @@ def test_confirm_pricing_creates_local_listing_draft(tmp_path):
         assert listing.platform_account_id == account.id
         assert listing.platform_data["source_sourcing_item_id"] == item.id
         assert listing.platform_data["pricing_confirmation"]["selling_price_rmb"] == 26.29
+        assert listing.platform_data["pricing_confirmation"]["pricing_template_snapshot"]["fee_template_id"] == "shopee_MY"
+        assert listing.platform_data["pricing_confirmation"]["pricing_template_snapshot"]["source"] == "smart_pricing_template_engine.v1"
         assert listing.platform_data["listing_store_override"]["store_label"] == "Shopee MY"
         assert listing.platform_data["listing_store_override"]["sku_count"] == 1
 

@@ -34,6 +34,7 @@ class PlatformAccountResponse(BaseModel):
     platform: str
     account_name: str
     shop_id: Optional[str] = None
+    settings: Optional[dict] = None
     is_active: bool
     last_sync_at: Optional[datetime] = None
     created_at: Optional[datetime] = None

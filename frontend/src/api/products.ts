@@ -13,6 +13,7 @@ export interface ProductListParams {
 export interface PlatformStoreProductParams {
   platform?: string
   platform_account_id?: string
+  market?: string
   status?: string
   search?: string
   page?: number
@@ -37,6 +38,18 @@ export interface PlatformStoreProduct {
     gaps?: string[]
     source?: string
   }
+  inventory_alert_summary?: {
+    status: string
+    label: string
+    severity: 'critical' | 'warning' | 'info' | 'success' | string
+    current_stock: number
+    safety_stock?: number | null
+    matched_rule_count: number
+    open_alert_count: number
+    below_safety_stock: boolean
+    skus: string[]
+    data_gaps: string[]
+  }
   store_override_summary?: {
     relation_label: string
     isolation_note: string
@@ -49,6 +62,17 @@ export interface PlatformStoreProduct {
     price_stock_overridden: boolean
     platform_attribute_count: number
     logistics_configured: boolean
+  }
+  publish_plan_summary?: {
+    mode?: string | null
+    plan_status?: string | null
+    platform_api_status?: string | null
+    platform_publish_status?: string | null
+    receipt_status?: string | null
+    retryable?: boolean
+    next_action?: string | null
+    is_local_draft?: boolean
+    queue_status?: string
   }
   variation_count: number
   last_synced_at?: string | null

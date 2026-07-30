@@ -514,6 +514,35 @@ for required in (
 for required in ("overrideStoreId", "item.listing_store_override?.store_id"):
     if required not in SMART_PRICING_PAGE:
         errors.append(f"pricing page must prefer the store selected in content store override: {required}")
+pricing_template_preview_surface = SMART_PRICING_PAGE + PRICING_TEMPLATE_STORE_PREVIEW
+for required in (
+    "PricingTemplateStorePreview",
+    "data-ui=\"pricing-template-store-override-preview\"",
+    "aria-label=\"定价模板店铺售价覆盖预览\"",
+    "模板定价与店铺覆盖预览",
+    "目标店铺",
+    "平台综合费率",
+    "本地币种",
+    "汇率口径",
+    "平衡档人民币售价",
+    "平衡档店铺售价",
+    "模板与汇率来源",
+    "汇率来源",
+    "换算边界",
+    "写入边界",
+    "pricing_template_id",
+    "pricing_template_label",
+    "fee_template_id",
+    "fee_template_label",
+    "shipping_cost_rmb",
+    "activity_discount_pct",
+    "min_profit_rmb",
+    "estimated_fee_pct",
+    "exchange_rate",
+    "确认价格时只创建或更新当前商品、当前店铺的本地 Listing 价格草稿",
+):
+    if required not in pricing_template_preview_surface:
+        errors.append(f"CORE-V5-005 pricing template engine must expose store override price preview: {required}")
 for required in ("media_readiness", "媒体缺口", "已采集", "平台至少", "缺口："):
     if required not in CONTENT_PRODUCT_QUEUE + PRICING_ITEM_SELECTOR + BATCH_PUBLISH_SELECT + BATCH_PUBLISH_COMPLETENESS:
         errors.append(f"content/pricing/listing workbenches must expose media readiness gaps: {required}")

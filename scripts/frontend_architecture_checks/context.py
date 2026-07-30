@@ -66,6 +66,7 @@ PRODUCT_SELECTION_WORKSPACE = (ROOT / "frontend/src/features/product-selection/P
 PRODUCT_SELECTION_CORE_TABS = (ROOT / "frontend/src/features/product-selection/ProductSelectionCoreTabs.tsx").read_text(encoding="utf-8")
 DECISION_CANDIDATE_CONTEXT = (ROOT / "frontend/src/features/product-selection/DecisionCandidateContext.tsx").read_text(encoding="utf-8")
 PRICING_ITEM_SELECTOR = (ROOT / "frontend/src/features/pricing/PricingItemSelector.tsx").read_text(encoding="utf-8")
+PRICING_TEMPLATE_STORE_PREVIEW = (ROOT / "frontend/src/features/pricing/PricingTemplateStorePreview.tsx").read_text(encoding="utf-8")
 SMART_PRICING_PAGE = (ROOT / "frontend/src/pages/SmartPricingPage.tsx").read_text(encoding="utf-8")
 PRICING_API = (ROOT / "frontend/src/api/pricing.ts").read_text(encoding="utf-8")
 CONTENT_MEDIA_STUDIO = (ROOT / "frontend/src/features/content-planner/ContentMediaStudio.tsx").read_text(encoding="utf-8")
@@ -78,7 +79,9 @@ LISTING_OBJECT_SCOPE_MAP = (ROOT / "frontend/src/features/content-planner/Listin
 LISTING_STORE_OVERRIDE_EDITOR_PATH = ROOT / "frontend/src/features/content-planner/ListingStoreOverrideEditor.tsx"
 LISTING_STORE_OVERRIDE_EDITOR = LISTING_STORE_OVERRIDE_EDITOR_PATH.read_text(encoding="utf-8") if LISTING_STORE_OVERRIDE_EDITOR_PATH.exists() else ""
 LISTING_UNIFIED_EDITOR_SECTIONS = (ROOT / "frontend/src/features/content-planner/ListingUnifiedEditorSections.tsx").read_text(encoding="utf-8")
-LISTING_SPECIFICATION_EDITOR = (ROOT / "frontend/src/features/content-planner/ListingSpecificationEditor.tsx").read_text(encoding="utf-8")
+LISTING_SPECIFICATION_EDITOR_MAIN = (ROOT / "frontend/src/features/content-planner/ListingSpecificationEditor.tsx").read_text(encoding="utf-8")
+LISTING_SPECIFICATION_EDITOR_PARTS = (ROOT / "frontend/src/features/content-planner/ListingSpecificationEditorParts.tsx").read_text(encoding="utf-8")
+LISTING_SPECIFICATION_EDITOR = LISTING_SPECIFICATION_EDITOR_MAIN + "\n" + LISTING_SPECIFICATION_EDITOR_PARTS
 CONTENT_PUBLISH_GUIDE = (ROOT / "frontend/src/features/content-planner/ContentPublishGuide.tsx").read_text(encoding="utf-8")
 CONTENT_PRODUCT_QUEUE = (ROOT / "frontend/src/features/content-planner/ContentProductQueue.tsx").read_text(encoding="utf-8")
 CONTENT_TASK_MATRIX = (ROOT / "frontend/src/features/content-planner/ContentTaskMatrix.tsx").read_text(encoding="utf-8")
@@ -92,6 +95,9 @@ BATCH_PUBLISH_COMPLETENESS = (ROOT / "frontend/src/features/batch-publish/Listin
 BATCH_PUBLISH_RESULT = (ROOT / "frontend/src/features/batch-publish/BatchPublishResultStep.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_WORKSPACE = (ROOT / "frontend/src/features/batch-publish/BatchPublishWorkspace.tsx").read_text(encoding="utf-8")
 BATCH_PUBLISH_SELECT = (ROOT / "frontend/src/features/batch-publish/BatchPublishSelectStep.tsx").read_text(encoding="utf-8")
+BATCH_PUBLISH_PREFLIGHT = (ROOT / "frontend/src/features/batch-publish/BatchPublishPreflightSummary.tsx").read_text(encoding="utf-8")
+BATCH_PUBLISH_READINESS_CELLS = (ROOT / "frontend/src/features/batch-publish/BatchPublishReadinessCells.tsx").read_text(encoding="utf-8")
+BATCH_PUBLISH_TARGET_VALIDATION = (ROOT / "frontend/src/features/batch-publish/BatchPublishTargetValidationPanel.tsx").read_text(encoding="utf-8")
 PRODUCT_EDIT_PAGE = (ROOT / "frontend/src/pages/ProductEditPage.tsx").read_text(encoding="utf-8")
 PRODUCT_DETAIL_TABS = (ROOT / "frontend/src/features/products/ProductDetailTabs.tsx").read_text(encoding="utf-8")
 PRODUCT_LISTING_EDITOR_CHROME = (ROOT / "frontend/src/features/products/ProductListingEditorChrome.tsx").read_text(encoding="utf-8")

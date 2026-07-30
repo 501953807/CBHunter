@@ -315,6 +315,7 @@ async def batch_publish(
         "skipped": skipped,
         "status": "local_draft_created",
         "publish_plan": publish_plan,
+        "platform_api_status": "not_connected",
         "platform_publish_status": "not_attempted",
         "results": results,
     }, status="ready" if drafts_created else "data_required",

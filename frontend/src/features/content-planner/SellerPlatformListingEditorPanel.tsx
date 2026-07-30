@@ -23,7 +23,7 @@ import {
 export function SellerPlatformListingEditorPanel({ product, activeStore, changeTab, onSaved, highlightPlatformFieldKey = '' }: {
   product: ContentWorkbenchItem | null
   activeStore: string
-  changeTab: (nextTab: string) => void
+  changeTab: (nextTab: string, options?: { imageSlotIndex?: number }) => void
   onSaved?: () => void
   highlightPlatformFieldKey?: string
 }) {
@@ -109,6 +109,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
       id: 'platform-field',
       label: `平台字段 ${highlightedFieldKey}`,
       anchor: 'listing-master-attributes',
+      targetId: 'listing-platform-field-group',
       severity: 'warning',
     })
     window.setTimeout(() => {
@@ -175,14 +176,14 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   }
   const addImageSlot = () => {
     setImageSlots(current => relabelImageSlots([
-	      ...current,
-	      {
-	        id: `image-slot-${Date.now()}`,
-	        label: '',
-	        role: '',
-	        imageUrl: '',
-	        required: false,
-	      },
+      ...current,
+      {
+        id: `image-slot-${Date.now()}`,
+        label: '',
+        role: '',
+        imageUrl: '',
+        required: false,
+      },
     ], minImages))
     toast.addToast('success', '已新增图片素材空位，可进入图片编辑页上传或处理图片')
   }
@@ -215,10 +216,36 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   }
 
   const anchorLabel = (anchor: string) => anchors.find(([id]) => id === anchor)?.[1] || '对应编辑区'
+  const targetLabel = (targetId?: string) => {
+    const labels: Record<string, string> = {
+      'listing-field-images': '图片槽位',
+      'listing-field-title': '商品名称 / Listing 标题',
+      'listing-field-description': '商品描述 / 图文详情',
+      'listing-field-category': '商品类目',
+      'listing-platform-field-group': '平台字段组',
+      'listing-field-sku-table': 'SKU 销售资料主表',
+      'listing-field-sku-price': 'SKU 售价',
+      'listing-field-weight': '包裹重量',
+      'listing-field-package-size': '包装长宽高',
+      'listing-field-ship-from': '发货地',
+      'listing-field-lead-time': '发货时效',
+      'listing-field-compliance': '禁限售复核',
+      'listing-field-certificate': '品牌/认证材料',
+      'listing-field-target-store': '目标店铺',
+    }
+    return targetId ? labels[targetId] || '具体字段' : '具体字段'
+  }
   const jump = (anchor: string, gap?: ListingGap) => {
     setActiveAnchor(anchor)
     setActiveGap(gap || null)
     document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (gap?.targetId) {
+      window.setTimeout(() => {
+        const target = document.getElementById(gap.targetId)
+        target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        if (target instanceof HTMLElement) target.focus({ preventScroll: true })
+      }, 260)
+    }
   }
 
   const resetDraft = () => {
@@ -330,7 +357,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
               商品基础内容在母版维护；店铺、平台、市场差异通过覆盖字段保存。修改某个店铺 Listing 不会反向污染其他店铺或基础商品。
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-[11px]">
+          <div id="listing-field-target-store" tabIndex={-1} className="flex flex-wrap gap-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
             <StatusPill ok={Boolean(product)} label={product ? '已锁定商品' : '未选择商品'} />
             <StatusPill ok={Boolean(activeStore)} label={activeStore || '目标店铺待选'} />
             <StatusPill ok={imageCount >= minImages} label={`图片 ${imageCount}/${minImages}`} />
@@ -384,7 +411,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
 	            aria-label="当前定位的 Listing 缺口"
 	          >
 	            {activeGap ? (
-	              <span>正在处理：{activeGap.label}，已定位到「{anchorLabel(activeGap.anchor)}」。请在高亮编辑区内补齐字段后保存。</span>
+              <span>正在处理：{activeGap.label}，已定位到「{anchorLabel(activeGap.anchor)} / {targetLabel(activeGap.targetId)}」。请在高亮编辑区内补齐字段后保存。</span>
 	            ) : (
 	              <span>当前定位：{anchorLabel(activeAnchor)}。点击上方缺口标签可直接跳到对应字段区域。</span>
 	            )}
@@ -394,7 +421,12 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
 
 	      <div className="space-y-5 p-5">
 	        <EditorSection id="listing-master-media" title="商品图片与素材" description="顶部先处理商品图片。素材池可以保留多张，发布到平台时只取前 9 个槽位；槽位顺序决定平台主图和辅图顺序。" active={activeAnchor === 'listing-master-media'}>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9" data-ui="listing-master-image-slot-grid">
+          <div
+            id="listing-field-images"
+            tabIndex={-1}
+            className="grid grid-cols-2 gap-3 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9"
+            data-ui="listing-master-image-slot-grid"
+          >
             {imageSlots.map((slot, index) => (
               <div
                 key={slot.id}
@@ -405,7 +437,13 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                 onDragEnd={() => setDraggingImageIndex(null)}
                 className={draggingImageIndex === index ? 'overflow-hidden rounded-xl border border-[var(--color-primary)] bg-[var(--color-surface)] opacity-60 shadow-[var(--shadow-md)]' : 'overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'}
               >
-                <button type="button" onClick={() => changeTab('media')} className="group relative block w-full bg-[var(--color-bg)]">
+                <button
+                  type="button"
+                  onClick={() => changeTab('media', { imageSlotIndex: index + 1 })}
+                  className="group relative block w-full bg-[var(--color-bg)]"
+                  data-ui="listing-image-slot-edit-link"
+                  aria-label={`编辑${slot.label}图片槽位`}
+                >
                   {slot.imageUrl ? (
                     <img src={productImageSrc(slot.imageUrl)} alt={slot.label} className="aspect-square w-full object-cover" />
                   ) : (
@@ -420,7 +458,15 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                 <p className="truncate border-t border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-muted)]">{slot.role}</p>
                 <div className="grid grid-cols-2 gap-1 border-t border-[var(--color-border)] p-1 text-[10px]">
                   <button type="button" onClick={() => setMainImage(index)} disabled={index === 0 || !slot.imageUrl} className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-primary)] disabled:opacity-30">设主图</button>
-                  <button type="button" onClick={() => changeTab('media')} className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-muted)]">编辑</button>
+                  <button
+                    type="button"
+                    onClick={() => changeTab('media', { imageSlotIndex: index + 1 })}
+                    className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-muted)]"
+                    data-ui="listing-image-slot-edit-link"
+                    aria-label={`编辑${slot.label}图片槽位`}
+                  >
+                    编辑
+                  </button>
                 </div>
               </div>
             ))}
@@ -441,7 +487,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">发布槽位 {recommendedImages} 张</span>
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">至少 {minImages} 张</span>
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">拖拽排序，前 1 张为主图，前 9 张进入发布</span>
-            <Button size="sm" variant="outline" onClick={() => changeTab('media')} disabled={!product}>打开图片编辑器</Button>
+            <Button size="sm" variant="outline" onClick={() => changeTab('media', { imageSlotIndex: 1 })} disabled={!product}>打开图片编辑器</Button>
           </div>
         </EditorSection>
 
@@ -449,7 +495,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           <div className="space-y-4">
               <FieldBlock label="商品名称 / Listing 标题" required>
                 <div className="flex rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-                  <input value={draft.title || ''} onChange={event => updateDraft('title', event.target.value)} placeholder="按目标平台字数、关键词和类目规则编辑商品标题" className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-[var(--color-fg)] outline-none" />
+                  <input id="listing-field-title" value={draft.title || ''} onChange={event => updateDraft('title', event.target.value)} placeholder="按目标平台字数、关键词和类目规则编辑商品标题" className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-[var(--color-fg)] outline-none" />
                   <button type="button" onClick={applyTitleCandidate} disabled={!product} className="inline-flex items-center gap-1 border-l border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-primary)] disabled:opacity-40" data-ui="listing-inline-ai-title">
                     <Sparkles className="h-3.5 w-3.5" />AI 候选
                   </button>
@@ -464,7 +510,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                       <Sparkles className="h-3.5 w-3.5" />AI 描述候选
                     </button>
                   </div>
-                  <textarea value={draft.description || ''} onChange={event => updateDraft('description', event.target.value)} placeholder="商品描述支持纯文本。图文详情图片在上方图片素材中管理；正式发布前按目标平台字段映射。" className="min-h-[260px] w-full bg-transparent px-3 py-3 text-sm leading-6 text-[var(--color-fg)] outline-none" />
+                  <textarea id="listing-field-description" value={draft.description || ''} onChange={event => updateDraft('description', event.target.value)} placeholder="商品描述支持纯文本。图文详情图片在上方图片素材中管理；正式发布前按目标平台字段映射。" className="min-h-[260px] w-full bg-transparent px-3 py-3 text-sm leading-6 text-[var(--color-fg)] outline-none" />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
                   <span className="rounded-full border border-[var(--color-border)] px-2 py-1">支持纯文本详情</span>
@@ -480,6 +526,8 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
             <div
               className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
               data-ui="seller-listing-platform-attribute-editor"
+              id="listing-platform-field-group"
+              tabIndex={-1}
               aria-label="卖家后台平台属性编辑区"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-3">
@@ -530,6 +578,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
               <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">统一共性字段补充</p>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
+              ['category', '商品类目'],
               ['brand', requiredAttributes[0] || '品牌/No Brand'],
               ['material', requiredAttributes[1] || '材质'],
               ['model', requiredAttributes[2] || '型号'],
@@ -539,7 +588,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
               ['capacity', requiredAttributes[6] || '容量'],
               ['style', requiredAttributes[7] || '风格'],
             ].map(([field, label]) => (
-              <EditableInput key={field} label={label} value={draft[field] || ''} onChange={value => updateDraft(field, value)} placeholder="待填写" />
+              <EditableInput key={field} fieldId={field === 'category' ? 'listing-field-category' : undefined} label={label} value={draft[field] || ''} onChange={value => updateDraft(field, value)} placeholder="待填写" />
             ))}
               </div>
             </div>
@@ -550,6 +599,8 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           <div
             className="mb-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
             data-ui="seller-listing-sku-sales-editor"
+            id="listing-field-sku-table"
+            tabIndex={-1}
             aria-label="卖家后台 SKU 销售资料编辑区"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -581,7 +632,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                 </tr>
               </thead>
               <tbody>
-                {skuRows.map((row) => (
+                {skuRows.map((row, rowIndex) => (
                   <tr key={row.id}>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 font-medium text-[var(--color-fg)]">
                       <InlineInput value={row.optionOne} onChange={value => updateSkuRow(row.id, 'optionOne', value)} placeholder="如 Black / 默认款" />
@@ -599,7 +650,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
                       <InlineInput value={row.skuImageRole} onChange={value => updateSkuRow(row.id, 'skuImageRole', value)} placeholder="如 SKU图 1" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-fg)]">
-                      <InlineInput value={row.price} onChange={value => updateSkuRow(row.id, 'price', value)} placeholder="售价" />
+                      <InlineInput fieldId={rowIndex === 0 ? 'listing-field-sku-price' : undefined} value={row.price} onChange={value => updateSkuRow(row.id, 'price', value)} placeholder="售价" />
                     </td>
                     <td className="border-b border-[var(--color-border)] px-3 py-3 text-[var(--color-muted)]">
                       <InlineInput value={row.stock} onChange={value => updateSkuRow(row.id, 'stock', value)} placeholder="库存" />
@@ -639,14 +690,14 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
         <EditorSection id="listing-master-logistics" title="物流、包装与合规" description="发布前必须补齐重量、包装长宽高、发货地、禁限售和认证材料。" active={activeAnchor === 'listing-master-logistics'}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {[
-              ['weight', '包裹重量'],
-              ['packageSize', '包装长宽高'],
-              ['shipFrom', '发货地'],
-              ['leadTime', '发货时效'],
-              ['compliance', '禁限售复核'],
-              ['certificate', '品牌/认证材料'],
-            ].map(([field, label]) => (
-              <EditableInput key={field} label={label} value={draft[field] || ''} onChange={value => updateDraft(field, value)} placeholder="待填写" />
+              ['weight', '包裹重量', 'listing-field-weight'],
+              ['packageSize', '包装长宽高', 'listing-field-package-size'],
+              ['shipFrom', '发货地', 'listing-field-ship-from'],
+              ['leadTime', '发货时效', 'listing-field-lead-time'],
+              ['compliance', '禁限售复核', 'listing-field-compliance'],
+              ['certificate', '品牌/认证材料', 'listing-field-certificate'],
+            ].map(([field, label, fieldId]) => (
+              <EditableInput key={field} fieldId={fieldId} label={label} value={draft[field] || ''} onChange={value => updateDraft(field, value)} placeholder="待填写" />
             ))}
           </div>
         </EditorSection>
@@ -692,11 +743,12 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-function EditableInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+function EditableInput({ label, value, onChange, placeholder, fieldId }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; fieldId?: string }) {
   return (
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
       <p className="text-xs font-semibold text-[var(--color-fg)]">{label}</p>
       <input
+        id={fieldId}
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
@@ -706,9 +758,10 @@ function EditableInput({ label, value, onChange, placeholder }: { label: string;
   )
 }
 
-function InlineInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
+function InlineInput({ value, onChange, placeholder, fieldId }: { value: string; onChange: (value: string) => void; placeholder: string; fieldId?: string }) {
   return (
     <input
+      id={fieldId}
       value={value}
       onChange={event => onChange(event.target.value)}
       placeholder={placeholder}

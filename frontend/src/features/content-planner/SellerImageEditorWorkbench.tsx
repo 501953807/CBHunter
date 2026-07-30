@@ -42,6 +42,17 @@ export type MediaSlotPlan = {
   sizeText: string
 }
 
+export type ImageWatermarkTemplateOption = {
+  id: string
+  name: string
+  platform: string
+  scope: string
+  text: string
+  position: string
+  opacity: number
+  color: string
+}
+
 export const listingImageRoleByIndex = (index: number) => {
   const roles = [
     { role: 'main_image', label: '主图' },
@@ -59,6 +70,11 @@ const assetImageUrl = (asset: ContentAsset) => {
   return explicitUrl || `/api/v1/content/assets/${asset.id}/file`
 }
 
+const clampImageSlotIndex = (slotIndex: number, slotCount: number) => {
+  if (!Number.isFinite(slotIndex)) return 1
+  return Math.max(1, Math.min(Math.max(slotCount, 1), Math.floor(slotIndex)))
+}
+
 export function SellerImageEditorWorkbench({
   product,
   productImageAssets,
@@ -68,27 +84,41 @@ export function SellerImageEditorWorkbench({
   onUploadSlotImage,
   onSaveImageSlotPlan,
   loading,
+  initialSlotIndex = 1,
+  initialSavedSlotPlan = null,
+  watermarkTemplates = [],
+  onApplyWatermarkTemplate,
+  onClearWatermark,
 }: {
   product: ContentWorkbenchItem | null
   productImageAssets: ContentAsset[]
   imageOptions: ImageEditOptions
   setImageOptions: Dispatch<SetStateAction<ImageEditOptions>>
-  onUseSourceImage: () => void
+  onUseSourceImage: () => Promise<ContentAsset | null>
   onUploadSlotImage: (file: File) => Promise<ContentAsset | null>
-  onSaveImageSlotPlan: (slots: MediaSlotPlan[]) => void
+  onSaveImageSlotPlan: (slots: MediaSlotPlan[]) => Promise<void>
   loading: boolean
+  initialSlotIndex?: number
+  initialSavedSlotPlan?: MediaSlotPlan[] | null
+  watermarkTemplates?: ImageWatermarkTemplateOption[]
+  onApplyWatermarkTemplate?: (template: ImageWatermarkTemplateOption) => void
+  onClearWatermark?: () => void
 }) {
   const [activeSlotIndex, setActiveSlotIndex] = useState(1)
   const [activeTool, setActiveTool] = useState('修改尺寸')
   const [draggingSlotIndex, setDraggingSlotIndex] = useState<number | null>(null)
   const [slotUploading, setSlotUploading] = useState(false)
+  const [slotPlanDirty, setSlotPlanDirty] = useState(false)
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
   const sourceImage = product?.image_url || ''
   const slotCount = Math.max(product?.media_readiness?.recommended_platform_images ?? 9, 9)
   const imageAssetKey = productImageAssets.map(asset => `${asset.id}:${asset.created_at}`).join('|')
+  const savedSlotPlanKey = (initialSavedSlotPlan || []).map(slot => `${slot.index}:${slot.imageUrl}:${slot.assetName}`).join('|')
   const [imageSlots, setImageSlots] = useState<MediaSlotPlan[]>([])
 
   useEffect(() => {
-    const nextSlots = Array.from({ length: slotCount }).map((_, index) => {
+    const savedSlots = initialSavedSlotPlan?.length ? relabelSlots(initialSavedSlotPlan) : null
+    const nextSlots = savedSlots || Array.from({ length: slotCount }).map((_, index) => {
       const asset = productImageAssets[index - 1]
       const imageUrl = index === 0 ? sourceImage : asset ? assetImageUrl(asset) : ''
       const roleMeta = listingImageRoleByIndex(index)
@@ -102,8 +132,15 @@ export function SellerImageEditorWorkbench({
       }
     })
     setImageSlots(nextSlots)
-    setActiveSlotIndex(1)
-  }, [product?.id, imageAssetKey, slotCount, sourceImage])
+    setActiveSlotIndex(clampImageSlotIndex(initialSlotIndex, nextSlots.length))
+    setSlotPlanDirty(false)
+    setSelectedAssetIds([])
+  }, [product?.id, imageAssetKey, initialSlotIndex, savedSlotPlanKey, slotCount, sourceImage])
+
+  useEffect(() => {
+    if (!imageSlots.length) return
+    setActiveSlotIndex(clampImageSlotIndex(initialSlotIndex, imageSlots.length))
+  }, [imageSlots.length, initialSlotIndex])
 
   const activeSlot = imageSlots.find(slot => slot.index === activeSlotIndex) || imageSlots[0] || {
     index: 1,
@@ -128,12 +165,23 @@ export function SellerImageEditorWorkbench({
         sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
       }
       : slot))
+    setSlotPlanDirty(true)
   }
 
   const uploadSlotImage = async (file: File) => {
     setSlotUploading(true)
     try {
       const asset = await onUploadSlotImage(file)
+      if (asset) replaceActiveSlotWithAsset(asset)
+    } finally {
+      setSlotUploading(false)
+    }
+  }
+
+  const processSourceImageIntoActiveSlot = async () => {
+    setSlotUploading(true)
+    try {
+      const asset = await onUseSourceImage()
       if (asset) replaceActiveSlotWithAsset(asset)
     } finally {
       setSlotUploading(false)
@@ -151,6 +199,7 @@ export function SellerImageEditorWorkbench({
     const relabeled = relabelSlots(nextSlots)
     setImageSlots(relabeled)
     setActiveSlotIndex(targetIndex + 1)
+    setSlotPlanDirty(true)
   }
 
   const addImageSlot = () => {
@@ -165,6 +214,7 @@ export function SellerImageEditorWorkbench({
       sizeText: '新增图片空位',
     }])
     setActiveSlotIndex(nextIndex)
+    setSlotPlanDirty(true)
   }
 
   const setAsMainImage = (slotIndex: number) => {
@@ -175,6 +225,87 @@ export function SellerImageEditorWorkbench({
     nextSlots.unshift(removed)
     setImageSlots(relabelSlots(nextSlots))
     setActiveSlotIndex(1)
+    setSlotPlanDirty(true)
+  }
+
+  const clearActiveSlot = () => {
+    setImageSlots(current => current.map(slot => slot.index === activeSlotIndex
+      ? { ...slot, imageUrl: '', assetName: '', sizeText: '已清空，待补真实图片' }
+      : slot))
+    setSlotPlanDirty(true)
+  }
+
+  const removeActiveSlot = () => {
+    if (imageSlots.length <= 1) return
+    const nextSlots = relabelSlots(imageSlots.filter(slot => slot.index !== activeSlotIndex))
+    setImageSlots(nextSlots)
+    setActiveSlotIndex(clampImageSlotIndex(activeSlotIndex, nextSlots.length))
+    setSlotPlanDirty(true)
+  }
+
+  const fillEmptySlotsFromAssets = () => {
+    const usedImageUrls = new Set(imageSlots.map(slot => slot.imageUrl).filter(Boolean))
+    const availableAssets = productImageAssets
+      .map(asset => ({ asset, imageUrl: assetImageUrl(asset) }))
+      .filter(item => !usedImageUrls.has(item.imageUrl))
+    if (!availableAssets.length) return
+
+    let nextAssetIndex = 0
+    let firstFilledSlotIndex = activeSlotIndex
+    const nextSlots = imageSlots.map(slot => {
+      if (slot.imageUrl || nextAssetIndex >= availableAssets.length) return slot
+      const { asset, imageUrl } = availableAssets[nextAssetIndex]
+      nextAssetIndex += 1
+      if (nextAssetIndex === 1) firstFilledSlotIndex = slot.index
+      return {
+        ...slot,
+        imageUrl,
+        assetName: asset.original_name || asset.id,
+        sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
+      }
+    })
+
+    if (nextAssetIndex === 0) return
+    setImageSlots(nextSlots)
+    setActiveSlotIndex(firstFilledSlotIndex)
+    setSlotPlanDirty(true)
+  }
+
+  const toggleAssetSelection = (assetId: string) => {
+    setSelectedAssetIds(current => current.includes(assetId)
+      ? current.filter(id => id !== assetId)
+      : [...current, assetId])
+  }
+
+  const appendSelectedAssetsAsSlots = () => {
+    const usedImageUrls = new Set(imageSlots.map(slot => slot.imageUrl).filter(Boolean))
+    const selectedAssets = productImageAssets
+      .filter(asset => selectedAssetIds.includes(asset.id))
+      .map(asset => ({ asset, imageUrl: assetImageUrl(asset) }))
+      .filter(item => !usedImageUrls.has(item.imageUrl))
+    if (!selectedAssets.length) return
+
+    const appendedSlots = selectedAssets.map(({ asset, imageUrl }, index) => {
+      const nextIndex = imageSlots.length + index + 1
+      const roleMeta = listingImageRoleByIndex(nextIndex - 1)
+      return {
+        index: nextIndex,
+        role: roleMeta.role,
+        label: roleMeta.label,
+        imageUrl,
+        assetName: asset.original_name || asset.id,
+        sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
+      }
+    })
+    setImageSlots(current => [...current, ...appendedSlots])
+    setActiveSlotIndex(appendedSlots[0].index)
+    setSelectedAssetIds([])
+    setSlotPlanDirty(true)
+  }
+
+  const saveCurrentSlotPlan = async () => {
+    await onSaveImageSlotPlan(imageSlots)
+    setSlotPlanDirty(false)
   }
 
   const applyToolPreset = (tool: string) => {
@@ -236,7 +367,20 @@ export function SellerImageEditorWorkbench({
     <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
       <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-primary-light)] px-4 py-2 text-xs">
         <span className="font-semibold text-[var(--color-primary)]">商品图片工作台：拖拽排序、空位补图、当前槽位替换</span>
-        <Badge variant="success">真实素材绑定</Badge>
+        <span
+          className="rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 font-semibold text-[var(--color-primary)]"
+          data-ui="listing-image-active-slot-context"
+          aria-label="Listing 图片编辑当前槽位"
+        >
+          当前槽位：{activeSlot.label} {activeSlot.index}/{imageSlots.length || 1}
+        </span>
+        <div className="flex items-center gap-2">
+          <Badge variant={slotPlanDirty ? 'warning' : 'success'}>{slotPlanDirty ? '槽位待保存' : '槽位已同步'}</Badge>
+          {initialSavedSlotPlan?.length ? (
+            <Badge variant="info" data-ui="restored-image-slot-plan-state">已回显保存计划</Badge>
+          ) : null}
+          <Badge variant="success">真实素材绑定</Badge>
+        </div>
       </div>
       <div className="grid min-h-[560px] grid-cols-1 2xl:grid-cols-[220px_minmax(640px,1fr)_180px]">
         <aside aria-label="左侧图片工具栏" className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-b-0 2xl:border-r">
@@ -307,6 +451,14 @@ export function SellerImageEditorWorkbench({
               <span className="text-[var(--color-muted)]">当前工具：{activeTool}</span>
             </div>
             <p className="mt-2 leading-5 text-[var(--color-muted)]">{editableToolHints[activeTool]}</p>
+            <p
+              className={slotPlanDirty
+                ? 'mt-2 rounded-lg border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-2 py-1.5 text-[11px] font-semibold text-[var(--color-warning)]'
+                : 'mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'}
+              data-ui="image-slot-plan-dirty-state"
+            >
+              {slotPlanDirty ? '当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。' : '当前槽位计划已同步到最近保存状态。'}
+            </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <label className="text-[var(--color-muted)]">
                 宽度
@@ -323,6 +475,40 @@ export function SellerImageEditorWorkbench({
               <button type="button" className={imageOptions.flip_vertical ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-1.5 text-[11px] text-[var(--color-primary)]' : 'rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'} onClick={() => setImageOptions(prev => ({ ...prev, flip_vertical: !prev.flip_vertical }))}>垂直翻转</button>
             </div>
             <p className="mt-2 text-[11px] text-[var(--color-muted)]">当前方向：旋转 {imageOptions.rotate_degrees}°{imageOptions.flip_horizontal ? ' · 水平翻转' : ''}{imageOptions.flip_vertical ? ' · 垂直翻转' : ''}</p>
+            <div
+              aria-label="水印模板快速应用"
+              data-ui="listing-image-watermark-template-picker"
+              className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2"
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-semibold text-[var(--color-fg)]">水印模板</p>
+                <button
+                  type="button"
+                  onClick={onClearWatermark}
+                  disabled={!imageOptions.watermark_text}
+                  className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  清除水印
+                </button>
+              </div>
+              {watermarkTemplates.length > 0 ? (
+                <div className="grid gap-1">
+                  {watermarkTemplates.slice(0, 4).map(template => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => onApplyWatermarkTemplate?.(template)}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+                    >
+                      <span className="block truncate font-semibold text-[var(--color-primary)]">应用水印模板：{template.name}</span>
+                      <span className="block truncate text-[10px] text-[var(--color-muted)]">{template.platform} · {template.scope} · {template.position}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] leading-5 text-[var(--color-muted)]">暂无水印模板；请先在图片/水印模板维护真实模板。</p>
+              )}
+            </div>
             <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-2 font-semibold text-[var(--color-primary)]">
               <Upload className="h-4 w-4" />
               {slotUploading ? '上传处理中...' : '上传/替换当前槽位'}
@@ -339,11 +525,44 @@ export function SellerImageEditorWorkbench({
                 }}
               />
             </label>
+            <div aria-label="当前图片槽位删除动作" className="mt-2 grid grid-cols-2 gap-2" data-ui="image-slot-clear-remove-actions">
+              <button
+                type="button"
+                onClick={clearActiveSlot}
+                disabled={!activeSlot.imageUrl || loading || slotUploading}
+                className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-warning)] transition hover:border-[var(--color-warning)] disabled:cursor-not-allowed disabled:opacity-40"
+                data-ui="clear-active-image-slot"
+              >
+                清空当前槽位
+              </button>
+              <button
+                type="button"
+                onClick={removeActiveSlot}
+                disabled={imageSlots.length <= 1 || loading || slotUploading}
+                className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-danger)] transition hover:border-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-40"
+                data-ui="remove-active-image-slot"
+              >
+                删除当前槽位
+              </button>
+            </div>
           </div>
           <div className="absolute bottom-4 right-4 flex flex-wrap gap-2">
             <Button variant="outline" disabled={!product}>取消</Button>
-            <Button onClick={onUseSourceImage} disabled={!sourceImage || loading}>{loading ? '处理中...' : '处理源图为素材'}</Button>
-            <Button variant="secondary" onClick={() => onSaveImageSlotPlan(imageSlots)} disabled={!product || loading}>保存槽位顺序</Button>
+            <Button
+              onClick={processSourceImageIntoActiveSlot}
+              disabled={!sourceImage || loading || slotUploading}
+              data-ui="process-source-image-into-active-slot"
+            >
+              {loading || slotUploading ? '处理中...' : '处理源图并替换当前槽位'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { void saveCurrentSlotPlan() }}
+              disabled={!product || loading || slotUploading}
+              data-ui="save-dirty-image-slot-plan"
+            >
+              {slotPlanDirty ? '保存槽位变更' : '保存槽位顺序'}
+            </Button>
           </div>
         </div>
 
@@ -353,7 +572,20 @@ export function SellerImageEditorWorkbench({
               <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
               <p className="text-[10px] text-[var(--color-muted)]">拖拽缩略图调整主图/辅图顺序</p>
             </div>
-            <span className="text-xs text-[var(--color-primary)]">{activeSlot.index}/{imageSlots.length}</span>
+            <div className="text-right">
+              <span className="block text-xs text-[var(--color-primary)]">{activeSlot.index}/{imageSlots.length}</span>
+              <button
+                type="button"
+                onClick={fillEmptySlotsFromAssets}
+                disabled={!product || loading || slotUploading || productImageAssets.length === 0 || !imageSlots.some(slot => !slot.imageUrl)}
+                className="mt-1 rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
+                data-ui="fill-empty-image-slots-from-assets"
+                aria-label="用当前商品真实素材填充空图片槽位"
+                title="只使用绑定当前商品的真实素材填充空图片槽位"
+              >
+                一键填充空槽位
+              </button>
+            </div>
           </div>
           <div className="grid max-h-[500px] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-6 2xl:block 2xl:space-y-3">
             {imageSlots.map(slot => (
@@ -405,19 +637,49 @@ export function SellerImageEditorWorkbench({
           </div>
           {productImageAssets.length > 0 && (
             <div className="mt-4 border-t border-[var(--color-border)] pt-3">
-              <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">素材放入当前槽位</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--color-fg)]">当前商品真实素材库</p>
+                  <p className="text-[10px] text-[var(--color-muted)]">点选多张后可批量追加为图片槽位</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={appendSelectedAssetsAsSlots}
+                  disabled={!selectedAssetIds.length || loading || slotUploading}
+                  className="rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
+                  data-ui="append-selected-assets-as-image-slots"
+                  aria-label="将选中真实素材批量追加为图片槽位"
+                >
+                  批量追加槽位 {selectedAssetIds.length || ''}
+                </button>
+              </div>
               <div className="grid grid-cols-3 gap-2 2xl:grid-cols-2">
                 {productImageAssets.slice(0, 8).map(asset => (
-                  <button
+                  <div
                     key={asset.id}
-                    type="button"
-                    data-ui="replace-active-slot-with-asset"
-                    onClick={() => replaceActiveSlotWithAsset(asset)}
-                    className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]"
-                    title="放入当前槽位"
+                    className={selectedAssetIds.includes(asset.id)
+                      ? 'overflow-hidden rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]'}
+                    data-ui="selectable-product-image-asset"
                   >
-                    <img src={productImageSrc(assetImageUrl(asset))} alt={asset.original_name || asset.id} className="aspect-square w-full object-cover" />
-                  </button>
+                    <button
+                      type="button"
+                      data-ui="replace-active-slot-with-asset"
+                      onClick={() => replaceActiveSlotWithAsset(asset)}
+                      className="block w-full"
+                      title="放入当前槽位"
+                    >
+                      <img src={productImageSrc(assetImageUrl(asset))} alt={asset.original_name || asset.id} className="aspect-square w-full object-cover" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleAssetSelection(asset.id)}
+                      className="block w-full border-t border-[var(--color-border)] px-1 py-1 text-[10px] font-semibold text-[var(--color-primary)]"
+                      aria-label="选择真实素材用于批量追加槽位"
+                    >
+                      {selectedAssetIds.includes(asset.id) ? '已选' : '选择'}
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>

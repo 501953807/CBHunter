@@ -52,6 +52,45 @@ for required in (
 ):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"platform store product rows must expose row-level next actions and diagnostics: {required}")
+for required in (
+    "PublishPlanQueueBoard",
+    "aria-label=\"发布计划队列\"",
+    "data-ui=\"platform-store-publish-plan-queue\"",
+    "data-ui=\"platform-store-publish-plan-card\"",
+    "PublishPlanInlineStatus",
+    "data-ui=\"platform-store-publish-plan-inline-status\"",
+    "publish_plan_summary",
+    "返回批量刊登重试",
+    "平台 Open API 未接通",
+):
+    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+        errors.append(f"platform store products must expose batch publish result writeback queue: {required}")
+for required in (
+    "market?: string",
+    "market: market || undefined",
+    "data-ui=\"platform-store-market-filter\"",
+    "dataUi=\"platform-store-market-summary\"",
+    "buildMarketOptions",
+    "platformStoreMarket",
+    "覆盖市场",
+    "data-ui=\"platform-store-inventory-alert-entry\"",
+    "platform-store-row-inventory-alert-action",
+    "处理库存预警",
+):
+    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+        errors.append(f"platform store products must expose market filtering and inventory alert entry: {required}")
+for required in (
+    "inventory_alert_summary",
+    "dataUi=\"platform-store-inventory-risk-summary\"",
+    "data-ui=\"platform-store-inventory-alert-summary\"",
+    "isInventoryRiskItem",
+    "InventoryAlertInlineSummary",
+    "规则 {summary.matched_rule_count}",
+    "安全库存",
+    "处理库存预警",
+):
+    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+        errors.append(f"platform store products must expose real inventory alert summary from backend: {required}")
 store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + SHIPMENT_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
 for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺物流", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"shipments\"", "currentModule=\"finance\""):
     if required not in store_context_content:

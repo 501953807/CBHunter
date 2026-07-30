@@ -20,9 +20,40 @@ for required in (
     "AI设计",
     "上传/替换当前槽位",
     "保存槽位顺序",
+    "保存槽位变更",
+    "slotPlanDirty",
+    "setSlotPlanDirty(true)",
+    "setSlotPlanDirty(false)",
+    "saveCurrentSlotPlan",
+    "data-ui=\"image-slot-plan-dirty-state\"",
+    "data-ui=\"save-dirty-image-slot-plan\"",
+    "当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。",
+    "loadSavedImageSlotPlan",
+    "parseSavedImageSlotPlan",
+    "initialSavedSlotPlan",
+    "data-ui=\"restored-image-slot-plan-state\"",
+    "已回显保存计划",
     "setAsMainImage",
     "reorderSlot",
     "replaceActiveSlotWithAsset",
+    "clearActiveSlot",
+    "removeActiveSlot",
+    "fillEmptySlotsFromAssets",
+    "toggleAssetSelection",
+    "appendSelectedAssetsAsSlots",
+    "data-ui=\"image-slot-clear-remove-actions\"",
+    "data-ui=\"clear-active-image-slot\"",
+    "data-ui=\"remove-active-image-slot\"",
+    "data-ui=\"fill-empty-image-slots-from-assets\"",
+    "data-ui=\"append-selected-assets-as-image-slots\"",
+    "data-ui=\"selectable-product-image-asset\"",
+    "清空当前槽位",
+    "删除当前槽位",
+    "一键填充空槽位",
+    "用当前商品真实素材填充空图片槽位",
+    "将选中真实素材批量追加为图片槽位",
+    "当前商品真实素材库",
+    "批量追加槽位",
     "uploadSlotImage",
     "data-ui=\"image-slot-file-input\"",
     "data-ui=\"listing-image-empty-slot\"",
@@ -93,6 +124,23 @@ if "ContentCsvExport" in CONTENT_PLANNER_WORKSPACE or "Shopee批量上架CSV" in
 for required in ("useSearchParams", "product_id", "initialProductId"):
     if required not in CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content planner must auto-select product from route parameter: {required}")
+for required in (
+    "image_slot",
+    "parseListingImageSlot",
+    "normalizeListingImageSlot",
+    "activeImageSlotIndex",
+    "initialSlotIndex={activeImageSlotIndex}",
+):
+    if required not in CONTENT_PLANNER_WORKSPACE:
+        errors.append(f"content planner must route listing image slot context into image editor: {required}")
+for required in (
+    "initialSlotIndex",
+    "clampImageSlotIndex",
+    "data-ui=\"listing-image-active-slot-context\"",
+    "当前槽位：",
+):
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH + CONTENT_MEDIA_STUDIO:
+        errors.append(f"seller image editor must preserve active listing image slot context: {required}")
 if "aria-label=\"专业工作台视觉框架\"" not in PROFESSIONAL_WORKSPACE_FRAME:
     errors.append("professional workspace visual frame component must exist with accessible shell label")
 if "aria-label=\"业务对象下钻动作\"" not in BUSINESS_OBJECT_ACTION_BAR:
@@ -189,6 +237,18 @@ for required in (
     "aria-label=\"当前定位的 Listing 缺口\"",
     "activeGap",
     "anchorLabel",
+    "targetLabel",
+    "targetId",
+    "document.getElementById(gap.targetId)",
+    "focus({ preventScroll: true })",
+    "id=\"listing-field-images\"",
+    "id=\"listing-field-title\"",
+    "id=\"listing-field-description\"",
+    "id=\"listing-platform-field-group\"",
+    "id=\"listing-field-sku-table\"",
+    "listing-field-sku-price",
+    "listing-field-package-size",
+    "fieldId={fieldId}",
     "active={activeAnchor === 'listing-master-sku'}",
     "border border-[var(--color-primary)] bg-[var(--color-primary-light)]",
     "当前缺口定位",
@@ -199,6 +259,8 @@ for required in (
     "图片不足",
     "SKU 销售资料待补",
     "data-ui=\"listing-master-image-slot-grid\"",
+    "data-ui=\"listing-image-slot-edit-link\"",
+    "changeTab('media', { imageSlotIndex: index + 1 })",
     "dropImageSlot",
     "draggable",
     "onDrop",
@@ -276,12 +338,21 @@ for required in (
     "data-ui=\"listing-sku-editable-variant-table\"",
     "aria-label=\"SKU 规格组合生成器\"",
     "data-ui=\"sku-variation-combination-generator\"",
+    "aria-label=\"SKU 批量操作工具条\"",
+    "data-ui=\"sku-bulk-edit-toolbar\"",
     "aria-label=\"SKU 发布准备度校验\"",
     "data-ui=\"sku-platform-readiness-checklist\"",
+    "data-ui=\"sku-platform-field-mapping-table\"",
+    "aria-label=\"SKU 平台字段映射表\"",
     "aria-label=\"SKU发布缺口列表\"",
     "buildSkuReadinessRows",
+    "buildSkuPlatformMappingRows",
+    "sku_platform_mapping",
+    "skuPlatformMappingGapCount",
     "阻断缺口",
     "建议补充",
+    "平台映射缺口",
+    "平台SKU/SPU/SKC映射",
     "平台SKU/Model ID",
     "SPU/SKC",
     "包裹长宽高",
@@ -291,8 +362,17 @@ for required in (
     "规格二选项",
     "商家SKU前缀",
     "按规格组合追加SKU",
+    "按规格组合重建SKU",
+    "批量启用SKU",
+    "批量停用SKU",
+    "清空SKU草稿",
     "appendGeneratedSkuRows",
+    "rebuildGeneratedSkuRows",
+    "setAllSkuEnabled",
+    "clearSkuDrafts",
     "splitSpecValues",
+    "buildVariationLabel",
+    "规格名: 规格值",
     "SKU/变体、平台属性、物流包装、合规检查",
     "aria-label=\"SKU 变体草稿表\"",
     "启用",
@@ -304,6 +384,12 @@ for required in (
     "SKU图角色",
     "aria-label=\"SKU 图片角色\"",
     "SKU图片URL",
+    "getContentAssets",
+    "productSkuImageAssets",
+    "contentAssetImageUrl",
+    "bindSkuImageAsset",
+    "data-ui=\"sku-image-asset-picker\"",
+    "暂无当前商品图片素材，请先在媒体素材中上传或处理真实图片。",
     "重量(g)",
     "长(cm)",
     "宽(cm)",
@@ -343,13 +429,50 @@ if "xl:grid-cols-[minmax(0,1fr)_320px]" in LISTING_SPECIFICATION_EDITOR:
 if "xl:grid-cols-[minmax(0,1fr)_280px]" in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must not squeeze image slots with a permanent image action side rail")
 for required in ("draggable", "onDragStart", "onDragOver", "onDrop", "reorderSlot", "draggingSlotIndex !== null", "新增图片空位", "aria-label=\"新增图片空位\"", "拖拽缩略图调整主图/辅图顺序"):
-    if required not in CONTENT_MEDIA_STUDIO:
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
         errors.append(f"content media studio must support drag-sort image slots and add empty slots: {required}")
 if "draggingSlotIndex !== null" not in SELLER_IMAGE_EDITOR_WORKBENCH:
     errors.append("seller image editor must allow dragging the first/main image slot; do not use a truthy index check")
 for required in ("aria-label=\"图片裁剪参数表\"", "aria-label=\"图片水印参数表\"", "crop_mode", "crop_x", "crop_width", "watermark_text", "watermark_position", "rotate_degrees", "flip_horizontal", "flip_vertical", "image_edit_options"):
     if required not in CONTENT_MEDIA_STUDIO:
         errors.append(f"content media studio must persist crop/watermark image edit options: {required}")
+for required in (
+    "listListingTemplates",
+    "isImageWatermarkTemplate",
+    "toImageWatermarkTemplateOption",
+    "normalizeWatermarkOpacity",
+    "template_data?.template_type === 'image_watermark'",
+    "watermarkTemplates",
+    "applyWatermarkTemplate",
+    "clearWatermark",
+    "data-ui=\"content-image-watermark-template-picker\"",
+):
+    if required not in CONTENT_MEDIA_STUDIO:
+        errors.append(f"content media studio must load real image watermark templates into image edit options: {required}")
+for required in (
+    "ImageWatermarkTemplateOption",
+    "data-ui=\"listing-image-watermark-template-picker\"",
+    "应用水印模板",
+    "清除水印",
+    "watermarkTemplates.slice(0, 4)",
+):
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+        errors.append(f"seller image editor must expose quick watermark template application near the canvas: {required}")
+for required in (
+    "processSourceImageIntoActiveSlot",
+    "data-ui=\"process-source-image-into-active-slot\"",
+    "处理源图并替换当前槽位",
+    "if (asset) replaceActiveSlotWithAsset(asset)",
+    "onUseSourceImage: () => Promise<ContentAsset | null>",
+):
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+        errors.append(f"seller image editor must process source image back into the active slot: {required}")
+for required in ("return response.data || null", "return null"):
+    if required not in CONTENT_MEDIA_STUDIO:
+        errors.append(f"content media source image edit must return the generated asset for active slot replacement: {required}")
+for forbidden in ("FALLBACK_WATERMARK", "mockWatermark", "defaultWatermarkTemplates", "const watermarkTemplates = ["):
+    if forbidden in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH:
+        errors.append(f"content media watermark templates must come from API, not fallback/mock data: {forbidden}")
 for required in ("data-ui=\"image-orientation-controls\"", "旋转90°", "水平翻转", "垂直翻转"):
     if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
         errors.append(f"seller image editor must expose deterministic orientation controls: {required}")
@@ -502,6 +625,9 @@ for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFiel
 for required in ("aria-label=\"发布失败与重试处理队列\"", "data-ui=\"publish-result-retry-action-panel\"", "FailureActionCard", "ResultActions", "返回重选重试", "补 Listing 内容", "补图片/SKU", "补定价", "resultRepairHref", "resultPricingHref"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must expose failure reasons and repair/retry actions: {required}")
+for required in ("PublishReceipt", "publish_receipt", "data-ui=\"publish-result-receipt-status-table\"", "data-ui=\"publish-result-local-receipt\"", "data-ui=\"publish-result-platform-api-status\"", "data-ui=\"publish-result-retry-entry\"", "平台 Open API 状态", "失败重试", "next_action", "retryable"):
+    if required not in (BATCH_PUBLISH_RESULT + LISTING_API):
+        errors.append(f"batch publish result must expose platform receipt and retry guidance: {required}")
 for required in ("查看商品 Listing", "?tab=listings"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must link created drafts back to product listing detail: {required}")
@@ -540,6 +666,9 @@ for required in ("listingStoreOverride", "ListingOverrideSummary", "aria-label=\
 for required in ("StoreOverridePreviewPanel", "aria-label=\"发布预览店铺覆盖来源\"", "店铺覆盖版本", "SKU/变体来源", "物流来源", "合规来源", "平台属性来源", "未使用店铺覆盖版本", "listing_store_override"):
     if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
         errors.append(f"batch publish preview must expose store override source/status before draft creation: {required}")
+for required in ("data-ui=\"batch-publish-sku-platform-mapping-summary\"", "店铺覆盖SKU平台字段映射状态", "sku_platform_mapping_count", "sku_platform_mapping_gap_count", "SKU平台字段映射", "平台SKU/SPU/SKC"):
+    if required not in BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API + LISTING_STORE_OVERRIDE_SERVICE:
+        errors.append(f"batch publish preview must carry content-factory SKU platform mapping into store override summary: {required}")
 for required in ("field_sources", "override_boundary", "字段来源矩阵", "店铺 Listing 独立覆盖边界"):
     if required not in BATCH_PUBLISH_OVERRIDE_PREVIEW + LISTING_API:
         errors.append(f"batch publish preview must expose field source matrix for store override persistence: {required}")
@@ -562,6 +691,9 @@ for required in (
     "选择本页",
     "商品搜索",
     "发布门禁",
+    "价格/定价快照",
+    "图片/SKU",
+    "确认定价",
     "目标平台 / 店铺",
     "市场跟随店铺归属",
     "min-w-[1240px]",
@@ -569,6 +701,43 @@ for required in (
 ):
     if required not in BATCH_PUBLISH_SELECT:
         errors.append(f"batch publish select must prioritize product table and responsive target operation bar: {required}")
+for required in (
+    "data-ui=\"batch-publish-pricing-snapshot-status\"",
+    "data-ui=\"batch-publish-media-sku-readiness-summary\"",
+    "data-ui=\"selected-publish-preflight-gate-summary\"",
+    "data-ui=\"selected-publish-blocking-reason\"",
+    "已选商品发布前校验",
+    "定价快照待确认",
+    "阻断",
+    "不能进入 Listing 预览",
+):
+    if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_PREFLIGHT + BATCH_PUBLISH_READINESS_CELLS:
+        errors.append(f"batch publish select must expose selected-item preflight and readiness details: {required}")
+for required in ("selectedBlockingCounts", "selectedBlockingReason", "previewDisabled", "buildSelectedBlockingReason"):
+    if required not in BATCH_PUBLISH_SELECT:
+        errors.append(f"batch publish preview button must be blocked by selected item gates: {required}")
+for required in ("pricingConfirmation", "pricing_template_snapshot", "hasPricingTemplateSnapshot"):
+    if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
+        errors.append(f"batch publish select must carry confirmed pricing snapshot into publish readiness: {required}")
+for required in (
+    "BatchPublishTargetValidationPanel",
+    "buildTargetPublishValidation",
+    "TargetPublishValidation",
+    "data-ui=\"batch-publish-target-validation-panel\"",
+    "data-ui=\"batch-publish-target-validation-grid\"",
+    "data-ui=\"batch-publish-target-validation-blocks\"",
+    "目标店铺发布校验",
+    "平台 Open API",
+    "发布计划模式",
+    "confirmedTargetBlockingCount",
+    "publishDisabled",
+    "buildPublishDisabledReason",
+    "data-ui=\"batch-publish-preview-confirm-blocking-reason\"",
+):
+    if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_TARGET_VALIDATION:
+        errors.append(f"batch publish preview must block confirmation by target store publish validation: {required}")
+if "const priceReady = item.sellingPrice != null || item.costPrice != null" in BATCH_PUBLISH_SELECT:
+    errors.append("batch publish select must not treat cost price alone as confirmed publish pricing")
 for forbidden in (
     "className=\"grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]\"",
     "2xl:grid-cols-[minmax(0,1fr)_360px]",

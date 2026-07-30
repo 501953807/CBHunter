@@ -215,6 +215,7 @@ async def seed_sample_products_endpoint(
 async def list_platform_store_products_endpoint(
     platform: Optional[str] = Query(None),
     platform_account_id: Optional[str] = Query(None),
+    market: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
@@ -227,6 +228,7 @@ async def list_platform_store_products_endpoint(
         current_user.id,
         platform=platform,
         platform_account_id=platform_account_id,
+        market=market,
         status=status_filter,
         search=search,
         page=page,

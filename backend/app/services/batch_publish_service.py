@@ -27,6 +27,8 @@ from app.services.listing_store_override_service import (
     override_master_sku,
     override_variants,
 )
+from app.services.batch_publish_receipt_service import build_local_publish_receipt, skipped_publish_result
+from app.services.listing_assist_service import generate_listing_assist
 logger = logging.getLogger(__name__)
 async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]:
     from app.models.sourcing_item import SourcingItem
@@ -355,20 +357,20 @@ async def confirm_publish(
         if not draft.get("confirmed"):
             continue
         if plan_gaps:
-            results.append({
-                **draft,
-                "publish_status": "skipped",
-                "error": "发布计划配置不完整",
-                "data_gaps": list(dict.fromkeys([*(draft.get("data_gaps") or []), *plan_gaps])),
-            })
+            results.append(skipped_publish_result(
+                draft,
+                error="发布计划配置不完整",
+                publish_plan=local_plan,
+                data_gaps=plan_gaps,
+            ))
             continue
         if not draft.get("publishable", True):
-            results.append({**draft, "publish_status": "skipped", "error": "草稿信息不完整，未创建"})
+            results.append(skipped_publish_result(draft, error="草稿信息不完整，未创建", publish_plan=local_plan))
             continue
         requested_account_id = draft.get("platform_account_id")
         acct = accounts_by_id.get(requested_account_id) if requested_account_id else accounts.get(draft["platform"])
         if not acct or not acct.is_active:
-            results.append({**draft, "publish_status": "skipped", "error": f"未配置{draft['platform']}平台账号"})
+            results.append(skipped_publish_result(draft, error=f"未配置{draft['platform']}平台账号", publish_plan=local_plan))
             continue
         source_type = draft.get("source_type") or "sourcing"
         item = None
@@ -379,10 +381,10 @@ async def confirm_publish(
             )
             product = product_result.scalar_one_or_none()
             if not product:
-                results.append({**draft, "publish_status": "skipped", "error": "商品不存在或无权访问"})
+                results.append(skipped_publish_result(draft, error="商品不存在或无权访问", publish_plan=local_plan))
                 continue
             if product_name_quality_flags(product.name):
-                results.append({**draft, "publish_status": "skipped", "error": "商品名称疑似测试残留，请先更名或归档后再刊登"})
+                results.append(skipped_publish_result(draft, error="商品名称疑似测试残留，请先更名或归档后再刊登", publish_plan=local_plan))
                 continue
             source_price = product.cost_price if product.cost_price and product.cost_price > 0 else None
         else:
@@ -394,27 +396,27 @@ async def confirm_publish(
             )
             item = item_result.scalar_one_or_none()
             if not item:
-                results.append({**draft, "publish_status": "skipped", "error": "选品不存在或无权访问"})
+                results.append(skipped_publish_result(draft, error="选品不存在或无权访问", publish_plan=local_plan))
                 continue
             if product_name_quality_flags(item.product_name):
-                results.append({**draft, "publish_status": "skipped", "error": "商品名称疑似测试残留，请先更名或归档后再刊登"})
+                results.append(skipped_publish_result(draft, error="商品名称疑似测试残留，请先更名或归档后再刊登", publish_plan=local_plan))
                 continue
             readiness_gaps = _listing_readiness_gaps(item)
             if item.platform and draft.get("platform") != item.platform:
                 readiness_gaps.append("sourcing_items.platform")
             if readiness_gaps:
-                results.append({
-                    **draft,
-                    "publish_status": "skipped",
-                    "error": "商品尚未达到发布就绪状态",
-                    "data_gaps": list(dict.fromkeys([*(draft.get("data_gaps") or []), *readiness_gaps])),
-                })
+                results.append(skipped_publish_result(
+                    draft,
+                    error="商品尚未达到发布就绪状态",
+                    publish_plan=local_plan,
+                    data_gaps=readiness_gaps,
+                ))
                 continue
             source_price = item.source_price_rmb if item.source_price_rmb and item.source_price_rmb > 0 else None
         selling_price = draft.get("selling_price")
         title = (draft.get("template_title") or draft.get("product_name") or "").strip()
         if source_price is None or selling_price is None or selling_price <= 0 or not title:
-            results.append({**draft, "publish_status": "skipped", "error": "真实采购价、售价或标题不完整"})
+            results.append(skipped_publish_result(draft, error="真实采购价、售价或标题不完整", publish_plan=local_plan))
             continue
 
         if product is None and item is not None:
@@ -468,14 +470,25 @@ async def confirm_publish(
                 "platform_fields.required" if check.get("code") == "platform_fields" else f"listing_validation.{check.get('code')}"
                 for check in blocking_validation
             ]
-            results.append({
-                **draft,
-                "validation_checks": validation_checks,
-                "publish_status": "skipped",
-                "error": "Listing 发布前校验未通过：" + " / ".join(check["message"] for check in blocking_validation),
-                "data_gaps": list(dict.fromkeys([*(draft.get("data_gaps") or []), *validation_gaps])),
-            })
+            results.append(skipped_publish_result(
+                draft,
+                error="Listing 发布前校验未通过：" + " / ".join(check["message"] for check in blocking_validation),
+                publish_plan=local_plan,
+                data_gaps=validation_gaps,
+                validation_checks=validation_checks,
+            ))
             continue
+
+        publish_receipt = build_local_publish_receipt(
+            status="local_draft_created",
+            message=local_plan["note"],
+            publish_plan=local_plan,
+            retryable=True,
+            next_action="平台Open API接通并授权后，可从发布计划队列重试提交到目标店铺",
+            receipt_source="local_publish_plan",
+            platform_account_id=acct.id,
+            store_name=acct.account_name,
+        )
 
         listing = PlatformListing(
             user_id=user_id,
@@ -539,10 +552,13 @@ async def confirm_publish(
                 "publish_plan": local_plan,
                 "platform_api_status": "not_connected",
                 "platform_publish_status": "not_attempted",
+                "publish_receipt": publish_receipt,
             },
         )
         db.add(listing)
         await db.flush()
+        publish_receipt["listing_id"] = listing.id
+        listing.platform_data = {**(listing.platform_data or {}), "publish_receipt": publish_receipt}
         object_model = await persist_listing_object_model(
             db, user_id=user_id, product=product, listing=listing, platform=draft["platform"],
             market=draft.get("market"), sku_plan=sku_plan, platform_requirements=draft.get("platform_requirements") or {},
@@ -553,54 +569,15 @@ async def confirm_publish(
                         "drafted_at": now.isoformat(), "publish_status": "draft",
                         "platform_account_id": acct.id, "store": _store_payload(acct),
                         "publish_plan": local_plan, "plan_status": local_plan["status"],
+                        "platform_api_status": "not_connected",
                         "platform_publish_status": "not_attempted",
+                        "publish_receipt": publish_receipt,
+                        "retryable": True,
+                        "retry_action": "retry_after_platform_api_connected",
                         "object_model": object_model})
 
     await db.commit()
     return results
-
-
-async def generate_listing_assist(db: AsyncSession, draft: dict) -> dict:
-    """Generate an AI/rule candidate patch for a listing draft without saving state."""
-    from app.services.task_executor import execute_task
-
-    assist_type = draft.get("assist_type")
-    allowed = {"listing_copy", "image_edit_plan", "video_script", "compliance_check"}
-    if assist_type not in allowed:
-        return {
-            "status": "data_required",
-            "assist_type": assist_type,
-            "patch": {},
-            "provider": "",
-            "confidence": "low",
-            "error": "不支持的 Listing 辅助类型",
-            "does_not_save": True,
-        }
-    preferred_providers = draft.get("preferred_providers") if isinstance(draft.get("preferred_providers"), list) else ["rule_engine"]
-    result = await execute_task(db, assist_type, _listing_assist_input(draft), preferred_providers=preferred_providers)
-    if not result.success:
-        return {
-            "status": "data_required",
-            "assist_type": assist_type,
-            "patch": {},
-            "provider": result.provider,
-            "confidence": result.confidence,
-            "error": result.error or "Listing 辅助生成失败",
-            "does_not_save": True,
-        }
-    text = ((result.data or {}).get("text") or "").strip()
-    patch = _listing_assist_patch(assist_type, text, draft)
-    return {
-        "status": "ready",
-        "assist_type": assist_type,
-        "patch": patch,
-        "candidate_text": text,
-        "provider": result.provider,
-        "confidence": result.confidence,
-        "data_gaps": (result.data or {}).get("data_gaps") or [],
-        "does_not_save": True,
-        "note": "AI/规则仅返回候选 patch，不自动保存草稿或发布平台。",
-    }
 
 
 def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
@@ -694,67 +671,6 @@ def _source_from_product(product, field_schemas: dict | None = None, draft_listi
         "videos": videos_from_attributes(product.attributes or {}),
         "compliance": (product.attributes or {}).get("compliance") or {},
     }
-
-
-def _listing_assist_input(draft: dict) -> dict:
-    requirements = draft.get("platform_requirements") if isinstance(draft.get("platform_requirements"), dict) else {}
-    logistics = draft.get("logistics") if isinstance(draft.get("logistics"), dict) else {}
-    compliance = draft.get("compliance") if isinstance(draft.get("compliance"), dict) else {}
-    return {
-        "product_name": draft.get("product_name") or draft.get("template_title") or "当前商品",
-        "category": draft.get("category") or "",
-        "platform": draft.get("platform") or "",
-        "market": draft.get("market") or "",
-        "features": _assist_features(requirements, logistics, compliance),
-        "selling_points": draft.get("template_description") or "",
-        "target_audience": draft.get("market_label") or draft.get("market") or "",
-        "source_url": draft.get("source_url") or "",
-        "current_title": draft.get("template_title") or "",
-        "current_description": draft.get("template_description") or "",
-        "platform_requirements": requirements,
-        "validation_checks": draft.get("validation_checks") or [],
-    }
-
-
-def _assist_features(requirements: dict, logistics: dict, compliance: dict) -> str:
-    attribute_values = requirements.get("attribute_values") if isinstance(requirements.get("attribute_values"), dict) else {}
-    features = []
-    for key, value in attribute_values.items():
-        if value:
-            features.append(f"{key}:{value}")
-    if logistics.get("weight_g"):
-        features.append(f"重量:{logistics['weight_g']}g")
-    if compliance.get("condition"):
-        features.append(f"成色:{compliance['condition']}")
-    return "；".join(features[:8]) or "核心特性待补充"
-
-
-def _listing_assist_patch(assist_type: str, text: str, draft: dict) -> dict:
-    if assist_type == "listing_copy":
-        title = _extract_prefixed_line(text, "标题") or draft.get("template_title") or (draft.get("product_name") or "")[:80]
-        description = _extract_prefixed_line(text, "描述") or text
-        return {
-            "template_title": title[:500],
-            "template_description": description,
-        }
-    if assist_type == "video_script":
-        media = draft.get("media_assets") if isinstance(draft.get("media_assets"), dict) else {}
-        return {"media_assets": {**media, "video_script": text}}
-    if assist_type == "image_edit_plan":
-        media = draft.get("media_assets") if isinstance(draft.get("media_assets"), dict) else {}
-        return {"media_assets": {**media, "image_edit_plan": text}}
-    if assist_type == "compliance_check":
-        compliance = draft.get("compliance") if isinstance(draft.get("compliance"), dict) else {}
-        return {"compliance": {**compliance, "ai_review_note": text, "restricted_check_status": compliance.get("restricted_check_status") or "pending_review"}}
-    return {}
-
-
-def _extract_prefixed_line(text: str, prefix: str) -> str:
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(f"{prefix}：") or stripped.startswith(f"{prefix}:"):
-            return stripped.split("：", 1)[-1].split(":", 1)[-1].strip()
-    return ""
 
 
 def _store_payload(account) -> dict:

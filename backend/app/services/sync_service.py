@@ -16,6 +16,7 @@ from app.integrations.factory import PlatformClientFactory
 from app.integrations.status import is_order_sync_ready, is_product_sync_ready
 from app.services.config_service import get_platform_product_field_groups
 from app.services.media_readiness_service import media_readiness_from_extra
+from app.services.platform_store_inventory_summary_service import build_inventory_alert_summaries, empty_inventory_alert_summary
 from app.services.platform_product_validation_service import build_synced_product_platform_validation
 from app.utils.encryption import decrypt
 
@@ -31,6 +32,7 @@ class SyncService:
         user_id: str,
         platform: Optional[str] = None,
         platform_account_id: Optional[str] = None,
+        market: Optional[str] = None,
         status: Optional[str] = None,
         search: Optional[str] = None,
         page: int = 1,
@@ -46,6 +48,8 @@ class SyncService:
             query = query.where(PlatformAccount.platform == platform)
         if platform_account_id:
             query = query.where(PlatformListing.platform_account_id == platform_account_id)
+        if market:
+            query = query.where(PlatformAccount.settings["market"].as_string() == market)
         if status:
             query = query.where(PlatformListing.status == status)
         if search:
@@ -62,9 +66,11 @@ class SyncService:
         result = await self.db.execute(
             query.order_by(PlatformListing.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
         )
+        rows = list(result.all())
+        inventory_summaries = await build_inventory_alert_summaries(self.db, user_id, rows)
         return [
-            self._platform_store_product_payload(listing, account, product)
-            for listing, account, product in result.all()
+            self._platform_store_product_payload(listing, account, product, inventory_summaries.get(listing.id))
+            for listing, account, product in rows
         ], total
 
     async def sync_products_for_account(self, account: PlatformAccount) -> SyncLog:
@@ -504,8 +510,19 @@ class SyncService:
             return None
         return sku[:100]
 
-    def _platform_store_product_payload(self, listing: PlatformListing, account: PlatformAccount, product: Product) -> dict:
+    def _platform_store_product_payload(
+        self,
+        listing: PlatformListing,
+        account: PlatformAccount,
+        product: Product,
+        inventory_alert_summary: dict | None = None,
+    ) -> dict:
+        platform_data = listing.platform_data if isinstance(listing.platform_data, dict) else {}
         media_readiness = media_readiness_from_extra(listing.platform_data or {}, listing.images or [])
+        publish_plan = platform_data.get("publish_plan") if isinstance(platform_data.get("publish_plan"), dict) else {}
+        publish_receipt = platform_data.get("publish_receipt") if isinstance(platform_data.get("publish_receipt"), dict) else {}
+        platform_api_status = platform_data.get("platform_api_status") or publish_receipt.get("platform_api_status")
+        platform_publish_status = platform_data.get("platform_publish_status") or publish_receipt.get("platform_publish_status")
         return {
             "id": listing.id,
             "platform": account.platform,
@@ -517,8 +534,20 @@ class SyncService:
             "image_count": len(listing.images or []),
             "images": listing.images or [],
             "media_readiness": media_readiness,
+            "inventory_alert_summary": inventory_alert_summary or empty_inventory_alert_summary(listing, product),
             "variation_count": len(listing.variations or []),
             "store_override_summary": self._listing_store_override_summary(listing, product),
+            "publish_plan_summary": {
+                "mode": publish_plan.get("mode"),
+                "plan_status": publish_plan.get("status") or publish_receipt.get("plan_status"),
+                "platform_api_status": platform_api_status,
+                "platform_publish_status": platform_publish_status,
+                "receipt_status": publish_receipt.get("status"),
+                "retryable": bool(publish_receipt.get("retryable")),
+                "next_action": publish_receipt.get("next_action"),
+                "is_local_draft": listing.status == "draft" and not listing.platform_product_id,
+                "queue_status": self._publish_queue_status(listing, platform_api_status, platform_publish_status),
+            },
             "last_synced_at": listing.last_synced_at.isoformat() if listing.last_synced_at else None,
             "source": (listing.platform_data or {}).get("source", "local_listing"),
             "store": {
@@ -534,6 +563,22 @@ class SyncService:
                 "image_count": len(product.images or []),
             },
         }
+
+    def _publish_queue_status(
+        self,
+        listing: PlatformListing,
+        platform_api_status: str | None,
+        platform_publish_status: str | None,
+    ) -> str:
+        if listing.platform_product_id and listing.last_synced_at:
+            return "synced"
+        if listing.status == "draft" and platform_api_status == "not_connected":
+            return "waiting_platform_api"
+        if listing.status == "draft" and platform_publish_status == "not_attempted":
+            return "local_draft_pending_submit"
+        if listing.status == "draft":
+            return "local_draft"
+        return "needs_review"
 
     def _listing_store_override_summary(self, listing: PlatformListing, product: Product) -> dict:
         product_images = product.images if isinstance(product.images, list) else []

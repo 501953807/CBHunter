@@ -39,6 +39,8 @@ export interface ListingStoreOverrideSummary {
   title?: string | null
   image_count?: number
   sku_count?: number
+  sku_platform_mapping_count?: number
+  sku_platform_mapping_gap_count?: number
   has_platform_attributes?: boolean
   has_logistics?: boolean
   has_compliance?: boolean
@@ -278,11 +280,30 @@ export interface BatchPublishRequest {
   publish_plan?: BatchPublishPlan
 }
 
+export interface PublishReceipt {
+  status: 'local_draft_created' | 'skipped' | string
+  platform_api_status: 'not_connected' | string
+  platform_publish_status: 'not_attempted' | string
+  retryable: boolean
+  next_action: string
+  receipt_source: 'local_publish_plan' | 'local_validation' | string
+  listing_id?: string | null
+  platform_account_id?: string | null
+  store_name?: string | null
+  mode?: string | null
+  plan_status?: string | null
+  message?: string
+}
+
 export interface BatchPublishItemResult extends BatchListingDraft {
   publish_status: 'draft' | 'skipped'
-  plan_status?: 'planned'
-  platform_publish_status?: 'not_attempted'
+  plan_status?: 'planned' | 'saved_draft' | string
+  platform_api_status?: 'not_connected' | string
+  platform_publish_status?: 'not_attempted' | string
+  publish_receipt?: PublishReceipt
   publish_plan?: BatchPublishPlan & { status?: string; platform_api_status?: string }
+  retryable?: boolean
+  retry_action?: string
   error?: string
   product_id?: string
   listing_id?: string
@@ -295,6 +316,7 @@ export interface BatchPublishResponse {
   skipped: number
   status: string
   publish_plan?: BatchPublishPlan
+  platform_api_status?: 'not_connected' | string
   platform_publish_status?: 'not_attempted'
   results: BatchPublishItemResult[]
 }

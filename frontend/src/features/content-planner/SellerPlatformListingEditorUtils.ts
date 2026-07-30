@@ -27,6 +27,7 @@ export type ListingGap = {
   id: string
   label: string
   anchor: string
+  targetId: string
   severity: 'blocker' | 'warning'
 }
 
@@ -66,44 +67,44 @@ export function buildListingGaps({
 }): ListingGap[] {
   const gaps: ListingGap[] = []
   if (!product) {
-    gaps.push({ id: 'product', label: '未选择商品', anchor: 'listing-master-copy', severity: 'blocker' })
+    gaps.push({ id: 'product', label: '未选择商品', anchor: 'listing-master-copy', targetId: 'listing-field-title', severity: 'blocker' })
   }
   if (!activeStore) {
-    gaps.push({ id: 'store', label: '未选择目标店铺', anchor: 'listing-master-logistics', severity: 'blocker' })
+    gaps.push({ id: 'store', label: '未选择目标店铺', anchor: 'listing-master-logistics', targetId: 'listing-field-target-store', severity: 'blocker' })
   }
   if (imageCount < minImages) {
-    gaps.push({ id: 'images', label: `图片不足 ${imageCount}/${minImages}`, anchor: 'listing-master-media', severity: 'blocker' })
+    gaps.push({ id: 'images', label: `图片不足 ${imageCount}/${minImages}`, anchor: 'listing-master-media', targetId: 'listing-field-images', severity: 'blocker' })
   }
   if (!draft.title?.trim()) {
-    gaps.push({ id: 'title', label: '商品标题待填写', anchor: 'listing-master-copy', severity: 'blocker' })
+    gaps.push({ id: 'title', label: '商品标题待填写', anchor: 'listing-master-copy', targetId: 'listing-field-title', severity: 'blocker' })
   }
   if (!draft.description?.trim()) {
-    gaps.push({ id: 'description', label: '商品描述待填写', anchor: 'listing-master-copy', severity: 'blocker' })
+    gaps.push({ id: 'description', label: '商品描述待填写', anchor: 'listing-master-copy', targetId: 'listing-field-description', severity: 'blocker' })
   }
   if (!draft.category?.trim()) {
-    gaps.push({ id: 'category', label: '商品类目待确认', anchor: 'listing-master-attributes', severity: 'blocker' })
+    gaps.push({ id: 'category', label: '商品类目待确认', anchor: 'listing-master-attributes', targetId: 'listing-field-category', severity: 'blocker' })
   }
   if (requiredAttributes.length === 0) {
-    gaps.push({ id: 'schema', label: '平台字段组待加载', anchor: 'listing-master-attributes', severity: 'warning' })
+    gaps.push({ id: 'schema', label: '平台字段组待加载', anchor: 'listing-master-attributes', targetId: 'listing-platform-field-group', severity: 'warning' })
   } else if (filledAttributes < requiredAttributes.length) {
-    gaps.push({ id: 'attributes', label: `平台属性待补 ${filledAttributes}/${requiredAttributes.length}`, anchor: 'listing-master-attributes', severity: 'blocker' })
+    gaps.push({ id: 'attributes', label: `平台属性待补 ${filledAttributes}/${requiredAttributes.length}`, anchor: 'listing-master-attributes', targetId: 'listing-platform-field-group', severity: 'blocker' })
   }
   if (enabledSkuCount === 0) {
-    gaps.push({ id: 'sku-enabled', label: 'SKU 变体未启用', anchor: 'listing-master-sku', severity: 'blocker' })
+    gaps.push({ id: 'sku-enabled', label: 'SKU 变体未启用', anchor: 'listing-master-sku', targetId: 'listing-field-sku-table', severity: 'blocker' })
   } else if (skuReadyCount < enabledSkuCount) {
-    gaps.push({ id: 'sku-ready', label: `SKU 销售资料待补 ${skuReadyCount}/${enabledSkuCount}`, anchor: 'listing-master-sku', severity: 'blocker' })
+    gaps.push({ id: 'sku-ready', label: `SKU 销售资料待补 ${skuReadyCount}/${enabledSkuCount}`, anchor: 'listing-master-sku', targetId: 'listing-field-sku-table', severity: 'blocker' })
   }
   if (!draft.price?.trim()) {
-    gaps.push({ id: 'price', label: '基础售价待填写', anchor: 'listing-master-sku', severity: 'blocker' })
+    gaps.push({ id: 'price', label: '基础售价待填写', anchor: 'listing-master-sku', targetId: 'listing-field-sku-price', severity: 'blocker' })
   }
   if (!draft.weight?.trim() || !draft.packageSize?.trim()) {
-    gaps.push({ id: 'package', label: '重量/包装尺寸待补', anchor: 'listing-master-logistics', severity: 'blocker' })
+    gaps.push({ id: 'package', label: '重量/包装尺寸待补', anchor: 'listing-master-logistics', targetId: draft.weight?.trim() ? 'listing-field-package-size' : 'listing-field-weight', severity: 'blocker' })
   }
   if (!draft.shipFrom?.trim() || !draft.leadTime?.trim()) {
-    gaps.push({ id: 'shipping', label: '发货地/时效待补', anchor: 'listing-master-logistics', severity: 'warning' })
+    gaps.push({ id: 'shipping', label: '发货地/时效待补', anchor: 'listing-master-logistics', targetId: draft.shipFrom?.trim() ? 'listing-field-lead-time' : 'listing-field-ship-from', severity: 'warning' })
   }
   if (!draft.compliance?.trim() || !draft.certificate?.trim()) {
-    gaps.push({ id: 'compliance', label: '合规/认证待复核', anchor: 'listing-master-logistics', severity: 'warning' })
+    gaps.push({ id: 'compliance', label: '合规/认证待复核', anchor: 'listing-master-logistics', targetId: draft.compliance?.trim() ? 'listing-field-certificate' : 'listing-field-compliance', severity: 'warning' })
   }
   return gaps
 }

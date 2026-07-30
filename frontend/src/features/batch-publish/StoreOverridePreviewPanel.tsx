@@ -30,6 +30,13 @@ export function StoreOverridePreviewPanel({ draft }: { draft: BatchListingDraft 
       active: Boolean(override?.sku_count),
     },
     {
+      label: 'SKU平台映射',
+      value: override?.sku_platform_mapping_count
+        ? `映射 ${override.sku_platform_mapping_count} 行 / 缺口 ${override.sku_platform_mapping_gap_count || 0}`
+        : '待补平台SKU字段映射',
+      active: Boolean(override?.sku_platform_mapping_count && !override?.sku_platform_mapping_gap_count),
+    },
+    {
       label: '物流来源',
       value: override?.has_logistics ? '店铺覆盖重量、尺寸、物流模板' : draft.logistics?.weight_g ? '基础物流字段' : '待补物流',
       active: Boolean(override?.has_logistics),
@@ -72,6 +79,23 @@ export function StoreOverridePreviewPanel({ draft }: { draft: BatchListingDraft 
             <p className="mt-0.5 truncate text-[11px] font-medium text-[var(--color-fg)]">{row.value}</p>
           </div>
         ))}
+      </div>
+      <div
+        className="mt-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
+        aria-label="店铺覆盖SKU平台字段映射状态"
+        data-ui="batch-publish-sku-platform-mapping-summary"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold text-[var(--color-fg)]">SKU平台字段映射</p>
+          <Badge variant={override?.sku_platform_mapping_count && !override?.sku_platform_mapping_gap_count ? 'success' : 'warning'}>
+            {override?.sku_platform_mapping_count ? `${override.sku_platform_mapping_count} 行` : '待补'}
+          </Badge>
+        </div>
+        <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">
+          {override?.sku_platform_mapping_count
+            ? `内容工厂已写入平台 SKU 映射摘要，发布前仍有 ${override.sku_platform_mapping_gap_count || 0} 个映射缺口。`
+            : '批量刊登未读取到内容工厂 SKU 平台映射，请回内容工厂补齐商家SKU、平台SKU/SPU/SKC、规格、价格、库存和SKU图。'}
+        </p>
       </div>
       <div className="mt-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2" aria-label="字段来源矩阵">
         <div className="mb-1 flex items-center justify-between gap-2">

@@ -23,6 +23,10 @@ export default function ContentPlannerPage() {
     () => listingSectionAnchor(searchParams.get('section') || searchParams.get('listing_section') || ''),
     [searchParams],
   )
+  const initialImageSlotIndex = useMemo(
+    () => parseListingImageSlot(searchParams.get('image_slot') || ''),
+    [searchParams],
+  )
   const { data: platformsData } = usePlatforms()
   const storeOptions = (platformsData?.data || []).map((account: any) => ({
     value: account.id,
@@ -37,15 +41,19 @@ export default function ContentPlannerPage() {
     if (initialListingAnchor) return 'listing'
     return initialProductId ? 'listing' : 'queue'
   })
+  const [activeImageSlotIndex, setActiveImageSlotIndex] = useState(initialImageSlotIndex)
   const refreshContentTasks = useCallback(() => setSelectedProduct(current => current ? { ...current } : current), [])
   const handleSelectProduct = useCallback((item: ContentWorkbenchItem) => {
     setSelectedProduct(item)
   }, [])
 
-  const changeTab = (nextTab: string) => {
+  const changeTab = (nextTab: string, options?: { imageSlotIndex?: number }) => {
+    const imageSlotIndex = options?.imageSlotIndex ? normalizeListingImageSlot(options.imageSlotIndex) : activeImageSlotIndex
     const productQuery = selectedProduct ? `?product_id=${encodeURIComponent(selectedProduct.id)}` : ''
+    const imageQuery = selectedProduct ? `?product_id=${encodeURIComponent(selectedProduct.id)}&image_slot=${imageSlotIndex}` : ''
     if (nextTab === 'media') setWorkspaceMode('image')
     if (nextTab !== 'media') setWorkspaceMode(nextTab === 'queue' ? 'queue' : 'listing')
+    if (nextTab === 'media') setActiveImageSlotIndex(imageSlotIndex)
     const path = nextTab === 'queue'
       ? '/content'
       : nextTab === 'title'
@@ -53,7 +61,7 @@ export default function ContentPlannerPage() {
         : nextTab === 'export'
           ? `/content/export${productQuery}`
           : nextTab === 'media'
-            ? `/content/image${productQuery}`
+            ? `/content/image${imageQuery}`
             : `/content/title${productQuery}`
     navigate(path)
   }
@@ -62,10 +70,12 @@ export default function ContentPlannerPage() {
     setWorkspaceMode('listing')
     navigate(`/content/title?product_id=${encodeURIComponent(item.id)}`)
   }, [handleSelectProduct, navigate])
-  const openImageEditor = useCallback((item: ContentWorkbenchItem) => {
+  const openImageEditor = useCallback((item: ContentWorkbenchItem, imageSlotIndex = 1) => {
+    const normalizedSlotIndex = normalizeListingImageSlot(imageSlotIndex)
     handleSelectProduct(item)
     setWorkspaceMode('image')
-    navigate(`/content/image?product_id=${encodeURIComponent(item.id)}`)
+    setActiveImageSlotIndex(normalizedSlotIndex)
+    navigate(`/content/image?product_id=${encodeURIComponent(item.id)}&image_slot=${normalizedSlotIndex}`)
   }, [handleSelectProduct, navigate])
   const backToQueue = () => {
     setWorkspaceMode('queue')
@@ -81,6 +91,11 @@ export default function ContentPlannerPage() {
       document.getElementById(initialListingAnchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 0)
   }, [initialListingAnchor, selectedProduct, workspaceMode])
+
+  useEffect(() => {
+    if (workspaceMode !== 'image') return
+    setActiveImageSlotIndex(initialImageSlotIndex)
+  }, [initialImageSlotIndex, workspaceMode])
 
   return (
     <div className="space-y-6">
@@ -136,7 +151,7 @@ export default function ContentPlannerPage() {
               <Button variant="outline" onClick={backToQueue}>
                 <ArrowLeft className="mr-1 h-4 w-4" />返回待制作产品列表
               </Button>
-              <Button variant="secondary" onClick={() => selectedProduct && openImageEditor(selectedProduct)} disabled={!selectedProduct}>
+              <Button variant="secondary" onClick={() => selectedProduct && openImageEditor(selectedProduct, 1)} disabled={!selectedProduct}>
                 处理商品图片
               </Button>
             </div>
@@ -169,7 +184,7 @@ export default function ContentPlannerPage() {
                 <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">主图、辅图、SKU 图、尺寸图、场景图集中处理</h3>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">图片处理独立于 Listing 字段编辑，支持拖拽排序、新增图片空位和槽位计划保存。</p>
               </div>
-              <ContentMediaStudio mode="image" product={selectedProduct} />
+              <ContentMediaStudio mode="image" product={selectedProduct} initialSlotIndex={activeImageSlotIndex} />
             </section>
           </section>
         </ContentEditorOverlay>
@@ -194,6 +209,15 @@ function listingSectionAnchor(section: string) {
     compliance: 'listing-master-logistics',
   }
   return anchors[normalized] || ''
+}
+
+function parseListingImageSlot(slot: string) {
+  return normalizeListingImageSlot(Number(slot))
+}
+
+function normalizeListingImageSlot(slot: number) {
+  if (!Number.isFinite(slot)) return 1
+  return Math.max(1, Math.min(99, Math.floor(slot)))
 }
 
 function ContentEditorOverlay({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {

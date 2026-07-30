@@ -91,6 +91,21 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
                     "required_attributes": ["类目", "品牌", "材质"],
                     "attribute_values": {"类目": "收纳用品", "品牌": "No Brand", "材质": "毛毡"},
                 },
+                "sku_plan": {
+                    "master_sku": "REAL-SKU-001",
+                    "variants": [{
+                        "sku": "REAL-SKU-001",
+                        "platform_sku": "SHOP-MODEL-001",
+                        "price": 28,
+                        "stock": 20,
+                        "weight_g": 320,
+                        "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
+                    }],
+                },
+                "logistics": {
+                    "weight_g": 320,
+                    "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
+                },
                 "source_price_rmb": 1,
             }])
             product = (await session.execute(select(Product))).scalar_one()
@@ -98,9 +113,15 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
             base_version = (await session.execute(select(ProductBaseVersion))).scalar_one()
             sku_variants = (await session.execute(select(ProductSkuVariant))).scalars().all()
             field_validations = (await session.execute(select(PlatformFieldValidation))).scalars().all()
+            store_items, total = await SyncService(session).list_platform_store_products("user-a", platform="shopee")
         await engine.dispose()
 
         assert result[0]["publish_status"] == "draft"
+        assert result[0]["platform_api_status"] == "not_connected"
+        assert result[0]["platform_publish_status"] == "not_attempted"
+        assert result[0]["publish_receipt"]["status"] == "local_draft_created"
+        assert result[0]["publish_receipt"]["listing_id"] == listing.id
+        assert result[0]["publish_receipt"]["retryable"] is True
         assert result[0]["object_model"]["base_version_id"] == base_version.id
         assert result[0]["object_model"]["field_validation_count"] == 3
         assert product.cost_price == 12.5
@@ -109,12 +130,21 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
         assert listing.title == "真实商品标题"
         assert listing.description == "确认后的平台商品描述"
         assert listing.platform_data["stock_status"] == "missing"
+        assert listing.platform_data["publish_receipt"]["platform_api_status"] == "not_connected"
+        assert listing.platform_data["publish_receipt"]["platform_publish_status"] == "not_attempted"
+        assert listing.platform_data["publish_receipt"]["next_action"]
         assert listing.platform_data["platform_requirements"]["attribute_values"]["材质"] == "毛毡"
         assert base_version.title == product.name
         assert sku_variants[0].scope == "listing_override"
         assert sku_variants[0].platform_listing_id == listing.id
         assert {row.field_key for row in field_validations} == {"类目", "品牌", "材质"}
         assert all(row.state == "present" for row in field_validations)
+        assert total == 1
+        assert store_items[0]["publish_plan_summary"]["queue_status"] == "waiting_platform_api"
+        assert store_items[0]["publish_plan_summary"]["platform_api_status"] == "not_connected"
+        assert store_items[0]["publish_plan_summary"]["platform_publish_status"] == "not_attempted"
+        assert store_items[0]["publish_plan_summary"]["retryable"] is True
+        assert store_items[0]["publish_plan_summary"]["next_action"]
 
     asyncio.run(run_test())
 
@@ -126,11 +156,19 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
-            shopee_a = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", is_active=True)
-            shopee_b = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee B店", is_active=True)
+            shopee_a = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", settings={"market": "MY"}, is_active=True)
+            shopee_b = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee B店", settings={"market": "PH"}, is_active=True)
             product = Product(user_id="user-a", sku="SKU-SYNCED", name="平台同步真实商品", images=["https://img.example.com/1.jpg"])
             session.add_all([shopee_a, shopee_b, product])
             await session.flush()
+            session.add(InventoryAlertRule(
+                user_id="user-a",
+                product_id=product.id,
+                sku="SKU-SYNCED",
+                product_name=product.name,
+                safety_stock=10,
+                severity="warning",
+            ))
             session.add_all([
                 PlatformListing(
                     user_id="user-a",
@@ -165,9 +203,17 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
             ])
             await session.commit()
             items, total = await SyncService(session).list_platform_store_products("user-a", platform="shopee")
+            my_items, my_total = await SyncService(session).list_platform_store_products("user-a", platform="shopee", market="MY")
+            ph_items, ph_total = await SyncService(session).list_platform_store_products("user-a", platform="shopee", market="PH")
         await engine.dispose()
 
         assert total == 2
+        assert my_total == 1
+        assert my_items[0]["store"]["market"] == "MY"
+        assert my_items[0]["store"]["account_name"] == "Shopee A店"
+        assert ph_total == 1
+        assert ph_items[0]["store"]["market"] == "PH"
+        assert ph_items[0]["store"]["account_name"] == "Shopee B店"
         assert {item["store"]["account_name"] for item in items} == {"Shopee A店", "Shopee B店"}
         assert {item["platform_product_id"] for item in items} == {"SP-A-001", "SP-B-001"}
         assert items[0]["product_master"]["sku"] == "SKU-SYNCED"
@@ -178,6 +224,13 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
         assert items[0]["media_readiness"]["missing_image_count"] == 4
         assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
         item_a = next(item for item in items if item["platform_product_id"] == "SP-A-001")
+        item_b = next(item for item in items if item["platform_product_id"] == "SP-B-001")
+        assert item_a["inventory_alert_summary"]["status"] == "monitored"
+        assert item_a["inventory_alert_summary"]["matched_rule_count"] == 1
+        assert item_a["inventory_alert_summary"]["safety_stock"] == 10
+        assert item_b["inventory_alert_summary"]["status"] == "below_safety_stock"
+        assert item_b["inventory_alert_summary"]["below_safety_stock"] is True
+        assert item_b["inventory_alert_summary"]["severity"] == "warning"
         assert item_a["store_override_summary"]["relation_label"] == "基础商品 → 店铺 Listing 实例"
         assert item_a["store_override_summary"]["isolation_note"] == "店铺覆盖字段不回写基础商品版本"
         assert item_a["store_override_summary"]["title_overridden"] is True
