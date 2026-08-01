@@ -234,6 +234,14 @@ async def list_platform_store_products_endpoint(
         page=page,
         page_size=page_size,
     )
+    summary = await service.platform_store_product_filter_summary(
+        current_user.id,
+        platform=platform,
+        platform_account_id=platform_account_id,
+        market=market,
+        status=status_filter,
+        search=search,
+    )
     return ApiResponse(
         data=items,
         meta={
@@ -241,6 +249,7 @@ async def list_platform_store_products_endpoint(
             "page_size": page_size,
             "total": total,
             "total_pages": math.ceil(total / page_size) if total else 0,
+            "summary": summary,
         },
         status="ready" if total else "data_required",
         source_refs=[

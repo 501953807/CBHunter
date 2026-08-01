@@ -293,6 +293,17 @@ export interface PublishReceipt {
   mode?: string | null
   plan_status?: string | null
   message?: string
+  official_publish_writeback?: {
+    schema?: string
+    listing_id?: string | null
+    platform_product_id?: string | null
+    platform_api_status?: string | null
+    platform_publish_status?: string | null
+    official_response_field_count?: number
+    written_field_count?: number
+    boundary_note?: string
+    next_action?: string | null
+  }
 }
 
 export interface BatchPublishItemResult extends BatchListingDraft {

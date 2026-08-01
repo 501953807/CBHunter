@@ -25,6 +25,9 @@ export default function BatchPublishPage() {
     searchParams.get('product_id'),
     ...(searchParams.get('product_ids')?.split(',') || []),
   ].filter((id): id is string => Boolean(id))
+  const initialTargetPlatform = searchParams.get('target_platform') || ''
+  const initialTargetStore = searchParams.get('target_store') || ''
+  const initialTargetMarket = searchParams.get('target_market') || ''
   const { platforms, markets } = useConfig()
   const fullConfig = useFullConfig()
   const publishPlatforms = filterPlatformsByCapability(platforms, 'listing')
@@ -77,8 +80,9 @@ export default function BatchPublishPage() {
               label: '本地 Listing 草稿',
               detail: '来自商品库或店铺 Listing 草稿，发布前仍需预览校验。',
             },
-            targetPlatforms: productTargetPlatforms(product),
-            targetMarkets: productTargetMarkets(product),
+            targetPlatforms: uniq([initialTargetPlatform, ...productTargetPlatforms(product)]),
+            targetMarkets: uniq([initialTargetMarket, ...productTargetMarkets(product)]),
+            targetStoreIds: uniq([initialTargetStore]),
             lifecycleLabel: '定价确认商品',
             pricingSourceLabel: '预览读取本地 Listing 草稿',
           }))
@@ -90,22 +94,31 @@ export default function BatchPublishPage() {
         })
       })
       .catch(error => logger.error('Load products for batch publish failed', error))
-  }, [searchParams])
+  }, [initialTargetMarket, initialTargetPlatform, initialTargetStore, searchParams])
 
   useEffect(() => {
     if (initialTargetsApplied || queryProductItems.length === 0) return
     const stores = fullConfig.store_scope?.stores || []
+    const routeStore = stores.find(store => store.id === initialTargetStore) as ({ id: string; platform: string; market?: string | null } | undefined)
+    const routePlatform = initialTargetPlatform || routeStore?.platform || ''
+    const routeMarket = initialTargetMarket || routeStore?.market || ''
     const platformsFromProducts = uniq(queryProductItems.flatMap(item => item.targetPlatforms || []))
       .filter(platform => publishPlatforms.some(option => option.id === platform))
     const marketsFromProducts = uniq(queryProductItems.flatMap(item => item.targetMarkets || []))
       .filter(market => markets.some(option => option.id === market))
-    const matchingStores = stores.filter(store => platformsFromProducts.includes(store.platform))
+    const selectedPlatformTargets = uniq([routePlatform, ...platformsFromProducts])
+      .filter(platform => publishPlatforms.some(option => option.id === platform))
+    const selectedMarketTargets = uniq([routeMarket, ...marketsFromProducts])
+      .filter(market => markets.some(option => option.id === market))
+    const matchingStores = initialTargetStore
+      ? stores.filter(store => store.id === initialTargetStore)
+      : stores.filter(store => selectedPlatformTargets.includes(store.platform))
 
-    if (platformsFromProducts.length > 0) setSelectedPlatforms(new Set(platformsFromProducts))
-    if (marketsFromProducts.length > 0) setSelectedMarkets(new Set(marketsFromProducts))
+    if (selectedPlatformTargets.length > 0) setSelectedPlatforms(new Set(selectedPlatformTargets))
+    if (selectedMarketTargets.length > 0) setSelectedMarkets(new Set(selectedMarketTargets))
     if (matchingStores.length === 1) setSelectedStores(new Set([matchingStores[0].id]))
     setInitialTargetsApplied(true)
-  }, [fullConfig.store_scope?.stores, initialTargetsApplied, markets, publishPlatforms, queryProductItems])
+  }, [fullConfig.store_scope?.stores, initialTargetMarket, initialTargetPlatform, initialTargetStore, initialTargetsApplied, markets, publishPlatforms, queryProductItems])
 
   const workbenchItems: PublishableItem[] = listingItems.map(item => ({
     key: item.key,
@@ -297,6 +310,19 @@ export default function BatchPublishPage() {
       />
 
       <EvidenceBanner evidence={evidence} />
+      {(initialProductIds.length > 0 || initialTargetPlatform || initialTargetStore || initialTargetMarket) && (
+        <div
+          data-ui="batch-publish-content-context-handoff"
+          className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-xs"
+          aria-label="内容工厂带入的批量刊登上下文"
+        >
+          <span className="font-semibold text-[var(--color-fg)]">内容工厂带入</span>
+          {initialProductIds.length > 0 && <span className="rounded-full bg-[var(--color-bg)] px-2 py-1 text-[var(--color-muted)]">商品 {initialProductIds.join(', ')}</span>}
+          {initialTargetPlatform && <span className="rounded-full bg-[var(--color-bg)] px-2 py-1 text-[var(--color-muted)]">平台 {initialTargetPlatform}</span>}
+          {initialTargetStore && <span className="rounded-full bg-[var(--color-bg)] px-2 py-1 text-[var(--color-muted)]">店铺 {initialTargetStore}</span>}
+          {initialTargetMarket && <span className="rounded-full bg-[var(--color-bg)] px-2 py-1 text-[var(--color-muted)]">市场 {initialTargetMarket}</span>}
+        </div>
+      )}
       <BusinessObjectActionBar
         description="刊登页只处理已确认对象；需要补商品、内容或价格时从这里回到对应环节。"
         actions={[

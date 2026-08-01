@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Edit3, FileText, PackageOpen, Search, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, DollarSign, Edit3, FileText, Image, Megaphone, PackageOpen, Search, TriangleAlert } from 'lucide-react'
 import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
@@ -85,6 +85,11 @@ export function ContentProductQueue({
   const runBulkAction = (action: BulkActionKind) => {
     if (selectedItems.length === 0) return
     setBulkAction(action)
+  }
+
+  const openRow = (item: ContentWorkbenchItem) => {
+    setSelectedId(item.work_item_id)
+    onSelect(item)
   }
 
   return (
@@ -319,13 +324,19 @@ export function ContentProductQueue({
               const brief = item.content_brief?.bullets || []
               const mediaReadiness = item.media_readiness
               const mediaGaps = mediaReadiness?.gaps || []
+              const requiredAttributes = item.platform_requirements?.required_attributes || []
+              const attributeValues = item.platform_requirements?.attribute_values || {}
+              const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(attributeValues, field)).length
+              const productId = productIdForAction(item)
+              const pricingUrl = workflowUrl('/pricing', item)
+              const publishUrl = workflowUrl('/publish', item)
               return (
-	                <tr
-	                  key={item.work_item_id}
-	                  onClick={() => { setSelectedId(item.work_item_id); onSelect(item) }}
-                  className="cursor-pointer border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
-                  style={{ backgroundColor: active ? 'var(--color-primary-light)' : 'transparent' }}
-	                >
+		                <tr
+		                  key={item.work_item_id}
+		                  onClick={() => openRow(item)}
+	                  className="cursor-pointer border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
+	                  style={{ backgroundColor: active ? 'var(--color-primary-light)' : 'transparent' }}
+		                >
 	                  <td className="px-3 py-3">
                       <input
                         type="checkbox"
@@ -335,26 +346,30 @@ export function ContentProductQueue({
                         aria-label={`选择商品 ${item.product_name}`}
                       />
                     </td>
-	                  <td className="px-3 py-3">
-                    <div className="flex min-w-0 gap-2">
-                      {item.image_url && (
-                        <img
-                          src={productImageSrc(item.image_url)}
-                          alt={item.product_name}
-                          className="h-12 w-12 shrink-0 rounded-lg border object-cover"
-                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.product_name}</p>
-                        <p className="mt-1 text-[11px] text-[var(--color-muted)]">资料 {item.evidence_summary.present}/{item.evidence_summary.total}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 text-[var(--color-muted)]">
+		                  <td className="px-3 py-3">
+	                    <div className="flex min-w-0 gap-2">
+	                      {item.image_url ? (
+	                        <img
+	                          src={productImageSrc(item.image_url)}
+	                          alt={item.product_name}
+	                          className="h-12 w-12 shrink-0 rounded-lg border object-cover"
+	                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
+	                        />
+	                      ) : (
+	                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[10px] text-[var(--color-muted)]">缺主图</div>
+	                      )}
+	                      <div className="min-w-0">
+	                        <p className="line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.product_name}</p>
+	                        <p className="mt-1 text-[11px] text-[var(--color-muted)]">资料 {item.evidence_summary.present}/{item.evidence_summary.total}</p>
+	                        <p className="mt-1 text-[11px] text-[var(--color-muted)]">ID：{productId}</p>
+	                      </div>
+	                    </div>
+	                  </td>
+                  <td className="px-3 py-3 text-[var(--color-muted)]" data-ui="content-product-store-context-summary">
                     <p className="font-medium text-[var(--color-fg)]">{item.target_platform || '--'}</p>
-                    <p className="mt-1 text-[11px]">店铺：发布前选择/覆盖</p>
+                    <p className="mt-1 text-[11px]">{storeContextLabel(item)}</p>
                     <p className="mt-1 text-[11px]">市场：{item.target_market || '--'}</p>
+                    <p className="mt-1 text-[11px]">{objectRefContextLabel(item)}</p>
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
@@ -365,20 +380,24 @@ export function ContentProductQueue({
                     </div>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.lifecycle_label}</p>
                   </td>
-                  <td className="px-3 py-3">
-                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>
-                      图片 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
-                    </p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
-                  </td>
+	                  <td className="px-3 py-3">
+	                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>
+	                      图片 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
+	                    </p>
+	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">推荐 {mediaReadiness?.recommended_platform_images ?? 9} 张 · 主图/辅图/SKU图</p>
+	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
+	                  </td>
                   <td className="px-3 py-3">
                     <p className="line-clamp-2 text-[var(--color-fg)]">{item.content_brief?.title || item.product_name}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">卖点 {brief.length}/5 · 描述 {brief.join('').length} 字</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">卖点摘要 {brief.length} 项 · 描述 {brief.join('').length} 字</p>
                   </td>
-                  <td className="min-w-72 px-3 py-3">
-                    <PlatformFieldGroupSummary requirements={item.platform_requirements} compact maxGroups={1} />
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">SKU/变体：发布前校验</p>
-                  </td>
+	                  <td className="min-w-72 px-3 py-3">
+	                    <PlatformFieldGroupSummary requirements={item.platform_requirements} compact maxGroups={1} />
+	                    <p className={requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length ? 'mt-1 text-[11px] text-[var(--color-success)]' : 'mt-1 text-[11px] text-[var(--color-warning)]'}>
+	                      平台属性 {filledAttributes}/{requiredAttributes.length || 0}
+	                    </p>
+	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">SKU/变体：进入 Listing 编辑页维护组合、价格、库存和SKU图</p>
+	                  </td>
                   <td className="px-3 py-3">
                     <p className="font-medium text-[var(--color-fg)]">{item.selling_price_local != null ? item.selling_price_local : '待定价'}</p>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">采购 {item.source_price_rmb != null ? `¥${item.source_price_rmb}` : '待补'} · 利润 {item.profit_margin_pct != null ? `${item.profit_margin_pct}%` : '待校验'}</p>
@@ -389,23 +408,50 @@ export function ContentProductQueue({
                       ? <p className="line-clamp-3 text-[11px] text-[var(--color-warning)]">{[...item.content_gaps, ...mediaGaps].slice(0, 5).join('、')}</p>
                       : <span className="text-[var(--color-success)]">无阻断缺口</span>}
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setSelectedId(item.work_item_id)
-                          onSelect(item)
-                          onOpenListing?.(item)
-                        }}
-                        className="inline-flex items-center rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[11px] font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-surface)]"
+	                  <td className="px-3 py-3">
+	                    <div className="flex flex-wrap justify-end gap-2" data-ui="content-product-row-action-set">
+	                      <button
+	                        type="button"
+	                        onClick={(event) => {
+	                          event.stopPropagation()
+	                          openRow(item)
+	                          onOpenListing?.(item)
+	                        }}
+	                        className="inline-flex items-center rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[11px] font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-surface)]"
                       >
-                        <Edit3 className="mr-1 h-3 w-3" />
-                        编辑 Listing
-                      </button>
-                    </div>
-                  </td>
+	                        <Edit3 className="mr-1 h-3 w-3" />
+	                        编辑 Listing
+	                      </button>
+	                      <button
+	                        type="button"
+	                        onClick={(event) => {
+	                          event.stopPropagation()
+	                          openRow(item)
+	                          onOpenMediaWorkbench?.(item)
+	                        }}
+	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+	                      >
+	                        <Image className="mr-1 h-3 w-3" />
+	                        处理图片
+	                      </button>
+	                      <a
+	                        href={pricingUrl}
+	                        onClick={event => event.stopPropagation()}
+	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+	                      >
+	                        <DollarSign className="mr-1 h-3 w-3" />
+	                        定价
+	                      </a>
+	                      <a
+	                        href={publishUrl}
+	                        onClick={event => event.stopPropagation()}
+	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+	                      >
+	                        <Megaphone className="mr-1 h-3 w-3" />
+	                        刊登
+	                      </a>
+	                    </div>
+	                  </td>
                 </tr>
               )
             })}
@@ -496,7 +542,7 @@ function BulkActionWorkbench({
                     )}
                     {action === 'pricing' && (
                       <a
-                        href={`/pricing?product_id=${encodeURIComponent(productIdForAction(item))}`}
+                        href={workflowUrl('/pricing', item)}
                         className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
                       >
                         定价页
@@ -551,6 +597,23 @@ function productIdForAction(item: ContentWorkbenchItem) {
   return item.object_refs?.find(ref => ref.type === 'product')?.id || item.id || item.work_item_id
 }
 
+function workflowUrl(basePath: '/pricing' | '/publish', item: ContentWorkbenchItem) {
+  const params = new URLSearchParams()
+  params.set('product_id', productIdForAction(item))
+  if (item.target_platform) params.set('target_platform', item.target_platform)
+  if (item.target_market) params.set('target_market', item.target_market)
+  const storeRef = objectRefByType(item, ['store_listing', 'platform_account', 'store'])
+  if (storeRef?.id) params.set('target_store', storeRef.id)
+  return `${basePath}?${params.toString()}`
+}
+
+function hasAttributeValue(values: Record<string, unknown>, field: string) {
+  const value = values[field]
+  if (Array.isArray(value)) return value.length > 0
+  if (typeof value === 'string') return value.trim().length > 0
+  return value != null && value !== false
+}
+
 function getPageSize(layout: 'table' | 'rail', tablePageSize: number) {
   return layout === 'rail' ? 6 : tablePageSize
 }
@@ -561,4 +624,21 @@ function matchesProduct(item: ContentWorkbenchItem, productId: string) {
     item.work_item_id === productId ||
     item.object_refs?.some(ref => ref.type === 'product' && ref.id === productId)
   ))
+}
+
+function storeContextLabel(item: ContentWorkbenchItem) {
+  const storeRef = objectRefByType(item, ['store_listing', 'platform_account', 'store'])
+  if (storeRef) return `店铺实例：${storeRef.label || storeRef.id}`
+  const listingRef = objectRefByType(item, ['platform_listing', 'listing'])
+  if (listingRef) return `店铺实例：待选择；关联Listing ${listingRef.label || listingRef.id}`
+  return '店铺实例：待选择，批量刊登时写入当前店铺Listing'
+}
+
+function objectRefContextLabel(item: ContentWorkbenchItem) {
+  const productRef = objectRefByType(item, ['product', 'base_product'])
+  return `商品对象：${productRef?.label || productRef?.id || item.id || item.work_item_id}`
+}
+
+function objectRefByType(item: ContentWorkbenchItem, types: string[]) {
+  return item.object_refs?.find(ref => types.includes(ref.type))
 }

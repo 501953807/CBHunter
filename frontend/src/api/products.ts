@@ -73,12 +73,70 @@ export interface PlatformStoreProduct {
     next_action?: string | null
     is_local_draft?: boolean
     queue_status?: string
+    official_publish_writeback?: {
+      schema?: string
+      listing_id?: string | null
+      platform_product_id?: string | null
+      platform_api_status?: string | null
+      platform_publish_status?: string | null
+      official_response_field_count?: number
+      written_field_count?: number
+      boundary_note?: string
+      next_action?: string | null
+    } | null
+  }
+  sync_receipt_summary?: {
+    status?: string | null
+    sync_log_id?: string | null
+    official_product_id?: string | null
+    platform?: string | null
+    shop_id?: string | null
+    last_attempt_at?: string | null
+    last_completed_at?: string | null
+    records_processed?: number
+    records_failed?: number
+    error_message?: string | null
+    error_details?: Array<Record<string, unknown>>
+    raw_field_count?: number
+    source?: string | null
+    next_action?: string | null
+  }
+  field_writeback_summary?: {
+    scope?: string
+    written_field_count?: number
+    attribute_field_count?: number
+    raw_field_count?: number
+    missing_core_fields?: string[]
+    boundary_note?: string
   }
   variation_count: number
   last_synced_at?: string | null
   source: string
-  store: { id: string; platform: string; account_name: string; market?: string | null }
+  store: {
+    id: string
+    platform: string
+    account_name: string
+    shop_id?: string | null
+    market?: string | null
+    product_sync_status?: string | null
+    product_sync_at?: string | null
+  }
   product_master: { id: string; sku: string; name: string; image_count: number }
+}
+
+export interface PlatformStoreProductFilterSummary {
+  scope?: 'current_filter' | string
+  total_listing_count?: number
+  store_count?: number
+  market_count?: number
+  platform_count?: number
+  platforms?: string[]
+  synced_count?: number
+  local_draft_count?: number
+  media_gap_count?: number
+  publish_queue_count?: number
+  inventory_risk_count?: number
+  variation_count?: number
 }
 
 export interface ProductImageAssetResult {

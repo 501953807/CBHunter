@@ -18,6 +18,8 @@ from app.services.config_service import get_platform_product_field_groups
 from app.services.media_readiness_service import media_readiness_from_extra
 from app.services.platform_store_inventory_summary_service import build_inventory_alert_summaries, empty_inventory_alert_summary
 from app.services.platform_product_validation_service import build_synced_product_platform_validation
+from app.services.platform_product_sync_receipt_service import build_platform_product_sync_receipt
+from app.services.platform_product_field_writeback_service import build_platform_product_field_writeback
 from app.utils.encryption import decrypt
 
 logger = logging.getLogger(__name__)
@@ -38,30 +40,7 @@ class SyncService:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
-        query = (
-            select(PlatformListing, PlatformAccount, Product)
-            .join(PlatformAccount, PlatformAccount.id == PlatformListing.platform_account_id)
-            .join(Product, Product.id == PlatformListing.product_id)
-            .where(PlatformListing.user_id == user_id)
-        )
-        if platform:
-            query = query.where(PlatformAccount.platform == platform)
-        if platform_account_id:
-            query = query.where(PlatformListing.platform_account_id == platform_account_id)
-        if market:
-            query = query.where(PlatformAccount.settings["market"].as_string() == market)
-        if status:
-            query = query.where(PlatformListing.status == status)
-        if search:
-            like = f"%{search}%"
-            query = query.where(or_(
-                PlatformListing.title.ilike(like),
-                PlatformListing.platform_product_id.ilike(like),
-                Product.name.ilike(like),
-                Product.sku.ilike(like),
-                PlatformAccount.account_name.ilike(like),
-            ))
-
+        query = self._platform_store_product_query(user_id, platform, platform_account_id, market, status, search)
         total = (await self.db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
         result = await self.db.execute(
             query.order_by(PlatformListing.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
@@ -72,6 +51,21 @@ class SyncService:
             self._platform_store_product_payload(listing, account, product, inventory_summaries.get(listing.id))
             for listing, account, product in rows
         ], total
+
+    async def platform_store_product_filter_summary(
+        self,
+        user_id: str,
+        platform: Optional[str] = None,
+        platform_account_id: Optional[str] = None,
+        market: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> dict:
+        query = self._platform_store_product_query(user_id, platform, platform_account_id, market, status, search)
+        result = await self.db.execute(query)
+        rows = list(result.all())
+        inventory_summaries = await build_inventory_alert_summaries(self.db, user_id, rows)
+        return self._platform_store_product_filter_summary(rows, inventory_summaries)
 
     async def sync_products_for_account(self, account: PlatformAccount) -> SyncLog:
         if not is_product_sync_ready(account):
@@ -440,6 +434,7 @@ class SyncService:
             remote_product=remote_product,
             field_schemas=field_schemas,
         )
+        field_writeback = build_platform_product_field_writeback(account, remote_product, synced_at, field_validation["attribute_values"])
         listing.platform_data = {
             **(listing.platform_data or {}),
             "source": "platform_product_sync",
@@ -447,6 +442,7 @@ class SyncService:
             "attribute_values": field_validation["attribute_values"],
             "platform_requirements": field_validation["platform_requirements"],
             "validation_checks": field_validation["validation_checks"],
+            "field_writeback_summary": field_writeback,
             "listing_snapshot": {
                 "title": remote_product.title,
                 "description": remote_product.description,
@@ -523,6 +519,8 @@ class SyncService:
         publish_receipt = platform_data.get("publish_receipt") if isinstance(platform_data.get("publish_receipt"), dict) else {}
         platform_api_status = platform_data.get("platform_api_status") or publish_receipt.get("platform_api_status")
         platform_publish_status = platform_data.get("platform_publish_status") or publish_receipt.get("platform_publish_status")
+        account_settings = account.settings if isinstance(account.settings, dict) else {}
+        product_sync_state = (account_settings.get("sync_state") or {}).get("products", {}) if isinstance(account_settings.get("sync_state"), dict) else {}
         return {
             "id": listing.id,
             "platform": account.platform,
@@ -547,14 +545,20 @@ class SyncService:
                 "next_action": publish_receipt.get("next_action"),
                 "is_local_draft": listing.status == "draft" and not listing.platform_product_id,
                 "queue_status": self._publish_queue_status(listing, platform_api_status, platform_publish_status),
+                "official_publish_writeback": publish_receipt.get("official_publish_writeback") or platform_data.get("official_publish_writeback"),
             },
+            "sync_receipt_summary": build_platform_product_sync_receipt(listing, account, product_sync_state),
+            "field_writeback_summary": platform_data.get("field_writeback_summary"),
             "last_synced_at": listing.last_synced_at.isoformat() if listing.last_synced_at else None,
             "source": (listing.platform_data or {}).get("source", "local_listing"),
             "store": {
                 "id": account.id,
                 "platform": account.platform,
                 "account_name": account.account_name,
-                "market": (account.settings or {}).get("market"),
+                "shop_id": account.shop_id,
+                "market": account_settings.get("market"),
+                "product_sync_status": product_sync_state.get("status"),
+                "product_sync_at": product_sync_state.get("last_completed_at"),
             },
             "product_master": {
                 "id": product.id,
@@ -562,6 +566,85 @@ class SyncService:
                 "name": product.name,
                 "image_count": len(product.images or []),
             },
+        }
+
+    def _platform_store_product_query(
+        self,
+        user_id: str,
+        platform: Optional[str],
+        platform_account_id: Optional[str],
+        market: Optional[str],
+        status: Optional[str],
+        search: Optional[str],
+    ):
+        query = (
+            select(PlatformListing, PlatformAccount, Product)
+            .join(PlatformAccount, PlatformAccount.id == PlatformListing.platform_account_id)
+            .join(Product, Product.id == PlatformListing.product_id)
+            .where(PlatformListing.user_id == user_id)
+        )
+        if platform:
+            query = query.where(PlatformAccount.platform == platform)
+        if platform_account_id:
+            query = query.where(PlatformListing.platform_account_id == platform_account_id)
+        if market:
+            query = query.where(PlatformAccount.settings["market"].as_string() == market)
+        if status:
+            query = query.where(PlatformListing.status == status)
+        if search:
+            like = f"%{search}%"
+            query = query.where(or_(
+                PlatformListing.title.ilike(like),
+                PlatformListing.platform_product_id.ilike(like),
+                Product.name.ilike(like),
+                Product.sku.ilike(like),
+                PlatformAccount.account_name.ilike(like),
+            ))
+        return query
+
+    def _platform_store_product_filter_summary(self, rows: list[tuple[PlatformListing, PlatformAccount, Product]], inventory_summaries: dict[str, dict]) -> dict:
+        platforms = sorted({account.platform.upper() for _listing, account, _product in rows if account.platform})
+        stores = sorted({account.id for _listing, account, _product in rows})
+        markets = sorted({(account.settings or {}).get("market") for _listing, account, _product in rows if (account.settings or {}).get("market")})
+        synced_count = sum(1 for listing, _account, _product in rows if listing.last_synced_at)
+        local_draft_count = sum(
+            1 for listing, _account, _product in rows
+            if (listing.platform_data or {}).get("source", "local_listing") == "local_listing" or not listing.platform_product_id
+        )
+        media_gap_count = 0
+        publish_queue_count = 0
+        inventory_risk_count = 0
+        variation_count = 0
+        for listing, _account, _product in rows:
+            platform_data = listing.platform_data if isinstance(listing.platform_data, dict) else {}
+            media_readiness = media_readiness_from_extra(platform_data, listing.images or [])
+            captured = media_readiness.get("captured_image_count", len(listing.images or []))
+            min_images = media_readiness.get("min_platform_images", 5)
+            if captured < min_images:
+                media_gap_count += 1
+            publish_plan = platform_data.get("publish_plan") if isinstance(platform_data.get("publish_plan"), dict) else {}
+            publish_receipt = platform_data.get("publish_receipt") if isinstance(platform_data.get("publish_receipt"), dict) else {}
+            platform_api_status = platform_data.get("platform_api_status") or publish_receipt.get("platform_api_status")
+            platform_publish_status = platform_data.get("platform_publish_status") or publish_receipt.get("platform_publish_status")
+            queue_status = self._publish_queue_status(listing, platform_api_status, platform_publish_status)
+            if (listing.status == "draft" and not listing.platform_product_id) or queue_status in {"waiting_platform_api", "local_draft_pending_submit"}:
+                publish_queue_count += 1
+            if (inventory_summaries.get(listing.id) or {}).get("status") in {"open_alert", "below_safety_stock", "stockout", "stockout_rule_missing"}:
+                inventory_risk_count += 1
+            variation_count += len(listing.variations or [])
+        return {
+            "scope": "current_filter",
+            "total_listing_count": len(rows),
+            "store_count": len(stores),
+            "market_count": len(markets),
+            "platform_count": len(platforms),
+            "platforms": platforms,
+            "synced_count": synced_count,
+            "local_draft_count": local_draft_count,
+            "media_gap_count": media_gap_count,
+            "publish_queue_count": publish_queue_count,
+            "inventory_risk_count": inventory_risk_count,
+            "variation_count": variation_count,
         }
 
     def _publish_queue_status(
@@ -620,10 +703,11 @@ class SyncService:
             "records_updated": log.records_updated or 0,
             "records_failed": log.records_failed or 0,
             "error_message": log.error_message,
+            "error_details": log.error_details or [],
+            "sync_log_id": log.id,
         }
         settings["sync_state"] = sync_state
         account.settings = settings
-
     async def _sync_order_finance_entries(self, order: Order, platform: str) -> None:
         """Create or update finance ledger entries from a synced order.
 

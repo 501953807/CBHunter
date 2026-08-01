@@ -73,6 +73,10 @@ CONTENT_MEDIA_STUDIO = (ROOT / "frontend/src/features/content-planner/ContentMed
 SELLER_IMAGE_EDITOR_WORKBENCH = (ROOT / "frontend/src/features/content-planner/SellerImageEditorWorkbench.tsx").read_text(encoding="utf-8")
 CONTENT_TITLE_GENERATOR = (ROOT / "frontend/src/features/content-planner/ContentTitleGenerator.tsx").read_text(encoding="utf-8")
 SELLER_PLATFORM_LISTING_EDITOR = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorPanel.tsx").read_text(encoding="utf-8")
+LISTING_COPY_AI_ASSIST_PANEL_PATH = ROOT / "frontend/src/features/content-planner/ListingCopyAiAssistPanel.tsx"
+LISTING_COPY_AI_ASSIST_PANEL = LISTING_COPY_AI_ASSIST_PANEL_PATH.read_text(encoding="utf-8") if LISTING_COPY_AI_ASSIST_PANEL_PATH.exists() else ""
+LISTING_CRITICAL_ACTION_STRIP_PATH = ROOT / "frontend/src/features/content-planner/ListingCriticalActionStrip.tsx"
+LISTING_CRITICAL_ACTION_STRIP = LISTING_CRITICAL_ACTION_STRIP_PATH.read_text(encoding="utf-8") if LISTING_CRITICAL_ACTION_STRIP_PATH.exists() else ""
 SELLER_PLATFORM_LISTING_EDITOR_UTILS = (ROOT / "frontend/src/features/content-planner/SellerPlatformListingEditorUtils.ts").read_text(encoding="utf-8")
 CONTENT_PLANNER_WORKSPACE = (ROOT / "frontend/src/features/content-planner/ContentPlannerWorkspace.tsx").read_text(encoding="utf-8")
 LISTING_OBJECT_SCOPE_MAP = (ROOT / "frontend/src/features/content-planner/ListingObjectScopeMap.tsx").read_text(encoding="utf-8")

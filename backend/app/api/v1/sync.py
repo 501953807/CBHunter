@@ -314,6 +314,7 @@ async def trigger_product_sync(
 @router.get("/logs", response_model=ApiResponse)
 async def sync_logs(
     platform_account_id: Optional[str] = Query(None),
+    sync_type: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -331,6 +332,8 @@ async def sync_logs(
         if platform_account_id not in store_ids:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform account not found")
         query = query.where(SyncLog.platform_account_id == platform_account_id)
+    if sync_type:
+        query = query.where(SyncLog.sync_type == sync_type)
 
     query = query.order_by(SyncLog.started_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
@@ -350,6 +353,8 @@ async def sync_logs(
         "records_updated": l.records_updated,
         "records_failed": l.records_failed,
         "error_message": l.error_message,
+        "error_details": l.error_details or [],
+        "retry_action": _sync_retry_action(l),
     } for l in logs]
     gaps = [] if logs else ["当前筛选下暂无平台同步日志"]
     failed = sum((item["records_failed"] or 0) for item in data)
@@ -363,6 +368,16 @@ async def sync_logs(
         confidence_reason="同步状态与计数直接来自真实连接器执行日志。",
         data_gaps=gaps,
     )
+
+
+def _sync_retry_action(log: SyncLog) -> str | None:
+    if log.status not in {"failed", "partial_failed"} and not log.records_failed:
+        return None
+    if log.sync_type == "products":
+        return "修正商品接口凭证、字段映射或平台返回异常后，在商品仓库重新触发平台商品同步。"
+    if log.sync_type == "orders":
+        return "修正订单接口凭证、授权范围或平台返回异常后，在订单同步入口重试。"
+    return "修正接口配置或数据异常后重新触发同步。"
 
 
 def _sync_result_payload(log: SyncLog) -> dict:

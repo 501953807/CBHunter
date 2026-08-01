@@ -46,9 +46,13 @@ for required in (
     "补主图素材",
     "补 SKU/规格",
     "编辑店铺 Listing",
+    "维护平台商品资料",
+    "platform-store-row-platform-product-maintenance-action",
+    "listingSectionRoute('attributes')",
     "同步状态待处理",
     "查看当前 Listing",
     "action.severity",
+    "storeProductActionDataUi",
 ):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"platform store product rows must expose row-level next actions and diagnostics: {required}")
@@ -91,6 +95,46 @@ for required in (
 ):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
         errors.append(f"platform store products must expose real inventory alert summary from backend: {required}")
+for required in (
+    "PlatformStoreProductFilterSummary",
+    "productsQuery.data?.meta?.summary",
+    "numberFromSummary",
+    "dataUi=\"platform-store-filter-summary-total\"",
+    "dataUi=\"platform-store-filter-summary-scope\"",
+    "当前筛选全量店铺商品实例",
+    "按当前筛选全量店铺市场汇总",
+):
+    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+        errors.append(f"platform store products summary cards must use API full-filter summary, not current-page counts: {required}")
+for required in (
+    "shop_id?: string | null",
+    "product_sync_status?: string | null",
+    "product_sync_at?: string | null",
+    "sync_receipt_summary",
+    "field_writeback_summary",
+    "platform-product-field-writeback-summary",
+    "字段回写",
+    "official_publish_writeback",
+    "OfficialPublishWritebackLine",
+    "platform-store-official-publish-writeback",
+    "官方发布回写",
+    "SyncReceiptInlineSummary",
+    "ProductSyncRetryLogBoard",
+    "platform-product-sync-retry-log-board",
+    "platform-product-sync-retry-log-card",
+    "getSyncLogs(platformAccountId || undefined, 1, 'products')",
+    "重试动作",
+    "data-ui=\"platform-store-product-sync-receipt-summary\"",
+    "data-ui=\"platform-store-identity-sync-state\"",
+    "店铺ID",
+    "商品同步",
+    "同步回执",
+    "官方ID",
+    "失败原因",
+    "productSyncStatusLabel",
+):
+    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+        errors.append(f"platform store product rows must expose store shop identity and product sync state: {required}")
 store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + SHIPMENT_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
 for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺物流", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"shipments\"", "currentModule=\"finance\""):
     if required not in store_context_content:
@@ -263,11 +307,12 @@ for required in ("useConfirm", "confirmAction", "结束促销活动", "同步促
 for required in ("按三平台字段组编辑", "PlatformFieldGroupEditor", "selectedListingRequirements", "field_groups", "平台字段组编辑"):
     if required not in PRODUCT_LISTING_EDITOR_CONTENT:
         errors.append(f"product listing editor must render platform field group form: {required}")
-for required in ("listing-inline-ai-title", "listing-inline-ai-description", "applyTitleCandidate", "applyDescriptionCandidate"):
-    if required not in SELLER_PLATFORM_LISTING_EDITOR:
+for required in ("ListingCopyAiAssistPanel", "listing-copy-field-ai-assist-panel", "listing-field-ai-candidate-card", "采用候选到当前字段"):
+    if required not in SELLER_PLATFORM_LISTING_EDITOR + LISTING_COPY_AI_ASSIST_PANEL:
         errors.append(f"content factory AI assistance must be embedded beside concrete listing fields: {required}")
-if "AI 辅助动作" in SELLER_PLATFORM_LISTING_EDITOR:
-    errors.append("content factory must not keep a standalone AI assistance card in the Listing editor")
+for forbidden in ("AI 辅助动作", "listing-inline-ai-title", "listing-inline-ai-description", "applyTitleCandidate", "applyDescriptionCandidate"):
+    if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
+        errors.append(f"content factory must not keep old standalone or hidden inline AI behavior in the Listing editor: {forbidden}")
 for required in ("override_image_urls", "override_sku_rows", "image_slots", "sku_rows", "package_size", "platform_attributes", "boundary"):
     if required not in LISTING_STORE_OVERRIDE_SERVICE + SELLER_PLATFORM_LISTING_EDITOR:
         errors.append(f"listing store override must bridge V5 editor payload into publish/readiness services: {required}")

@@ -128,10 +128,18 @@ export default function ContentPlannerPage() {
             <p className="text-sm font-semibold text-[var(--color-fg)]">待制作商品列表</p>
             <p className="mt-1 text-xs text-[var(--color-muted)]">先从商品队列选择对象，再打开 Listing 详情处理标题、描述、图片、SKU 和平台字段。列表始终保留为主页面，详情以覆盖式工作台打开。</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled>批量生成文案</Button>
-            <Button variant="outline" disabled>批量校验素材</Button>
-            <Button variant="secondary" disabled>推送到定价队列</Button>
+          <div data-ui="content-queue-real-action-guide" className="grid gap-2 text-xs sm:grid-cols-3">
+            {[
+              ['1', '勾选商品', '在表格中选择一个或多个待处理商品'],
+              ['2', '选择动作', '使用表格批量区生成文案、素材或定价队列'],
+              ['3', '进入工作台', '逐个打开 Listing 详情或图片工作台人工确认'],
+            ].map(([step, title, desc]) => (
+              <div key={step} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">{step}</span>
+                <p className="mt-1 font-semibold text-[var(--color-fg)]">{title}</p>
+                <p className="text-[var(--color-muted)]">{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
         <ContentProductQueue

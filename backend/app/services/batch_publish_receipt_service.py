@@ -9,6 +9,38 @@ LOCAL_PLATFORM_API_STATUS = "not_connected"
 LOCAL_PLATFORM_PUBLISH_STATUS = "not_attempted"
 
 
+def build_official_publish_writeback(
+    *,
+    platform_api_status: str,
+    platform_publish_status: str,
+    listing_id: str | None = None,
+    platform_product_id: str | None = None,
+    platform_account_id: str | None = None,
+    store_name: str | None = None,
+    official_response: dict | None = None,
+    written_fields: list[str] | None = None,
+    next_action: str | None = None,
+) -> dict:
+    response = official_response if isinstance(official_response, dict) else {}
+    fields = list(dict.fromkeys(written_fields or []))
+    if platform_product_id:
+        fields.append("platform_product_id")
+    return {
+        "schema": "official_publish_writeback.v1",
+        "listing_id": listing_id,
+        "platform_product_id": platform_product_id,
+        "platform_account_id": platform_account_id,
+        "store_name": store_name,
+        "platform_api_status": platform_api_status,
+        "platform_publish_status": platform_publish_status,
+        "official_response_field_count": len(response),
+        "written_fields": list(dict.fromkeys(fields)),
+        "written_field_count": len(set(fields)),
+        "next_action": next_action,
+        "boundary_note": "官方发布回写只更新当前店铺 Listing 实例，不回写基础商品版本。",
+    }
+
+
 def build_local_publish_receipt(
     *,
     status: str,
@@ -22,10 +54,19 @@ def build_local_publish_receipt(
     store_name: str | None = None,
 ) -> dict:
     plan = publish_plan or {}
+    official_writeback = build_official_publish_writeback(
+        platform_api_status=LOCAL_PLATFORM_API_STATUS,
+        platform_publish_status=LOCAL_PLATFORM_PUBLISH_STATUS,
+        listing_id=listing_id,
+        platform_account_id=platform_account_id,
+        store_name=store_name,
+        next_action=next_action,
+    )
     return {
         "status": status,
         "platform_api_status": LOCAL_PLATFORM_API_STATUS,
         "platform_publish_status": LOCAL_PLATFORM_PUBLISH_STATUS,
+        "official_publish_writeback": official_writeback,
         "retryable": retryable,
         "next_action": next_action,
         "receipt_source": receipt_source,

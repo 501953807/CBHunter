@@ -23,6 +23,7 @@ export interface PaginationMeta {
   page_size: number
   total: number
   total_pages: number
+  summary?: Record<string, unknown> | null
 }
 
 export interface PlatformAccount {

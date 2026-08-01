@@ -9,6 +9,7 @@ class PaginationMeta(BaseModel):
     page_size: int
     total: int
     total_pages: int
+    summary: Optional[dict[str, Any]] = None
 
 
 class ApiResponse(BaseModel):

@@ -58,6 +58,7 @@ from app.integrations.factory import PlatformClientFactory
 from app.services.order_service import build_order_list_context
 from app.services.shipment_service import create_shipment, get_shipment_order_contexts, list_shipments, update_shipment
 from app.schemas.shipment import ShipmentCreate, ShipmentUpdate
+from app.integrations import status as connector_status
 
 
 def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
@@ -122,6 +123,10 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
         assert result[0]["publish_receipt"]["status"] == "local_draft_created"
         assert result[0]["publish_receipt"]["listing_id"] == listing.id
         assert result[0]["publish_receipt"]["retryable"] is True
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["listing_id"] == listing.id
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["platform_api_status"] == "not_connected"
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["platform_publish_status"] == "not_attempted"
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["boundary_note"].startswith("官方发布回写只更新当前店铺 Listing")
         assert result[0]["object_model"]["base_version_id"] == base_version.id
         assert result[0]["object_model"]["field_validation_count"] == 3
         assert product.cost_price == 12.5
@@ -133,6 +138,8 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
         assert listing.platform_data["publish_receipt"]["platform_api_status"] == "not_connected"
         assert listing.platform_data["publish_receipt"]["platform_publish_status"] == "not_attempted"
         assert listing.platform_data["publish_receipt"]["next_action"]
+        assert listing.platform_data["official_publish_writeback"]["listing_id"] == listing.id
+        assert listing.platform_data["official_publish_writeback"]["written_field_count"] == 0
         assert listing.platform_data["platform_requirements"]["attribute_values"]["材质"] == "毛毡"
         assert base_version.title == product.name
         assert sku_variants[0].scope == "listing_override"
@@ -143,8 +150,136 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
         assert store_items[0]["publish_plan_summary"]["queue_status"] == "waiting_platform_api"
         assert store_items[0]["publish_plan_summary"]["platform_api_status"] == "not_connected"
         assert store_items[0]["publish_plan_summary"]["platform_publish_status"] == "not_attempted"
+        assert store_items[0]["publish_plan_summary"]["official_publish_writeback"]["listing_id"] == listing.id
+        assert store_items[0]["publish_plan_summary"]["official_publish_writeback"]["official_response_field_count"] == 0
         assert store_items[0]["publish_plan_summary"]["retryable"] is True
         assert store_items[0]["publish_plan_summary"]["next_action"]
+
+    asyncio.run(run_test())
+
+
+def test_confirm_publish_submits_to_real_platform_when_publish_connector_ready(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'real-publish.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        original_connector = connector_status.PLATFORM_CONNECTORS["shopee"]
+        original_get_client = PlatformClientFactory.get_client
+        publish_calls: list[dict] = []
+
+        class FakePublishClient:
+            def __init__(self, account, encryption_service):
+                self.account = account
+                self.encryption_service = encryption_service
+
+            async def authenticate(self):
+                return True
+
+            async def publish_product(self, payload: dict):
+                publish_calls.append(payload)
+                return {
+                    "platform_product_id": "SP-OFFICIAL-001",
+                    "publish_status": "submitted",
+                    "status": "active",
+                    "echo_title": payload["title"],
+                }
+
+        def fake_get_client(platform, account, encryption_service):
+            if platform == "shopee":
+                return FakePublishClient(account, encryption_service)
+            return original_get_client(platform, account, encryption_service)
+
+        try:
+            connector_status.PLATFORM_CONNECTORS["shopee"] = {
+                "implementation_status": "implemented",
+                "implemented_operations": ("authenticate", "publish"),
+                "required_inputs": (),
+                "required_scopes": ("publish",),
+            }
+            PlatformClientFactory.get_client = fake_get_client
+
+            async with sessions() as session:
+                account = PlatformAccount(
+                    user_id="user-a",
+                    platform="shopee",
+                    account_name="Shopee MY A店",
+                    shop_id="MY-SHOPEE-001",
+                    api_key_encrypted="stored-key",
+                    api_secret_encrypted="stored-secret",
+                    access_token_encrypted="stored-access",
+                    refresh_token_encrypted="stored-refresh",
+                    token_expires_at=datetime(2026, 12, 31, tzinfo=timezone.utc),
+                    token_scopes=["publish"],
+                    settings={"market": "MY"},
+                    is_active=True,
+                )
+                product = Product(
+                    user_id="user-a",
+                    sku="REAL-PUBLISH-SKU",
+                    name="可发布尼龙通勤胸包",
+                    description="真实商品基础描述",
+                    cost_price=18.5,
+                    images=["https://img.example.com/official-main.jpg"],
+                )
+                session.add_all([account, product])
+                await session.commit()
+
+                result = await confirm_publish(session, "user-a", [{
+                    "confirmed": True,
+                    "publishable": True,
+                    "source_type": "product",
+                    "source_product_id": product.id,
+                    "platform": "shopee",
+                    "platform_account_id": account.id,
+                    "selling_price": 49.9,
+                    "template_title": "可发布尼龙通勤胸包 Shopee MY",
+                    "template_description": "面向马来西亚站点的尼龙通勤胸包 Listing 描述。",
+                    "images": ["https://img.example.com/official-main.jpg"],
+                    "platform_requirements": {
+                        "required_attributes": ["类目", "品牌", "材质"],
+                        "attribute_values": {"类目": "女包", "品牌": "No Brand", "材质": "Nylon"},
+                    },
+                    "sku_plan": {
+                        "master_sku": "REAL-PUBLISH-SKU",
+                        "variants": [{
+                            "sku": "REAL-PUBLISH-SKU-BLACK",
+                            "platform_sku": "SHOP-MY-BLACK",
+                            "price": 49.9,
+                            "stock": 15,
+                            "weight_g": 420,
+                            "dimensions": {"length_cm": 28, "width_cm": 9, "height_cm": 18},
+                        }],
+                    },
+                    "logistics": {
+                        "weight_g": 420,
+                        "dimensions": {"length_cm": 28, "width_cm": 9, "height_cm": 18},
+                    },
+                    "compliance": {"restricted_check_status": "passed"},
+                }], publish_plan={"mode": "immediate", "schedule_at": None, "timezone": "Asia/Shanghai"})
+
+                listing = (await session.execute(select(PlatformListing))).scalar_one()
+            await engine.dispose()
+        finally:
+            connector_status.PLATFORM_CONNECTORS["shopee"] = original_connector
+            PlatformClientFactory.get_client = original_get_client
+
+        assert len(publish_calls) == 1
+        assert publish_calls[0]["shop_id"] == "MY-SHOPEE-001"
+        assert publish_calls[0]["title"] == "可发布尼龙通勤胸包 Shopee MY"
+        assert publish_calls[0]["images"] == ["https://img.example.com/official-main.jpg"]
+        assert result[0]["platform_api_status"] == "connected"
+        assert result[0]["platform_publish_status"] == "submitted"
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["platform_product_id"] == "SP-OFFICIAL-001"
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["official_response_field_count"] == 4
+        assert result[0]["publish_receipt"]["official_publish_writeback"]["written_field_count"] == 3
+        assert listing.platform_product_id == "SP-OFFICIAL-001"
+        assert listing.status == "active"
+        assert listing.last_synced_at is not None
+        assert listing.platform_data["official_publish_writeback"]["platform_api_status"] == "connected"
+        assert listing.platform_data["official_publish_writeback"]["platform_publish_status"] == "submitted"
+        assert listing.platform_data["publish_receipt"]["platform_publish_status"] == "submitted"
 
     asyncio.run(run_test())
 
@@ -156,8 +291,8 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
-            shopee_a = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", settings={"market": "MY"}, is_active=True)
-            shopee_b = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee B店", settings={"market": "PH"}, is_active=True)
+            shopee_a = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee A店", shop_id="MY-SHOP-001", settings={"market": "MY", "sync_state": {"products": {"status": "success", "sync_log_id": "sync-log-a", "last_completed_at": "2026-08-01T10:00:00+00:00", "records_processed": 2}}}, is_active=True)
+            shopee_b = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee B店", shop_id="PH-SHOP-002", settings={"market": "PH", "sync_state": {"products": {"status": "failed", "sync_log_id": "sync-log-b", "last_completed_at": "2026-08-01T11:00:00+00:00", "records_failed": 1, "error_message": "平台返回字段缺失"}}}, is_active=True)
             product = Product(user_id="user-a", sku="SKU-SYNCED", name="平台同步真实商品", images=["https://img.example.com/1.jpg"])
             session.add_all([shopee_a, shopee_b, product])
             await session.flush()
@@ -183,7 +318,7 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
                     images=["https://img.example.com/a1.jpg"],
                     variations=[{"sku": "SKU-SYNCED-A-RED", "stock": 6}, {"sku": "SKU-SYNCED-A-BLUE", "stock": 6}],
                     shipping_config={"weight_g": 350},
-                    platform_data={"source": "platform_product_sync", "attribute_values": {"材质": "帆布", "颜色": "红色"}},
+                    platform_data={"source": "platform_product_sync", "raw_data": {"item_id": "SP-A-001", "name": "A店标题", "status": "NORMAL"}, "attribute_values": {"材质": "帆布", "颜色": "红色"}},
                     last_synced_at=datetime.now(timezone.utc),
                 ),
                 PlatformListing(
@@ -205,15 +340,28 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
             items, total = await SyncService(session).list_platform_store_products("user-a", platform="shopee")
             my_items, my_total = await SyncService(session).list_platform_store_products("user-a", platform="shopee", market="MY")
             ph_items, ph_total = await SyncService(session).list_platform_store_products("user-a", platform="shopee", market="PH")
+            summary = await SyncService(session).platform_store_product_filter_summary("user-a", platform="shopee")
         await engine.dispose()
 
         assert total == 2
+        assert summary["scope"] == "current_filter"
+        assert summary["total_listing_count"] == 2
+        assert summary["store_count"] == 2
+        assert summary["market_count"] == 2
+        assert summary["synced_count"] == 2
+        assert summary["media_gap_count"] == 2
+        assert summary["inventory_risk_count"] == 1
         assert my_total == 1
         assert my_items[0]["store"]["market"] == "MY"
         assert my_items[0]["store"]["account_name"] == "Shopee A店"
         assert ph_total == 1
         assert ph_items[0]["store"]["market"] == "PH"
         assert ph_items[0]["store"]["account_name"] == "Shopee B店"
+        assert my_items[0]["store"]["shop_id"] == "MY-SHOP-001"
+        assert my_items[0]["store"]["product_sync_status"] == "success"
+        assert my_items[0]["store"]["product_sync_at"] == "2026-08-01T10:00:00+00:00"
+        assert ph_items[0]["store"]["shop_id"] == "PH-SHOP-002"
+        assert ph_items[0]["store"]["product_sync_status"] == "failed"
         assert {item["store"]["account_name"] for item in items} == {"Shopee A店", "Shopee B店"}
         assert {item["platform_product_id"] for item in items} == {"SP-A-001", "SP-B-001"}
         assert items[0]["product_master"]["sku"] == "SKU-SYNCED"
@@ -239,6 +387,16 @@ def test_platform_store_products_list_groups_synced_listings_by_store(tmp_path):
         assert item_a["store_override_summary"]["variation_count"] == 2
         assert item_a["store_override_summary"]["platform_attribute_count"] == 2
         assert item_a["store_override_summary"]["logistics_configured"] is True
+        assert item_a["sync_receipt_summary"]["official_product_id"] == "SP-A-001"
+        assert item_a["sync_receipt_summary"]["sync_log_id"] == "sync-log-a"
+        assert item_a["sync_receipt_summary"]["raw_field_count"] == 3
+        assert item_a["sync_receipt_summary"]["records_processed"] == 2
+        assert item_a["sync_receipt_summary"]["next_action"] == "已具备平台商品ID和最近同步时间，可继续维护当前店铺 Listing。"
+        assert item_b["sync_receipt_summary"]["status"] == "failed"
+        assert item_b["sync_receipt_summary"]["sync_log_id"] == "sync-log-b"
+        assert item_b["sync_receipt_summary"]["error_message"] == "平台返回字段缺失"
+        assert item_b["sync_receipt_summary"]["records_failed"] == 1
+        assert item_b["sync_receipt_summary"]["next_action"].startswith("查看同步日志")
 
     asyncio.run(run_test())
 
@@ -326,6 +484,12 @@ def test_product_sync_imports_remote_products_as_store_listing_instances(tmp_pat
         assert listing.platform_data["attribute_values"]["selling_price"] == 29.9
         assert listing.platform_data["platform_requirements"]["field_groups"]
         assert listing.platform_data["platform_requirements"]["attribute_values"]["brand"] == "No Brand"
+        assert listing.platform_data["field_writeback_summary"]["scope"] == "store_listing_only"
+        assert listing.platform_data["field_writeback_summary"]["written_field_count"] >= 8
+        assert listing.platform_data["field_writeback_summary"]["attribute_field_count"] >= 3
+        assert listing.platform_data["field_writeback_summary"]["raw_field_count"] == 4
+        assert listing.platform_data["field_writeback_summary"]["missing_core_fields"] == []
+        assert listing.platform_data["field_writeback_summary"]["boundary_note"].startswith("平台返回字段只回写当前店铺 Listing")
         field_check = next(
             check for check in listing.platform_data["validation_checks"]
             if check["code"] == "platform_fields"

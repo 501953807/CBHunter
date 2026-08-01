@@ -1,8 +1,14 @@
+import { useState } from 'react'
+
 type PlatformField = {
   key?: string
   label?: string
   required?: boolean
   placeholder?: string
+  options?: unknown[]
+  enum?: unknown[]
+  choices?: unknown[]
+  allowed_values?: unknown[]
   evidence_state?: 'observed' | 'needs_category_recheck' | 'needs_edit_page_recheck' | 'needs_api_recheck'
   unified_field_key?: string
   standard_label?: string
@@ -114,6 +120,20 @@ export function PlatformFieldGroupEditor({
   const values = requirements?.attribute_values || {}
   const fallbackAttrs = requirements?.required_attributes || []
   const normalizedHighlightedFieldKey = highlightedFieldKey?.trim() || ''
+  const [fieldSearch, setFieldSearch] = useState('')
+  const [fieldFilter, setFieldFilter] = useState<'all' | 'missing' | 'recheck'>('all')
+  const allFields = groups.flatMap(group => group.fields || [])
+  const visibleGroups = groups.map(group => ({
+    ...group,
+    fields: (group.fields || []).filter(field => fieldMatchesFocus(field, values, fieldSearch, fieldFilter)),
+  })).filter(group => group.fields.length > 0)
+  const visibleFallbackAttrs = fallbackAttrs.filter(attr => fallbackAttrMatchesFocus(attr, values, fieldSearch, fieldFilter))
+  const requiredFieldCount = allFields.filter(field => field.required).length || fallbackAttrs.length
+  const filledFieldCount = allFields.length
+    ? allFields.filter(field => hasFieldValue(field, values)).length
+    : fallbackAttrs.filter(attr => stringValue(values[attr]).trim()).length
+  const missingRequiredFields = allFields.filter(field => field.required && !hasFieldValue(field, values)).map(field => field.label || field.key || '未命名字段')
+  const recheckCount = Object.values(requirements?.category_field_gaps || {}).reduce((total, items) => total + (Array.isArray(items) ? items.length : 0), 0) + (requirements?.evidence?.needs_recheck?.length || 0)
 
   const updateValue = (key: string, value: string) => {
     onChange({
@@ -126,6 +146,8 @@ export function PlatformFieldGroupEditor({
     return (
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">平台属性编辑</p>
+        <FieldReadinessStrip total={requiredFieldCount} filled={filledFieldCount} missing={fallbackAttrs.filter(attr => !stringValue(values[attr]).trim())} recheckCount={recheckCount} />
+        <FieldFocusToolbar search={fieldSearch} onSearch={setFieldSearch} filter={fieldFilter} onFilter={setFieldFilter} total={fallbackAttrs.length} visible={visibleFallbackAttrs.length} />
         {normalizedHighlightedFieldKey ? (
           <p
             data-ui="platform-field-highlight-target"
@@ -135,7 +157,7 @@ export function PlatformFieldGroupEditor({
           </p>
         ) : null}
         <div className="mt-2 grid grid-cols-2 xl:grid-cols-4 gap-2">
-          {fallbackAttrs.slice(0, 12).map(attr => {
+          {visibleFallbackAttrs.slice(0, 12).map(attr => {
             const highlighted = matchesHighlightedField({ key: attr, label: attr }, normalizedHighlightedFieldKey)
             return (
               <label
@@ -154,6 +176,7 @@ export function PlatformFieldGroupEditor({
               </label>
             )
           })}
+          {visibleFallbackAttrs.length === 0 ? <p className="col-span-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">当前筛选下没有字段。</p> : null}
         </div>
       </div>
     )
@@ -179,15 +202,26 @@ export function PlatformFieldGroupEditor({
           <CategoryProfileBadge requirements={requirements} />
         </div>
       </div>
+      <FieldReadinessStrip total={requiredFieldCount} filled={filledFieldCount} missing={missingRequiredFields} recheckCount={recheckCount} />
+      <FieldFocusToolbar search={fieldSearch} onSearch={setFieldSearch} filter={fieldFilter} onFilter={setFieldFilter} total={allFields.length} visible={visibleGroups.reduce((total, group) => total + group.fields.length, 0)} />
       {requirements?.object_model?.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {requirements.object_model.map(item => <span key={item} className="rounded-full bg-[var(--color-bg)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">{item}</span>)}
         </div>
       ) : null}
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-        {groups.map(group => (
+        {visibleGroups.map(group => {
+          const stats = groupFieldStats(group.fields, values)
+          return (
           <div key={group.id || group.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5">
-            <p className="text-xs font-semibold text-[var(--color-fg)]">{group.label || group.id}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2" data-ui="platform-field-group-readiness-summary">
+              <p className="text-xs font-semibold text-[var(--color-fg)]">{group.label || group.id}</p>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                <span className={stats.missing === 0 && stats.required > 0 ? 'rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-[var(--color-success)]' : 'rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-[var(--color-warning)]'}>必填 {stats.filled}/{stats.required}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[var(--color-muted)]">待补 {stats.missing}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[var(--color-muted)]">复核 {stats.recheck}</span>
+              </div>
+            </div>
             <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
               {(group.fields || []).map(field => {
                 const key = field.key || field.label || ''
@@ -203,18 +237,16 @@ export function PlatformFieldGroupEditor({
                     {field.label || key}{field.required ? <span className="text-[var(--color-primary)]"> *</span> : null}
                     {field.evidence_state ? <span className="ml-1 text-[var(--color-warning)]">({evidenceStateLabel(field.evidence_state)})</span> : null}
                     <FieldMetaHint field={field} />
-                    <input
-                      value={stringValue(values[key])}
-                      onChange={event => updateValue(key, event.target.value)}
-                      placeholder={field.placeholder || field.label || key}
-                      className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-fg)] placeholder:text-[var(--color-muted)]"
-                    />
+                    <FieldRequirementHint field={field} hasValue={hasFieldValue(field, values)} />
+                    <FieldValueControl field={field} value={stringValue(values[key])} onChange={value => updateValue(key, value)} />
                   </label>
                 )
               })}
             </div>
           </div>
-        ))}
+          )
+        })}
+        {visibleGroups.length === 0 ? <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-3 text-xs text-[var(--color-muted)]">当前筛选下没有字段。请清空搜索或切回“全部字段”。</p> : null}
       </div>
     </div>
   )
@@ -232,6 +264,60 @@ function matchesHighlightedField(field: PlatformField, highlightedFieldKey: stri
   ].filter(Boolean).some(value => String(value) === highlightedFieldKey)
 }
 
+function FieldReadinessStrip({ total, filled, missing, recheckCount }: { total: number; filled: number; missing: string[]; recheckCount: number }) {
+  const safeTotal = Math.max(total, 0)
+  const ready = safeTotal > 0 && filled >= safeTotal && missing.length === 0
+  return (
+    <div className="mt-3 grid gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px] md:grid-cols-3" data-ui="platform-field-readiness-strip" aria-label="平台字段填写就绪摘要">
+      <span className={ready ? 'rounded-lg bg-[var(--color-success-light)] px-2 py-1 text-[var(--color-success)]' : 'rounded-lg bg-[var(--color-warning-light)] px-2 py-1 text-[var(--color-warning)]'}>必填字段 {filled}/{safeTotal}</span>
+      <span className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">待补字段 {missing.slice(0, 4).join('、') || '无'}</span>
+      <span className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)]">待复核 {recheckCount}</span>
+    </div>
+  )
+}
+
+function FieldFocusToolbar({
+  search,
+  onSearch,
+  filter,
+  onFilter,
+  total,
+  visible,
+}: {
+  search: string
+  onSearch: (value: string) => void
+  filter: 'all' | 'missing' | 'recheck'
+  onFilter: (value: 'all' | 'missing' | 'recheck') => void
+  total: number
+  visible: number
+}) {
+  const filters: Array<['all' | 'missing' | 'recheck', string]> = [['all', '全部字段'], ['missing', '只看待补'], ['recheck', '只看复核']]
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="platform-field-focus-toolbar" aria-label="平台字段搜索与缺口聚焦">
+      <input
+        value={search}
+        onChange={event => onSearch(event.target.value)}
+        placeholder="搜索字段、平台字段名、标准字段或类型"
+        className="min-w-[220px] flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)]"
+        data-ui="platform-field-search-input"
+      />
+      <div className="flex flex-wrap gap-1" data-ui="platform-field-focus-filter">
+        {filters.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onFilter(value)}
+            className={filter === value ? 'rounded-full border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)]' : 'rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs text-[var(--color-muted)]'}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <span className="rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)]" data-ui="platform-field-visible-count">显示 {visible}/{total}</span>
+    </div>
+  )
+}
+
 function FieldMetaHint({ field }: { field: PlatformField }) {
   const details = [
     field.unified_field_key ? `标准：${field.standard_label || field.unified_field_key}` : '',
@@ -242,6 +328,135 @@ function FieldMetaHint({ field }: { field: PlatformField }) {
   ].filter(Boolean)
   if (!details.length) return null
   return <span className="mt-0.5 block truncate text-[10px] text-[var(--color-muted)]">{details.join(' / ')}</span>
+}
+
+function fieldMatchesFocus(field: PlatformField, values: Record<string, unknown>, search: string, filter: 'all' | 'missing' | 'recheck') {
+  const text = [field.key, field.label, field.standard_label, field.unified_field_key, field.platform_field_name, field.miaoshou_field_name, field.data_type].filter(Boolean).join(' ').toLowerCase()
+  const query = search.trim().toLowerCase()
+  if (query && !text.includes(query)) return false
+  if (filter === 'missing') return Boolean(field.required && !hasFieldValue(field, values))
+  if (filter === 'recheck') return Boolean(field.evidence_state && field.evidence_state !== 'observed')
+  return true
+}
+
+function fallbackAttrMatchesFocus(attr: string, values: Record<string, unknown>, search: string, filter: 'all' | 'missing' | 'recheck') {
+  const query = search.trim().toLowerCase()
+  if (query && !attr.toLowerCase().includes(query)) return false
+  if (filter === 'missing') return !stringValue(values[attr]).trim()
+  if (filter === 'recheck') return false
+  return true
+}
+
+function groupFieldStats(fields: PlatformField[], values: Record<string, unknown>) {
+  const requiredFields = fields.filter(field => field.required)
+  const filled = requiredFields.filter(field => hasFieldValue(field, values)).length
+  const recheck = fields.filter(field => field.evidence_state && field.evidence_state !== 'observed').length
+  return { required: requiredFields.length, filled, missing: Math.max(requiredFields.length - filled, 0), recheck }
+}
+
+function FieldRequirementHint({ field, hasValue }: { field: PlatformField; hasValue: boolean }) {
+  if (!field.required && !field.evidence_state) return null
+  return (
+    <span className={field.required && !hasValue ? 'mt-1 block text-[10px] font-semibold text-[var(--color-warning)]' : 'mt-1 block text-[10px] text-[var(--color-muted)]'} data-ui="platform-field-requirement-hint">
+      {field.required ? (hasValue ? '必填已填写' : '必填待补') : '建议复核'}{field.evidence_state ? ` / ${evidenceStateLabel(field.evidence_state)}` : ''}
+    </span>
+  )
+}
+
+function FieldValueControl({ field, value, onChange }: { field: PlatformField; value: string; onChange: (value: string) => void }) {
+  const type = normalizeFieldType(field)
+  const enumOptions = fieldEnumOptions(field)
+  const commonClass = 'mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)]'
+  const placeholder = field.placeholder || field.label || field.key || ''
+  if (enumOptions.length) {
+    return (
+      <select
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className={commonClass}
+        data-ui="platform-field-dynamic-input"
+        data-field-input-type="enum"
+        aria-label={`${field.label || field.key}选项字段`}
+      >
+        <option value="">待选择</option>
+        {enumOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    )
+  }
+  if (type === 'boolean') {
+    return (
+      <select
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        className={commonClass}
+        data-ui="platform-field-dynamic-input"
+        data-field-input-type="boolean"
+        aria-label={`${field.label || field.key}是否字段`}
+      >
+        <option value="">待选择</option>
+        <option value="true">是</option>
+        <option value="false">否</option>
+      </select>
+    )
+  }
+  if (type === 'number') {
+    return (
+      <input
+        type="number"
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        placeholder={placeholder}
+        className={commonClass}
+        data-ui="platform-field-dynamic-input"
+        data-field-input-type="number"
+      />
+    )
+  }
+  if (type === 'long_text') {
+    return (
+      <textarea
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className={`${commonClass} min-h-20 resize-y leading-5`}
+        data-ui="platform-field-dynamic-input"
+        data-field-input-type="long_text"
+      />
+    )
+  }
+  return (
+    <input
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={commonClass}
+      data-ui="platform-field-dynamic-input"
+      data-field-input-type="text"
+    />
+  )
+}
+
+function normalizeFieldType(field: PlatformField) {
+  const raw = String(field.data_type || field.key || field.label || '').toLowerCase()
+  if (/bool|boolean|是否|yes_no|true_false/.test(raw)) return 'boolean'
+  if (/number|numeric|integer|decimal|float|price|weight|length|width|height|库存|价格|重量|尺寸|数量/.test(raw)) return 'number'
+  if (/textarea|long_text|rich_text|description|desc|详情|描述|说明/.test(raw)) return 'long_text'
+  return 'text'
+}
+
+function fieldEnumOptions(field: PlatformField) {
+  const source = [field.options, field.enum, field.choices, field.allowed_values].find(Array.isArray) as unknown[] | undefined
+  return (source || []).map(item => {
+    if (item && typeof item === 'object') {
+      const record = item as Record<string, unknown>
+      const value = stringValue(record.value ?? record.id ?? record.key ?? record.label ?? record.name)
+      const label = stringValue(record.label ?? record.name ?? record.value ?? record.id ?? record.key)
+      return value ? { value, label: label || value } : null
+    }
+    const value = stringValue(item)
+    return value ? { value, label: value } : null
+  }).filter((item): item is { value: string; label: string } => Boolean(item))
 }
 
 function CategoryProfileBadge({ requirements }: { requirements?: PlatformRequirementsLike }) {
@@ -295,6 +510,10 @@ function stringValue(value: unknown) {
   if (Array.isArray(value)) return value.join(', ')
   if (value && typeof value === 'object') return JSON.stringify(value)
   return value == null ? '' : String(value)
+}
+
+function hasFieldValue(field: PlatformField, values: Record<string, unknown>) {
+  return Boolean(stringValue(values[field.key || field.label || '']).trim())
 }
 
 function evidenceStateLabel(state: PlatformField['evidence_state']) {

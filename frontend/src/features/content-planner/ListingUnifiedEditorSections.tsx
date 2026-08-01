@@ -55,7 +55,7 @@ export function ListingUnifiedEditorSections({
   onGenerated,
 }: ListingUnifiedEditorSectionsProps) {
   const sections = [
-    { id: 'copy', label: '文案', title: '文案与卖点', summary: '标题、五点卖点、长描述、关键词', status: product?.content_brief?.title ? '有候选' : '待生成' },
+    { id: 'copy', label: '文案', title: '文案与卖点', summary: '标题、卖点摘要、商品详情、关键词', status: product?.content_brief?.title ? '有候选' : '待生成' },
     { id: 'media', label: '媒体', title: '媒体素材', summary: '主图、辅图、图片处理、视频素材', status: product?.media_readiness?.captured_image_count ? `${product.media_readiness.captured_image_count} 张` : '待补图' },
     { id: 'specs', label: '规格', title: 'SKU/属性/物流/合规', summary: 'SKU/变体、平台属性、物流包装、合规检查', status: product?.platform_requirements?.required_attributes?.length ? '字段组已识别' : '待补字段组' },
     { id: 'video', label: '视频', title: '短视频与内容计划', summary: '脚本、镜头、内容日历、CTA', status: scripts.length ? `${scripts.length} 条脚本` : '待生成' },
@@ -111,7 +111,7 @@ export function ListingUnifiedEditorSections({
           <ListingEditorSection
             id="copy"
             title="文案与卖点"
-            description="标题、五点卖点、关键词和长描述先在同一商品下生成候选，再人工确认进入内容任务矩阵。"
+            description="标题、卖点摘要、关键词和商品详情先在同一商品下生成候选，再人工确认进入内容任务矩阵。"
           >
             <ContentTitleGenerator toast={toast} product={product} onGenerated={onGenerated} />
           </ListingEditorSection>
@@ -218,7 +218,7 @@ export function ListingUnifiedEditorSections({
                 <div>
                   <p className="text-xs font-semibold text-[var(--color-primary)]">后台 Search Terms</p>
                   <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">搜索词来源与平台标签</h3>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">用于平台搜索归档，不替代买家可见标题、五点卖点和长描述。</p>
+                  <p className="mt-1 text-xs text-[var(--color-muted)]">用于平台搜索归档，不替代买家可见标题、商品详情和平台必填属性。</p>
                 </div>
                 <Button size="sm" variant="outline" disabled={!searchTermPackage} onClick={() => onCopy(searchTermPackage, 9001)}>
                   <Copy className="mr-1 h-3 w-3" />复制搜索词包
@@ -228,7 +228,7 @@ export function ListingUnifiedEditorSections({
                 <div className="grid gap-3 p-4 md:grid-cols-2">
                   <SearchTermColumn title="后台 Search Terms" source="标题候选 / 商品名称" terms={titleTerms} onCopy={onCopy} />
                   <SearchTermColumn title="品类词" source="类目 / 平台 / 目标市场" terms={categoryTerms} onCopy={onCopy} />
-                  <SearchTermColumn title="场景词" source="五点卖点 / 使用场景" terms={sceneTerms} onCopy={onCopy} />
+                  <SearchTermColumn title="场景词" source="卖点摘要 / 使用场景" terms={sceneTerms} onCopy={onCopy} />
                   <SearchTermColumn title="平台标签" source="AI 候选 / 内容计划" terms={platformTags} onCopy={onCopy} />
                 </div>
               )}
@@ -290,7 +290,7 @@ function ContentListingCapabilityMap({
     },
     {
       title: '描述编辑',
-      detail: bulletsReady ? '已有五点卖点候选，继续补长描述和关键词。' : '补五点卖点、材质、尺寸、场景、包装和售后说明。',
+      detail: bulletsReady ? '已有卖点摘要候选，继续补商品详情和关键词。' : '补卖点摘要、材质、尺寸、场景、包装和售后说明。',
       status: bulletsReady ? '卖点候选' : '待编辑',
     },
     {

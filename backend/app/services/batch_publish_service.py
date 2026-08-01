@@ -29,6 +29,7 @@ from app.services.listing_store_override_service import (
 )
 from app.services.batch_publish_receipt_service import build_local_publish_receipt, skipped_publish_result
 from app.services.listing_assist_service import generate_listing_assist
+from app.services.platform_publish_submit_service import submit_listing_to_platform_if_ready
 logger = logging.getLogger(__name__)
 async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]:
     from app.models.sourcing_item import SourcingItem
@@ -558,7 +559,13 @@ async def confirm_publish(
         db.add(listing)
         await db.flush()
         publish_receipt["listing_id"] = listing.id
-        listing.platform_data = {**(listing.platform_data or {}), "publish_receipt": publish_receipt}
+        official_writeback = await submit_listing_to_platform_if_ready(acct, listing, draft, local_plan)
+        publish_receipt["official_publish_writeback"] = official_writeback
+        publish_receipt["platform_api_status"] = official_writeback["platform_api_status"]
+        publish_receipt["platform_publish_status"] = official_writeback["platform_publish_status"]
+        listing.platform_data = {**(listing.platform_data or {}), "publish_receipt": publish_receipt, "official_publish_writeback": official_writeback}
+        listing.platform_data["platform_api_status"] = official_writeback["platform_api_status"]
+        listing.platform_data["platform_publish_status"] = official_writeback["platform_publish_status"]
         object_model = await persist_listing_object_model(
             db, user_id=user_id, product=product, listing=listing, platform=draft["platform"],
             market=draft.get("market"), sku_plan=sku_plan, platform_requirements=draft.get("platform_requirements") or {},
@@ -569,8 +576,8 @@ async def confirm_publish(
                         "drafted_at": now.isoformat(), "publish_status": "draft",
                         "platform_account_id": acct.id, "store": _store_payload(acct),
                         "publish_plan": local_plan, "plan_status": local_plan["status"],
-                        "platform_api_status": "not_connected",
-                        "platform_publish_status": "not_attempted",
+                        "platform_api_status": official_writeback["platform_api_status"],
+                        "platform_publish_status": official_writeback["platform_publish_status"],
                         "publish_receipt": publish_receipt,
                         "retryable": True,
                         "retry_action": "retry_after_platform_api_connected",

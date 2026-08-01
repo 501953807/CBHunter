@@ -485,6 +485,19 @@ if "aria-label=\"定价商品上下文\"" not in PRICING_ITEM_SELECTOR:
 for required in ("useSearchParams", "content_item_id", "initialProductId", "matchesPricingProduct"):
     if required not in SMART_PRICING_PAGE:
         errors.append(f"pricing page must auto-select content item from route parameter: {required}")
+for required in (
+    "initialTargetPlatform",
+    "initialTargetStore",
+    "initialTargetMarket",
+    "data-ui=\"pricing-content-context-handoff\"",
+    "内容工厂带入",
+    "target_platform",
+    "target_store",
+    "target_market",
+    "routeStoreId",
+):
+    if required not in SMART_PRICING_PAGE:
+        errors.append(f"CORE-V5-005 pricing page must consume content factory handoff context: {required}")
 for required in ("useQuery", "queryKey: ['pricing-workbench']", "pricingWorkbenchQuery", "data-ui=\"pricing-workbench-error\"", "重新加载定价队列"):
     if required not in SMART_PRICING_PAGE:
         errors.append(f"AUDIT-P2-03 pricing page must use React Query boundary and visible workbench error state: {required}")
@@ -536,6 +549,9 @@ for required in (
     "fee_template_label",
     "shipping_cost_rmb",
     "activity_discount_pct",
+    "data-ui=\"pricing-activity-price-preview\"",
+    "活动价口径",
+    "平衡折后实收",
     "min_profit_rmb",
     "estimated_fee_pct",
     "exchange_rate",

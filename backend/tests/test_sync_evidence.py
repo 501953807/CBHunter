@@ -1,6 +1,7 @@
 """Sync API evidence-chain regression tests."""
 
 import asyncio
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException
@@ -131,6 +132,62 @@ def test_bulk_product_sync_blocked_writes_log_for_each_store(tmp_path):
         assert all(log.status == "failed" and log.sync_type == "products" for log in logs)
         assert all(log.error_details[0]["reason"] == "connector_not_ready" for log in logs)
         assert all(account.settings["sync_state"]["products"]["status"] == "failed" for account in accounts)
+
+    asyncio.run(run_test())
+
+
+def test_sync_logs_filter_products_and_expose_retry_details(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'sync-logs-products.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        async with sessions() as session:
+            user = User(id="sync-user", username="sync", email="sync@example.com", hashed_password="x")
+            account = PlatformAccount(user_id=user.id, platform="shopee", account_name="Shopee 主店", is_active=True)
+            session.add_all([user, account])
+            await session.flush()
+            session.add_all([
+                SyncLog(
+                    user_id=user.id,
+                    platform_account_id=account.id,
+                    sync_type="products",
+                    status="failed",
+                    started_at=datetime(2026, 8, 1, 10, 0, tzinfo=timezone.utc),
+                    records_processed=2,
+                    records_failed=1,
+                    error_message="商品字段映射失败",
+                    error_details=[{"field": "category", "reason": "missing"}],
+                ),
+                SyncLog(
+                    user_id=user.id,
+                    platform_account_id=account.id,
+                    sync_type="orders",
+                    status="success",
+                    started_at=datetime(2026, 8, 1, 9, 0, tzinfo=timezone.utc),
+                    records_processed=1,
+                ),
+            ])
+            await session.commit()
+
+            response = await sync_api.sync_logs(
+                platform_account_id=account.id,
+                sync_type="products",
+                page=1,
+                page_size=20,
+                current_user=user,
+                db=session,
+            )
+
+        await engine.dispose()
+
+        assert response.status == "ready"
+        assert len(response.data) == 1
+        assert response.data[0]["sync_type"] == "products"
+        assert response.data[0]["error_details"][0]["field"] == "category"
+        assert response.data[0]["retry_action"].startswith("修正商品接口凭证")
+        assert response.data_gaps == ["当前页共有 1 条记录同步失败"]
 
     asyncio.run(run_test())
 

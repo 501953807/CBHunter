@@ -54,6 +54,8 @@ export interface SyncLogItem {
   records_updated: number
   records_failed: number
   error_message: string | null
+  error_details?: Array<Record<string, unknown>>
+  retry_action?: string | null
 }
 
 export async function getSyncStatus() {
@@ -73,9 +75,10 @@ export async function triggerProductSync(platformAccountId?: string) {
   return res.data
 }
 
-export async function getSyncLogs(platformAccountId?: string, page = 1) {
+export async function getSyncLogs(platformAccountId?: string, page = 1, syncType?: string) {
   const params: Record<string, unknown> = { page }
   if (platformAccountId) params.platform_account_id = platformAccountId
+  if (syncType) params.sync_type = syncType
   const res = await client.get<ApiResponse<SyncLogItem[]>>('/sync/logs', { params })
   return res.data
 }

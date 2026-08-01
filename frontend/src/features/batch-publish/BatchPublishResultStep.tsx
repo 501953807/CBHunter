@@ -130,10 +130,12 @@ function PublishReceiptSummary({ item }: { item: BatchPublishResponse['results']
   const apiStatus = receipt?.platform_api_status || item.platform_api_status || item.publish_plan?.platform_api_status || 'not_connected'
   const platformStatus = receipt?.platform_publish_status || item.platform_publish_status || 'not_attempted'
   const nextAction = receipt?.next_action || (item.retryable ? '修正后返回批量刊登重试' : '查看失败原因后人工处理')
+  const officialWriteback = receipt?.official_publish_writeback
   return (
     <div className="space-y-1 text-[11px]" data-ui="publish-result-local-receipt">
       <p className="font-medium text-[var(--color-fg)]">{receipt?.status === 'local_draft_created' ? '本地草稿已创建' : '未创建平台草稿'}</p>
       <p className="text-[var(--color-muted)]">API：{apiStatus} · 平台：{platformStatus}</p>
+      {officialWriteback && <p className="text-[var(--color-muted)]" data-ui="publish-result-official-writeback">官方回写：字段 {officialWriteback.written_field_count ?? 0} · 返回 {officialWriteback.official_response_field_count ?? 0}</p>}
       <p className="text-[var(--color-muted)]">计划：{receipt?.plan_status || item.plan_status || item.publish_plan?.status || '待补'}</p>
       <p className="text-[var(--color-warning)]" data-ui="publish-result-retry-entry">失败重试：{nextAction}</p>
     </div>

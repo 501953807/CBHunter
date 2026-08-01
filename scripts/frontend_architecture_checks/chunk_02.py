@@ -1,5 +1,4 @@
 """Validation rule chunk for frontend information architecture."""
-
 from .context import *  # noqa: F401,F403
 
 _CHUNK = r'''
@@ -25,8 +24,9 @@ for required in (
     "setSlotPlanDirty(true)",
     "setSlotPlanDirty(false)",
     "saveCurrentSlotPlan",
-    "data-ui=\"image-slot-plan-dirty-state\"",
-    "data-ui=\"save-dirty-image-slot-plan\"",
+    "data-ui=\"image-slot-plan-dirty-state\"", "buildImageProcessingSummary",
+    "data-ui=\"image-processing-before-save-summary\"", "data-ui=\"image-processing-summary-chip\"",
+    "保存前处理摘要", "data-ui=\"save-dirty-image-slot-plan\"",
     "当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。",
     "loadSavedImageSlotPlan",
     "parseSavedImageSlotPlan",
@@ -93,12 +93,12 @@ for required in (
     "aria-label=\"平台标题规则状态表\"",
     "标题规则",
     "待优化",
-    "标题、五点卖点与长描述编辑台",
+    "标题、卖点摘要与商品详情编辑台",
     "Listing 文案校验面板",
     "标题候选与人工定稿",
-    "五点卖点",
-    "aria-label=\"五点卖点编辑表\"",
-    "卖点类型",
+    "卖点摘要",
+    "aria-label=\"卖点摘要编辑表\"",
+    "摘要类型",
     "买家可见内容",
     "长描述 / 商品详情",
     "aria-label=\"长描述编辑区\"",
@@ -113,6 +113,9 @@ for required in (
 for forbidden in ("xl:grid-cols-[280px_minmax(0,1fr)_260px]", "xl:border-l xl:border-t-0"):
     if forbidden in CONTENT_TITLE_GENERATOR:
         errors.append(f"content title generator must not squeeze listing copy fields into narrow side rails: {forbidden}")
+for forbidden in ("五点卖点", "aria-label=\"五点卖点编辑表\"", "filledBullets}/5", "卖点 {brief.length}/5", "bulletReady"):
+    if forbidden in CONTENT_TITLE_GENERATOR + LISTING_UNIFIED_EDITOR_SECTIONS:
+        errors.append(f"listing copy editor must not hard-code Amazon five-bullet UI as a platform-wide requirement: {forbidden}")
 for required in ("useConfirm", "删除内容素材", "确认删除素材"):
     if required not in CONTENT_MEDIA_STUDIO:
         errors.append(f"content media asset delete must use system confirm dialog: {required}")
@@ -145,10 +148,10 @@ if "aria-label=\"专业工作台视觉框架\"" not in PROFESSIONAL_WORKSPACE_FR
     errors.append("professional workspace visual frame component must exist with accessible shell label")
 if "aria-label=\"业务对象下钻动作\"" not in BUSINESS_OBJECT_ACTION_BAR:
     errors.append("business object action bar must exist with accessible drill-down action label")
-for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-overlay-workspace\"", "data-ui=\"content-image-edit-overlay-workspace\"", "data-ui=\"content-factory-editor-overlay\"", "覆盖式工作台", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\""):
+for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-overlay-workspace\"", "data-ui=\"content-image-edit-overlay-workspace\"", "data-ui=\"content-factory-editor-overlay\"", "覆盖式工作台", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\"", "data-ui=\"content-queue-real-action-guide\""):
     if required not in CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content planner must separate queue, listing detail, and image editor flows: {required}")
-for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "ListingCompositionBoard product={selectedProduct}"):
+for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "ListingCompositionBoard product={selectedProduct}", "<Button variant=\"outline\" disabled>批量生成文案</Button>", "<Button variant=\"outline\" disabled>批量校验素材</Button>", "<Button variant=\"secondary\" disabled>推送到定价队列</Button>"):
     if forbidden in CONTENT_PLANNER_WORKSPACE or forbidden in CONTENT_PRODUCT_QUEUE:
         errors.append(f"content factory queue/detail must not expose old squeezed or misplaced action: {forbidden}")
 for required in ("listing-master-copy", "listing-master-media", "listing-master-attributes", "listing-master-sku", "listing-master-logistics"):
@@ -163,10 +166,12 @@ for required in (
     "批量定价校验队列",
     "onOpenMediaWorkbench",
     "productIdForAction",
+    "data-ui=\"content-product-store-context-summary\"",
+    "storeContextLabel",
 ):
     if required not in CONTENT_PRODUCT_QUEUE + CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content product queue must turn selected products into actionable local batch work queues: {required}")
-for forbidden in ("title=\"批量生成文案需要接入内容任务批量接口后启用\"", "title=\"批量素材校验需要接入后端批量校验接口后启用\"", "title=\"送入定价队列需要完成智能定价模板后启用\""):
+for forbidden in ("title=\"批量生成文案需要接入内容任务批量接口后启用\"", "title=\"批量素材校验需要接入后端批量校验接口后启用\"", "title=\"送入定价队列需要完成智能定价模板后启用\"", "店铺：发布前选择/覆盖"):
     if forbidden in CONTENT_PRODUCT_QUEUE:
         errors.append(f"content product bulk actions must not remain disabled placeholders: {forbidden}")
 for forbidden in ("内容诊断", "Preview", "Product Detail"):
@@ -228,27 +233,16 @@ for required in (
 for required in (
     "SellerPlatformListingEditorPanel",
     "data-ui=\"unified-listing-master-editor\"",
-    "aria-label=\"统一 Listing 母版编辑器\"",
-    "data-ui=\"unified-listing-sticky-field-nav\"",
-    "data-ui=\"listing-gap-clickable-summary\"",
+    "aria-label=\"统一 Listing 母版编辑器\"", "data-ui=\"seller-listing-product-context-strip\"", "当前商品对象：基础商品 → 平台 Listing → 店铺 Listing 覆盖",
+    "data-ui=\"unified-listing-sticky-field-nav\"", "data-ui=\"listing-gap-clickable-summary\"",
     "aria-label=\"Listing 缺口点击定位摘要\"",
-    "data-ui=\"listing-gap-click-to-field\"",
-    "data-ui=\"listing-active-gap-context\"",
+    "data-ui=\"listing-gap-click-to-field\"", "data-ui=\"listing-active-gap-context\"",
     "aria-label=\"当前定位的 Listing 缺口\"",
-    "activeGap",
-    "anchorLabel",
-    "targetLabel",
-    "targetId",
+    "activeGap", "anchorLabel", "targetLabel", "targetId",
     "document.getElementById(gap.targetId)",
     "focus({ preventScroll: true })",
-    "id=\"listing-field-images\"",
-    "id=\"listing-field-title\"",
-    "id=\"listing-field-description\"",
-    "id=\"listing-platform-field-group\"",
-    "id=\"listing-field-sku-table\"",
-    "listing-field-sku-price",
-    "listing-field-package-size",
-    "fieldId={fieldId}",
+    "id=\"listing-field-images\"", "id=\"listing-field-title\"", "id=\"listing-field-description\"", "id=\"listing-platform-field-group\"",
+    "id=\"listing-field-sku-table\"", "listing-field-sku-price", "listing-field-package-size", "fieldId={fieldId}",
     "active={activeAnchor === 'listing-master-sku'}",
     "border border-[var(--color-primary)] bg-[var(--color-primary-light)]",
     "当前缺口定位",
@@ -257,13 +251,13 @@ for required in (
     "请在高亮编辑区内补齐字段后保存",
     "buildListingGaps",
     "图片不足",
-    "SKU 销售资料待补",
-    "data-ui=\"listing-master-image-slot-grid\"",
-    "data-ui=\"listing-image-slot-edit-link\"",
-    "changeTab('media', { imageSlotIndex: index + 1 })",
-    "dropImageSlot",
-    "draggable",
-    "onDrop",
+    "SKU 销售资料待补", "data-ui=\"listing-sku-row-readiness-status\"", "发布就绪", "待补：",
+    "data-ui=\"listing-master-image-slot-grid\"", "data-ui=\"listing-image-operation-toolbar\"", "直接拖拽图片排序，首位即平台主图",
+    "data-ui=\"listing-image-slot-edit-link\"", "changeTab('media', { imageSlotIndex: index + 1 })",
+    "dropImageSlot", "draggable", "onDrop",
+    "data-ui=\"listing-image-slot-order-card\"", "data-ui=\"listing-image-slot-publish-order\"",
+    "data-ui=\"listing-image-slot-drag-handle\"", "data-ui=\"listing-image-slot-publish-state\"",
+    "平台主图 / 搜索首图", "发布前${recommendedImages}张内", "素材池保留，不随本次发布",
     "data-ui=\"listing-master-add-image-slot\"",
     "添加图片",
     "setMainImage",
@@ -287,23 +281,30 @@ for required in (
     "aria-label=\"平台必填字段状态表\"",
     "data-ui=\"seller-listing-sku-sales-editor\"",
     "aria-label=\"卖家后台 SKU 销售资料编辑区\"",
-    "aria-label=\"SKU 批量操作工具条\"",
+    "aria-label=\"SKU 批量操作工具条\"", "data-ui=\"listing-sku-batch-fill-summary\"", "本次写入：",
     "aria-label=\"卖家后台 SKU 销售资料编辑表\"",
     "规格一",
     "规格二",
     "平台 SKU / SPU/SKC",
-    "SKU 图角色",
+    "SKU 图角色", "data-ui=\"listing-sku-image-slot-select\"", "data-ui=\"listing-sku-image-slot-preview\"", "选择图片槽位",
     "包装尺寸",
     "填充启用 SKU",
     "新增 SKU 变体",
     "物流、包装与合规",
-    "listing-inline-ai-title",
-    "listing-inline-ai-description",
+    "ListingCopyAiAssistPanel", "data-ui=\"listing-copy-field-ai-assist-panel\"", "data-ui=\"listing-field-ai-candidate-card\"",
+    "AI 只生成候选，点击采用后仍是草稿",
+    "采用候选到当前字段",
+    "候选未写入",
     "保存母版草稿",
-    "保存到店铺覆盖",
+    "保存到店铺覆盖", "StatusMetric", "ListingCriticalActionStrip", "listingWorkflowUrl", "product_id", "target_platform", "target_store", "target_market",
+    "data-ui=\"listing-critical-action-strip\"", "发布前关键操作", "补图片", "补平台属性", "补SKU/销售", "补物流合规",
+    "去定价校验", "进入批量刊登", "changeTab('media'", "window.location.href = listingWorkflowUrl('/pricing'", "window.location.href = listingWorkflowUrl('/publish'",
 ):
-    if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + SELLER_PLATFORM_LISTING_EDITOR_UTILS:
+    if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + SELLER_PLATFORM_LISTING_EDITOR_UTILS + LISTING_CRITICAL_ACTION_STRIP + LISTING_COPY_AI_ASSIST_PANEL:
         errors.append(f"content planner must expose a focused same-product listing editor: {required}")
+for forbidden in ("listing-inline-ai-title", "listing-inline-ai-description", "applyTitleCandidate", "applyDescriptionCandidate"):
+    if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
+        errors.append(f"listing copy AI assist must not regress to old inline hidden buttons in main editor: {forbidden}")
 for forbidden in ("xl:grid-cols-[240px_minmax(560px,1fr)_260px]",):
     if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
         errors.append(f"seller platform listing editor must not force the editing form into a compressed three-column layout: {forbidden}")
@@ -514,7 +515,7 @@ for required in (
     "内容商品列表每页条数",
     "批量生成文案",
     "批量校验素材",
-    "送入定价校验",
+    "送入定价校验", "data-ui=\"content-product-row-action-set\"", "处理图片", "刊登",
 ):
     if required not in CONTENT_PRODUCT_QUEUE:
         errors.append(f"content product queue must follow seller-console product list structure: {required}")
@@ -616,16 +617,19 @@ for required in (
 for required in ("skuBlocked", "skuValidationCheck", "listing_validation.{check.get('code')}", "SKU发布准备度"):
     if required not in BATCH_PUBLISH_PREVIEW + BATCH_PUBLISH_SKU_READINESS + BATCH_PUBLISH_SERVICE:
         errors.append(f"batch publish realtime preview must consume backend SKU validation state: {required}")
-for required in ("searchParams.get('platform_field_key')", "highlightPlatformFieldKey", "highlightedFieldKey", "data-ui=\"platform-field-highlight-target\"", "decodeURIComponent(highlightPlatformFieldKey)"):
+for required in ("searchParams.get('platform_field_key')", "highlightPlatformFieldKey", "highlightedFieldKey", "data-ui=\"platform-field-highlight-target\"", "decodeURIComponent(highlightPlatformFieldKey)", "data-ui=\"platform-field-readiness-strip\"", "data-ui=\"platform-field-requirement-hint\"", "FieldReadinessStrip", "FieldRequirementHint"):
     if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + PLATFORM_FIELD_GROUPS:
         errors.append(f"content factory must consume platform_field_key and highlight the dynamic platform field: {required}")
+for required in ("FieldValueControl", "normalizeFieldType", "fieldEnumOptions", "FieldFocusToolbar", "fieldMatchesFocus", "fallbackAttrMatchesFocus", "groupFieldStats", "data-ui=\"platform-field-group-readiness-summary\"", "data-ui=\"platform-field-focus-toolbar\"", "data-ui=\"platform-field-search-input\"", "data-ui=\"platform-field-focus-filter\"", "data-ui=\"platform-field-visible-count\"", "options?: unknown[]", "allowed_values?: unknown[]", "data-ui=\"platform-field-dynamic-input\"", "data-field-input-type=\"enum\"", "data-field-input-type=\"boolean\"", "data-field-input-type=\"number\"", "data-field-input-type=\"long_text\""):
+    if required not in PLATFORM_FIELD_GROUPS:
+        errors.append(f"platform field editor must render dynamic input controls by field type: {required}")
 for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFieldGroupSummary"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must expose listing draft persistence diagnostics: {required}")
 for required in ("aria-label=\"发布失败与重试处理队列\"", "data-ui=\"publish-result-retry-action-panel\"", "FailureActionCard", "ResultActions", "返回重选重试", "补 Listing 内容", "补图片/SKU", "补定价", "resultRepairHref", "resultPricingHref"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must expose failure reasons and repair/retry actions: {required}")
-for required in ("PublishReceipt", "publish_receipt", "data-ui=\"publish-result-receipt-status-table\"", "data-ui=\"publish-result-local-receipt\"", "data-ui=\"publish-result-platform-api-status\"", "data-ui=\"publish-result-retry-entry\"", "平台 Open API 状态", "失败重试", "next_action", "retryable"):
+for required in ("PublishReceipt", "publish_receipt", "data-ui=\"publish-result-receipt-status-table\"", "data-ui=\"publish-result-local-receipt\"", "data-ui=\"publish-result-platform-api-status\"", "data-ui=\"publish-result-retry-entry\"", "publish-result-official-writeback", "official_publish_writeback", "官方回写", "平台 Open API 状态", "失败重试", "next_action", "retryable"):
     if required not in (BATCH_PUBLISH_RESULT + LISTING_API):
         errors.append(f"batch publish result must expose platform receipt and retry guidance: {required}")
 for required in ("查看商品 Listing", "?tab=listings"):
@@ -634,7 +638,7 @@ for required in ("查看商品 Listing", "?tab=listings"):
 for required in ("useSearchParams", "product_id", "product_ids", "getProduct", "setSelectedItems"):
     if required not in BATCH_PUBLISH_WORKSPACE:
         errors.append(f"batch publish workspace must keep product detail deep-link support: {required}")
-for required in ("initialTargetsApplied", "productTargetPlatforms", "productTargetMarkets", "matchingStores.length === 1"):
+for required in ("initialTargetsApplied", "productTargetPlatforms", "productTargetMarkets", "matchingStores.length === 1", "initialTargetPlatform", "initialTargetStore", "initialTargetMarket", "data-ui=\"batch-publish-content-context-handoff\"", "内容工厂带入", "target_platform", "target_store", "target_market"):
     if required not in BATCH_PUBLISH_WORKSPACE:
         errors.append(f"batch publish workspace must carry product target platform/market context safely: {required}")
 for required in ("toggleItemSelection", "targetStoreIds", "availablePlatformIds", "availableMarketIds", "availableStoreIds", "selectablePlatforms", "selectableMarkets", "setSelectedStores(current =>"):

@@ -23,6 +23,9 @@ export default function SmartPricingPage() {
   const [searchParams] = useSearchParams()
   const initialContentItemId = searchParams.get('content_item_id') || ''
   const initialProductId = searchParams.get('product_id') || ''
+  const initialTargetPlatform = searchParams.get('target_platform') || ''
+  const initialTargetStore = searchParams.get('target_store') || ''
+  const initialTargetMarket = searchParams.get('target_market') || ''
   const { platforms, markets } = useConfig()
   const [sourcePrice, setSourcePrice] = useState('')
   const [platform, setPlatform] = useState('')
@@ -75,10 +78,19 @@ export default function SmartPricingPage() {
       ? pricingItems.find(item => matchesPricingProduct(item, initialProductId))
       : null
     const initial = direct || byProduct
-    if (initial) handleSelectItem(initial.id)
-  }, [initialContentItemId, initialProductId, pricingItems, selectedItemId])
+    if (initial) {
+      handleSelectItem(initial.id, {
+        targetPlatform: initialTargetPlatform,
+        targetStore: initialTargetStore,
+        targetMarket: initialTargetMarket,
+      })
+    }
+  }, [initialContentItemId, initialProductId, initialTargetPlatform, initialTargetStore, initialTargetMarket, pricingItems, selectedItemId])
 
-  const handleSelectItem = (itemId: string) => {
+  const handleSelectItem = (
+    itemId: string,
+    routeContext?: { targetPlatform?: string; targetStore?: string; targetMarket?: string },
+  ) => {
     setSelectedItemId(itemId)
     const item = pricingItems.find(entry => entry.id === itemId)
     if (!item) {
@@ -86,15 +98,18 @@ export default function SmartPricingPage() {
       return
     }
     const overrideStoreId = item.listing_store_override?.store_id || ''
+    const routeStoreId = routeContext?.targetStore && item.store_options.some(store => store.id === routeContext.targetStore)
+      ? routeContext.targetStore
+      : ''
     const defaultStoreId = item.store_options.some(store => store.id === overrideStoreId) ? overrideStoreId : item.store_options[0]?.id || ''
-    setSelectedStoreId(defaultStoreId)
+    setSelectedStoreId(routeStoreId || defaultStoreId)
     setSourcePrice(String(item.source_price_rmb))
     setShippingCost('')
     setActivityDiscount('')
     setMinProfit('')
     setSelectedPricingTemplateId('')
-    setPlatform(item.platform)
-    setMarket(item.market)
+    setPlatform(routeContext?.targetPlatform || item.platform)
+    setMarket(routeContext?.targetMarket || item.market)
     setResult(null)
     setEvidence(null)
     setConfirmMessage('')
@@ -221,6 +236,19 @@ export default function SmartPricingPage() {
               {pricingWorkbenchQuery.isLoading && (
                 <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
                   正在加载定价商品队列...
+                </div>
+              )}
+              {(initialProductId || initialTargetPlatform || initialTargetStore || initialTargetMarket) && (
+                <div
+                  data-ui="pricing-content-context-handoff"
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs"
+                  aria-label="内容工厂带入的定价上下文"
+                >
+                  <span className="font-semibold text-[var(--color-fg)]">内容工厂带入</span>
+                  {initialProductId && <span className="rounded-full bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">商品 {initialProductId}</span>}
+                  {initialTargetPlatform && <span className="rounded-full bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">平台 {initialTargetPlatform}</span>}
+                  {initialTargetStore && <span className="rounded-full bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">店铺 {initialTargetStore}</span>}
+                  {initialTargetMarket && <span className="rounded-full bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">市场 {initialTargetMarket}</span>}
                 </div>
               )}
               <PricingItemSelector items={pricingItems} selectedItemId={selectedItemId} selectedStoreId={selectedStoreId} onSelectItem={handleSelectItem} onSelectStore={setSelectedStoreId} />
@@ -494,6 +522,12 @@ export default function SmartPricingPage() {
             icon={<Target className="w-4 h-4" />}
             change={result?.status === 'ready' ? result.recommendations.balanced?.net_profit_pct : undefined}
           />
+          <div data-ui="pricing-activity-price-preview" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs">
+            <p className="font-semibold text-[var(--color-fg)]">活动价口径</p>
+            <p className="mt-2 text-[var(--color-muted)]">活动折扣：{activityDiscount ? `${activityDiscount}%` : '未设置'}</p>
+            <p className="mt-1 text-[var(--color-muted)]">平衡折后实收：{result?.status === 'ready' && result.recommendations.balanced?.effective_selling_price_rmb != null ? `¥${result.recommendations.balanced.effective_selling_price_rmb.toFixed(2)}` : '计算后显示'}</p>
+            <p className="mt-1 text-[var(--color-muted)]">最低利润底线：{minProfit ? `¥${minProfit}` : '未设置'}</p>
+          </div>
           {result?.competitor_price_band && (
             <StatCard
               label="竞品价格带"

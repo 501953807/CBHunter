@@ -37,7 +37,7 @@ export function ContentTitleGenerator({
   const [evidence, setEvidence] = useState('')
   const [mode, setMode] = useState<'simple' | 'fivestep'>('simple')
   const [selectedTitle, setSelectedTitle] = useState('')
-  const [manualBullets, setManualBullets] = useState<string[]>(['', '', '', '', ''])
+  const [manualBullets, setManualBullets] = useState<string[]>(normalizeBullets([]))
   const [manualDescription, setManualDescription] = useState('')
   const contentPlatforms = filterPlatformsByCapability(platforms, 'content')
 
@@ -123,13 +123,13 @@ export function ContentTitleGenerator({
     }
   }
 
-  const bulletText = manualBullets.map((item, index) => `${index + 1}. ${item.trim() || '待补卖点'}`).join('\n')
+  const bulletText = manualBullets.filter(item => item.trim()).map((item, index) => `要点${index + 1}：${item.trim()}`).join('\n')
   const titleLength = selectedTitle.trim().length
   const filledBullets = manualBullets.filter(item => item.trim()).length
   const keywordTerms = extractKeywordTerms(keywords, form)
   const keywordHitCount = keywordTerms.filter(term => selectedTitle.toLowerCase().includes(term.toLowerCase())).length
   const titleReady = titleLength >= 35 && titleLength <= 120
-  const bulletReady = filledBullets >= 5
+  const highlightReady = filledBullets > 0
   const descriptionReady = manualDescription.trim().length >= 80
   const titleRules = [
     { label: '标题长度', ok: titleReady, detail: `${titleLength} 字，建议 35-120 字` },
@@ -148,12 +148,12 @@ export function ContentTitleGenerator({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 文案</p>
-            <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">标题、五点卖点与长描述编辑台</h3>
+            <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">标题、卖点摘要与商品详情编辑台</h3>
             <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--color-muted)]">围绕当前商品处理买家可见文案和平台检索信息；生成只是候选，必须人工确认后才进入内容任务矩阵。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant={titleReady ? 'success' : 'warning'}>标题 {titleLength} 字</Badge>
-            <Badge variant={bulletReady ? 'success' : 'warning'}>卖点 {filledBullets}/5</Badge>
+            <Badge variant={highlightReady ? 'success' : 'warning'}>卖点摘要 {filledBullets} 条</Badge>
             <Badge variant={descriptionReady ? 'success' : 'default'}>描述 {manualDescription.trim().length} 字</Badge>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function ContentTitleGenerator({
       >
         {[
           ['title', '标题'],
-          ['bullets', '五点卖点'],
+          ['bullets', '卖点摘要'],
           ['description', '长描述'],
           ['check', '文案校验'],
         ].map(([id, label]) => (
@@ -254,16 +254,16 @@ export function ContentTitleGenerator({
           <Card id="listing-copy-bullets">
             <CardContent className="space-y-3 pt-4">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-[var(--color-fg)]">五点卖点</h3>
+                <h3 className="font-semibold text-[var(--color-fg)]">卖点摘要</h3>
                 <Button size="sm" variant="outline" onClick={() => saveAndConfirm('selling_points', bulletText)} disabled={saving === 'selling_points' || filledBullets === 0}>
                   <CheckCircle2 className="mr-1 h-3.5 w-3.5" />确认卖点
                 </Button>
               </div>
-              <div aria-label="五点卖点编辑表" className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+              <div aria-label="卖点摘要编辑表" className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
                     <tr>
-                      <th className="w-28 px-3 py-2 font-medium">卖点类型</th>
+                      <th className="w-32 px-3 py-2 font-medium">摘要类型</th>
                       <th className="px-3 py-2 font-medium">买家可见内容</th>
                     </tr>
                   </thead>
@@ -271,10 +271,10 @@ export function ContentTitleGenerator({
                 {manualBullets.map((bullet, index) => (
                   <tr key={index} className="border-t border-[var(--color-border)]">
                     <td className="px-3 py-2 font-semibold text-[var(--color-fg)]">
-                      {['核心功能', '材质安全', '规格适配', '场景人群', '信任售后'][index]}
+                      {SELLING_POINT_SLOT_LABELS[index] || `补充要点 ${index + 1}`}
                     </td>
                     <td className="px-3 py-2">
-                      <input className={inputClass} value={bullet} onChange={event => updateBullet(index, event.target.value)} placeholder={['核心功能/痛点', '材质/安全', '规格/适配', '场景/人群', '信任/售后'][index]} />
+                      <input className={inputClass} value={bullet} onChange={event => updateBullet(index, event.target.value)} placeholder={SELLING_POINT_PLACEHOLDERS[index] || '补充平台可用的卖点摘要'} />
                     </td>
                   </tr>
                 ))}
@@ -302,7 +302,7 @@ export function ContentTitleGenerator({
           <div className="mt-3 grid gap-2">
             <CopyCheck label="标题长度" value={`${titleLength} 字`} ok={titleReady} detail="建议 35-120 字，发布前再按平台精确规则校验。" />
             <CopyCheck label="关键词覆盖" value={`${keywordHitCount}/${keywordTerms.length}`} ok={keywordTerms.length === 0 || keywordHitCount > 0} detail={keywordTerms.slice(0, 6).join('、') || '等待生成关键词或补充核心功能。'} />
-            <CopyCheck label="五点卖点" value={`${filledBullets}/5`} ok={bulletReady} detail="跨境 Listing 需要快速说明功能、材质、规格、场景和信任点。" />
+            <CopyCheck label="卖点摘要" value={`${filledBullets} 条`} ok={highlightReady} detail="卖点摘要作为标题和商品描述的辅助素材，不作为所有平台的硬性五点字段。" />
             <CopyCheck label="长描述" value={`${manualDescription.trim().length} 字`} ok={descriptionReady} detail="详情描述应覆盖材质、尺寸、使用方式、包装和售后。" />
             <CopyCheck label="人工确认" value={product ? '写入内容任务' : '未选择商品'} ok={Boolean(product)} detail="确认后进入内容任务矩阵，供定价校验和刊登使用。" />
           </div>
@@ -331,10 +331,12 @@ export function ContentTitleGenerator({
 }
 
 const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus:border-[var(--color-accent)]'
+const SELLING_POINT_SLOT_LABELS = ['核心价值', '材质与安全', '规格与适配', '场景与人群', '包装与售后', '搜索补充']
+const SELLING_POINT_PLACEHOLDERS = ['核心价值/解决痛点', '材质/安全/工艺', '尺寸/容量/适配', '使用场景/目标人群', '包装清单/售后说明', '平台关键词或补充卖点']
 
 function normalizeBullets(bullets: string[]) {
-  const next = bullets.slice(0, 5)
-  while (next.length < 5) next.push('')
+  const next = bullets.slice(0, SELLING_POINT_SLOT_LABELS.length)
+  while (next.length < SELLING_POINT_SLOT_LABELS.length) next.push('')
   return next
 }
 
