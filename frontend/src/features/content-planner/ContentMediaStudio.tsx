@@ -33,10 +33,11 @@ import {
 
 const inputClass = 'text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]'
 
-export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1 }: {
+export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1, onImageSlotPlanSaved }: {
   mode?: 'all' | 'image' | 'video'
   product?: ContentWorkbenchItem | null
   initialSlotIndex?: number
+  onImageSlotPlanSaved?: () => Promise<void> | void
 }) {
   const toast = useToast()
   const confirmAction = useConfirm()
@@ -94,6 +95,16 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
       logger.error('Load saved image slot plan failed', error)
       setSavedSlotPlan(null)
       toast.addToast('error', '已保存图片槽位计划加载失败')
+    }
+  }
+
+  const notifyImageSlotPlanSaved = async () => {
+    if (!onImageSlotPlanSaved) return
+    try {
+      await onImageSlotPlanSaved()
+    } catch (error: any) {
+      logger.error('Notify parent after image slot plan saved failed', error)
+      toast.addToast('warning', '图片计划已保存，但当前商品上下文刷新失败，请重新打开该商品确认')
     }
   }
 
@@ -183,9 +194,16 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
     if (!product) return
     setLoading(true)
     try {
+      const publishImageLimit = product.media_readiness?.recommended_platform_images ?? 9
+      const isPublishableSlot = (slot: MediaSlotPlan, index: number) => index === 0 || (typeof slot.publishable === 'boolean' ? slot.publishable : index + 1 <= publishImageLimit)
+      const publishableImageCount = slots.filter((slot, index) => slot.imageUrl && isPublishableSlot(slot, index)).length
+      const retainedImageCount = slots.filter((slot, index) => slot.imageUrl && !isPublishableSlot(slot, index)).length
       const payload = JSON.stringify({
         schema: 'listing_image_slots.v1',
         product_id: product.id,
+        publish_image_limit: publishImageLimit,
+        publishable_image_count: publishableImageCount,
+        retained_image_count: retainedImageCount,
         slots: slots.map((slot, index) => {
           const roleMeta = listingImageRoleByIndex(index)
           return {
@@ -195,6 +213,7 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
             image_url: slot.imageUrl,
             asset_name: slot.assetName,
             size: slot.sizeText,
+            publishable: isPublishableSlot(slot, index),
             edit_options: imageOptions,
           }
         }),
@@ -205,8 +224,9 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
       const version = saved.data?.version
       if (version) await confirmContentTaskVersion(product.id, 'image_edit_plan', version)
       setSavedSlotPlan(slots)
-      toast.addToast('success', '图片槽位顺序已保存到当前商品 Listing 图片计划')
       await loadAssets()
+      await notifyImageSlotPlanSaved()
+      toast.addToast('success', '图片槽位顺序已保存到当前商品 Listing 图片计划')
     } catch (error: any) {
       logger.error('Save image slot plan failed', error)
       toast.addToast('error', error?.response?.data?.detail || '图片槽位保存失败')
@@ -299,7 +319,7 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
       />
       <ListingMediaSlotBoard product={product || null} productImageAssets={productImageAssets} productVideoAssets={productVideoAssets} onUseSourceImage={runSourceImageEdit} loading={loading} />
 
-      <section aria-label="素材商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+      <section aria-label="素材商品上下文" data-ui="content-image-plan-refresh-after-save" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
         {product?.image_url ? (
           <img src={productImageSrc(product.image_url)} alt={product.product_name} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
         ) : (
@@ -462,7 +482,7 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
       label: isMain ? '主图' : `辅图 ${index}`,
       role: isMain ? '搜索页首图 / 商品页主图' : slotNo <= 5 ? '核心卖点辅图' : '场景/尺寸/细节补充',
       imageUrl: isMain ? product?.image_url : null,
-      status: hasKnownImage ? processedAsset ? '已处理素材' : '已采集未预览' : slotNo <= minImages ? '必补图片' : '建议补充',
+      status: hasKnownImage ? processedAsset ? '已处理素材' : '已采集未预览' : slotNo <= minImages ? '必补发布图' : '建议补充',
       assetLabel: processedAsset?.original_name || '',
       required: slotNo <= minImages,
     }
@@ -485,9 +505,9 @@ function ListingMediaSlotBoard({ product, productImageAssets, productVideoAssets
           </div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <MediaHealthCard label="最低图片" value={`${minImages} 张`} detail="发布基础门槛" />
-          <MediaHealthCard label="建议图片" value={`${recommendedImages} 张`} detail="覆盖卖点、场景、尺寸、细节" />
-          <MediaHealthCard label="当前缺口" value={missing ? `${missing} 张` : '已达标'} detail={mediaGaps[0] || '数量基础达标，继续检查图片质量'} warning={missing > 0 || mediaGaps.length > 0} />
+          <MediaHealthCard label="最低发布图" value={`${minImages} 张`} detail="发布基础门槛" />
+          <MediaHealthCard label="建议发布图" value={`${recommendedImages} 张`} detail="覆盖卖点、场景、尺寸、细节" />
+          <MediaHealthCard label="发布图缺口" value={missing ? `${missing} 张` : '发布图已达标'} detail={mediaGaps[0] || '发布图数量基础达标，继续检查图片质量'} warning={missing > 0 || mediaGaps.length > 0} />
           <MediaHealthCard label="处理素材" value={`${productImageAssets.length} 图 / ${productVideoAssets.length} 视频`} detail="仅统计绑定当前商品的素材" />
         </div>
       </div>
@@ -591,6 +611,7 @@ function normalizeSavedImageSlot(slot: unknown, index: number): MediaSlotPlan | 
     imageUrl: String(data.image_url || ''),
     assetName: String(data.asset_name || ''),
     sizeText: String(data.size || (data.image_url ? '已保存槽位' : '待补真实图片')),
+    publishable: typeof data.publishable === 'boolean' ? data.publishable : undefined,
   }
 }
 

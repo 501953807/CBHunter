@@ -22,16 +22,16 @@ for required in ("productListQuery", "productListQuery.isError", "data-ui=\"prod
 for required in ("productsQuery.isError", "data-ui=\"platform-store-products-error\"", "重新加载平台店铺商品"):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"AUDIT-P2-03 platform store products panel must expose visible React Query error recovery: {required}")
-for required in ("aria-label=\"平台店铺商品库总览\"", "SummaryCard", "覆盖店铺", "图片不足", "SKU/规格"):
+for required in ("aria-label=\"平台店铺商品库总览\"", "SummaryCard", "覆盖店铺", "发布图不足", "发布图/SKU", "SKU/规格"):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"platform store products must expose store/listing summary cards: {required}")
 for required in (
     "PlatformStoreGroupingBoard",
     "aria-label=\"平台店铺商品分组态势\"",
     "data-ui=\"platform-store-grouping-board\"",
-    "按平台/店铺查看商品同步、图片缺口和 SKU 覆盖",
+    "按平台/店铺查看商品同步、发布图缺口和 SKU 覆盖",
     "店铺商品数",
-    "图片缺口",
+    "发布图缺口",
     "SKU 覆盖",
     "同步状态",
     "buildPlatformStoreGroups",
@@ -43,7 +43,7 @@ for required in (
     "aria-label=\"平台店铺商品处理动作\"",
     "data-ui=\"platform-store-product-action-strip\"",
     "buildStoreProductActions",
-    "补主图素材",
+    "补发布图素材",
     "补 SKU/规格",
     "编辑店铺 Listing",
     "维护平台商品资料",
@@ -139,7 +139,7 @@ store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + SHIPMENT_LIST_PAGE
 for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺物流", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"shipments\"", "currentModule=\"finance\""):
     if required not in store_context_content:
         errors.append(f"store drilldown context must persist across product/order/finance pages: {required}")
-for required in ("mediaReadinessLabel", "平台图片要求", "媒体缺口", "主档图片"):
+for required in ("mediaReadinessLabel", "平台发布图要求", "发布图缺口", "主档图片"):
     if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
         errors.append(f"platform store products must expose listing media readiness and master image context: {required}")
 for required in (
@@ -148,7 +148,7 @@ for required in (
     "基础商品 → 店铺 Listing 实例",
     "平台返回ID",
     "主档图片",
-    "Listing图片",
+    "发布图",
     "店铺覆盖字段",
     "标题覆盖",
     "价格/库存覆盖",
@@ -366,7 +366,8 @@ for required in (
     "id=\"platform-listing-seller-preview\"",
     "买家搜索卡片预览",
     "后台关键字段核对",
-    "主图",
+    "发布图",
+    "发布图不足",
     "标题",
     "价格",
     "库存",
@@ -396,7 +397,7 @@ for forbidden in ("SKU/变体 JSON", "平台属性 JSON", "parseJsonArray", "par
 for required in ("aria-label=\"商品图片真实预览\"", "主图", "辅图", "至少 5 张", "建议 9 张", "上移", "下移", "删除图片"):
     if required not in PRODUCT_IMAGES_PANEL:
         errors.append(f"product image editor must support platform-grade image management: {required}")
-for required in ("mediaReadinessForProduct", "图片就绪", "平台至少 5 张", "建议 9 张", "媒体缺口"):
+for required in ("mediaReadinessForProduct", "发布图就绪", "平台至少 5 张", "建议 9 张", "发布图缺口"):
     if required not in PRODUCT_SELLER_WORKBENCH:
         errors.append(f"product seller workbench must surface platform image readiness in the list and inspector: {required}")
 for required in ("上传商品图片", "采集图片入库", "素材入库后自动写入图片列表", "uploadProductImage", "importProductImageUrl"):

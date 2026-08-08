@@ -136,7 +136,7 @@ export function ProductListingEditOverview({
           <OverviewActionCard
             label="图片素材槽位"
             value={`${images.length}/9`}
-            detail={images.length >= 5 ? '已满足常见平台最低素材要求；建议补到 9 张。' : '图片不足，优先补主图、场景图、尺寸图和细节图。'}
+            detail={images.length >= 5 ? '发布图已满足常见平台最低要求；建议补到 9 张。' : '发布图不足，优先补主图、场景图、尺寸图和细节图。'}
             tone={images.length >= 5 ? 'ready' : images.length > 0 ? 'warning' : 'danger'}
             onClick={() => onSelectSection('media')}
           />
@@ -364,7 +364,7 @@ function sellerPreviewChecks(
   const missingFields = missingPlatformFieldCount(requirements)
   const hasSkuGap = variantRows.some(row => !row.sku.trim() || !row.name.trim())
   return [
-    { label: '主图', ready: imageCount > 0, detail: imageCount ? `已选择 ${imageCount} 张图片，建议补到 9 张。` : '必须先补主图和至少一组辅图。', section: 'media' as const },
+    { label: '发布图', ready: imageCount > 0, detail: imageCount ? `已选择 ${imageCount} 张发布图，建议补到 9 张。` : '必须先补主图和至少一组辅图。', section: 'media' as const },
     { label: '标题', ready: Boolean(form.title.trim() || listing.title), detail: `当前标题长度 ${(form.title || listing.title || '').length} 字符。`, section: 'basic' as const },
     { label: '价格', ready: Boolean(form.price), detail: form.price ? `当前店铺售价 ${form.price}。` : '必须录入当前店铺售价。', section: 'sales' as const },
     { label: '库存', ready: form.stock !== '', detail: form.stock !== '' ? `当前店铺库存 ${form.stock}。` : '必须录入当前店铺库存。', section: 'sales' as const },

@@ -51,6 +51,7 @@ async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]
         if gaps:
             continue
         listing_store_override_payload = listing_store_override(item)
+        image_plan = confirmed_image_slot_plan(item)
         platform_requirements = merge_platform_requirements(((item.extra_data or {}).get("platform_requirements") or {}).get(item.platform) or {}, item.platform, field_schemas)
         platform_requirements = merge_override_platform_attributes(platform_requirements, listing_store_override_payload)
         items.append({
@@ -70,7 +71,7 @@ async def list_publish_ready_items(db: AsyncSession, user_id: str) -> list[dict]
             "platform": item.platform,
             "market": item.market,
             "image_url": item.source_image,
-            "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
+            "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image, image_plan=image_plan),
             "platform_requirements": platform_requirements,
             "listing_master_status": _listing_master_status(item),
             "listing_store_override": listing_store_override_summary(listing_store_override_payload),
@@ -306,6 +307,7 @@ async def generate_listing_drafts(
                         "images": item["images"],
                         "sku_plan": sku_plan,
                         "media_assets": media_assets,
+                        "media_readiness": item.get("media_readiness") or {},
                         "logistics": logistics,
                         "compliance": compliance,
                         "validation_checks": validation_checks,
@@ -617,7 +619,7 @@ def _source_from_sourcing(item, field_schemas: dict | None = None) -> dict:
         "listing_store_override": listing_store_override_payload,
         "images": image_urls,
         "image_slots": image_plan["image_slots"],
-        "media_readiness": media_readiness_from_extra(item.extra_data or {}, image_urls),
+        "media_readiness": media_readiness_from_extra(item.extra_data or {}, image_urls, image_plan=image_plan),
         "master_sku": override_master_sku(listing_store_override_payload),
         "brand": None,
         "weight_g": override_logistics_payload.get("weight_g"),

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { Plus, SlidersHorizontal, Upload } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -40,6 +40,7 @@ export type MediaSlotPlan = {
   imageUrl: string
   assetName: string
   sizeText: string
+  publishable?: boolean
 }
 
 export type ImageWatermarkTemplateOption = {
@@ -128,15 +129,16 @@ export function SellerImageEditorWorkbench({
   const [slotUploading, setSlotUploading] = useState(false)
   const [slotPlanDirty, setSlotPlanDirty] = useState(false)
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
+  const imageOptionsKeyRef = useRef('')
   const sourceImage = product?.image_url || ''
   const slotCount = Math.max(product?.media_readiness?.recommended_platform_images ?? 9, 9)
   const publishImageLimit = product?.media_readiness?.recommended_platform_images ?? 9
   const imageAssetKey = productImageAssets.map(asset => `${asset.id}:${asset.created_at}`).join('|')
-  const savedSlotPlanKey = (initialSavedSlotPlan || []).map(slot => `${slot.index}:${slot.imageUrl}:${slot.assetName}`).join('|')
+  const savedSlotPlanKey = (initialSavedSlotPlan || []).map(slot => `${slot.index}:${slot.imageUrl}:${slot.assetName}:${slot.publishable}`).join('|')
   const [imageSlots, setImageSlots] = useState<MediaSlotPlan[]>([])
 
   useEffect(() => {
-    const savedSlots = initialSavedSlotPlan?.length ? relabelSlots(initialSavedSlotPlan) : null
+    const savedSlots = initialSavedSlotPlan?.length ? relabelSlots(initialSavedSlotPlan, true) : null
     const nextSlots = savedSlots || Array.from({ length: slotCount }).map((_, index) => {
       const asset = productImageAssets[index - 1]
       const imageUrl = index === 0 ? sourceImage : asset ? assetImageUrl(asset) : ''
@@ -148,6 +150,7 @@ export function SellerImageEditorWorkbench({
         imageUrl,
         assetName: asset?.original_name || '',
         sizeText: asset ? `${asset.width}×${asset.height}px` : imageUrl ? '源图待处理' : '待补真实图片',
+        publishable: index + 1 <= publishImageLimit,
       }
     })
     setImageSlots(nextSlots)
@@ -161,6 +164,18 @@ export function SellerImageEditorWorkbench({
     setActiveSlotIndex(clampImageSlotIndex(initialSlotIndex, imageSlots.length))
   }, [imageSlots.length, initialSlotIndex])
 
+  useEffect(() => {
+    const nextKey = JSON.stringify(imageOptions)
+    if (!imageOptionsKeyRef.current) {
+      imageOptionsKeyRef.current = nextKey
+      return
+    }
+    if (imageOptionsKeyRef.current !== nextKey) {
+      imageOptionsKeyRef.current = nextKey
+      setSlotPlanDirty(true)
+    }
+  }, [imageOptions])
+
   const activeSlot = imageSlots.find(slot => slot.index === activeSlotIndex) || imageSlots[0] || {
     index: 1,
     role: 'main_image',
@@ -168,11 +183,14 @@ export function SellerImageEditorWorkbench({
     imageUrl: '',
     assetName: '',
     sizeText: '待补真实图片',
+    publishable: true,
   }
 
-  const relabelSlots = (slots: MediaSlotPlan[]) => slots.map((slot, index) => {
+  const isSlotPublishable = (slot: MediaSlotPlan) => slot.index === 1 || (typeof slot.publishable === 'boolean' ? slot.publishable : slot.index <= publishImageLimit)
+
+  const relabelSlots = (slots: MediaSlotPlan[], preservePublishable = false) => slots.map((slot, index) => {
     const roleMeta = listingImageRoleByIndex(index)
-    return { ...slot, index: index + 1, role: roleMeta.role, label: roleMeta.label }
+    return { ...slot, index: index + 1, role: roleMeta.role, label: roleMeta.label, publishable: preservePublishable && typeof slot.publishable === 'boolean' ? slot.publishable : index + 1 <= publishImageLimit }
   })
 
   const replaceActiveSlotWithAsset = (asset: ContentAsset) => {
@@ -231,6 +249,7 @@ export function SellerImageEditorWorkbench({
       imageUrl: '',
       assetName: '',
       sizeText: '新增图片空位',
+      publishable: nextIndex <= publishImageLimit,
     }])
     setActiveSlotIndex(nextIndex)
     setSlotPlanDirty(true)
@@ -281,6 +300,7 @@ export function SellerImageEditorWorkbench({
         imageUrl,
         assetName: asset.original_name || asset.id,
         sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
+        publishable: slot.index <= publishImageLimit,
       }
     })
 
@@ -359,6 +379,14 @@ export function SellerImageEditorWorkbench({
   }
 
   const filterStyle = { filter: `brightness(${imageOptions.brightness}) contrast(${imageOptions.contrast})` }
+  const publishableSlotCount = imageSlots.filter(slot => slot.imageUrl && isSlotPublishable(slot)).length
+  const retainedAssetCount = imageSlots.filter(slot => slot.imageUrl && !isSlotPublishable(slot)).length
+  const emptySlotCount = imageSlots.filter(slot => !slot.imageUrl).length
+  const saveBlockedReason = !product
+    ? '未选择商品，不能保存图片计划'
+    : publishableSlotCount === 0
+      ? '发布范围内没有可用图片，至少需要1张真实商品图'
+      : ''
   const toolGroups = [
     { title: '调整', tools: ['消除笔', '裁剪旋转', '修改尺寸', '图片翻译', 'AI设计'] },
     { title: '更多工具', tools: ['智能抠图', '图片变清晰', '拼图', '切图', '商品堆品', '图片校正'] },
@@ -382,6 +410,16 @@ export function SellerImageEditorWorkbench({
     放大镜: '记录细节放大任务。',
   }
   const processingSummary = buildImageProcessingSummary(imageOptions)
+  const imagePreviewStyle = {
+    ...filterStyle,
+    transform: `rotate(${imageOptions.rotate_degrees}deg) scaleX(${imageOptions.flip_horizontal ? -1 : 1}) scaleY(${imageOptions.flip_vertical ? -1 : 1})`,
+    transition: 'filter 160ms ease, transform 160ms ease',
+  }
+  const platformSizePresets = [
+    { label: 'Shopee/TEMU 方图', width: 800, height: 800, fit: 'cover' },
+    { label: 'TikTok 主图', width: 600, height: 600, fit: 'cover' },
+    { label: '营销海报', width: 1080, height: 1080, fit: 'contain' },
+  ]
 
   return (
     <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
@@ -431,12 +469,18 @@ export function SellerImageEditorWorkbench({
         <div aria-label="图片编辑画布" className="relative grid place-items-center bg-[var(--color-bg)] p-8">
           {activeSlot.imageUrl ? (
             <div className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
-              <img
-                src={productImageSrc(activeSlot.imageUrl)}
-                alt={`${product?.product_name || '商品'}${activeSlot.label}`}
-                className={imageOptions.fit === 'cover' ? 'aspect-square w-full object-cover' : 'aspect-square w-full object-contain'}
-                style={filterStyle}
-              />
+              <img src={productImageSrc(activeSlot.imageUrl)} alt={`${product?.product_name || '商品'}${activeSlot.label}`} className={imageOptions.fit === 'cover' ? 'aspect-square w-full object-cover' : 'aspect-square w-full object-contain'} style={imagePreviewStyle} data-ui="image-canvas-transform-preview" />
+              {imageOptions.crop_mode === 'manual' && (
+                <div
+                  aria-label="图片裁切预览框"
+                  data-ui="image-crop-preview-frame"
+                  className="pointer-events-none absolute inset-8 rounded-xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)]/10"
+                >
+                  <span className="absolute left-2 top-2 rounded-full bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] shadow-[var(--shadow-sm)]">
+                    裁切预览 {imageOptions.crop_width || imageOptions.width}×{imageOptions.crop_height || imageOptions.height}
+                  </span>
+                </div>
+              )}
               <div className="absolute left-4 top-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs font-semibold text-[var(--color-fg)] shadow-[var(--shadow-sm)]">
                 {product?.product_name || '当前商品'}
               </div>
@@ -479,6 +523,15 @@ export function SellerImageEditorWorkbench({
             >
               {slotPlanDirty ? '当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。' : '当前槽位计划已同步到最近保存状态。'}
             </p>
+            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px]" data-ui="image-workbench-publish-readiness-summary">
+              <p className="font-semibold text-[var(--color-fg)]">发布范围校验</p>
+              <p className="mt-1 text-[var(--color-muted)]">发布前{publishImageLimit}张：可发布 {publishableSlotCount} 张；素材池保留 {retainedAssetCount} 张；空槽位 {emptySlotCount} 个。</p>
+              {saveBlockedReason ? (
+                <p className="mt-1 font-semibold text-[var(--color-danger)]" data-ui="image-workbench-save-blocked-reason">{saveBlockedReason}</p>
+              ) : (
+                <p className="mt-1 font-semibold text-[var(--color-success)]" data-ui="image-workbench-save-ready-state">图片计划可保存，保存后仍需回到 Listing 校验平台素材规则。</p>
+              )}
+            </div>
             <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-processing-before-save-summary" aria-label="图片保存前处理摘要">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-[var(--color-fg)]">保存前处理摘要</p>
@@ -499,6 +552,21 @@ export function SellerImageEditorWorkbench({
                 高度
                 <input className={`${inputClass} mt-1 w-full`} type="number" value={imageOptions.height} onChange={event => setImageOptions(prev => ({ ...prev, height: Number(event.target.value) || prev.height }))} />
               </label>
+            </div>
+            <div aria-label="平台图片尺寸预设" data-ui="image-platform-size-presets" className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+              <p className="mb-2 text-[11px] font-semibold text-[var(--color-fg)]">平台尺寸预设</p>
+              <div className="grid gap-1.5">
+                {platformSizePresets.map(preset => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => setImageOptions(prev => ({ ...prev, width: preset.width, height: preset.height, fit: preset.fit, crop_width: preset.width, crop_height: preset.height }))}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-left text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                  >
+                    <span className="font-semibold text-[var(--color-fg)]">{preset.label}</span> · {preset.width}×{preset.height} · {preset.fit === 'cover' ? '裁切' : '留白'}
+                  </button>
+                ))}
+              </div>
             </div>
             <div aria-label="图片旋转翻转控制" data-ui="image-orientation-controls" className="mt-3 grid grid-cols-3 gap-2">
               <button type="button" className="rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-primary)]" onClick={() => setImageOptions(prev => ({ ...prev, rotate_degrees: (prev.rotate_degrees + 90) % 360 }))}>旋转90°</button>
@@ -589,8 +657,9 @@ export function SellerImageEditorWorkbench({
             <Button
               variant="secondary"
               onClick={() => { void saveCurrentSlotPlan() }}
-              disabled={!product || loading || slotUploading}
+              disabled={!product || loading || slotUploading || Boolean(saveBlockedReason)}
               data-ui="save-dirty-image-slot-plan"
+              title={saveBlockedReason || '保存当前图片槽位顺序和发布范围'}
             >
               {slotPlanDirty ? '保存槽位变更' : '保存槽位顺序'}
             </Button>
@@ -601,7 +670,7 @@ export function SellerImageEditorWorkbench({
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
-              <p className="text-[10px] text-[var(--color-muted)]">拖拽缩略图调整主图/辅图顺序</p>
+              <p className="text-[10px] text-[var(--color-muted)]">拖拽缩略图调整主图/辅图顺序；前{publishImageLimit}张进入发布范围</p>
             </div>
             <div className="text-right">
               <span className="block text-xs text-[var(--color-primary)]">{activeSlot.index}/{imageSlots.length}</span>
@@ -649,10 +718,10 @@ export function SellerImageEditorWorkbench({
                   <span>{slot.index}/{imageSlots.length}</span>
                 </div>
                 <p
-                  className={slot.index === 1 ? 'mt-1 rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-primary)]' : slot.index <= publishImageLimit ? 'mt-1 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-success)]' : 'mt-1 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-center text-[10px] text-[var(--color-muted)]'}
+                  className={slot.index === 1 ? 'mt-1 rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-primary)]' : isSlotPublishable(slot) ? 'mt-1 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-success)]' : 'mt-1 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-center text-[10px] text-[var(--color-muted)]'}
                   data-ui="image-workbench-slot-publish-state"
                 >
-                  {slot.index === 1 ? '平台主图' : slot.index <= publishImageLimit ? `发布前${publishImageLimit}张` : '素材池保留'}
+                  {slot.index === 1 ? '平台主图' : isSlotPublishable(slot) ? `发布前${publishImageLimit}张` : '素材池保留'}
                 </p>
                 <div className="mt-1 grid grid-cols-1 gap-1 text-[10px]">
                   <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">设为主图</button>

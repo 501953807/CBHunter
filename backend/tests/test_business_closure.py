@@ -61,6 +61,95 @@ from app.schemas.shipment import ShipmentCreate, ShipmentUpdate
 from app.integrations import status as connector_status
 
 
+def confirmed_content_tasks_with_publish_images(image_count: int = 5) -> dict:
+    """Build content tasks that represent a confirmed content-factory image plan."""
+    content_tasks = {
+        task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+        for task_type, _label in REQUIRED_CONTENT_GAPS
+    }
+    content_tasks["image_edit_plan"] = {
+        "confirmed_version": 1,
+        "versions": [{
+            "version": 1,
+            "content": json.dumps({
+                "schema": "listing_image_slots.v1",
+                "publish_image_limit": 9,
+                "publishable_image_count": image_count,
+                "retained_image_count": 0,
+                "slots": [
+                    {
+                        "position": index + 1,
+                        "role": "main_image" if index == 0 else "detail_image",
+                        "label": "主图" if index == 0 else f"发布图 {index + 1}",
+                        "image_url": f"https://cdn.example.com/publish-{index + 1}.jpg",
+                        "asset_name": f"publish-{index + 1}.jpg",
+                        "size": "1080×1080px",
+                        "publishable": True,
+                    }
+                    for index in range(image_count)
+                ],
+            }),
+        }],
+    }
+    return content_tasks
+
+
+def confirmed_media_assets(image_count: int = 5, image_urls: list[str] | None = None) -> dict:
+    """Build draft media assets equivalent to a saved listing image slot plan."""
+    images = image_urls or [f"https://cdn.example.com/publish-{index + 1}.jpg" for index in range(image_count)]
+    image_count = len(images)
+    return {
+        "main_image": images[0] if images else None,
+        "images": images,
+        "publish_image_limit": 9,
+        "image_slots": [
+            {
+                "position": index + 1,
+                "role": "main_image" if index == 0 else "detail_image",
+                "image_url": image,
+                "publishable": True,
+            }
+            for index, image in enumerate(images)
+        ],
+        "media_readiness": {
+            "source": "confirmed_image_slot_plan",
+            "captured_image_count": image_count,
+            "missing_image_count": max(5 - image_count, 0),
+            "min_platform_images": 5,
+            "recommended_platform_images": 9,
+            "publish_image_limit": 9,
+            "retained_image_count": 0,
+        },
+    }
+
+
+def publish_ready_draft_payload(title: str, **overrides) -> dict:
+    payload = {
+        "confirmed": True,
+        "publishable": True,
+        "platform": "shopee",
+        "selling_price": 39,
+        "template_title": title,
+        "template_description": f"{title} 描述",
+        "platform_requirements": {"attribute_values": {"品牌": "No Brand"}},
+        "media_assets": confirmed_media_assets(),
+        "sku_plan": {
+            "master_sku": "PLAN-SKU",
+            "variants": [{
+                "sku": "PLAN-SKU-1",
+                "price": 39,
+                "stock": 20,
+                "weight_g": 300,
+                "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
+            }],
+        },
+        "logistics": {"weight_g": 300, "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8}},
+        "compliance": {"restricted_check_status": "passed"},
+    }
+    payload.update(overrides)
+    return payload
+
+
 def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'publish.db'}")
@@ -69,10 +158,7 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
             account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
-            content_tasks = {
-                task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
-                for task_type, _label in REQUIRED_CONTENT_GAPS
-            }
+            content_tasks = confirmed_content_tasks_with_publish_images()
             item = SourcingItem(
                 user_id="user-a", source_name="1688", source_price_rmb=12.5, selling_price_local=28,
                 product_name="真实商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
@@ -107,6 +193,7 @@ def test_confirm_publish_uses_owned_real_sourcing_data(tmp_path):
                     "weight_g": 320,
                     "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
                 },
+                "media_assets": confirmed_media_assets(),
                 "source_price_rmb": 1,
             }])
             product = (await session.execute(select(Product))).scalar_one()
@@ -221,7 +308,13 @@ def test_confirm_publish_submits_to_real_platform_when_publish_connector_ready(t
                     name="可发布尼龙通勤胸包",
                     description="真实商品基础描述",
                     cost_price=18.5,
-                    images=["https://img.example.com/official-main.jpg"],
+                    images=[
+                        "https://img.example.com/official-main.jpg",
+                        "https://img.example.com/official-side.jpg",
+                        "https://img.example.com/official-scene.jpg",
+                        "https://img.example.com/official-detail.jpg",
+                        "https://img.example.com/official-size.jpg",
+                    ],
                 )
                 session.add_all([account, product])
                 await session.commit()
@@ -236,7 +329,20 @@ def test_confirm_publish_submits_to_real_platform_when_publish_connector_ready(t
                     "selling_price": 49.9,
                     "template_title": "可发布尼龙通勤胸包 Shopee MY",
                     "template_description": "面向马来西亚站点的尼龙通勤胸包 Listing 描述。",
-                    "images": ["https://img.example.com/official-main.jpg"],
+                    "images": [
+                        "https://img.example.com/official-main.jpg",
+                        "https://img.example.com/official-side.jpg",
+                        "https://img.example.com/official-scene.jpg",
+                        "https://img.example.com/official-detail.jpg",
+                        "https://img.example.com/official-size.jpg",
+                    ],
+                    "media_assets": confirmed_media_assets(image_urls=[
+                        "https://img.example.com/official-main.jpg",
+                        "https://img.example.com/official-side.jpg",
+                        "https://img.example.com/official-scene.jpg",
+                        "https://img.example.com/official-detail.jpg",
+                        "https://img.example.com/official-size.jpg",
+                    ]),
                     "platform_requirements": {
                         "required_attributes": ["类目", "品牌", "材质"],
                         "attribute_values": {"类目": "女包", "品牌": "No Brand", "材质": "Nylon"},
@@ -268,7 +374,13 @@ def test_confirm_publish_submits_to_real_platform_when_publish_connector_ready(t
         assert len(publish_calls) == 1
         assert publish_calls[0]["shop_id"] == "MY-SHOPEE-001"
         assert publish_calls[0]["title"] == "可发布尼龙通勤胸包 Shopee MY"
-        assert publish_calls[0]["images"] == ["https://img.example.com/official-main.jpg"]
+        assert publish_calls[0]["images"] == [
+            "https://img.example.com/official-main.jpg",
+            "https://img.example.com/official-side.jpg",
+            "https://img.example.com/official-scene.jpg",
+            "https://img.example.com/official-detail.jpg",
+            "https://img.example.com/official-size.jpg",
+        ]
         assert result[0]["platform_api_status"] == "connected"
         assert result[0]["platform_publish_status"] == "submitted"
         assert result[0]["publish_receipt"]["official_publish_writeback"]["platform_product_id"] == "SP-OFFICIAL-001"
@@ -678,13 +790,16 @@ def test_batch_preview_reuses_existing_product_listing_draft(tmp_path):
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
             account = PlatformAccount(user_id="user-a", platform="shopee", account_name="Shopee MY", is_active=True)
+            listing_images = [f"https://cbu01.alicdn.com/img/example-{index + 1}.jpg" for index in range(5)]
             product = Product(
                 user_id="user-a",
                 sku="SKU-DRAFT",
                 name="定价后商品",
                 cost_price=18,
                 status="draft",
-                images=["https://cbu01.alicdn.com/img/example.jpg"],
+                images=listing_images,
+                weight_g=280,
+                dimensions={"length_cm": 22, "width_cm": 12, "height_cm": 8},
                 attributes={"platform_requirements": {"shopee": {"attribute_values": {"品牌": "No Brand"}}}},
             )
             session.add_all([account, product])
@@ -698,8 +813,23 @@ def test_batch_preview_reuses_existing_product_listing_draft(tmp_path):
                 price=17.09,
                 stock=0,
                 status="draft",
-                images=["https://cbu01.alicdn.com/img/example.jpg"],
-                platform_data={"platform_requirements": {"attribute_values": {"材质": "编织"}}},
+                images=listing_images,
+                platform_data={
+                    "platform_requirements": {"attribute_values": {"材质": "编织"}},
+                    "media_assets": confirmed_media_assets(image_urls=listing_images),
+                    "sku_plan": {
+                        "master_sku": "SKU-DRAFT",
+                        "variants": [{
+                            "sku": "SKU-DRAFT-1",
+                            "price": 17.09,
+                            "stock": 20,
+                            "weight_g": 280,
+                            "dimensions": {"length_cm": 22, "width_cm": 12, "height_cm": 8},
+                        }],
+                    },
+                    "logistics": {"weight_g": 280, "dimensions": {"length_cm": 22, "width_cm": 12, "height_cm": 8}},
+                    "compliance": {"restricted_check_status": "passed"},
+                },
             )
             session.add_all([
                 listing,
@@ -1473,6 +1603,19 @@ def test_confirm_publish_creates_listing_for_selected_store(tmp_path):
                 "template_title": "Shopee B 专属标题",
                 "template_description": "B 店铺描述",
                 "platform_requirements": {"attribute_values": {"品牌": "No Brand"}},
+                "media_assets": confirmed_media_assets(),
+                "sku_plan": {
+                    "master_sku": "SKU-STORE-CONFIRM",
+                    "variants": [{
+                        "sku": "SKU-STORE-CONFIRM-1",
+                        "price": 49,
+                        "stock": 20,
+                        "weight_g": 300,
+                        "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
+                    }],
+                },
+                "logistics": {"weight_g": 300, "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8}},
+                "compliance": {"restricted_check_status": "passed"},
                 "source_price_rmb": 22,
             }])
             listing = (await session.execute(select(PlatformListing))).scalar_one()
@@ -1582,11 +1725,47 @@ def test_confirm_publish_persists_listing_workspace_sections(tmp_path):
                 "platform_requirements": {"attribute_values": {"Brand": "No Brand"}},
                 "sku_plan": {
                     "master_sku": "SKU-PERSIST",
-                    "variants": [{"sku": "SKU-PERSIST-M", "option_1_name": "Size", "option_1_value": "M", "price": 55, "stock": 12}],
+                    "variants": [{
+                        "sku": "SKU-PERSIST-M",
+                        "option_1_name": "Size",
+                        "option_1_value": "M",
+                        "price": 55,
+                        "stock": 12,
+                        "weight_g": 260,
+                        "dimensions": {"length_cm": 16, "width_cm": 10, "height_cm": 6},
+                    }],
                 },
                 "media_assets": {
                     "main_image": "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg",
-                    "images": ["https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg"],
+                    "images": [
+                        "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg",
+                        "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/side.jpg",
+                        "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/scene.jpg",
+                        "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/detail.jpg",
+                        "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/size.jpg",
+                    ],
+                    "image_slots": [
+                        {
+                            "position": index + 1,
+                            "image_url": image,
+                            "publishable": True,
+                            "role": "main_image" if index == 0 else "detail_image",
+                        }
+                        for index, image in enumerate([
+                            "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg",
+                            "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/side.jpg",
+                            "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/scene.jpg",
+                            "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/detail.jpg",
+                            "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/size.jpg",
+                        ])
+                    ],
+                    "media_readiness": {
+                        "source": "confirmed_image_slot_plan",
+                        "captured_image_count": 5,
+                        "missing_image_count": 0,
+                        "min_platform_images": 5,
+                        "recommended_platform_images": 9,
+                    },
                     "videos": ["https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/video.mp4"],
                 },
                 "logistics": {"weight_g": 260, "dimensions": {"length_cm": 16, "width_cm": 10, "height_cm": 6}, "preparation_days": 2},
@@ -1598,7 +1777,8 @@ def test_confirm_publish_persists_listing_workspace_sections(tmp_path):
 
         assert result[0]["publish_status"] == "draft"
         assert listing.variations[0]["sku"] == "SKU-PERSIST-M"
-        assert listing.images == ["https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg"]
+        assert listing.images[0] == "https://p16-oec-va.ibyteimg.com/tos-maliva-i-o3syd03w52-us/main.jpg"
+        assert len(listing.images) == 5
         assert listing.shipping_config["weight_g"] == 260
         assert listing.platform_data["media_assets"]["videos"][0].endswith("video.mp4")
         assert listing.platform_data["listing_overrides"]["sku_plan"]["variants"][0]["stock"] == 12
@@ -1636,7 +1816,7 @@ def test_confirm_publish_preserves_store_override_sources(tmp_path):
                     "store_id": store.id,
                     "store_label": "Shopee MY 主店",
                     "title": "Shopee MY 覆盖标题",
-                    "image_count": 2,
+                    "image_count": 5,
                     "sku_count": 1,
                     "has_platform_attributes": True,
                     "has_logistics": True,
@@ -1651,15 +1831,22 @@ def test_confirm_publish_preserves_store_override_sources(tmp_path):
                 },
                 "sku_plan": {
                     "master_sku": "BAG-BASE",
-                    "variants": [{"sku": "BAG-MY-BEIGE", "variation": "米色", "price": 39, "stock": 12}],
+                    "variants": [{
+                        "sku": "BAG-MY-BEIGE",
+                        "variation": "米色",
+                        "price": 39,
+                        "stock": 12,
+                        "weight_g": 320,
+                        "dimensions": {"length_cm": 28, "width_cm": 12, "height_cm": 22},
+                    }],
                 },
-                "media_assets": {
-                    "main_image": "https://down-my.img.susercontent.com/file/my-main.jpg",
-                    "images": [
-                        "https://down-my.img.susercontent.com/file/my-main.jpg",
-                        "https://down-my.img.susercontent.com/file/my-scene.jpg",
-                    ],
-                },
+                "media_assets": confirmed_media_assets(image_urls=[
+                    "https://down-my.img.susercontent.com/file/my-main.jpg",
+                    "https://down-my.img.susercontent.com/file/my-scene.jpg",
+                    "https://down-my.img.susercontent.com/file/my-detail.jpg",
+                    "https://down-my.img.susercontent.com/file/my-size.jpg",
+                    "https://down-my.img.susercontent.com/file/my-package.jpg",
+                ]),
                 "logistics": {"weight_g": 320, "dimensions": {"length_cm": 28, "width_cm": 12, "height_cm": 22}},
                 "compliance": {"restricted_check_status": "passed"},
                 "source_price_rmb": 18,
@@ -1727,7 +1914,8 @@ def test_batch_preview_returns_listing_validation_checks(tmp_path):
         checks = {check["code"]: check for check in drafts[0]["validation_checks"]}
         assert checks["title"]["state"] == "pass"
         assert checks["price"]["state"] == "pass"
-        assert checks["media"]["state"] == "warning"
+        assert checks["media"]["state"] == "block"
+        assert "发布图不足 0/5" in checks["media"]["message"]
         assert checks["logistics"]["state"] == "warning"
         assert checks["platform_fields"]["state"] == "block"
         assert "仍缺平台已确认必填字段" in checks["platform_fields"]["message"]
@@ -1844,7 +2032,16 @@ def test_confirm_publish_persists_listing_validation_checks(tmp_path):
                         "barcode": "SKU-CHECK-PERSIST-BLACK",
                     }],
                 },
-                "media_assets": {"images": [], "videos": []},
+                "media_assets": {
+                    "images": [
+                        "https://cdn.example.com/unconfirmed-1.jpg",
+                        "https://cdn.example.com/unconfirmed-2.jpg",
+                        "https://cdn.example.com/unconfirmed-3.jpg",
+                        "https://cdn.example.com/unconfirmed-4.jpg",
+                        "https://cdn.example.com/unconfirmed-5.jpg",
+                    ],
+                    "videos": [],
+                },
                 "logistics": {"weight_g": 260, "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 6}},
                 "compliance": {"condition": "new"},
                 "source_price_rmb": 20,
@@ -2102,7 +2299,25 @@ def test_batch_preview_warns_recheck_platform_fields_without_blocking(tmp_path):
                 sku="SKU-RECHECK-FIELDS",
                 name="待补证字段商品",
                 cost_price=18,
+                weight_g=280,
+                dimensions={"length_cm": 20, "width_cm": 12, "height_cm": 8},
+                images=[f"https://cdn.example.com/recheck-{index + 1}.jpg" for index in range(5)],
                 attributes={
+                    "variants": [{
+                        "sku": "SKU-RECHECK-FIELDS-1",
+                        "price": 39,
+                        "stock": 20,
+                        "weight_g": 280,
+                        "dimensions": {"length_cm": 20, "width_cm": 12, "height_cm": 8},
+                    }],
+                    "media_readiness": {
+                        "source": "confirmed_image_slot_plan",
+                        "captured_image_count": 5,
+                        "missing_image_count": 0,
+                        "min_platform_images": 5,
+                        "recommended_platform_images": 9,
+                    },
+                    "compliance": {"restricted_check_status": "passed"},
                     "platform_requirements": {
                         "shopee": {
                             "required_attributes": ["category", "draft_dynamic"],
@@ -2162,10 +2377,7 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        content_tasks = {
-            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
-            for task_type, _label in REQUIRED_CONTENT_GAPS
-        }
+        content_tasks = confirmed_content_tasks_with_publish_images()
         content_tasks["listing_store_override"] = {
             "confirmed_version": 1,
             "versions": [{
@@ -2274,9 +2486,9 @@ def test_listing_workbench_lists_only_content_and_pricing_ready_items(tmp_path):
         assert items[0]["listing_master_status"]["ready"] is True
         assert items[0]["listing_master_status"]["label"] == "统一母版已确认"
         assert items[0]["listing_master_status"]["confirmed_count"] == len(REQUIRED_CONTENT_GAPS)
-        assert items[0]["media_readiness"]["captured_image_count"] == 1
-        assert items[0]["media_readiness"]["missing_image_count"] == 4
-        assert "缺少平台辅图" in items[0]["media_readiness"]["gaps"]
+        assert items[0]["media_readiness"]["captured_image_count"] == 5
+        assert items[0]["media_readiness"]["missing_image_count"] == 0
+        assert items[0]["media_readiness"]["source"] == "confirmed_image_slot_plan"
         assert items[0]["data_gaps"] == []
         assert drafts[0]["sku_plan"]["variants"][0]["sku"] == "BAG-MY-BEIGE"
         assert drafts[0]["sku_plan"]["variants"][0]["platform_sku"] == "SPU-1001/SKC-BEIGE"
@@ -2360,6 +2572,7 @@ def test_batch_preview_uses_confirmed_image_slot_plan(tmp_path):
                 "version": 2,
                 "content": json.dumps({
                     "schema": "listing_image_slots.v1",
+                    "publish_image_limit": 2,
                     "slots": [
                         {
                             "position": 1,
@@ -2368,6 +2581,7 @@ def test_batch_preview_uses_confirmed_image_slot_plan(tmp_path):
                             "image_url": "https://cdn.example.com/listing-main.jpg",
                             "asset_name": "main.jpg",
                             "size": "1080×1080px",
+                            "publishable": True,
                         },
                         {
                             "position": 2,
@@ -2376,6 +2590,16 @@ def test_batch_preview_uses_confirmed_image_slot_plan(tmp_path):
                             "image_url": "https://cdn.example.com/listing-sku.jpg",
                             "asset_name": "sku.jpg",
                             "size": "1080×1080px",
+                            "publishable": True,
+                        },
+                        {
+                            "position": 3,
+                            "role": "raw_asset",
+                            "label": "素材池保留图",
+                            "image_url": "https://cdn.example.com/listing-raw.jpg",
+                            "asset_name": "raw.jpg",
+                            "size": "1600×1600px",
+                            "publishable": False,
                         },
                     ],
                 }),
@@ -2414,10 +2638,16 @@ def test_batch_preview_uses_confirmed_image_slot_plan(tmp_path):
         assert drafts[0]["images"] == [
             "https://cdn.example.com/listing-main.jpg",
             "https://cdn.example.com/listing-sku.jpg",
+            "https://cdn.example.com/listing-raw.jpg",
         ]
+        assert drafts[0]["media_readiness"]["source"] == "confirmed_image_slot_plan"
+        assert drafts[0]["media_readiness"]["captured_image_count"] == 2
+        assert drafts[0]["media_readiness"]["publish_image_limit"] == 2
+        assert drafts[0]["media_readiness"]["retained_image_count"] == 1
         assert drafts[0]["media_assets"]["main_image"] == "https://cdn.example.com/listing-main.jpg"
         assert drafts[0]["media_assets"]["image_slots"][0]["role"] == "main_image"
         assert drafts[0]["media_assets"]["image_slots"][1]["role"] == "sku_image"
+        assert drafts[0]["media_assets"]["image_slots"][2]["publishable"] is False
 
     asyncio.run(run_test())
 
@@ -2455,6 +2685,157 @@ def test_confirm_publish_blocks_unready_sourcing_even_if_marked_publishable(tmp_
     asyncio.run(run_test())
 
 
+def test_confirm_publish_blocks_when_publishable_image_slots_below_minimum(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'confirm-image-gate.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        content_tasks = {
+            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+            for task_type, _label in REQUIRED_CONTENT_GAPS
+        }
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
+            item = SourcingItem(
+                user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
+                product_name="发布图不足商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
+                extra_data={"content_tasks": content_tasks, "pricing_confirmation": {"listing_id": "draft-1"}},
+            )
+            session.add_all([account, item])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "platform": "shopee",
+                "platform_account_id": account.id,
+                "sourcing_item_id": item.id,
+                "selling_price": 39,
+                "template_title": "发布图不足商品标题",
+                "images": [
+                    "https://cdn.example.com/publish-1.jpg",
+                    "https://cdn.example.com/publish-2.jpg",
+                    "https://cdn.example.com/raw-1.jpg",
+                    "https://cdn.example.com/raw-2.jpg",
+                    "https://cdn.example.com/raw-3.jpg",
+                ],
+                "media_assets": {
+                    "images": [
+                        "https://cdn.example.com/publish-1.jpg",
+                        "https://cdn.example.com/publish-2.jpg",
+                        "https://cdn.example.com/raw-1.jpg",
+                        "https://cdn.example.com/raw-2.jpg",
+                        "https://cdn.example.com/raw-3.jpg",
+                    ],
+                    "media_readiness": {
+                        "source": "confirmed_image_slot_plan",
+                        "captured_image_count": 2,
+                        "min_platform_images": 5,
+                        "recommended_platform_images": 9,
+                        "retained_image_count": 3,
+                    },
+                },
+                "sku_plan": {
+                    "master_sku": "IMG-GATE",
+                    "variants": [{
+                        "sku": "IMG-GATE-1",
+                        "price": 39,
+                        "stock": 20,
+                        "weight_g": 300,
+                        "dimensions": {"length_cm": 20, "width_cm": 15, "height_cm": 8},
+                    }],
+                },
+                "logistics": {"weight_g": 300, "dimensions": {"length_cm": 20, "width_cm": 15, "height_cm": 8}},
+                "compliance": {"restricted_check_status": "passed"},
+            }])
+            listing_count = len((await session.execute(select(PlatformListing))).scalars().all())
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "skipped"
+        assert "listing_validation.media" in result[0]["data_gaps"]
+        assert "发布图不足 2/5" in result[0]["error"]
+        assert listing_count == 0
+
+    asyncio.run(run_test())
+
+
+def test_confirm_publish_derives_publishable_count_from_image_slots(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'confirm-image-slot-plan.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        content_tasks = {
+            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
+            for task_type, _label in REQUIRED_CONTENT_GAPS
+        }
+        async with sessions() as session:
+            account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
+            item = SourcingItem(
+                user_id="user-a", source_name="1688", source_price_rmb=18, selling_price_local=39,
+                product_name="图片槽位发布门禁商品", platform="shopee", market="MY", pipeline_stage="price_confirmed",
+                extra_data={"content_tasks": content_tasks, "pricing_confirmation": {"listing_id": "draft-1"}},
+            )
+            session.add_all([account, item])
+            await session.commit()
+
+            result = await confirm_publish(session, "user-a", [{
+                "confirmed": True,
+                "publishable": True,
+                "platform": "shopee",
+                "platform_account_id": account.id,
+                "sourcing_item_id": item.id,
+                "selling_price": 39,
+                "template_title": "图片槽位发布门禁商品标题",
+                "images": [
+                    "https://cdn.example.com/publish-1.jpg",
+                    "https://cdn.example.com/publish-2.jpg",
+                    "https://cdn.example.com/raw-1.jpg",
+                    "https://cdn.example.com/raw-2.jpg",
+                    "https://cdn.example.com/raw-3.jpg",
+                ],
+                "media_assets": {
+                    "images": [
+                        "https://cdn.example.com/publish-1.jpg",
+                        "https://cdn.example.com/publish-2.jpg",
+                        "https://cdn.example.com/raw-1.jpg",
+                        "https://cdn.example.com/raw-2.jpg",
+                        "https://cdn.example.com/raw-3.jpg",
+                    ],
+                    "publish_image_limit": 9,
+                    "image_slots": [
+                        {"position": 1, "image_url": "https://cdn.example.com/publish-1.jpg", "publishable": True},
+                        {"position": 2, "image_url": "https://cdn.example.com/publish-2.jpg", "publishable": True},
+                        {"position": 3, "image_url": "https://cdn.example.com/raw-1.jpg", "publishable": False},
+                        {"position": 4, "image_url": "https://cdn.example.com/raw-2.jpg", "publishable": False},
+                        {"position": 5, "image_url": "https://cdn.example.com/raw-3.jpg", "publishable": False},
+                    ],
+                },
+                "sku_plan": {
+                    "master_sku": "IMG-SLOT-GATE",
+                    "variants": [{
+                        "sku": "IMG-SLOT-GATE-1",
+                        "price": 39,
+                        "stock": 20,
+                        "weight_g": 300,
+                        "dimensions": {"length_cm": 20, "width_cm": 15, "height_cm": 8},
+                    }],
+                },
+                "logistics": {"weight_g": 300, "dimensions": {"length_cm": 20, "width_cm": 15, "height_cm": 8}},
+                "compliance": {"restricted_check_status": "passed"},
+            }])
+            listing_count = len((await session.execute(select(PlatformListing))).scalars().all())
+        await engine.dispose()
+
+        assert result[0]["publish_status"] == "skipped"
+        assert "listing_validation.media" in result[0]["data_gaps"]
+        assert "发布图不足 2/5" in result[0]["error"]
+        assert listing_count == 0
+
+    asyncio.run(run_test())
+
+
 def test_confirm_publish_stores_scheduled_local_publish_plan(tmp_path):
     async def run_test():
         engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'scheduled-local-plan.db'}")
@@ -2475,14 +2856,9 @@ def test_confirm_publish_stores_scheduled_local_publish_plan(tmp_path):
             session.add_all([account, item])
             await session.commit()
 
-            result = await confirm_publish(session, "user-a", [{
-                "confirmed": True,
-                "publishable": True,
-                "platform": "shopee",
-                "sourcing_item_id": item.id,
-                "selling_price": 39,
-                "template_title": "定时刊登商品标题",
-            }], publish_plan={"mode": "scheduled", "scheduled_at": "2026-07-02T10:00:00+08:00"})
+            result = await confirm_publish(session, "user-a", [
+                publish_ready_draft_payload("定时刊登商品标题", sourcing_item_id=item.id)
+            ], publish_plan={"mode": "scheduled", "scheduled_at": "2026-07-02T10:00:00+08:00"})
             listing = (await session.execute(select(PlatformListing))).scalar_one()
         await engine.dispose()
 
@@ -2504,10 +2880,7 @@ def test_confirm_publish_stores_draft_only_local_plan(tmp_path):
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        content_tasks = {
-            task_type: {"confirmed_version": 1, "versions": [{"version": 1, "content": "已确认"}]}
-            for task_type, _label in REQUIRED_CONTENT_GAPS
-        }
+        content_tasks = confirmed_content_tasks_with_publish_images()
         async with sessions() as session:
             account = PlatformAccount(user_id="user-a", platform="shopee", account_name="店铺", is_active=True)
             item = SourcingItem(
@@ -2518,14 +2891,9 @@ def test_confirm_publish_stores_draft_only_local_plan(tmp_path):
             session.add_all([account, item])
             await session.commit()
 
-            result = await confirm_publish(session, "user-a", [{
-                "confirmed": True,
-                "publishable": True,
-                "platform": "shopee",
-                "sourcing_item_id": item.id,
-                "selling_price": 39,
-                "template_title": "保存草稿商品标题",
-            }], publish_plan={"mode": "draft_only"})
+            result = await confirm_publish(session, "user-a", [
+                publish_ready_draft_payload("保存草稿商品标题", sourcing_item_id=item.id)
+            ], publish_plan={"mode": "draft_only"})
             listing = (await session.execute(select(PlatformListing))).scalar_one()
         await engine.dispose()
 

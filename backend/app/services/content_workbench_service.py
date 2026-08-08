@@ -11,6 +11,7 @@ from app.models.sourcing_item import SourcingItem
 from app.services import config_service
 from app.services.business_work_item_service import enrich_work_item_state
 from app.services.evidence_service import source_ref
+from app.services.listing_store_override_service import confirmed_image_slot_plan
 from app.services.media_readiness_service import media_readiness_from_extra
 from app.services.platform_product_field_service import merge_platform_requirements
 
@@ -164,6 +165,7 @@ def _content_work_item(item: SourcingItem, field_schemas: dict | None = None) ->
         "target_market": item.market,
         "image_url": item.source_image,
         "media_readiness": media_readiness_from_extra(item.extra_data or {}, item.source_image),
+        "confirmed_image_slot_plan": confirmed_image_slot_plan(item),
         "platform_requirements": _platform_requirements(item, field_schemas),
         "content_brief": _content_brief(item),
         "source_price_rmb": item.source_price_rmb,

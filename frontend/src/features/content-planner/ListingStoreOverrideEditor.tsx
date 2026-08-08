@@ -35,7 +35,7 @@ type Props = {
   storeId: string
   storeLabel: string
   toast: ToastContextType
-  onSaved: () => void
+  onSaved: () => Promise<void> | void
 }
 
 const fieldClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]'
@@ -118,6 +118,15 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
     }))
   }
 
+  const notifySaved = async () => {
+    try {
+      await onSaved()
+    } catch (error: any) {
+      logger.error('Refresh content workbench after store override save failed', error)
+      toast.addToast('warning', '店铺 Listing 覆盖字段已保存，但当前商品上下文刷新失败，请重新打开该商品确认')
+    }
+  }
+
   const saveOverride = async () => {
     if (!product?.id) {
       toast.addToast('error', '请先选择内容商品')
@@ -159,8 +168,8 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
       if (version) await confirmContentTaskVersion(product.id, 'listing_store_override', version)
       setStoredOverrideVersion(version || null)
       setStoredOverrideStoreLabel(storeLabel || '店铺待选择')
+      await notifySaved()
       toast.addToast('success', '店铺 Listing 覆盖字段包已保存并确认')
-      onSaved()
     } catch (error: any) {
       logger.error('Save listing store override failed', error)
       toast.addToast('error', error?.response?.data?.detail || '店铺 Listing 覆盖字段保存失败')
@@ -213,10 +222,10 @@ export function ListingStoreOverrideEditor({ product, storeId, storeLabel, toast
           <section aria-label="店铺图片视频覆盖" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-[var(--color-fg)]">图片与视频</p>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">平台通常至少需要 5 张图，建议补齐主图、细节、尺寸、场景、包装和卖点图。</p>
+                <p className="text-sm font-semibold text-[var(--color-fg)]">发布图与视频</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">平台通常至少需要 5 张发布图，建议补齐主图、细节、尺寸、场景、包装和卖点图。</p>
               </div>
-              <Badge variant={imageCount >= minImages ? 'success' : 'warning'}>图片 {imageCount}/{minImages}</Badge>
+              <Badge variant={imageCount >= minImages ? 'success' : 'warning'}>发布图 {imageCount}/{minImages}</Badge>
             </div>
             <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
               <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">

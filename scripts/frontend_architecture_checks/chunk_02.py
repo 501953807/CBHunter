@@ -20,13 +20,13 @@ for required in (
     "上传/替换当前槽位",
     "保存槽位顺序",
     "保存槽位变更",
-    "slotPlanDirty",
+    "slotPlanDirty", "imageOptionsKeyRef",
     "setSlotPlanDirty(true)",
     "setSlotPlanDirty(false)",
     "saveCurrentSlotPlan",
-    "data-ui=\"image-slot-plan-dirty-state\"", "buildImageProcessingSummary",
-    "data-ui=\"image-processing-before-save-summary\"", "data-ui=\"image-processing-summary-chip\"",
-    "保存前处理摘要", "data-ui=\"save-dirty-image-slot-plan\"",
+    "data-ui=\"image-slot-plan-dirty-state\"", "buildImageProcessingSummary", "publishImageLimit", "publishableSlotCount", "publishable_image_count", "retained_image_count", "emptySlotCount",
+    "data-ui=\"image-processing-before-save-summary\"", "data-ui=\"image-processing-summary-chip\"", "data-ui=\"image-workbench-slot-publish-state\"", "data-ui=\"image-canvas-transform-preview\"", "data-ui=\"image-crop-preview-frame\"", "data-ui=\"image-platform-size-presets\"", "平台尺寸预设", "Shopee/TEMU 方图", "TikTok 主图", "平台主图", "发布前${publishImageLimit}张", "素材池保留",
+    "保存前处理摘要", "data-ui=\"save-dirty-image-slot-plan\"", "data-ui=\"image-workbench-publish-readiness-summary\"", "data-ui=\"image-workbench-save-blocked-reason\"",
     "当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。",
     "loadSavedImageSlotPlan",
     "parseSavedImageSlotPlan",
@@ -67,7 +67,7 @@ for required in (
     "图片角色",
     "素材状态",
     "处理动作",
-    "待补真实图片",
+    "必补发布图",
     "aria-label=\"Listing 图片处理动作\"",
     "aria-label=\"图片处理参数表\"",
     "aria-label=\"视频素材编辑区\"",
@@ -132,7 +132,7 @@ for required in (
     "parseListingImageSlot",
     "normalizeListingImageSlot",
     "activeImageSlotIndex",
-    "initialSlotIndex={activeImageSlotIndex}",
+    "initialSlotIndex={activeImageSlotIndex}", "onImageSlotPlanSaved={refreshSelectedProductFromWorkbench}", "refreshSelectedProductFromWorkbench", "queryClient.setQueryData(['content-workbench'], response)",
 ):
     if required not in CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content planner must route listing image slot context into image editor: {required}")
@@ -166,8 +166,7 @@ for required in (
     "批量定价校验队列",
     "onOpenMediaWorkbench",
     "productIdForAction",
-    "data-ui=\"content-product-store-context-summary\"",
-    "storeContextLabel",
+    "data-ui=\"content-product-store-context-summary\"", "storeContextLabel", "data-ui=\"content-product-selection-command-deck\"", "aria-label=\"已选内容商品发布准备操作台\"", "bulkWorkflowUrl", "进入批量刊登", "处理首个发布图",
 ):
     if required not in CONTENT_PRODUCT_QUEUE + CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content product queue must turn selected products into actionable local batch work queues: {required}")
@@ -209,7 +208,7 @@ for required in (
     "当前编辑商品",
     "ListingReadinessMeter",
     "ListingFact",
-    "主图 {imageCount}/{recommendedImages}",
+    "发布图 {imageCount}/{minImages}",
     "价格链路",
     "当前缺口",
     "暂无阻断缺口",
@@ -226,7 +225,7 @@ for required in (
     "sku_image",
     "description_image",
     "role: slot.role || roleMeta.role",
-    "label: slot.label || roleMeta.label",
+    "label: slot.label || roleMeta.label", "publishable?: boolean", "isSlotPublishable", "preservePublishable", "data.publishable", "notifyImageSlotPlanSaved", "data-ui=\"content-image-plan-refresh-after-save\"", "最低发布图", "建议发布图", "发布图缺口", "发布图已达标",
 ):
     if required not in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH:
         errors.append(f"content media studio must preserve V5 image slot roles in saved image plans: {required}")
@@ -250,13 +249,13 @@ for required in (
     "正在处理：",
     "请在高亮编辑区内补齐字段后保存",
     "buildListingGaps",
-    "图片不足",
+    "发布图不足",
     "SKU 销售资料待补", "data-ui=\"listing-sku-row-readiness-status\"", "发布就绪", "待补：",
     "data-ui=\"listing-master-image-slot-grid\"", "data-ui=\"listing-image-operation-toolbar\"", "直接拖拽图片排序，首位即平台主图",
     "data-ui=\"listing-image-slot-edit-link\"", "changeTab('media', { imageSlotIndex: index + 1 })",
     "dropImageSlot", "draggable", "onDrop",
     "data-ui=\"listing-image-slot-order-card\"", "data-ui=\"listing-image-slot-publish-order\"",
-    "data-ui=\"listing-image-slot-drag-handle\"", "data-ui=\"listing-image-slot-publish-state\"",
+    "data-ui=\"listing-image-slot-drag-handle\"", "data-ui=\"listing-image-slot-publish-state\"", "confirmed_image_slot_plan", "data-ui=\"listing-confirmed-image-slot-plan-summary\"",
     "平台主图 / 搜索首图", "发布前${recommendedImages}张内", "素材池保留，不随本次发布",
     "data-ui=\"listing-master-add-image-slot\"",
     "添加图片",
@@ -295,19 +294,17 @@ for required in (
     "AI 只生成候选，点击采用后仍是草稿",
     "采用候选到当前字段",
     "候选未写入",
-    "保存母版草稿",
-    "保存到店铺覆盖", "StatusMetric", "ListingCriticalActionStrip", "listingWorkflowUrl", "product_id", "target_platform", "target_store", "target_market",
-    "data-ui=\"listing-critical-action-strip\"", "发布前关键操作", "补图片", "补平台属性", "补SKU/销售", "补物流合规",
+    "保存母版草稿", "notifySaved", "await notifySaved()", "当前商品上下文刷新失败", "resetDraft", "product.confirmed_image_slot_plan?.image_slots", "publishableSlotImageCount", "confirmedPublishableCount", "confirmedRetainedCount", "slice(0, recommendedImages)", "publishableImageCount", "retainedImageCount", "当前发布图", "发布图 ${listingImageCount}/${minImages}", "已排入发布 {publishableSlotImageCount}/{recommendedImages}", "schema: 'listing_image_slots.v1'", "publish_image_limit",
+    "保存到店铺覆盖", "发布图与视频", "平台通常至少需要 5 张发布图", "StatusMetric", "ListingCriticalActionStrip", "listingWorkflowUrl", "product_id", "target_platform", "target_store", "target_market",
+    "data-ui=\"listing-critical-action-strip\"", "发布前关键操作", "补发布图", "补平台属性", "补SKU/销售", "补物流合规",
     "去定价校验", "进入批量刊登", "changeTab('media'", "window.location.href = listingWorkflowUrl('/pricing'", "window.location.href = listingWorkflowUrl('/publish'",
 ):
-    if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + SELLER_PLATFORM_LISTING_EDITOR_UTILS + LISTING_CRITICAL_ACTION_STRIP + LISTING_COPY_AI_ASSIST_PANEL:
+    if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + SELLER_PLATFORM_LISTING_EDITOR_UTILS + LISTING_STORE_OVERRIDE_EDITOR + LISTING_CRITICAL_ACTION_STRIP + LISTING_COPY_AI_ASSIST_PANEL:
         errors.append(f"content planner must expose a focused same-product listing editor: {required}")
 for forbidden in ("listing-inline-ai-title", "listing-inline-ai-description", "applyTitleCandidate", "applyDescriptionCandidate"):
-    if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
-        errors.append(f"listing copy AI assist must not regress to old inline hidden buttons in main editor: {forbidden}")
+    if forbidden in SELLER_PLATFORM_LISTING_EDITOR: errors.append(f"listing copy AI assist must not regress to old inline hidden buttons in main editor: {forbidden}")
 for forbidden in ("xl:grid-cols-[240px_minmax(560px,1fr)_260px]",):
-    if forbidden in SELLER_PLATFORM_LISTING_EDITOR:
-        errors.append(f"seller platform listing editor must not force the editing form into a compressed three-column layout: {forbidden}")
+    if forbidden in SELLER_PLATFORM_LISTING_EDITOR: errors.append(f"seller platform listing editor must not force the editing form into a compressed three-column layout: {forbidden}")
 for forbidden in ("xl:grid-cols-5", "进入编制 <ArrowRight"):
     if forbidden in CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content planner listing composition must not regress to large clickable-card grid: {forbidden}")
@@ -317,6 +314,10 @@ for forbidden in ("<ListingUnifiedEditorSections", "AI 内容辅助、视频计�
 for forbidden in ("xl:grid-cols-[180px_minmax(0,1fr)_240px]", "xl:border-l xl:border-t-0"):
     if forbidden in LISTING_UNIFIED_EDITOR_SECTIONS:
         errors.append(f"listing unified editor must not compress fields into nested three-column layout: {forbidden}")
+for forbidden in ("短视频与内容计划", "标签与搜索词", "listing-editor-video", "listing-editor-tags", "listing-editor-handoff"):
+    if forbidden in LISTING_UNIFIED_EDITOR_SECTIONS: errors.append(f"listing unified editor must keep secondary helpers out of the primary listing form: {forbidden}")
+for required in ("data-ui=\"listing-auxiliary-support-strip\"", "Listing 辅助功能收拢条", "视频与话题只做候选摘要", "定价与发布只保留去向"):
+    if required not in LISTING_UNIFIED_EDITOR_SECTIONS: errors.append(f"listing unified editor must collapse secondary helpers into an auxiliary strip: {required}")
 for required in (
     "aria-label=\"Listing 搜索词后台编辑区\"",
     "data-ui=\"listing-search-terms-editor\"",
@@ -429,8 +430,8 @@ if "xl:grid-cols-[minmax(0,1fr)_320px]" in LISTING_SPECIFICATION_EDITOR:
     errors.append("listing specification editor must not squeeze SKU/spec fields with a permanent compliance side rail")
 if "xl:grid-cols-[minmax(0,1fr)_280px]" in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must not squeeze image slots with a permanent image action side rail")
-for required in ("draggable", "onDragStart", "onDragOver", "onDrop", "reorderSlot", "draggingSlotIndex !== null", "新增图片空位", "aria-label=\"新增图片空位\"", "拖拽缩略图调整主图/辅图顺序"):
-    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+for required in ("draggable", "onDragStart", "onDragOver", "onDrop", "reorderSlot", "draggingSlotIndex !== null", "新增图片空位", "aria-label=\"新增图片空位\"", "拖拽缩略图调整主图/辅图顺序", "平台至少 ${minImages} 张发布图", "张发布图", "待补发布图", "发布图达标"):
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH + LISTING_UNIFIED_EDITOR_SECTIONS:
         errors.append(f"content media studio must support drag-sort image slots and add empty slots: {required}")
 if "draggingSlotIndex !== null" not in SELLER_IMAGE_EDITOR_WORKBENCH:
     errors.append("seller image editor must allow dragging the first/main image slot; do not use a truthy index check")
@@ -503,7 +504,7 @@ for required in (
     "data-ui=\"content-product-seller-console-table\"",
     "商品信息",
     "平台 / 店铺 / 市场",
-    "图片 / 视频",
+    "发布图 / 视频",
     "标题 / 描述",
     "SKU / 属性",
     "价格 / 库存",
@@ -576,7 +577,7 @@ for required in ("activeProductId", "`/products/${activeProductId}`", "`/content
 for required in ("Listing 内容任务", "任务状态分组", "任务详情诊断", "aria-label=\"Listing 内容任务表格\""):
     if required not in CONTENT_TASK_MATRIX:
         errors.append(f"content task matrix must become a seller-console task workbench element: {required}")
-for required in ("Listing标题", "商品描述", "PlatformFieldGroupEditor", "onDraftChange"):
+for required in ("Listing标题", "商品描述", "PlatformFieldGroupEditor", "onDraftChange", "发布图 / 视频"):
     if required not in BATCH_PUBLISH_PREVIEW:
         errors.append(f"batch publish preview must keep editable listing draft field: {required}")
 for required in ("draft_only", "保存草稿", "立即发布计划", "定时发布计划", "aria-label=\"发布计划模式说明\"", "data-ui=\"publish-plan-mode-guide\""):
@@ -626,7 +627,7 @@ for required in ("FieldValueControl", "normalizeFieldType", "fieldEnumOptions", 
 for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFieldGroupSummary"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must expose listing draft persistence diagnostics: {required}")
-for required in ("aria-label=\"发布失败与重试处理队列\"", "data-ui=\"publish-result-retry-action-panel\"", "FailureActionCard", "ResultActions", "返回重选重试", "补 Listing 内容", "补图片/SKU", "补定价", "resultRepairHref", "resultPricingHref"):
+for required in ("aria-label=\"发布失败与重试处理队列\"", "data-ui=\"publish-result-retry-action-panel\"", "FailureActionCard", "ResultActions", "返回重选重试", "补 Listing 内容", "补发布图/SKU", "补定价", "resultRepairHref", "resultPricingHref"):
     if required not in BATCH_PUBLISH_RESULT:
         errors.append(f"batch publish result step must expose failure reasons and repair/retry actions: {required}")
 for required in ("PublishReceipt", "publish_receipt", "data-ui=\"publish-result-receipt-status-table\"", "data-ui=\"publish-result-local-receipt\"", "data-ui=\"publish-result-platform-api-status\"", "data-ui=\"publish-result-retry-entry\"", "publish-result-official-writeback", "official_publish_writeback", "官方回写", "平台 Open API 状态", "失败重试", "next_action", "retryable"):
@@ -655,7 +656,7 @@ for required in ("selectedPlatformsList", "多平台字段组", "platformRequire
 for required in ("目标归属", "ItemTargetContext", "商品目标归属", "待选择目标平台/市场/店铺"):
     if required not in BATCH_PUBLISH_SELECT:
         errors.append(f"batch publish select step must show product target context, not only field requirements: {required}")
-for required in ("aria-label=\"发布门禁总览\"", "PublishGateCard", "PublishGateStack", "aria-label=\"发布门禁状态\"", "publishReadiness", "图片门禁", "字段门禁", "目标归属", "Listing 母版", "masterReady"):
+for required in ("aria-label=\"发布门禁总览\"", "PublishGateCard", "PublishGateStack", "aria-label=\"发布门禁状态\"", "publishReadiness", "发布图门禁", "字段门禁", "目标归属", "Listing 母版", "masterReady"):
     if required not in BATCH_PUBLISH_SELECT:
         errors.append(f"batch publish select step must expose publish gate summary and row diagnostics: {required}")
 for required in ("listingMasterStatus", "ListingMasterSummary", "aria-label=\"统一 Listing 母版摘要\"", "本地 Listing 草稿"):
@@ -696,7 +697,7 @@ for required in (
     "商品搜索",
     "发布门禁",
     "价格/定价快照",
-    "图片/SKU",
+    "发布图/SKU",
     "确认定价",
     "目标平台 / 店铺",
     "市场跟随店铺归属",
@@ -707,7 +708,7 @@ for required in (
         errors.append(f"batch publish select must prioritize product table and responsive target operation bar: {required}")
 for required in (
     "data-ui=\"batch-publish-pricing-snapshot-status\"",
-    "data-ui=\"batch-publish-media-sku-readiness-summary\"",
+    "data-ui=\"batch-publish-media-sku-readiness-summary\"", "发布图", "aria-label=\"发布图缺口\"", "retained_image_count", "mediaSourceLabel", "isTrustedMediaSource",
     "data-ui=\"selected-publish-preflight-gate-summary\"",
     "data-ui=\"selected-publish-blocking-reason\"",
     "已选商品发布前校验",

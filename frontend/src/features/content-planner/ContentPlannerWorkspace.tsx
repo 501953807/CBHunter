@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { Select } from '../../components/ui/Select'
-import type { ContentWorkbenchItem } from '../../api/content'
+import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
 import { usePlatforms } from '../../hooks/usePlatforms'
 import { ContentProductQueue } from './ContentProductQueue'
 import { ProfessionalWorkspaceFrame } from '../../components/shared/ProfessionalWorkspaceFrame'
@@ -12,9 +13,11 @@ import { productImageSrc } from '../../utils/productImages'
 import { ContentListingStageRail } from './ContentListingStageRail'
 import { ContentMediaStudio } from './ContentMediaStudio'
 import { SellerPlatformListingEditorPanel } from './SellerPlatformListingEditorPanel'
+import { logger } from '../../utils/logger'
 type ContentWorkspaceMode = 'queue' | 'listing' | 'image'
 export default function ContentPlannerPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { tab } = useParams()
   const [searchParams] = useSearchParams()
   const initialProductId = searchParams.get('product_id') || ''
@@ -42,7 +45,25 @@ export default function ContentPlannerPage() {
     return initialProductId ? 'listing' : 'queue'
   })
   const [activeImageSlotIndex, setActiveImageSlotIndex] = useState(initialImageSlotIndex)
-  const refreshContentTasks = useCallback(() => setSelectedProduct(current => current ? { ...current } : current), [])
+  const refreshSelectedProductFromWorkbench = useCallback(async () => {
+    const currentProductId = selectedProduct?.id
+    const currentWorkItemId = selectedProduct?.work_item_id
+    if (!currentProductId && !currentWorkItemId) {
+      setSelectedProduct(current => current ? { ...current } : current)
+      return
+    }
+    try {
+      const response = await getContentWorkbench()
+      queryClient.setQueryData(['content-workbench'], response)
+      const refreshed = (response.data?.items || []).find(item =>
+        item.id === currentProductId || item.work_item_id === currentWorkItemId,
+      )
+      setSelectedProduct(current => refreshed || (current ? { ...current } : current))
+    } catch (error: any) {
+      logger.error('Refresh selected content workbench product failed', error)
+      setSelectedProduct(current => current ? { ...current } : current)
+    }
+  }, [queryClient, selectedProduct?.id, selectedProduct?.work_item_id])
   const handleSelectProduct = useCallback((item: ContentWorkbenchItem) => {
     setSelectedProduct(item)
   }, [])
@@ -167,7 +188,7 @@ export default function ContentPlannerPage() {
               product={selectedProduct}
               activeStore={activeStoreLabel}
               changeTab={changeTab}
-              onSaved={refreshContentTasks}
+              onSaved={refreshSelectedProductFromWorkbench}
               highlightPlatformFieldKey={highlightPlatformFieldKey}
             />
           </section>
@@ -192,7 +213,12 @@ export default function ContentPlannerPage() {
                 <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">主图、辅图、SKU 图、尺寸图、场景图集中处理</h3>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">图片处理独立于 Listing 字段编辑，支持拖拽排序、新增图片空位和槽位计划保存。</p>
               </div>
-              <ContentMediaStudio mode="image" product={selectedProduct} initialSlotIndex={activeImageSlotIndex} />
+              <ContentMediaStudio
+                mode="image"
+                product={selectedProduct}
+                initialSlotIndex={activeImageSlotIndex}
+                onImageSlotPlanSaved={refreshSelectedProductFromWorkbench}
+              />
             </section>
           </section>
         </ContentEditorOverlay>
@@ -268,14 +294,13 @@ function CurrentListingHeader({ product, onGapClick }: { product: ContentWorkben
   const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(attributeValues, field)).length
   const imageCount = media?.captured_image_count ?? 0
   const minImages = media?.min_platform_images ?? 5
-  const recommendedImages = media?.recommended_platform_images ?? 9
   const mediaPct = minImages > 0 ? Math.min(100, Math.round((imageCount / minImages) * 100)) : 0
   const attrPct = requiredAttributes.length ? Math.round((filledAttributes / requiredAttributes.length) * 100) : 0
   const contentReady = product?.content_status === 'ready'
   const contentPct = contentReady ? 100 : product?.content_status === 'in_progress' ? 55 : product ? 18 : 0
   const readinessItems = [
     { label: '内容任务', value: product ? product.content_status === 'ready' ? '可进入定价' : product.content_status === 'in_progress' ? '制作中' : '未开始' : '未选择', pct: contentPct, tone: contentReady ? 'success' : 'warning' },
-    { label: '图片素材', value: product ? `${imageCount}/${minImages} 张` : '未选择', pct: mediaPct, tone: imageCount >= minImages ? 'success' : 'warning' },
+    { label: '发布图', value: product ? `${imageCount}/${minImages} 张` : '未选择', pct: mediaPct, tone: imageCount >= minImages ? 'success' : 'warning' },
     { label: '平台属性', value: product ? `${filledAttributes}/${requiredAttributes.length || 0}` : '未选择', pct: attrPct, tone: requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length ? 'success' : 'warning' },
   ]
   const previewImages = product?.image_url ? [product.image_url] : []
@@ -298,7 +323,7 @@ function CurrentListingHeader({ product, onGapClick }: { product: ContentWorkben
               <div className="grid aspect-square place-items-center text-xs text-[var(--color-muted)]">未选择商品</div>
             )}
             <div className="absolute bottom-2 left-2 rounded-full bg-[var(--color-surface)]/95 px-2 py-1 text-[11px] text-[var(--color-muted)] shadow-[var(--shadow-sm)]">
-              主图 {imageCount}/{recommendedImages}
+              发布图 {imageCount}/{minImages}
             </div>
           </div>
           <div className="mt-2 grid grid-cols-5 gap-1">

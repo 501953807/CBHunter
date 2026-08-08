@@ -68,6 +68,15 @@ export function ContentProductQueue({
     () => items.filter(item => checkedIds.includes(item.work_item_id)),
     [items, checkedIds],
   )
+  const selectedPublishUrl = selectedItems.length > 0 ? bulkWorkflowUrl('/publish', selectedItems) : ''
+  const selectedPricingUrl = selectedItems.length > 0 ? bulkWorkflowUrl('/pricing', selectedItems) : ''
+  const selectedMediaGaps = selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length
+  const selectedContentGaps = selectedItems.filter(item => item.content_status !== 'ready' || item.content_gaps.length > 0).length
+  const selectedAttributeGaps = selectedItems.filter(item => {
+    const requiredAttributes = item.platform_requirements?.required_attributes || []
+    const attributeValues = item.platform_requirements?.attribute_values || {}
+    return requiredAttributes.some(field => !hasAttributeValue(attributeValues, field))
+  }).length
   const allVisibleChecked = visibleIds.length > 0 && visibleIds.every(id => checkedIds.includes(id))
   const partiallyChecked = visibleIds.some(id => checkedIds.includes(id)) && !allVisibleChecked
 
@@ -143,10 +152,10 @@ export function ContentProductQueue({
             </label>
           </div>
         )}
-        {layout === 'table' && items.length > 0 && (
-          <div
-            aria-label="内容商品批量操作工具栏"
-            data-ui="content-product-bulk-action-toolbar"
+	        {layout === 'table' && items.length > 0 && (
+	          <div
+	            aria-label="内容商品批量操作工具栏"
+	            data-ui="content-product-bulk-action-toolbar"
             className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs shadow-[var(--shadow-sm)]"
           >
             <label className="flex items-center gap-2 text-[var(--color-fg)]">
@@ -160,7 +169,7 @@ export function ContentProductQueue({
               当前页全选
             </label>
             <span className="text-[var(--color-muted)]">已选择 {selectedItems.length} 个商品</span>
-            <span className="text-[var(--color-muted)]">图片缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
+            <span className="text-[var(--color-muted)]">发布图缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
             <span className="text-[var(--color-muted)]">内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
             <div className="ml-auto flex flex-wrap gap-2">
               <button
@@ -177,7 +186,7 @@ export function ContentProductQueue({
                 disabled={selectedItems.length === 0}
                 onClick={() => runBulkAction('media')}
                 className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                title="生成批量素材处理队列，逐个进入图片工作台补图/校验"
+                title="生成批量发布图处理队列，逐个进入图片工作台补图/校验"
               >
                 批量校验素材
               </button>
@@ -190,8 +199,71 @@ export function ContentProductQueue({
               >
                 送入定价校验
               </button>
+	            </div>
+	          </div>
+	        )}
+        {layout === 'table' && selectedItems.length > 0 && (
+          <section
+            aria-label="已选内容商品发布准备操作台"
+            data-ui="content-product-selection-command-deck"
+            className="grid gap-3 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 text-xs shadow-[var(--shadow-sm)] xl:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[var(--color-primary)] px-3 py-1 font-semibold text-[var(--color-primary-text)]">已选 {selectedItems.length} 个商品</span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">发布图缺口 {selectedMediaGaps}</span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">属性缺口 {selectedAttributeGaps}</span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">内容缺口 {selectedContentGaps}</span>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">
+                已选商品先在内容工厂补齐 Listing、发布图、SKU/属性/物流，再按目标店铺进入定价或批量刊登；这里不伪造批量生成或平台发布结果。
+              </p>
+              <div className="mt-3 flex min-w-0 gap-2 overflow-x-auto pb-1">
+                {selectedItems.slice(0, 8).map(item => (
+                  <button
+                    key={`selected-${item.work_item_id}`}
+                    type="button"
+                    onClick={() => openRow(item)}
+                    className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-left text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                  >
+                    <span className="block max-w-[180px] truncate text-[var(--color-fg)]">{item.product_name}</span>
+                    <span>{item.target_platform || '--'} / {storeContextLabel(item)}</span>
+                  </button>
+                ))}
+                {selectedItems.length > 8 && <span className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[11px] text-[var(--color-muted)]">另 {selectedItems.length - 8} 个</span>}
+              </div>
             </div>
-          </div>
+            <div className="flex flex-wrap items-start justify-end gap-2 xl:max-w-[420px]">
+              <button
+                type="button"
+                onClick={() => {
+                  const first = selectedItems[0]
+                  if (!first) return
+                  openRow(first)
+                  onOpenListing?.(first)
+                }}
+                className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-surface)] px-3 py-2 font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-bg)]"
+              >
+                打开首个 Listing
+              </button>
+              {onOpenMediaWorkbench && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const first = selectedItems.find(item => (item.media_readiness?.missing_image_count || 0) > 0) || selectedItems[0]
+                    if (!first) return
+                    openRow(first)
+                    onOpenMediaWorkbench(first)
+                  }}
+                  className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-surface)] px-3 py-2 font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-bg)]"
+                >
+                  处理首个发布图
+                </button>
+              )}
+              <a href={selectedPricingUrl} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">送入定价</a>
+              <a href={selectedPublishUrl} className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-2 font-semibold text-[var(--color-primary-text)] transition hover:opacity-90">进入批量刊登</a>
+            </div>
+          </section>
         )}
         {layout === 'table' && bulkAction && selectedItems.length > 0 && (
           <BulkActionWorkbench
@@ -238,7 +310,7 @@ export function ContentProductQueue({
             data-ui="content-workbench-error"
             className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
           >
-            <span className="text-[var(--color-danger)]">内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和素材缺口暂不可用。</span>
+            <span className="text-[var(--color-danger)]">内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和发布图缺口暂不可用。</span>
             <button
               type="button"
               onClick={() => contentWorkbenchQuery.refetch()}
@@ -284,7 +356,7 @@ export function ContentProductQueue({
                   </div>
                   {mediaReadiness && (
                     <p className="mt-2 line-clamp-2 text-[11px] text-[var(--color-warning)]">
-                      图片 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}；{mediaGaps.length ? mediaGaps.join('、') : '素材基础达标'}
+                      发布图 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}；{mediaGaps.length ? mediaGaps.join('、') : '发布图基础达标'}
                     </p>
                   )}
                   {item.content_gaps.length > 0 && <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-warning)]">{item.content_gaps.join('、')}</p>}
@@ -310,7 +382,7 @@ export function ContentProductQueue({
 	                  <th className="px-3 py-2">商品信息</th>
                   <th className="px-3 py-2">平台 / 店铺 / 市场</th>
                   <th className="px-3 py-2">内容状态</th>
-                  <th className="px-3 py-2">图片 / 视频</th>
+                  <th className="px-3 py-2">发布图 / 视频</th>
                   <th className="px-3 py-2">标题 / 描述</th>
                   <th className="px-3 py-2">SKU / 属性</th>
                   <th className="px-3 py-2">价格 / 库存</th>
@@ -382,7 +454,7 @@ export function ContentProductQueue({
                   </td>
 	                  <td className="px-3 py-3">
 	                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>
-	                      图片 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
+	                      发布图 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
 	                    </p>
 	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">推荐 {mediaReadiness?.recommended_platform_images ?? 9} 张 · 主图/辅图/SKU图</p>
 	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
@@ -572,7 +644,7 @@ function bulkActionMeta(action: BulkActionKind) {
   if (action === 'media') {
     return {
       title: '批量素材校验队列',
-      description: '把已选商品集中为图片/视频处理清单，逐个进入图片工作台补图、排序、设主图或处理素材缺口。',
+      description: '把已选商品集中为发布图/视频处理清单，逐个进入图片工作台补图、排序、设主图或处理发布图缺口。',
     }
   }
   return {
@@ -605,6 +677,32 @@ function workflowUrl(basePath: '/pricing' | '/publish', item: ContentWorkbenchIt
   const storeRef = objectRefByType(item, ['store_listing', 'platform_account', 'store'])
   if (storeRef?.id) params.set('target_store', storeRef.id)
   return `${basePath}?${params.toString()}`
+}
+
+function bulkWorkflowUrl(basePath: '/pricing' | '/publish', items: ContentWorkbenchItem[]) {
+  const params = new URLSearchParams()
+  const productIds = items.map(productIdForAction).filter(Boolean)
+  if (productIds.length === 1) params.set('product_id', productIds[0])
+  if (productIds.length > 1) params.set('product_ids', productIds.join(','))
+  const samePlatform = sameValue(items.map(item => item.target_platform).filter(isPresentString))
+  const sameMarket = sameValue(items.map(item => item.target_market).filter(isPresentString))
+  if (samePlatform) params.set('target_platform', samePlatform)
+  if (sameMarket) params.set('target_market', sameMarket)
+  const storeIds = items
+    .map(item => objectRefByType(item, ['store_listing', 'platform_account', 'store'])?.id || '')
+    .filter(isPresentString)
+  const sameStore = sameValue(storeIds)
+  if (sameStore) params.set('target_store', sameStore)
+  return `${basePath}?${params.toString()}`
+}
+
+function sameValue(values: string[]) {
+  const unique = Array.from(new Set(values.filter(Boolean)))
+  return unique.length === 1 ? unique[0] : ''
+}
+
+function isPresentString(value: string | null | undefined): value is string {
+  return typeof value === 'string' && value.trim().length > 0
 }
 
 function hasAttributeValue(values: Record<string, unknown>, field: string) {

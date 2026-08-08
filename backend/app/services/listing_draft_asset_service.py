@@ -2,6 +2,8 @@
 
 from app.services.media_readiness_service import media_readiness_from_extra
 
+TRUSTED_IMAGE_PLAN_SOURCES = {"confirmed_image_slot_plan", "listing_image_slot_plan"}
+
 
 def build_sku_plan(item: dict, selling_price: float | None) -> dict:
     for listing in (item.get("draft_listings") or {}).values():
@@ -141,6 +143,10 @@ def build_validation_checks(
 ) -> list[dict]:
     variants = sku_plan.get("variants") if isinstance(sku_plan.get("variants"), list) else []
     images = media_assets.get("images") if isinstance(media_assets.get("images"), list) else []
+    media_readiness = media_assets.get("media_readiness") if isinstance(media_assets.get("media_readiness"), dict) else media_readiness_from_extra({}, images)
+    publishable_image_count = int(media_readiness.get("captured_image_count") or len(images))
+    min_platform_images = int(media_readiness.get("min_platform_images") or 5)
+    image_plan_trusted = media_readiness.get("source") in TRUSTED_IMAGE_PLAN_SOURCES
     attribute_values = platform_requirements.get("attribute_values") if isinstance(platform_requirements.get("attribute_values"), dict) else {}
     platform_field_gaps = platform_field_gaps_for_requirements(platform_requirements)
     missing_blocking_attrs = platform_field_gaps["blocking"]
@@ -169,8 +175,19 @@ def build_validation_checks(
         _validation_check(
             "media",
             "图片/视频",
-            "pass" if images else "warning",
-            "已维护商品图片。" if images else "建议至少维护主图，视频可作为 TikTok Shop 等平台的素材增强。",
+            "pass" if publishable_image_count >= min_platform_images and image_plan_trusted else ("warning" if publishable_image_count >= min_platform_images else "block"),
+            f"发布图已满足平台最低数量 {publishable_image_count}/{min_platform_images}。"
+            if publishable_image_count >= min_platform_images and image_plan_trusted
+            else f"发布图数量 {publishable_image_count}/{min_platform_images}，但尚未经过内容工厂图片槽位确认，发布前需复核。"
+            if publishable_image_count >= min_platform_images
+            else f"发布图不足 {publishable_image_count}/{min_platform_images}，请回内容工厂补齐发布范围图片。",
+            {
+                "publishable_image_count": publishable_image_count,
+                "min_platform_images": min_platform_images,
+                "retained_image_count": int(media_readiness.get("retained_image_count") or 0),
+                "source": media_readiness.get("source"),
+                "image_plan_trusted": image_plan_trusted,
+            },
         ),
         _validation_check(
             "logistics",

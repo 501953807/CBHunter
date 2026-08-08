@@ -159,7 +159,7 @@ function FailureActionCard({ item }: { item: BatchPublishResponse['results'][num
 function ResultActions({ item, compact = false }: { item: BatchPublishResponse['results'][number]; compact?: boolean }) {
   const actions = [
     ['补 Listing 内容', resultRepairHref(item, 'fields')],
-    ['补图片/SKU', resultRepairHref(item, 'media')],
+    ['补发布图/SKU', resultRepairHref(item, 'media')],
     ['补定价', resultPricingHref(item)],
   ] as const
   return (

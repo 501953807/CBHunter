@@ -519,7 +519,7 @@ for required in (
     "已从内容制作回读",
     "覆盖店铺",
     "覆盖标题",
-    "覆盖图片",
+    "覆盖发布图",
     "SKU/合规",
 ):
     if required not in PRICING_API + PRICING_ITEM_SELECTOR:
@@ -559,7 +559,7 @@ for required in (
 ):
     if required not in pricing_template_preview_surface:
         errors.append(f"CORE-V5-005 pricing template engine must expose store override price preview: {required}")
-for required in ("media_readiness", "媒体缺口", "已采集", "平台至少", "缺口："):
+for required in ("media_readiness", "发布图缺口", "发布图就绪", "已排入发布", "平台至少"):
     if required not in CONTENT_PRODUCT_QUEUE + PRICING_ITEM_SELECTOR + BATCH_PUBLISH_SELECT + BATCH_PUBLISH_COMPLETENESS:
         errors.append(f"content/pricing/listing workbenches must expose media readiness gaps: {required}")
 if "aria-label=\"素材商品上下文\"" not in CONTENT_MEDIA_STUDIO:

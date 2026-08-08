@@ -100,7 +100,7 @@ export function ProductSellerWorkbench({
                           <p className="mt-1 text-[11px] text-[var(--color-muted)]">{row.sku}{row.brand ? ` · ${row.brand}` : ''}</p>
                           {row.category_id && <p className="mt-1 text-[11px] text-[var(--color-muted)]">类目：{row.category_id}</p>}
                           <p className={media.missing > 0 ? 'mt-1 text-[11px] text-[var(--color-warning)]' : 'mt-1 text-[11px] text-[var(--color-success)]'}>
-                            图片就绪：{media.captured}/{media.min} · 平台至少 5 张，建议 9 张
+                            发布图就绪：{media.captured}/{media.min} · 平台至少 5 张，建议 9 张
                           </p>
                         </div>
                       </div>
@@ -171,13 +171,13 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
         <Info label="品牌" value={product.brand || '未填写'} />
         <Info label="类目" value={product.category_id || '未填写'} />
       </div>
-      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" aria-label="商品图片就绪度">
+      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" aria-label="商品发布图就绪度">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold text-[var(--color-fg)]">图片就绪</p>
+          <p className="text-xs font-semibold text-[var(--color-fg)]">发布图就绪</p>
           <Badge variant={media.missing > 0 ? 'warning' : 'success'}>{media.captured}/{media.min}</Badge>
         </div>
-        <p className="mt-2 text-[11px] text-[var(--color-muted)]">平台至少 5 张，建议 9 张；当前已维护 {media.captured} 张。</p>
-        {media.missing > 0 && <p className="mt-2 text-[11px] text-[var(--color-warning)]">媒体缺口：{media.gaps.join('、')}</p>}
+        <p className="mt-2 text-[11px] text-[var(--color-muted)]">平台至少 5 张，建议 9 张；当前已排入发布 {media.captured} 张。</p>
+        {media.missing > 0 && <p className="mt-2 text-[11px] text-[var(--color-warning)]">发布图缺口：{media.gaps.join('、')}</p>}
       </div>
       <div className="mt-4">
         <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">平台字段诊断</p>
@@ -205,8 +205,8 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
         <BusinessObjectActionBar
           description="围绕当前商品进入编辑、内容制作或平台刊登，保持同一业务对象连续处理。"
           actions={[
-            { label: '编辑基础商品资料', description: '补图片、类目、成本、重量和平台属性。', onClick: () => onEdit(product.id) },
-            { label: '进入内容制作', description: '补标题、卖点、图片处理和视频脚本。', href: `/content?product_id=${product.id}` },
+            { label: '编辑基础商品资料', description: '补商品图片、类目、成本、重量和平台属性。', onClick: () => onEdit(product.id) },
+            { label: '进入内容制作', description: '补标题、卖点、发布图处理和视频脚本。', href: `/content?product_id=${product.id}` },
             { label: '创建 Listing 草稿', description: '进入批量刊登并带入当前商品。', onClick: () => onPublish(product.id) },
           ]}
         />
@@ -247,7 +247,7 @@ function opportunityActions(row: ProductListRow) {
   const missingFieldCount = missingPlatformFieldCount(requirements)
   const media = mediaReadinessForProduct(row)
   if (!row.images?.length) actions.push({ id: 'image', title: '补商品图片', detail: '商品没有真实图片，Listing、内容制作和平台刊登都会缺少主图资料。', cta: '编辑图片', kind: 'edit' })
-  else if (media.missing > 0) actions.push({ id: 'media_readiness', title: '补平台图片素材', detail: `当前仅 ${media.captured} 张图，平台至少 5 张、建议 9 张；媒体缺口：${media.gaps.join('、')}。`, cta: '编辑图片', kind: 'edit' })
+  else if (media.missing > 0) actions.push({ id: 'media_readiness', title: '补发布图素材', detail: `当前发布图仅 ${media.captured} 张，平台至少 5 张、建议 9 张；发布图缺口：${media.gaps.join('、')}。`, cta: '编辑图片', kind: 'edit' })
   if (!row.category_id) actions.push({ id: 'category', title: '补商品类目', detail: '缺少类目会影响 Shopee/TEMU/TikTok Shop 属性映射和刊登校验。', cta: '编辑类目', kind: 'edit' })
   if (row.cost_price == null || row.weight_g == null) actions.push({ id: 'cost_weight', title: '补成本/重量', detail: '成本和重量是定价、利润和物流判断的基础字段。', cta: '编辑成本重量', kind: 'edit' })
   if (missingFieldCount > 0) actions.push({ id: 'platform_fields', title: '补平台字段', detail: `当前平台字段组仍有 ${missingFieldCount} 个必填值待补。`, cta: '编辑平台属性', kind: 'edit' })

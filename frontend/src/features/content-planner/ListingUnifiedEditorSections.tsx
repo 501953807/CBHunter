@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
-import { Calendar, Check, Copy, Hash, Video } from 'lucide-react'
-import { Card, CardContent } from '../../components/ui/Card'
+import { Copy, Hash } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import type { ToastContextType } from '../../components/ui/Toast'
@@ -43,24 +42,17 @@ export function ListingUnifiedEditorSections({
   storeId,
   storeLabel,
   mediaMode,
-  renderPlanForm,
   renderEmptyPlan,
-  plan,
   scripts,
-  calendar,
   hashtags,
-  copiedIndex,
   onCopy,
   toast,
   onGenerated,
 }: ListingUnifiedEditorSectionsProps) {
   const sections = [
-    { id: 'copy', label: '文案', title: '文案与卖点', summary: '标题、卖点摘要、商品详情、关键词', status: product?.content_brief?.title ? '有候选' : '待生成' },
-    { id: 'media', label: '媒体', title: '媒体素材', summary: '主图、辅图、图片处理、视频素材', status: product?.media_readiness?.captured_image_count ? `${product.media_readiness.captured_image_count} 张` : '待补图' },
-    { id: 'specs', label: '规格', title: 'SKU/属性/物流/合规', summary: 'SKU/变体、平台属性、物流包装、合规检查', status: product?.platform_requirements?.required_attributes?.length ? '字段组已识别' : '待补字段组' },
-    { id: 'video', label: '视频', title: '短视频与内容计划', summary: '脚本、镜头、内容日历、CTA', status: scripts.length ? `${scripts.length} 条脚本` : '待生成' },
-    { id: 'tags', label: '搜索', title: '标签与搜索词', summary: '平台搜索词、话题标签、品类词', status: hashtags.length ? `${hashtags.length} 个` : '待生成' },
-    { id: 'handoff', label: '衔接', title: '定价发布衔接', summary: '定价校验、发布队列、店铺草稿', status: product?.content_status === 'ready' ? '可衔接' : '待确认' },
+    { id: 'copy', label: '文案', title: '标题与商品详情', summary: '商品名称、卖点摘要、商品详情、后台关键词候选', status: product?.content_brief?.title ? '有候选' : '待生成' },
+    { id: 'media', label: '发布图', title: '发布图与素材槽位', summary: '主图、辅图、尺寸图、场景图、细节图和图片处理', status: product?.media_readiness?.captured_image_count ? `${product.media_readiness.captured_image_count} 张发布图` : '待补发布图' },
+    { id: 'specs', label: '规格属性', title: 'SKU/平台属性/物流合规', summary: 'SKU/变体、平台属性、物流包装、合规检查', status: product?.platform_requirements?.required_attributes?.length ? '字段组已识别' : '待补字段组' },
   ]
   const titleTerms = (product?.content_brief?.title || '')
     .split(/[\s,，、/｜|]+/)
@@ -86,7 +78,7 @@ export function ListingUnifiedEditorSections({
         <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 同屏编辑台</p>
         <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">围绕一个商品连续编辑完整 Listing</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
-          不再通过 Tabs 切换同一个商品的 Listing 字段；文案、媒体、视频计划、标签和定价发布衔接在当前商品上下文里连续处理。
+          主表单只处理同一商品的标题/详情、发布图、SKU/属性/物流/合规；搜索词、内容视频和下游衔接收拢为辅助条，避免挤压核心编辑区。
         </p>
         <ContentListingCapabilityMap product={product} scriptsCount={scripts.length} hashtagsCount={hashtags.length} />
       </div>
@@ -110,16 +102,16 @@ export function ListingUnifiedEditorSections({
         <div className="min-w-0 space-y-4 p-4">
           <ListingEditorSection
             id="copy"
-            title="文案与卖点"
-            description="标题、卖点摘要、关键词和商品详情先在同一商品下生成候选，再人工确认进入内容任务矩阵。"
+            title="标题与商品详情"
+            description="商品名称、卖点摘要、商品详情和后台关键词候选先在同一商品下生成，再由人工确认进入内容任务矩阵。"
           >
             <ContentTitleGenerator toast={toast} product={product} onGenerated={onGenerated} />
           </ListingEditorSection>
 
           <ListingEditorSection
             id="media"
-            title="媒体素材"
-            description="主图、辅图、源图处理和视频素材都绑定当前商品，避免图片处理脱离 Listing 对象。"
+            title="发布图与素材槽位"
+            description="主图、辅图、尺寸图、场景图和细节图都绑定当前商品，发布图必须来自确认图片槽位计划。"
           >
             <ContentMediaStudio mode={mediaMode} product={product} />
           </ListingEditorSection>
@@ -132,116 +124,18 @@ export function ListingUnifiedEditorSections({
             <ListingSpecificationEditor product={product} storeId={storeId} storeLabel={storeLabel} toast={toast} onGenerated={onGenerated} />
           </ListingEditorSection>
 
-          <ListingEditorSection
-            id="video"
-            title="短视频与内容计划"
-            description="短视频脚本、镜头、内容日历和 CTA 与当前商品、平台、市场一起生成，结果回写内容任务。"
-          >
-            <div className="space-y-4">
-              {renderPlanForm()}
-              {plan.confidence_reason && (
-                <div className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]">
-                  依据：{plan.evidence_window || '当前输入'}；{plan.confidence_reason}
-                </div>
-              )}
-              {scripts.length === 0 && renderEmptyPlan()}
-              {scripts.map((item, i) => (
-                <Card key={i}>
-                  <CardContent className="pt-4">
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="flex items-center gap-2 text-base font-semibold text-[var(--color-fg)]">
-                          <Video className="h-4 w-4 text-[var(--color-danger)]" />
-                          {item.title}
-                        </h3>
-                        {item.hook && <p className="mt-1 text-xs text-[var(--color-muted)]">{item.hook}</p>}
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => onCopy(item.script || '', i)}>
-                        {copiedIndex === i ? (
-                          <><Check className="mr-1 h-3 w-3" />已复制</>
-                        ) : (
-                          <><Copy className="mr-1 h-3 w-3" />复制脚本</>
-                        )}
-                      </Button>
-                    </div>
-                    <pre className="mb-3 whitespace-pre-wrap rounded-lg bg-[var(--color-bg)] p-4 font-sans text-sm leading-relaxed text-[var(--color-fg)]">
-                      {item.script}
-                    </pre>
-                    {(item.shots || []).length > 0 && (
-                      <div className="mb-3 grid gap-1 text-xs text-[var(--color-muted)]">
-                        {item.shots?.map((shot, j) => <span key={j}>{j + 1}. {shot}</span>)}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {(item.tips || []).map((tip, j) => (
-                        <span key={j} className="inline-flex items-center rounded-full bg-[var(--color-warning-light)] px-2.5 py-1 text-xs text-[var(--color-warning)]">
-                          {tip}
-                        </span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {calendar.length > 0 && (
-                <Card>
-                  <CardContent className="pt-4">
-                    <h3 className="mb-3 flex items-center gap-1 text-sm font-semibold text-[var(--color-fg)]">
-                      <Calendar className="h-4 w-4" />
-                      内容计划
-                    </h3>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
-                      {calendar.map((day, i) => (
-                        <Card key={`${day.day || 'day'}-${i}`} className="transition-shadow hover:shadow-md">
-                          <CardContent className="pt-3">
-                            <p className="mb-1 text-sm font-bold text-[var(--color-fg)]">{day.day || `Day ${i + 1}`}</p>
-                            <Badge variant="default" className="mb-2">{day.type || '内容'}</Badge>
-                            <p className="text-xs text-[var(--color-muted)]">{day.angle}</p>
-                            <p className="mt-2 text-[11px] text-[var(--color-primary)]">{day.asset}</p>
-                            <p className="mt-1 text-[11px] text-[var(--color-success)]">{day.cta}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </ListingEditorSection>
-
-          <ListingEditorSection
-            id="tags"
-            title="标签与搜索词"
-            description="后台搜索词、品类词、场景词和平台标签必须来自当前商品、平台、市场和品类，不使用固定模板；无结果时保持待生成状态。"
-          >
-            <section aria-label="Listing 搜索词后台编辑区" data-ui="listing-search-terms-editor" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <div>
-                  <p className="text-xs font-semibold text-[var(--color-primary)]">后台 Search Terms</p>
-                  <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">搜索词来源与平台标签</h3>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">用于平台搜索归档，不替代买家可见标题、商品详情和平台必填属性。</p>
-                </div>
-                <Button size="sm" variant="outline" disabled={!searchTermPackage} onClick={() => onCopy(searchTermPackage, 9001)}>
-                  <Copy className="mr-1 h-3 w-3" />复制搜索词包
-                </Button>
-              </div>
-              {searchTermPackage.length === 0 ? renderEmptyPlan() : (
-                <div className="grid gap-3 p-4 md:grid-cols-2">
-                  <SearchTermColumn title="后台 Search Terms" source="标题候选 / 商品名称" terms={titleTerms} onCopy={onCopy} />
-                  <SearchTermColumn title="品类词" source="类目 / 平台 / 目标市场" terms={categoryTerms} onCopy={onCopy} />
-                  <SearchTermColumn title="场景词" source="卖点摘要 / 使用场景" terms={sceneTerms} onCopy={onCopy} />
-                  <SearchTermColumn title="平台标签" source="AI 候选 / 内容计划" terms={platformTags} onCopy={onCopy} />
-                </div>
-              )}
-            </section>
-          </ListingEditorSection>
-
-          <ListingEditorSection
-            id="handoff"
-            title="定价发布衔接"
-            description="内容确认后再进入定价校验和平台刊登，当前页只保留同一商品的下游衔接，不在内容制作里重复发布功能。"
-          >
-            <ContentPublishGuide product={product} />
-          </ListingEditorSection>
+          <ListingAuxiliaryStrip
+            product={product}
+            scriptsCount={scripts.length}
+            hashtagsCount={hashtags.length}
+            searchTermPackage={searchTermPackage}
+            titleTerms={titleTerms}
+            categoryTerms={categoryTerms}
+            sceneTerms={sceneTerms}
+            platformTags={platformTags}
+            renderEmptyPlan={renderEmptyPlan}
+            onCopy={onCopy}
+          />
         </div>
 
         <section aria-label="Listing 段落校验摘要" className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
@@ -258,6 +152,76 @@ export function ListingUnifiedEditorSections({
             ))}
           </div>
         </section>
+      </div>
+    </section>
+  )
+}
+
+function ListingAuxiliaryStrip({
+  product,
+  scriptsCount,
+  hashtagsCount,
+  searchTermPackage,
+  titleTerms,
+  categoryTerms,
+  sceneTerms,
+  platformTags,
+  renderEmptyPlan,
+  onCopy,
+}: {
+  product: ContentWorkbenchItem | null
+  scriptsCount: number
+  hashtagsCount: number
+  searchTermPackage: string
+  titleTerms: string[]
+  categoryTerms: string[]
+  sceneTerms: string[]
+  platformTags: string[]
+  renderEmptyPlan: () => ReactNode
+  onCopy: (text: string, index: number) => void
+}) {
+  return (
+    <section aria-label="Listing 辅助功能收拢条" data-ui="listing-auxiliary-support-strip" className="grid gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.8fr)_minmax(260px,1fr)]">
+      <section aria-label="Listing 搜索词后台编辑区" data-ui="listing-search-terms-editor" className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] p-3">
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">后台 Search Terms</p>
+            <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">搜索词来源与平台标签</h3>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">辅助平台检索归档，不替代主表单中的标题、商品详情和平台必填属性。</p>
+          </div>
+          <Button size="sm" variant="outline" disabled={!searchTermPackage} onClick={() => onCopy(searchTermPackage, 9001)}>
+            <Copy className="mr-1 h-3 w-3" />复制搜索词包
+          </Button>
+        </div>
+        {searchTermPackage.length === 0 ? renderEmptyPlan() : (
+          <div className="grid gap-2 p-3 md:grid-cols-2">
+            <SearchTermColumn title="后台 Search Terms" source="标题候选 / 商品名称" terms={titleTerms} onCopy={onCopy} />
+            <SearchTermColumn title="品类词" source="类目 / 平台 / 目标市场" terms={categoryTerms} onCopy={onCopy} />
+            <SearchTermColumn title="场景词" source="卖点摘要 / 使用场景" terms={sceneTerms} onCopy={onCopy} />
+            <SearchTermColumn title="平台标签" source="AI 候选 / 内容任务" terms={platformTags} onCopy={onCopy} />
+          </div>
+        )}
+      </section>
+
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <p className="text-xs font-semibold text-[var(--color-primary)]">内容素材辅助</p>
+        <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">视频与话题只做候选摘要</h3>
+        <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">
+          已有 {scriptsCount} 条脚本候选、{hashtagsCount} 个话题标签。这里不铺开脚本正文，避免干扰商品 Listing 主表单；后续应迁入独立内容计划页。
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant={scriptsCount ? 'success' : 'warning'}>{scriptsCount ? '脚本有候选' : '脚本待生成'}</Badge>
+          <Badge variant={hashtagsCount ? 'success' : 'warning'}>{hashtagsCount ? '标签有候选' : '标签待生成'}</Badge>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <p className="text-xs font-semibold text-[var(--color-primary)]">下游动作</p>
+        <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">定价与发布只保留去向</h3>
+        <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">当前页不重复定价或发布功能，完成 Listing 主表单后再进入定价校验和批量刊登。</p>
+        <div className="mt-3">
+          <ContentPublishGuide product={product} />
+        </div>
       </div>
     </section>
   )
@@ -295,8 +259,8 @@ function ContentListingCapabilityMap({
     },
     {
       title: '图片处理',
-      detail: `平台至少 ${minImages} 张图；当前 ${imageCount} 张，缺图时先补主图、辅图、尺寸图、场景图和细节图。`,
-      status: imageCount >= minImages ? '基础达标' : '待补图',
+      detail: `平台至少 ${minImages} 张发布图；当前 ${imageCount} 张，发布图不足时先补主图、辅图、尺寸图、场景图和细节图。`,
+      status: imageCount >= minImages ? '发布图达标' : '待补发布图',
     },
     {
       title: '视频脚本',

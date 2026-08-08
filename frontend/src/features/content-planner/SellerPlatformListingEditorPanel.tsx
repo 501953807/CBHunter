@@ -26,7 +26,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   product: ContentWorkbenchItem | null
   activeStore: string
   changeTab: (nextTab: string, options?: { imageSlotIndex?: number }) => void
-  onSaved?: () => void
+  onSaved?: () => Promise<void> | void
   highlightPlatformFieldKey?: string
 }) {
   const toast = useToast()
@@ -36,7 +36,6 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   const sourceBullets = product?.content_brief?.bullets || []
   const sourceBulletsKey = sourceBullets.join('\n')
   const description = sourceBullets.join('\n') || ''
-  const imageCount = product?.media_readiness?.captured_image_count ?? (product?.image_url ? 1 : 0)
   const minImages = product?.media_readiness?.min_platform_images ?? 5
   const recommendedImages = product?.media_readiness?.recommended_platform_images ?? 9
   const sourcePlatformRequirements = product?.platform_requirements as PlatformRequirementsLike | undefined
@@ -63,8 +62,11 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
   const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(mergedAttributeValues, field)).length
   const enabledSkuCount = skuRows.filter(row => row.enabled).length
   const skuReadyCount = skuRows.filter(row => row.enabled && row.merchantSku.trim() && row.price.trim() && row.stock.trim()).length
-  const slotImageCount = imageSlots.filter(slot => Boolean(slot.imageUrl)).length
-  const listingImageCount = Math.max(imageCount, slotImageCount)
+  const publishableSlotImageCount = imageSlots.slice(0, recommendedImages).filter(slot => Boolean(slot.imageUrl)).length
+  const confirmedSlotCount = product?.confirmed_image_slot_plan?.image_slots?.length || 0
+  const confirmedPublishableCount = product?.confirmed_image_slot_plan?.publishable_image_count || 0
+  const confirmedRetainedCount = product?.confirmed_image_slot_plan?.retained_image_count || 0
+  const listingImageCount = publishableSlotImageCount
   const listingGaps = buildListingGaps({
     product,
     activeStore,
@@ -76,7 +78,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
     enabledSkuCount,
     skuReadyCount,
   })
-  const readinessSnapshot = [['图片', `${listingImageCount}/${minImages}`, listingImageCount >= minImages], ['属性', `${filledAttributes}/${requiredAttributes.length || 0}`, requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length], ['SKU', `${skuReadyCount}/${enabledSkuCount || 0}`, enabledSkuCount > 0 && skuReadyCount >= enabledSkuCount], ['店铺', activeStore || '待选择', Boolean(activeStore)]]
+  const readinessSnapshot = [['发布图', `${listingImageCount}/${minImages}`, listingImageCount >= minImages], ['属性', `${filledAttributes}/${requiredAttributes.length || 0}`, requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length], ['SKU', `${skuReadyCount}/${enabledSkuCount || 0}`, enabledSkuCount > 0 && skuReadyCount >= enabledSkuCount], ['店铺', activeStore || '待选择', Boolean(activeStore)]]
 
   useEffect(() => {
     setDraft({
@@ -102,9 +104,9 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
       certificate: '',
     })
     setSkuRows([defaultSkuRow(product?.id?.slice(0, 8) || '', product?.selling_price_local != null ? String(product.selling_price_local) : '')])
-    setImageSlots(buildImageSlots(product?.image_url || '', minImages, recommendedImages))
+    setImageSlots(buildImageSlots(product?.image_url || '', minImages, recommendedImages, product?.confirmed_image_slot_plan?.image_slots))
     setPlatformRequirementsDraft(sourcePlatformRequirements)
-  }, [product?.id, title, description, product?.category, product?.selling_price_local, sourcePlatformRequirements, sourceAttributeValues, sourceBulletsKey, minImages, recommendedImages])
+  }, [product?.id, title, description, product?.category, product?.selling_price_local, sourcePlatformRequirements, sourceAttributeValues, sourceBulletsKey, minImages, recommendedImages, product?.confirmed_image_slot_plan?.image_slots])
 
   useEffect(() => {
     if (!highlightedFieldKey) return
@@ -244,8 +246,18 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
       certificate: '',
     })
     setSkuRows([defaultSkuRow(product.id?.slice(0, 8) || '', product.selling_price_local != null ? String(product.selling_price_local) : '')])
-    setImageSlots(buildImageSlots(product.image_url || '', minImages, recommendedImages))
+    setImageSlots(buildImageSlots(product.image_url || '', minImages, recommendedImages, product.confirmed_image_slot_plan?.image_slots))
     setPlatformRequirementsDraft(sourcePlatformRequirements)
+  }
+
+  const notifySaved = async () => {
+    if (!onSaved) return
+    try {
+      await onSaved()
+    } catch (error: any) {
+      logger.error('Refresh content workbench after listing save failed', error)
+      toast.addToast('warning', 'Listing 已保存，但当前商品上下文刷新失败，请重新打开该商品确认')
+    }
   }
 
   const saveMaster = async () => {
@@ -268,8 +280,8 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
         const version = saved.data?.version
         if (version) await confirmContentTaskVersion(product.id, task.taskType, version)
       }
+      await notifySaved()
       toast.addToast('success', '统一 Listing 母版已保存并确认')
-      onSaved?.()
     } catch (error: any) {
       logger.error('Save unified listing master failed', error)
       toast.addToast('error', error?.response?.data?.detail || '统一 Listing 母版保存失败')
@@ -307,8 +319,8 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
       }, null, 2), 'manual_store_override')
       const version = saved.data?.version
       if (version) await confirmContentTaskVersion(product.id, 'listing_store_override', version)
+      await notifySaved()
       toast.addToast('success', '店铺 Listing 覆盖字段已保存')
-      onSaved?.()
     } catch (error: any) {
       logger.error('Save listing store override failed', error)
       toast.addToast('error', error?.response?.data?.detail || '店铺覆盖字段保存失败')
@@ -331,7 +343,7 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           <div id="listing-field-target-store" tabIndex={-1} className="flex flex-wrap gap-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
             <StatusPill ok={Boolean(product)} label={product ? '已锁定商品' : '未选择商品'} />
             <StatusPill ok={Boolean(activeStore)} label={activeStore || '目标店铺待选'} />
-            <StatusPill ok={imageCount >= minImages} label={`图片 ${imageCount}/${minImages}`} />
+            <StatusPill ok={listingImageCount >= minImages} label={`发布图 ${listingImageCount}/${minImages}`} />
             <StatusPill ok={filledAttributes >= requiredAttributes.length && requiredAttributes.length > 0} label={`属性 ${filledAttributes}/${requiredAttributes.length || 0}`} />
           </div>
         </div>
@@ -496,6 +508,8 @@ export function SellerPlatformListingEditorPanel({ product, activeStore, changeT
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]" data-ui="listing-image-operation-toolbar" aria-label="Listing 图片槽位操作规则">
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">素材池 {imageSlots.length} 张，发布取前 {recommendedImages} 张</span>
+            <span className="rounded-full border border-[var(--color-border)] px-2 py-1">已排入发布 {publishableSlotImageCount}/{recommendedImages}</span>
+            <span className={confirmedSlotCount ? 'rounded-full bg-[var(--color-success-light)] px-2 py-1 font-semibold text-[var(--color-success)]' : 'rounded-full border border-[var(--color-border)] px-2 py-1'} data-ui="listing-confirmed-image-slot-plan-summary">{confirmedSlotCount ? `已回显图片计划 ${confirmedPublishableCount || confirmedSlotCount} 张发布图${confirmedRetainedCount ? `，素材池 ${confirmedRetainedCount}` : ''}` : '未保存图片计划，使用源图初始化'}</span>
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">至少 {minImages} 张</span>
             <span className="rounded-full border border-[var(--color-border)] px-2 py-1">直接拖拽图片排序，首位即平台主图</span>
             <Button size="sm" variant="outline" onClick={() => changeTab('media', { imageSlotIndex: 1 })} disabled={!product}>打开第1张图片工作台</Button>

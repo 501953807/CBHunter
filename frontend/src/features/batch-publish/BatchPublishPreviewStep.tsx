@@ -300,7 +300,7 @@ export function BatchPublishPreviewStep({
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-3 2xl:grid-cols-3">
-                  <Section title="图片 / 视频" icon={<Image className="h-4 w-4" />}>
+                  <Section title="发布图 / 视频" icon={<Image className="h-4 w-4" />}>
                     <MediaEditor
                       draft={draft}
                       onChange={patch => onDraftChange(index, patch)}

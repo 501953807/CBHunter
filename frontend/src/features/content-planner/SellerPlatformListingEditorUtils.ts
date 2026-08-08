@@ -73,7 +73,7 @@ export function buildListingGaps({
     gaps.push({ id: 'store', label: '未选择目标店铺', anchor: 'listing-master-logistics', targetId: 'listing-field-target-store', severity: 'blocker' })
   }
   if (imageCount < minImages) {
-    gaps.push({ id: 'images', label: `图片不足 ${imageCount}/${minImages}`, anchor: 'listing-master-media', targetId: 'listing-field-images', severity: 'blocker' })
+    gaps.push({ id: 'images', label: `发布图不足 ${imageCount}/${minImages}`, anchor: 'listing-master-media', targetId: 'listing-field-images', severity: 'blocker' })
   }
   if (!draft.title?.trim()) {
     gaps.push({ id: 'title', label: '商品标题待填写', anchor: 'listing-master-copy', targetId: 'listing-field-title', severity: 'blocker' })
@@ -118,6 +118,9 @@ export function buildTaskPayloads(
   platformRequirements?: PlatformRequirementsLike,
 ) {
   const sellingPoints = getSellingPoints(draft)
+  const recommendedImages = product.media_readiness?.recommended_platform_images ?? 9
+  const publishableImageCount = imageSlots.slice(0, recommendedImages).filter(slot => slot.imageUrl).length
+  const retainedImageCount = imageSlots.slice(recommendedImages).filter(slot => slot.imageUrl).length
   const attributeSummary = Object.entries(mergePlatformAttributeValues(draft, platformRequirements))
     .map(([label, value]) => `${label}: ${value || '待补'}`)
     .join('\n')
@@ -158,15 +161,26 @@ export function buildTaskPayloads(
     {
       taskType: 'image_understanding',
       provider: 'manual_listing_master',
-      content: `当前商品图片 ${product.media_readiness?.captured_image_count ?? (product.image_url ? 1 : 0)}/${product.media_readiness?.recommended_platform_images ?? 9}；主图来自真实商品图，缺口以媒体就绪度为准。`,
+      content: `当前发布图 ${publishableImageCount}/${recommendedImages}；主图来自当前 Listing 槽位首图，缺口以发布范围槽位为准。`,
     },
     {
       taskType: 'image_edit_plan',
       provider: 'manual_listing_master',
-      content: [
-        '主图/辅图处理计划：保留真实商品主体，按目标平台补齐主图、场景图、尺寸图、细节图和 SKU 图；水印模板在图片/水印模板页单独配置。',
-        `当前发布槽位：${imageSlots.map((slot, index) => `${index + 1}.${slot.label}:${slot.imageUrl ? '有图' : '待补'}`).join(' / ')}`,
-      ].join('\n'),
+      content: JSON.stringify({
+        schema: 'listing_image_slots.v1',
+        source: 'manual_listing_master',
+        publish_image_limit: recommendedImages,
+        publishable_image_count: publishableImageCount,
+        retained_image_count: retainedImageCount,
+        slots: imageSlots.map((slot, index) => ({
+          position: index + 1,
+          label: slot.label,
+          role: slot.role,
+          image_url: slot.imageUrl,
+          required: slot.required,
+          publishable: index < recommendedImages,
+        })),
+      }, null, 2),
     },
     {
       taskType: 'compliance_check',
@@ -183,7 +197,20 @@ export function buildTaskPayloads(
   ]
 }
 
-export function buildImageSlots(sourceImage: string, minImages: number, recommendedImages: number): ListingImageSlot[] {
+export function buildImageSlots(sourceImage: string, minImages: number, recommendedImages: number, savedSlots?: unknown[]): ListingImageSlot[] {
+  const confirmedSlots = Array.isArray(savedSlots) ? savedSlots.map((slot, index) => {
+    if (!slot || typeof slot !== 'object') return null
+    const data = slot as Record<string, unknown>
+    const role = imageSlotRole(index)
+    return {
+      id: `saved-image-slot-${data.position || index + 1}`,
+      label: String(data.label || role.label),
+      role: String(data.role || role.role),
+      imageUrl: String(data.image_url || data.imageUrl || ''),
+      required: index < minImages,
+    }
+  }).filter((slot): slot is ListingImageSlot => Boolean(slot && slot.imageUrl)) : []
+  if (confirmedSlots.length) return relabelImageSlots(confirmedSlots, minImages)
   return relabelImageSlots(Array.from({ length: recommendedImages }).map((_, index) => ({
     id: `image-slot-${index}`,
     label: '',

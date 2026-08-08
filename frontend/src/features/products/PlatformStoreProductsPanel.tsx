@@ -99,7 +99,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
           <div>
             <h2 className="text-lg font-semibold text-[var(--color-fg)]">平台店铺商品</h2>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              展示从 Shopee、TEMU、TikTok Shop 各店铺同步或本地创建的 Listing 实例；店铺归属、平台商品 ID、图片数量、SKU/规格数量和同步时间必须可见。
+              展示从 Shopee、TEMU、TikTok Shop 各店铺同步或本地创建的 Listing 实例；店铺归属、平台商品 ID、发布图数量、SKU/规格数量和同步时间必须可见。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -178,7 +178,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
           data-ui="platform-store-products-error"
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
         >
-          <span className="text-[var(--color-danger)]">平台店铺商品加载失败，当前店铺 Listing、图片缺口和 SKU 覆盖暂不可用。</span>
+          <span className="text-[var(--color-danger)]">平台店铺商品加载失败，当前店铺 Listing、发布图缺口和 SKU 覆盖暂不可用。</span>
           <Button size="sm" variant="secondary" onClick={() => productsQuery.refetch()}>
             重新加载平台店铺商品
           </Button>
@@ -191,7 +191,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
         <SummaryCard label="覆盖市场" value={String(summary.marketCount)} hint="按当前筛选全量店铺市场汇总" dataUi="platform-store-market-summary" />
         <SummaryCard label="已同步" value={String(summary.syncedCount)} hint={`${summary.localDraftCount} 个本地草稿 · 全量`} />
         <SummaryCard label="库存风险" value={String(summary.inventoryRiskCount)} hint="规则/告警驱动 · 全量" warning={summary.inventoryRiskCount > 0} dataUi="platform-store-inventory-risk-summary" />
-        <SummaryCard label="图片不足" value={String(summary.mediaGapCount)} hint="低于平台最低图片要求 · 全量" warning={summary.mediaGapCount > 0} />
+        <SummaryCard label="发布图不足" value={String(summary.mediaGapCount)} hint="低于平台最低发布图要求 · 全量" warning={summary.mediaGapCount > 0} />
         <SummaryCard label="发布队列" value={String(summary.publishQueueCount)} hint="本地草稿/待提交平台 · 全量" warning={summary.publishQueueCount > 0} />
       </section>
 
@@ -212,7 +212,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
               <th className="px-3 py-2">店铺归属</th>
               <th className="px-3 py-2">店铺覆盖字段</th>
               <th className="px-3 py-2">价格库存</th>
-              <th className="px-3 py-2">图片/SKU</th>
+              <th className="px-3 py-2">发布图/SKU</th>
               <th className="px-3 py-2">同步/动作</th>
             </tr>
           </thead>
@@ -246,7 +246,7 @@ function PlatformStoreGroupingBoard({ items }: { items: PlatformStoreProduct[] }
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--color-fg)]">平台店铺商品分组态势</h3>
-          <p className="mt-1 text-xs text-[var(--color-muted)]">按平台/店铺查看商品同步、图片缺口和 SKU 覆盖，先判断哪个店铺商品库需要处理。</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">按平台/店铺查看商品同步、发布图缺口和 SKU 覆盖，先判断哪个店铺商品库需要处理。</p>
         </div>
         <Badge variant="outline">店铺分组 {groups.length}</Badge>
       </div>
@@ -265,7 +265,7 @@ function PlatformStoreGroupingBoard({ items }: { items: PlatformStoreProduct[] }
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <GroupMetric label="店铺商品数" value={String(group.productCount)} />
-                <GroupMetric label="图片缺口" value={String(group.mediaGapCount)} warning={group.mediaGapCount > 0} />
+                <GroupMetric label="发布图缺口" value={String(group.mediaGapCount)} warning={group.mediaGapCount > 0} />
                 <GroupMetric label="SKU 覆盖" value={`${group.variationCount}/${group.productCount}`} />
                 <GroupMetric label="同步状态" value={group.unsyncedCount ? `待同步 ${group.unsyncedCount}` : '已同步'} warning={group.unsyncedCount > 0} />
               </div>
@@ -411,7 +411,7 @@ function PlatformStoreProductRow({ item }: { item: PlatformStoreProduct }) {
   const minPlatformImages = mediaReadiness.min_platform_images ?? 5
   const recommendedPlatformImages = mediaReadiness.recommended_platform_images ?? 9
   const mediaGaps = mediaReadiness.gaps || []
-  const mediaReadinessLabel = capturedImages >= minPlatformImages ? '图片达标' : `缺 ${minPlatformImages - capturedImages} 张`
+  const mediaReadinessLabel = capturedImages >= minPlatformImages ? '发布图达标' : `缺 ${minPlatformImages - capturedImages} 张`
   const statusMeta = getStatusMeta(platform_listing_statuses, item.status)
   const override = item.store_override_summary
   return (
@@ -462,11 +462,11 @@ function PlatformStoreProductRow({ item }: { item: PlatformStoreProduct }) {
       </td>
       <td className="px-3 py-3 text-[var(--color-muted)]">
         <div className="space-y-1">
-          <p className="font-medium text-[var(--color-fg)]">Listing图片 {capturedImages}/{minPlatformImages} · {mediaReadinessLabel}</p>
-          <p>平台图片要求：至少 {minPlatformImages} 张，建议 {recommendedPlatformImages} 张</p>
+          <p className="font-medium text-[var(--color-fg)]">发布图 {capturedImages}/{minPlatformImages} · {mediaReadinessLabel}</p>
+          <p>平台发布图要求：至少 {minPlatformImages} 张，建议 {recommendedPlatformImages} 张</p>
           <p>主档图片：{item.product_master.image_count} 张</p>
           {mediaGaps.length > 0 && (
-            <p className="text-[var(--color-warning)]">媒体缺口：{mediaGaps.join('、')}</p>
+            <p className="text-[var(--color-warning)]">发布图缺口：{mediaGaps.join('、')}</p>
           )}
           <p>SKU/规格 {item.variation_count} 个</p>
         </div>
@@ -697,8 +697,8 @@ function buildStoreProductActions(item: PlatformStoreProduct): StoreProductActio
   }
   if (capturedImages < minPlatformImages) {
     actions.push({
-      label: '补主图素材',
-      detail: `当前 ${capturedImages}/${minPlatformImages} 张，进入图片槽位处理`,
+      label: '补发布图素材',
+      detail: `当前发布图 ${capturedImages}/${minPlatformImages} 张，进入图片槽位处理`,
       route: listingSectionRoute('media'),
       severity: 'warning',
     })

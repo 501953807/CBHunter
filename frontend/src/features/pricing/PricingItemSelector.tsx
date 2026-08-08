@@ -75,7 +75,7 @@ export function PricingItemSelector({
                 <div className="grid gap-2 text-[11px] md:grid-cols-4">
                   <Info label="覆盖店铺" value={storeOverride.store_label || selectedStore?.account_name || '店铺待确认'} />
                   <Info label="覆盖标题" value={storeOverride.title || '未覆盖标题'} />
-                  <Info label="覆盖图片" value={`${overrideImageCount} 张`} />
+                  <Info label="覆盖发布图" value={`${overrideImageCount} 张`} />
                   <Info label="SKU/合规" value={`${storeOverride.sku_count ?? 0} SKU · ${storeOverride.has_compliance ? '合规已写' : '合规待补'}`} />
                 </div>
               ) : (
@@ -83,10 +83,10 @@ export function PricingItemSelector({
               )}
             </section>
             {mediaReadiness && (
-              <div className="rounded-lg px-2 py-1 text-[11px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} aria-label="媒体缺口">
-                <span style={{ color: 'var(--color-fg)' }}>图片就绪：</span>
-                <span style={{ color: 'var(--color-muted)' }}>已采集 {mediaReadiness.captured_image_count ?? 0} 张，平台至少 {mediaReadiness.min_platform_images ?? 5} 张，建议 {mediaReadiness.recommended_platform_images ?? 9} 张。</span>
-                {mediaGaps.length > 0 && <span style={{ color: 'var(--color-warning)' }}> 缺口：{mediaGaps.join('、')}</span>}
+              <div className="rounded-lg px-2 py-1 text-[11px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} aria-label="发布图缺口">
+                <span style={{ color: 'var(--color-fg)' }}>发布图就绪：</span>
+                <span style={{ color: 'var(--color-muted)' }}>已排入发布 {mediaReadiness.captured_image_count ?? 0} 张，平台至少 {mediaReadiness.min_platform_images ?? 5} 张，建议 {mediaReadiness.recommended_platform_images ?? 9} 张。</span>
+                {mediaGaps.length > 0 && <span style={{ color: 'var(--color-warning)' }}> 发布图缺口：{mediaGaps.join('、')}</span>}
               </div>
             )}
             <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2">

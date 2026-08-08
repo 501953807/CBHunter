@@ -35,7 +35,7 @@ export function BatchPublishPreflightSummary({ selectedCount, blockingCounts, bl
       <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <SelectedGateMetric label="已选商品" value={`${selectedCount}`} ok={selectedCount > 0} />
         <SelectedGateMetric label="母版" value={blockingCounts.master ? `缺 ${blockingCounts.master}` : '通过'} ok={blockingCounts.master === 0} />
-        <SelectedGateMetric label="图片" value={blockingCounts.media ? `缺 ${blockingCounts.media}` : '通过'} ok={blockingCounts.media === 0} />
+        <SelectedGateMetric label="发布图" value={blockingCounts.media ? `缺 ${blockingCounts.media}` : '通过'} ok={blockingCounts.media === 0} />
         <SelectedGateMetric label="字段" value={blockingCounts.fields ? `缺 ${blockingCounts.fields}` : '通过'} ok={blockingCounts.fields === 0} />
         <SelectedGateMetric label="价格" value={blockingCounts.price ? `缺 ${blockingCounts.price}` : '通过'} ok={blockingCounts.price === 0} />
         <SelectedGateMetric label="目标" value={blockingCounts.target ? `缺 ${blockingCounts.target}` : '通过'} ok={blockingCounts.target === 0} />

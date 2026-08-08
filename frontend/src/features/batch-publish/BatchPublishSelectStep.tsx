@@ -46,13 +46,16 @@ export interface PublishableItem {
   targetPlatforms?: string[]
   targetMarkets?: string[]
   targetStoreIds?: string[]
-  mediaReadiness?: {
-    captured_image_count?: number
-    missing_image_count?: number
-    min_platform_images?: number
-    recommended_platform_images?: number
-    gaps?: string[]
-  }
+	  mediaReadiness?: {
+	    captured_image_count?: number
+	    missing_image_count?: number
+	    min_platform_images?: number
+	    recommended_platform_images?: number
+	    publish_image_limit?: number | null
+	    retained_image_count?: number
+	    gaps?: string[]
+	    source?: string
+	  }
   lifecycleLabel?: string
   disabled?: boolean
   disabledReason?: string
@@ -221,7 +224,7 @@ export function BatchPublishSelectStep({
           <section aria-label="发布门禁总览" className="grid gap-3 md:grid-cols-5">
             <PublishGateCard label="可生成草稿" value={`${readyRows}`} detail={`阻断 ${blockedRows}`} ok={blockedRows === 0} />
             <PublishGateCard label="Listing 母版" value={masterBlockedRows ? `缺 ${masterBlockedRows}` : '通过'} detail="标题/卖点/描述/合规" ok={masterBlockedRows === 0} />
-            <PublishGateCard label="图片门禁" value={mediaBlockedRows ? `缺 ${mediaBlockedRows}` : '通过'} detail="平台最低图片数量" ok={mediaBlockedRows === 0} />
+            <PublishGateCard label="发布图门禁" value={mediaBlockedRows ? `缺 ${mediaBlockedRows}` : '通过'} detail="平台最低发布图数量" ok={mediaBlockedRows === 0} />
             <PublishGateCard label="字段门禁" value={fieldBlockedRows ? `缺 ${fieldBlockedRows}` : '通过'} detail="平台必填属性" ok={fieldBlockedRows === 0} />
             <PublishGateCard label="目标归属" value={targetBlockedRows ? `缺 ${targetBlockedRows}` : '通过'} detail="平台/店铺/市场归属" ok={targetBlockedRows === 0} />
           </section>
@@ -283,7 +286,7 @@ export function BatchPublishSelectStep({
                   <th className="px-3 py-2">商品</th>
                   <th className="px-3 py-2">价格/定价快照</th>
                   <th className="px-3 py-2">目标归属</th>
-                  <th className="px-3 py-2">图片/SKU</th>
+                  <th className="px-3 py-2">发布图/SKU</th>
                   <th className="px-3 py-2">母版/店铺覆盖</th>
                   <th className="px-3 py-2">阶段</th>
                   <th className="px-3 py-2">平台字段组</th>
@@ -319,8 +322,9 @@ export function BatchPublishSelectStep({
                         <p className="line-clamp-2 font-medium text-[var(--color-fg)]">{item.name || '未命名'}</p>
                         <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">{item.sourceType === 'product' ? '商品库' : '品源库'}</p>
                         {mediaReadiness && (
-                          <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--color-warning)]" aria-label="媒体缺口">
-                            图 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}；{mediaGaps.length ? mediaGaps.join('、') : '图片基础满足'}
+                          <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--color-warning)]" aria-label="发布图缺口">
+	                            发布图 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}{mediaReadiness.retained_image_count ? `，素材池 ${mediaReadiness.retained_image_count}` : ''}；{mediaGaps.length ? mediaGaps.join('、') : '发布图达标'}
+                            <span className="ml-1 text-[var(--color-muted)]">来源：{mediaSourceLabel(mediaReadiness.source)}</span>
                           </p>
                         )}
                       </div>
@@ -523,6 +527,9 @@ function publishReadiness(
 ) {
   const captured = item.mediaReadiness?.captured_image_count ?? (item.imageUrl ? 1 : 0)
   const minImages = item.mediaReadiness?.min_platform_images ?? 5
+  const retainedImages = item.mediaReadiness?.retained_image_count ?? 0
+  const sourceLabel = mediaSourceLabel(item.mediaReadiness?.source)
+  const sourceStateLabel = isTrustedMediaSource(item.mediaReadiness?.source) ? sourceLabel : `${sourceLabel}待复核`
   const mediaReady = captured >= minImages
   const requirements = item.platformRequirements
   const requiredAttrs = requirements?.required_attributes || []
@@ -541,9 +548,16 @@ function publishReadiness(
     priceReady,
     targetReady,
     missingAttrs,
-    mediaLabel: `图 ${captured}/${minImages}`,
-  }
+	    mediaLabel: `发布图 ${captured}/${minImages}${retainedImages ? ` · 素材池 ${retainedImages}` : ''} · ${sourceStateLabel}`,
+	  }
+	}
+
+function mediaSourceLabel(source?: string) {
+  if (source === 'confirmed_image_slot_plan' || source === 'listing_image_slot_plan') return '已确认图片槽位计划'
+  if (source === 'stored_media_readiness') return '历史媒体就绪度'
+  return '原始素材'
 }
+function isTrustedMediaSource(source?: string) { return source === 'confirmed_image_slot_plan' || source === 'listing_image_slot_plan' }
 
 function PublishGateCard({ label, value, detail, ok }: { label: string; value: string; detail: string; ok: boolean }) {
   return (
@@ -602,8 +616,8 @@ function PublishGateStack({ item, readiness, disabledReason }: { item: Publishab
     <div className="grid gap-1" aria-label="发布门禁状态">
       <GatePill label="母版" ok={readiness.masterReady} detail={item.listingMasterStatus?.label || (readiness.masterReady ? '已确认' : '待补')} />
       {!readiness.masterReady && <RepairAction href={repairHref(item, 'fields')} label="完善母版" />}
-      <GatePill label="媒体" ok={readiness.mediaReady} detail={readiness.mediaLabel} />
-      {!readiness.mediaReady && <RepairAction href={repairHref(item, 'media')} label="补齐图片" />}
+      <GatePill label="发布图" ok={readiness.mediaReady} detail={readiness.mediaLabel} />
+      {!readiness.mediaReady && <RepairAction href={repairHref(item, 'media')} label="补齐发布图" />}
       <GatePill label="字段" ok={readiness.fieldReady} detail={readiness.missingAttrs.length ? `缺 ${readiness.missingAttrs.length}` : '通过'} />
       {!readiness.fieldReady && <RepairAction href={repairHref(item, 'fields')} label="补齐字段" />}
       <GatePill label="价格" ok={readiness.priceReady} detail={readiness.priceReady ? '已确认' : '待确认'} />
@@ -718,7 +732,7 @@ function buildSelectedBlockingReason(counts: { total: number; master: number; me
   if (counts.total === 0) return ''
   const parts = [
     counts.master ? `Listing母版 ${counts.master}` : '',
-    counts.media ? `图片 ${counts.media}` : '',
+    counts.media ? `发布图 ${counts.media}` : '',
     counts.fields ? `平台字段 ${counts.fields}` : '',
     counts.price ? `定价 ${counts.price}` : '',
     counts.target ? `目标归属 ${counts.target}` : '',

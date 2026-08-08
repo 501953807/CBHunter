@@ -1,6 +1,7 @@
 """Content factory workbench regression tests."""
 
 import asyncio
+import json
 from types import SimpleNamespace
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -100,6 +101,62 @@ def test_content_workbench_lists_decision_passed_products(tmp_path):
         assert "缺少平台辅图" in item["media_readiness"]["gaps"]
         assert item["evidence_completeness"]["content"] == "missing"
         assert "缺少已确认标题文案" in item["content_gaps"]
+
+    asyncio.run(run_test())
+
+
+def test_content_workbench_exposes_confirmed_image_slot_plan(tmp_path):
+    async def run_test():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'content-confirmed-image-slots.db'}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        image_plan = {
+            "schema": "listing_image_slots.v1",
+            "publish_image_limit": 2,
+            "slots": [
+                {"position": 1, "role": "main_image", "label": "主图", "image_url": "https://cdn.example.com/main.jpg", "asset_name": "main.jpg", "size": "800×800px", "publishable": True},
+                {"position": 2, "role": "scene_image", "label": "场景辅图", "image_url": "https://cdn.example.com/scene.jpg", "asset_name": "scene.jpg", "size": "800×800px", "publishable": True},
+                {"position": 3, "role": "raw_asset", "label": "素材池保留", "image_url": "https://cdn.example.com/raw.jpg", "asset_name": "raw.jpg", "size": "1200×1200px", "publishable": False},
+            ],
+        }
+        async with sessions() as session:
+            session.add(SourcingItem(
+                user_id="content-user",
+                product_name="已保存图片计划商品",
+                source_name="1688",
+                source_price_rmb=18,
+                category="bags",
+                platform="shopee",
+                market="MY",
+                pipeline_stage="decision_passed",
+                extra_data={
+                    "content_tasks": {
+                        "image_edit_plan": {
+                            "confirmed_version": 1,
+                            "versions": [{"version": 1, "status": "confirmed", "content": json.dumps(image_plan)}],
+                        }
+                    }
+                },
+            ))
+            await session.commit()
+
+            workbench = await get_content_workbench(session, "content-user")
+        await engine.dispose()
+
+        item = workbench["items"][0]
+        assert item["confirmed_image_slot_plan"]["images"] == [
+            "https://cdn.example.com/main.jpg",
+            "https://cdn.example.com/scene.jpg",
+            "https://cdn.example.com/raw.jpg",
+        ]
+        assert item["confirmed_image_slot_plan"]["publish_image_limit"] == 2
+        assert item["confirmed_image_slot_plan"]["publishable_image_count"] == 2
+        assert item["confirmed_image_slot_plan"]["retained_image_count"] == 1
+        assert item["confirmed_image_slot_plan"]["image_slots"][0]["role"] == "main_image"
+        assert item["confirmed_image_slot_plan"]["image_slots"][1]["label"] == "场景辅图"
+        assert item["confirmed_image_slot_plan"]["image_slots"][2]["publishable"] is False
 
     asyncio.run(run_test())
 

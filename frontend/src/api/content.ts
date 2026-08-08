@@ -18,6 +18,8 @@ export interface MediaReadiness {
   missing_image_count?: number
   min_platform_images?: number
   recommended_platform_images?: number
+  publish_image_limit?: number | null
+  retained_image_count?: number
   gaps?: string[]
   source?: string
 }
@@ -30,6 +32,14 @@ export interface ContentBrief {
   title?: string
 }
 
+export interface ConfirmedImageSlotPlan {
+  images: string[]
+  image_slots: Array<{ position?: number; role?: string; label?: string; image_url?: string; asset_name?: string; size?: string; publishable?: boolean }>
+  publish_image_limit?: number | null
+  publishable_image_count?: number
+  retained_image_count?: number
+}
+
 export interface ContentWorkbenchItem {
   id: string
   work_item_id: string
@@ -40,6 +50,7 @@ export interface ContentWorkbenchItem {
   target_market?: string | null
   image_url?: string | null
   media_readiness?: MediaReadiness
+  confirmed_image_slot_plan?: ConfirmedImageSlotPlan
   platform_requirements?: PlatformListingRequirements
   content_brief?: ContentBrief
   lifecycle_status: string
