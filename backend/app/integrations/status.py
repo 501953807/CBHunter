@@ -20,6 +20,7 @@ PLATFORM_API_OPERATIONS = (
     "metrics",
     "finance_bills",
     "publish",
+    "marketing",
 )
 
 OPERATION_LABELS = {
@@ -31,6 +32,7 @@ OPERATION_LABELS = {
     "metrics": "经营指标同步",
     "finance_bills": "平台账单同步",
     "publish": "商品刊登回写",
+    "marketing": "促销营销活动同步",
 }
 
 PLATFORM_CONNECTORS: dict[str, dict[str, Any]] = {

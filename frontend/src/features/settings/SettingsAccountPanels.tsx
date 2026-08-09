@@ -240,8 +240,45 @@ export function AIProviderSettings({ toast }: { toast: any }) {
   const providerIcon = (type: string) => type === 'cli' ? Terminal : type === 'free_api' ? Cloud : type === 'paid_api' ? CreditCard : Settings2
   if (loading) return <div className="text-sm py-8 text-center" style={{ color: 'var(--color-muted)' }}>加载引擎列表...</div>
   if (providers.length === 0) return <div className="text-sm py-8 text-center" style={{ color: 'var(--color-muted)' }}>暂无AI引擎 — 请确保后端已初始化 provider 数据。在终端运行: python -m app.services.provider_service</div>
+  const aiGovernanceSummary = buildAIProviderGovernanceSummary(providers, userConfig)
   return <div className="space-y-4">
     <div className="flex items-center gap-2"><Cpu className="w-4 h-4" style={{ color: 'var(--color-primary)' }} /><span className="text-sm font-medium" style={{ color: 'var(--color-fg)' }}>按优先级排序，启用/禁用控制调用链</span></div>
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      data-ui="settings-ai-provider-governance-summary"
+      aria-label="AI配置治理摘要"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>AI Provider 调用链治理摘要</h3>
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            这里只展示真实 Provider 定义、用户启用状态和系统可用性；待配置 Provider 不会被当作 AI 成功调用。
+          </p>
+        </div>
+        <span
+          className="rounded-full px-2 py-1 text-[11px] font-medium"
+          style={{
+            backgroundColor: aiGovernanceSummary.availableEnabledCount ? 'var(--color-success-light)' : 'var(--color-warning-light)',
+            color: aiGovernanceSummary.availableEnabledCount ? 'var(--color-success)' : 'var(--color-warning)',
+          }}
+        >
+          {aiGovernanceSummary.availableEnabledCount ? '已有可用调用链' : 'AI调用链待配置'}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <AIProviderGovernanceMetric label="Provider" value={aiGovernanceSummary.totalCount} />
+        <AIProviderGovernanceMetric label="用户启用" value={aiGovernanceSummary.enabledCount} />
+        <AIProviderGovernanceMetric label="可用启用" value={aiGovernanceSummary.availableEnabledCount} tone={aiGovernanceSummary.availableEnabledCount ? 'success' : 'warning'} />
+        <AIProviderGovernanceMetric label="待配置" value={aiGovernanceSummary.pendingConfigCount} tone={aiGovernanceSummary.pendingConfigCount ? 'warning' : 'success'} />
+        <AIProviderGovernanceMetric label="需要密钥" value={aiGovernanceSummary.needsKeyCount} />
+        <AIProviderGovernanceMetric label="本地工具" value={aiGovernanceSummary.localToolCount} />
+      </div>
+      <div className="mt-3 rounded-lg border px-3 py-2 text-[11px]" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+        <span className="font-medium" style={{ color: 'var(--color-fg)' }}>任务矩阵：</span>
+        <span style={{ color: 'var(--color-muted)' }}>下方 AI 任务能力矩阵继续按 Listing 文案、图片处理、视频脚本、定价解释等任务声明能力需求，不满足能力或密钥缺口时只显示待配置。</span>
+      </div>
+    </div>
     <EvidenceBanner evidence={evidence} compact />
     <AIProviderTaskMatrix />
     <Card><CardContent><div className="space-y-1">
@@ -273,4 +310,39 @@ function providerStatus(enabled: boolean, available: boolean, needsKey?: string 
     className: 'bg-[var(--color-warning-light)] text-[var(--color-warning)]',
     title: needsKey ? '缺少该引擎所需的接口密钥配置' : '系统检测到该引擎暂不可调用',
   }
+}
+
+function buildAIProviderGovernanceSummary(providers: any[], userConfig: Record<string, any>) {
+  const providerState = providers.map(provider => {
+    const config = userConfig[provider.id] || {}
+    const enabled = (config.enabled ?? provider.user_enabled) !== false
+    return {
+      enabled,
+      available: Boolean(provider.available),
+      needsKey: Boolean(provider.needs_key),
+      isLocalTool: provider.type === 'cli',
+    }
+  })
+  return {
+    totalCount: providers.length,
+    enabledCount: providerState.filter(item => item.enabled).length,
+    availableEnabledCount: providerState.filter(item => item.enabled && item.available).length,
+    pendingConfigCount: providerState.filter(item => item.enabled && !item.available).length,
+    needsKeyCount: providerState.filter(item => item.needsKey).length,
+    localToolCount: providerState.filter(item => item.isLocalTool).length,
+  }
+}
+
+function AIProviderGovernanceMetric({ label, value, tone }: { label: string; value: number; tone?: 'success' | 'warning' }) {
+  const color = tone === 'success'
+    ? 'var(--color-success)'
+    : tone === 'warning'
+      ? 'var(--color-warning)'
+      : 'var(--color-fg)'
+  return (
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{label}</div>
+      <div className="mt-1 text-base font-semibold" style={{ color }}>{value}</div>
+    </div>
+  )
 }

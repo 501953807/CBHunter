@@ -10,6 +10,7 @@ import {
   downloadContentAsset,
   editContentImage,
   editContentImageFromUrl,
+  executeContentImageExportTasks,
   getContentAssets,
   getContentTaskMatrix,
   renderContentVideo,
@@ -198,12 +199,35 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
       const isPublishableSlot = (slot: MediaSlotPlan, index: number) => index === 0 || (typeof slot.publishable === 'boolean' ? slot.publishable : index + 1 <= publishImageLimit)
       const publishableImageCount = slots.filter((slot, index) => slot.imageUrl && isPublishableSlot(slot, index)).length
       const retainedImageCount = slots.filter((slot, index) => slot.imageUrl && !isPublishableSlot(slot, index)).length
+      const imageExportTasks = slots
+        .map((slot, index) => ({ slot, index, roleMeta: listingImageRoleByIndex(index), editOptions: slot.editOptions || imageOptions }))
+        .filter(item => Boolean(item.slot.imageUrl))
+        .map(({ slot, index, roleMeta, editOptions }) => ({
+          task_id: `${product.id}-image-slot-${index + 1}`,
+          position: index + 1,
+          role: slot.role || roleMeta.role,
+          label: slot.label || roleMeta.label,
+          source_image_url: slot.imageUrl,
+          asset_name: slot.assetName,
+          scope: isPublishableSlot(slot, index) ? 'publish_image' : 'retained_asset',
+          target_width: editOptions.width,
+          target_height: editOptions.height,
+          fit: editOptions.fit,
+          crop_mode: editOptions.crop_mode,
+          output_format: editOptions.output_format,
+          quality: editOptions.quality,
+          watermark_enabled: Boolean(editOptions.watermark_text),
+          status: 'planned_not_exported',
+          boundary: 'content_workbench_image_export_task',
+        }))
       const payload = JSON.stringify({
         schema: 'listing_image_slots.v1',
         product_id: product.id,
         publish_image_limit: publishImageLimit,
         publishable_image_count: publishableImageCount,
         retained_image_count: retainedImageCount,
+        export_task_schema: 'listing_image_export_tasks.v1',
+        export_tasks: imageExportTasks,
         slots: slots.map((slot, index) => {
           const roleMeta = listingImageRoleByIndex(index)
           return {
@@ -214,7 +238,7 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
             asset_name: slot.assetName,
             size: slot.sizeText,
             publishable: isPublishableSlot(slot, index),
-            edit_options: imageOptions,
+            edit_options: slot.editOptions || imageOptions,
           }
         }),
         image_edit_options: imageOptions,
@@ -223,13 +247,44 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
       const saved = await saveContentTaskVersion(product.id, 'image_edit_plan', payload, 'manual_image_slot_plan')
       const version = saved.data?.version
       if (version) await confirmContentTaskVersion(product.id, 'image_edit_plan', version)
-      setSavedSlotPlan(slots)
+      setSavedSlotPlan(slots.map(slot => ({
+        ...slot,
+        exportStatus: 'planned_not_exported',
+        exportError: undefined,
+        generatedAssetUrl: undefined,
+        exportedAt: undefined,
+      })))
       await loadAssets()
       await notifyImageSlotPlanSaved()
       toast.addToast('success', '图片槽位顺序已保存到当前商品 Listing 图片计划')
     } catch (error: any) {
       logger.error('Save image slot plan failed', error)
       toast.addToast('error', error?.response?.data?.detail || '图片槽位保存失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const runSavedImageExportTasks = async () => {
+    if (!product) {
+      toast.addToast('warning', '请先选择要执行图片导出的商品')
+      return
+    }
+    setLoading(true)
+    try {
+      const response = await executeContentImageExportTasks(product.id)
+      const result = response.data
+      if (!result?.executed) {
+        toast.addToast('warning', result?.message || '当前没有成功导出的图片任务')
+      } else {
+        toast.addToast('success', `已导出 ${result.executed} 张图片素材${result.failed ? `，失败 ${result.failed} 项` : ''}`)
+      }
+      await loadAssets()
+      await loadSavedImageSlotPlan()
+      await notifyImageSlotPlanSaved()
+    } catch (error: any) {
+      logger.error('Execute saved image export tasks failed', error)
+      toast.addToast('error', error?.response?.data?.detail || '图片导出任务执行失败')
     } finally {
       setLoading(false)
     }
@@ -331,6 +386,18 @@ export function ContentMediaStudio({ mode = 'all', product, initialSlotIndex = 1
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             {(product?.platform_requirements?.media || []).slice(0, 4).map(item => <span key={item} className="rounded-full px-2 py-1" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{item}</span>)}
           </div>
+        </div>
+        <div className="flex shrink-0 items-center">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!product || loading}
+            onClick={runSavedImageExportTasks}
+            data-ui="content-image-export-task-execute-button"
+          >
+            <Download className="mr-1 h-4 w-4" />
+            执行已保存导出任务
+          </Button>
         </div>
       </section>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -590,9 +657,10 @@ function MediaHealthCard({ label, value, detail, warning }: { label: string; val
 function parseSavedImageSlotPlan(content: string): MediaSlotPlan[] | null {
   if (!content.trim()) return null
   try {
-    const parsed = JSON.parse(content) as { schema?: string; slots?: unknown[] }
+    const parsed = JSON.parse(content) as { schema?: string; slots?: unknown[]; export_tasks?: unknown[] }
     if (parsed.schema !== 'listing_image_slots.v1' || !Array.isArray(parsed.slots)) return null
-    const slots = parsed.slots.map((slot, index) => normalizeSavedImageSlot(slot, index)).filter(Boolean) as MediaSlotPlan[]
+    const exportTasksByPosition = buildExportTasksByPosition(parsed.export_tasks)
+    const slots = parsed.slots.map((slot, index) => normalizeSavedImageSlot(slot, index, exportTasksByPosition.get(index + 1))).filter(Boolean) as MediaSlotPlan[]
     return slots.length > 0 ? slots : null
   } catch (error: any) {
     logger.error('Parse saved image slot plan failed', error)
@@ -600,7 +668,7 @@ function parseSavedImageSlotPlan(content: string): MediaSlotPlan[] | null {
   }
 }
 
-function normalizeSavedImageSlot(slot: unknown, index: number): MediaSlotPlan | null {
+function normalizeSavedImageSlot(slot: unknown, index: number, exportTask?: Record<string, unknown>): MediaSlotPlan | null {
   if (!slot || typeof slot !== 'object') return null
   const data = slot as Record<string, unknown>
   const roleMeta = listingImageRoleByIndex(index)
@@ -612,6 +680,53 @@ function normalizeSavedImageSlot(slot: unknown, index: number): MediaSlotPlan | 
     assetName: String(data.asset_name || ''),
     sizeText: String(data.size || (data.image_url ? '已保存槽位' : '待补真实图片')),
     publishable: typeof data.publishable === 'boolean' ? data.publishable : undefined,
+    editOptions: normalizeSavedImageEditOptions(data.edit_options),
+    exportStatus: exportTask ? String(exportTask.status || '') : undefined,
+    exportError: exportTask?.error ? String(exportTask.error) : undefined,
+    generatedAssetUrl: exportTask?.generated_asset_url ? String(exportTask.generated_asset_url) : undefined,
+    exportedAt: exportTask?.executed_at ? String(exportTask.executed_at) : undefined,
+  }
+}
+
+function buildExportTasksByPosition(value: unknown) {
+  const map = new Map<number, Record<string, unknown>>()
+  if (!Array.isArray(value)) return map
+  value.forEach(task => {
+    if (!task || typeof task !== 'object') return
+    const data = task as Record<string, unknown>
+    const position = Number(data.position || 0)
+    if (Number.isFinite(position) && position > 0) map.set(position, data)
+  })
+  return map
+}
+
+function normalizeSavedImageEditOptions(value: unknown): ImageEditOptions | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const data = value as Record<string, unknown>
+  return {
+    width: Number(data.width || 1080),
+    height: Number(data.height || 1080),
+    fit: String(data.fit || 'contain'),
+    background: String(data.background || 'white'),
+    brightness: Number(data.brightness || 1),
+    contrast: Number(data.contrast || 1),
+    sharpness: Number(data.sharpness || 1),
+    auto_contrast: Boolean(data.auto_contrast),
+    unsharp_mask: Boolean(data.unsharp_mask),
+    crop_mode: String(data.crop_mode || 'none'),
+    crop_x: Number(data.crop_x || 0),
+    crop_y: Number(data.crop_y || 0),
+    crop_width: Number(data.crop_width || 800),
+    crop_height: Number(data.crop_height || 800),
+    rotate_degrees: Number(data.rotate_degrees || 0),
+    flip_horizontal: Boolean(data.flip_horizontal),
+    flip_vertical: Boolean(data.flip_vertical),
+    watermark_text: String(data.watermark_text || ''),
+    watermark_position: String(data.watermark_position || 'bottom_right'),
+    watermark_opacity: Number(data.watermark_opacity || 0.32),
+    watermark_color: String(data.watermark_color || '#FFFFFF'),
+    output_format: String(data.output_format || 'jpeg'),
+    quality: Number(data.quality || 88),
   }
 }
 

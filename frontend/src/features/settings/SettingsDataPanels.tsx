@@ -393,6 +393,8 @@ function FieldDictionaryRow({
 
 export function FeeRateSettings({ toast }: { toast: any }) {
   const [grouped, setGrouped] = useState<Record<string, any[]>>({})
+  const [pricingTemplates, setPricingTemplates] = useState<any[]>([])
+  const [feeStatusText, setFeeStatusText] = useState('')
   const [activePlatform, setActivePlatform] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ commission: '', transaction: '', tech: '', low_value_tax: '' })
@@ -410,6 +412,8 @@ export function FeeRateSettings({ toast }: { toast: any }) {
     try {
       const r = await listFeeRates()
       const groupedRates = r.data?.grouped || {}
+      setPricingTemplates(r.data?.pricing_adjustment_templates || [])
+      setFeeStatusText(r.data_gaps?.join('；') || r.confidence_reason || '')
       if (Object.keys(groupedRates).length > 0) {
         setGrouped(groupedRates)
         setActivePlatform(current => current || Object.keys(groupedRates)[0] || '')
@@ -436,6 +440,7 @@ export function FeeRateSettings({ toast }: { toast: any }) {
 
   const items = grouped[activePlatform] || []
   const platformNames = Object.keys(grouped)
+  const governanceSummary = buildFeeGovernanceSummary(grouped, rates, pricingTemplates)
   const FF = ['commission', 'transaction', 'tech', 'low_value_tax'] as const
   const FL: Record<string, string> = { commission: '佣金', transaction: '交易费', tech: '技术费', low_value_tax: '低价值税' }
   const bestMarket = calcResults.length > 0 ? calcResults[0] : null
@@ -449,6 +454,52 @@ export function FeeRateSettings({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-6">
+      <div
+        className="rounded-xl border p-4"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+        data-ui="settings-fee-rate-governance-summary"
+        aria-label="费率汇率治理摘要"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>费率、汇率与定价模板治理摘要</h3>
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+              这里只读取已启用平台费率模板、汇率记录和定价附加模板；缺失项保持待配置，不按 0% 或固定汇率代算。
+            </p>
+          </div>
+          <span
+            className="rounded-full px-2 py-1 text-[11px] font-medium"
+            style={{
+              backgroundColor: governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? 'var(--color-warning-light)' : 'var(--color-success-light)',
+              color: governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? 'var(--color-warning)' : 'var(--color-success)',
+            }}
+          >
+            {governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? '配置待补齐' : '配置可用于定价'}
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+          <FeeGovernanceMetric label="平台" value={governanceSummary.platformCount} />
+          <FeeGovernanceMetric label="市场" value={governanceSummary.marketCount} />
+          <FeeGovernanceMetric label="完整费率" value={governanceSummary.completeFeeRows} />
+          <FeeGovernanceMetric label="费率缺口" value={governanceSummary.missingFeeRows} tone={governanceSummary.missingFeeRows ? 'warning' : 'success'} />
+          <FeeGovernanceMetric label="汇率币种" value={governanceSummary.exchangeCurrencyCount} tone={governanceSummary.exchangeCurrencyCount ? 'success' : 'warning'} />
+          <FeeGovernanceMetric label="定价模板" value={governanceSummary.pricingTemplateCount} />
+        </div>
+        <div className="mt-3 grid gap-2 text-[11px] md:grid-cols-2">
+          <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+            <span className="font-medium" style={{ color: 'var(--color-fg)' }}>当前平台费率：</span>
+            <span style={{ color: 'var(--color-muted)' }}>
+              {activePlatform || '未选择'} · {items.length} 个市场 · 缺口 {items.filter(hasFeeGap).length}
+            </span>
+          </div>
+          <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+            <span className="font-medium" style={{ color: 'var(--color-fg)' }}>接口说明：</span>
+            <span style={{ color: feeStatusText ? 'var(--color-muted)' : 'var(--color-warning)' }}>
+              {feeStatusText || '费率接口暂未返回来源说明或缺口。'}
+            </span>
+          </div>
+        </div>
+      </div>
       {/* Exchange Rates Bar */}
       <div className="rounded-xl border p-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="flex items-center justify-between mb-2">
@@ -602,6 +653,37 @@ export function FeeRateSettings({ toast }: { toast: any }) {
           </table>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function buildFeeGovernanceSummary(grouped: Record<string, any[]>, rates: any[], pricingTemplates: any[]) {
+  const rows = Object.values(grouped).flat()
+  const markets = new Set(rows.map(item => `${item.platform || ''}_${item.market || ''}`))
+  return {
+    platformCount: Object.keys(grouped).length,
+    marketCount: markets.size,
+    completeFeeRows: rows.filter(item => !hasFeeGap(item)).length,
+    missingFeeRows: rows.filter(hasFeeGap).length,
+    exchangeCurrencyCount: rates.length,
+    pricingTemplateCount: pricingTemplates.length,
+  }
+}
+
+function hasFeeGap(item: any) {
+  return ['commission', 'transaction', 'tech', 'low_value_tax'].some(key => item?.[key] == null)
+}
+
+function FeeGovernanceMetric({ label, value, tone }: { label: string; value: number; tone?: 'success' | 'warning' }) {
+  const color = tone === 'success'
+    ? 'var(--color-success)'
+    : tone === 'warning'
+      ? 'var(--color-warning)'
+      : 'var(--color-fg)'
+  return (
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{label}</div>
+      <div className="mt-1 text-base font-semibold" style={{ color }}>{value}</div>
     </div>
   )
 }

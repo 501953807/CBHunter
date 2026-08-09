@@ -249,6 +249,7 @@ export interface PlatformFieldGroupVersions {
   active: Record<string, unknown>
   draft?: Record<string, unknown> | null
   history: Array<Record<string, unknown>>
+  category_tree_summary?: Record<string, unknown>
 }
 
 export async function getPlatformFieldGroupVersions() {

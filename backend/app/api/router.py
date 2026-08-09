@@ -29,6 +29,7 @@ from app.api.v1.settings_system_config import router as settings_system_config_r
 from app.api.v1.settings_fee_rates import router as settings_fee_rates_router
 from app.api.v1.settings_warehouses import router as settings_warehouses_router
 from app.api.v1.content import router as content_router
+from app.api.v1.content_image_export_tasks import router as content_image_export_tasks_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.collect import router as collect_router
 from app.api.v1.tasks import router as tasks_router
@@ -81,6 +82,7 @@ api_router.include_router(settings_system_config_router)
 api_router.include_router(settings_fee_rates_router)
 api_router.include_router(settings_warehouses_router)
 api_router.include_router(content_router)
+api_router.include_router(content_image_export_tasks_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(collect_router)
 api_router.include_router(tasks_router)

@@ -225,6 +225,27 @@ for required in (
     "getPlatformFieldGroupVersions",
     "savePlatformFieldGroupDraft",
     "publishPlatformFieldGroupDraft",
+    "data-ui=\"settings-platform-field-package-coverage\"",
+    "data-ui=\"settings-platform-field-current-summary\"",
+    "data-ui=\"settings-platform-field-source-column\"",
+    "data-ui=\"settings-platform-field-runtime-impact\"",
+    "data-ui=\"settings-platform-category-profile-summary\"",
+    "data-ui=\"settings-category-tree-version-governance\"",
+    "buildPlatformSchemaStats",
+    "buildRuntimeImpactStats",
+    "buildCategoryProfileStats",
+    "fieldSignature",
+    "fieldSourceLabels",
+    "category_profiles",
+    "category_field_gaps",
+    "来源缺口",
+    "类目差异字段登记",
+    "类目待复核",
+    "类目树版本治理",
+    "存在待发布草稿",
+    "未发布草稿仅用于设置中心复核",
+    "发布会改变运行时字段渲染",
+    "未发布草稿不会影响运行时",
     "保存 Schema 草稿",
     "发布 Schema",
     "Shopee",
@@ -236,6 +257,49 @@ for required in (
 ):
     if required not in SETTINGS_WORKSPACE + SETTINGS_DATA_PANELS + PLATFORM_FIELD_GROUP_GOVERNANCE:
         errors.append(f"settings center must expose versioned unified field dictionary governance: {required}")
+for required in (
+    "data-ui=\"settings-fee-rate-governance-summary\"",
+    "费率、汇率与定价模板治理摘要",
+    "buildFeeGovernanceSummary",
+    "hasFeeGap",
+    "FeeGovernanceMetric",
+    "pricing_adjustment_templates",
+    "完整费率",
+    "费率缺口",
+    "汇率币种",
+    "定价模板",
+    "不按 0% 或固定汇率代算",
+):
+    if required not in SETTINGS_DATA_PANELS:
+        errors.append(f"settings fee/rate tab must expose fee and exchange governance summary: {required}")
+for required in (
+    "data-ui=\"settings-ai-provider-governance-summary\"",
+    "AI Provider 调用链治理摘要",
+    "buildAIProviderGovernanceSummary",
+    "AIProviderGovernanceMetric",
+    "已有可用调用链",
+    "AI调用链待配置",
+    "可用启用",
+    "需要密钥",
+    "本地工具",
+    "待配置 Provider 不会被当作 AI 成功调用",
+):
+    if required not in SETTINGS_ACCOUNT_PANELS:
+        errors.append(f"settings AI provider tab must expose AI provider governance summary: {required}")
+for required in (
+    "data-ui=\"settings-system-task-governance-summary\"",
+    "系统任务治理摘要",
+    "buildSystemTaskGovernanceSummary",
+    "TaskGovernanceMetric",
+    "hasRunnableSchedule",
+    "注册任务",
+    "启用状态",
+    "调度就绪",
+    "最近运行",
+    "未启用、无下次执行时间或最近失败/跳过的任务只显示待处理",
+):
+    if required not in SETTINGS_TASKS_PAGE:
+        errors.append(f"settings system tasks page must expose task governance summary: {required}")
 if "CSV 上架" in ROUTE_META:
     errors.append("content route title must not expose removed Shopee CSV listing workflow")
 if "'/content/export': '平台刊登'" not in ROUTE_META:
@@ -566,7 +630,7 @@ if "aria-label=\"素材商品上下文\"" not in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must expose the selected product context before image/video processing")
 if "使用当前商品源图处理" not in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must support using the selected product source image")
-content_media_surface = CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH
+content_media_surface = CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_CROP_CONTROLS + SELLER_IMAGE_ENHANCEMENT_CONTROLS + SELLER_IMAGE_EXPORT_TASK_SUMMARY + SELLER_IMAGE_OUTPUT_CONTROLS + SELLER_IMAGE_WATERMARK_CONTROLS
 '''
 
 def run(env: dict[str, object]) -> None:

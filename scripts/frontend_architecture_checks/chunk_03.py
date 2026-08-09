@@ -179,6 +179,18 @@ for required in ("sync_state", "last_product_sync_status", "last_order_sync_stat
 for required in ("authorization_status", "authorization", "店铺授权状态", "店铺授权：", "令牌有效期", "权限范围"):
     if required not in PLATFORMS_API + PLATFORM_SETTINGS_PAGE:
         errors.append(f"platform settings must expose OAuth authorization state separately from API key storage: {required}")
+for required in (
+    "data-ui=\"platform-authorization-governance-summary\"",
+    "平台、店铺与授权治理摘要",
+    "buildPlatformAuthorizationSummary",
+    "PlatformAuthorizationMetric",
+    "API Key 不等同于店铺授权",
+    "未授权不会显示同步或发布成功",
+    "授权缺口",
+    "可同步",
+):
+    if required not in PLATFORM_SETTINGS_PAGE:
+        errors.append(f"platform settings must expose platform/store authorization governance summary: {required}")
 for required in ("updatePlatformAuthorization", "/authorization", "登记店铺 OAuth 授权", "Access Token", "Refresh Token", "保存授权令牌"):
     if required not in PLATFORMS_API + PLATFORM_SETTINGS_PAGE:
         errors.append(f"platform settings must provide a controlled store OAuth token entry path: {required}")
@@ -269,10 +281,16 @@ for forbidden in ("promotion_config", "促销活动名称", "店铺促销配置"
 promotion_module_content = "\n".join(
     [
         PROMOTIONS_PAGE,
+        PROMOTION_GOVERNANCE_PANEL,
+        PROMOTION_TYPE_RULE_GUIDE,
+        PROMOTION_WATERMARK_SELECTOR,
+        PROMOTION_WATERMARK_UTILS,
+        PROMOTION_SYNC_UTILS,
         PROMOTIONS_API,
         PROMOTIONS_BACKEND_API,
         PROMOTION_SERVICE,
         PROMOTION_MODEL,
+        PLATFORM_STATUS,
         MODULE_SUBNAV,
         NAVIGATION,
     ]
@@ -286,6 +304,27 @@ for required in ("促销活动", "活动名称/ID", "所属店铺", "活动产�
 for required in ("活动效果", "PromotionEffectSummary", "price_summary", "discount_amount_total", "original_price_total", "promotion_price_total", "promotion_campaign_items", "平台 Open API 未接通前不代表真实成交效果"):
     if required not in promotion_module_content:
         errors.append(f"promotion module must expose local promotion price impact without fake platform performance: {required}")
+for required in ("data-ui=\"promotion-governance-summary\"", "PromotionGovernanceSummary", "build_promotion_governance_summary", "platform_sync_gap_count", "promotion_campaign_local_object_not_platform_success", "参与商品", "预计让利"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion module must expose campaign governance summary without fake platform success: {required}")
+for required in ("PROMOTION_TYPE_OPTIONS", "活动类型", "coupon", "flash_sale", "affiliate", "type_counts", "优惠券", "秒杀", "联盟"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion module must support V5 campaign types as local objects: {required}")
+for required in ("data-ui=\"promotion-type-rule-gap-guide\"", "平台营销规则字段缺口", "券门槛", "秒杀库存", "佣金比例", "活动类型不是平台生效结果", "待平台规则字段"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion module must expose platform marketing rule gaps before API sync: {required}")
+for required in ("promotion_marketing_rules.v1", "marketing_rules", "threshold_or_budget", "purchase_limit_or_flash_stock", "affiliate_commission_pct", "local_rules_not_synced", "平台规则字段待补"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion module must persist local marketing rule fields without fake platform sync: {required}")
+for required in ("data-ui=\"promotion-watermark-activity-linkage\"", "promotion_watermark_binding.v1", "marketing_watermark", "watermark_template_id", "watermark_scope", "local_watermark_not_applied", "listListingTemplates", "image_watermark", "真正改图必须进入内容工厂图片工作台应用并导出", "营销水印模板待选择"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion module must link local watermark templates to campaign objects without fake platform image changes: {required}")
+for required in ("marketing", "促销营销活动同步", "promotion_platform_sync_attempt.v1", "promotion_platform_sync", "platform_operation.marketing_not_implemented", "promotion_open_api_not_executed_without_marketing_operation", "promotionPlatformSyncSummary", "平台营销接口："):
+    if required not in promotion_module_content:
+        errors.append(f"promotion sync must use platform connector readiness and expose local sync gaps without fake success: {required}")
+for required in ("sync_promotion_campaign", "PlatformClientFactory.get_client", "_promotion_sync_payload", "_official_promotion_id", "promotion_open_api.authentication_failed", "promotion_open_api.call_failed", "promotion_open_api.client_not_registered"):
+    if required not in promotion_module_content:
+        errors.append(f"promotion sync must have a real client execution path while preserving truthful failure states: {required}")
 for required in ("PromotionCreateFormState", "showCreate", "handleCreateCampaign", "选择参与商品", "selectedListingIds", "createPromotionCampaign", "getPlatformStoreProducts"):
     if required not in promotion_module_content:
         errors.append(f"promotion module must support local campaign creation with multiple listings: {required}")
@@ -382,9 +421,30 @@ for required in (
 for required in ("ListingFieldEvidencePanel", "平台字段补证队列", "类目待补证字段", "编辑页待补证字段", "接口待补证字段", "补证后再发布", "platformFieldEvidenceGaps"):
     if required not in PRODUCT_LISTING_EDITOR_CONTENT:
         errors.append(f"product listing editor must expose category/edit-page/API field recheck gaps: {required}")
-for required in ("类目差异字段组", "category_profile", "matched_category", "补证字段"):
+for required in ("类目差异字段组", "category_profile", "matched_category", "待复核字段"):
     if required not in PLATFORM_FIELD_GROUPS:
         errors.append(f"platform field groups must show matched category profile and gap count: {required}")
+for required in (
+    "platform-category-profile-hit-summary",
+    "平台类目字段Profile命中摘要",
+    "当前类目未命中专属字段 Profile",
+    "使用平台通用字段组",
+    "buildCategoryProfileSummary",
+    "CategoryProfileRuntimeSummary",
+    "来源缺口",
+):
+    if required not in PLATFORM_FIELD_GROUPS:
+        errors.append(f"platform field groups must expose runtime category profile hit summary: {required}")
+for required in (
+    "platform-category-profile-governance-link",
+    "/settings/fields?focus=platform_field_groups",
+    "去设置中心补字段包",
+    "settings-platform-field-governance-deeplink-context",
+    "平台字段组治理下钻上下文",
+    "来自 Listing 平台字段缺口",
+):
+    if required not in PLATFORM_FIELD_GROUPS + PLATFORM_FIELD_GROUP_GOVERNANCE:
+        errors.append(f"platform field profile gaps must deep-link to settings field governance: {required}")
 for forbidden in ("attributeRows", "平台属性结构化编辑", "添加属性", "删除属性", "toAttributeRows", "updateAttributeRow"):
     if forbidden in PRODUCT_LISTING_EDITOR_CONTENT:
         errors.append(f"product listing editor must not use generic key/value platform attributes: {forbidden}")

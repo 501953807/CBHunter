@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.common import ApiResponse
+from app.schemas.common import ApiResponse, PaginationMeta
 from app.services import promotion_service
 from app.services.audit_service import record_audit_event
 from app.services.evidence_service import evidence_payload, source_ref
@@ -22,6 +22,13 @@ async def list_promotions(
     campaigns = await promotion_service.list_promotion_campaigns(db, current_user.id)
     return ApiResponse(
         data=campaigns,
+        meta=PaginationMeta(
+            page=1,
+            page_size=len(campaigns),
+            total=len(campaigns),
+            total_pages=1,
+            summary=promotion_service.build_promotion_governance_summary(campaigns),
+        ),
         status="ready" if campaigns else "data_required",
         **evidence_payload(
             source_refs=[source_ref("promotion_campaign", item["id"], label=item["name"]) for item in campaigns],

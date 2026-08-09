@@ -10,6 +10,7 @@ import {
   updatePromotionCampaignDiscount,
   updatePromotionCampaignStatus,
   type PromotionCampaign,
+  type PromotionGovernanceSummary,
 } from '../api/promotions'
 import { getPlatformStoreProducts, type PlatformStoreProduct } from '../api/products'
 import { Badge } from '../components/ui/Badge'
@@ -21,32 +22,57 @@ import { useConfig } from '../hooks/useConfig'
 import { usePlatforms } from '../hooks/usePlatforms'
 import { logger } from '../utils/logger'
 import { productImageSrc } from '../utils/productImages'
+import { PromotionGovernancePanel, buildPromotionGovernanceSummary, normalizePromotionGovernanceSummary } from '../features/promotions/PromotionGovernancePanel'
+import { PromotionTypeRuleGuide } from '../features/promotions/PromotionTypeRuleGuide'
+import { PromotionWatermarkSelector } from '../features/promotions/PromotionWatermarkSelector'
+import { buildMarketingWatermark, marketingWatermarkSummary, marketingWatermarkToForm } from '../features/promotions/PromotionWatermarkUtils'
+import { promotionPlatformSyncSummary } from '../features/promotions/PromotionSyncUtils'
 
 interface PromotionCreateFormState {
   name: string
+  promotionType: string
   platformAccountId: string
   startsAt: string
   endsAt: string
   discountValue: string
   stockLimit: string
   productSearch: string
+  ruleThreshold: string
+  ruleLimit: string
+  ruleCommission: string
+  watermarkTemplateId: string
+  watermarkScope: string
 }
 
 const EMPTY_CREATE_FORM: PromotionCreateFormState = {
   name: '',
+  promotionType: 'discount',
   platformAccountId: '',
   startsAt: '',
   endsAt: '',
   discountValue: '',
   stockLimit: '',
   productSearch: '',
+  ruleThreshold: '',
+  ruleLimit: '',
+  ruleCommission: '',
+  watermarkTemplateId: '',
+  watermarkScope: 'first_main_image',
 }
+
+const PROMOTION_TYPE_OPTIONS = [
+  { value: 'discount', label: '折扣活动' },
+  { value: 'coupon', label: '优惠券' },
+  { value: 'flash_sale', label: '秒杀活动' },
+  { value: 'affiliate', label: '联盟活动' },
+]
 
 export default function PromotionsPage() {
   const confirmAction = useConfirm()
   const [items, setItems] = useState<PromotionCampaign[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [governanceSummary, setGovernanceSummary] = useState<PromotionGovernanceSummary | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [actionMode, setActionMode] = useState<'edit' | 'add-items' | 'discount' | null>(null)
   const [actionCampaign, setActionCampaign] = useState<PromotionCampaign | null>(null)
@@ -72,6 +98,10 @@ export default function PromotionsPage() {
     }),
   })
   const candidateListings = candidateQuery.data?.data || []
+  const applyCampaignList = (nextItems: PromotionCampaign[]) => {
+    setItems(nextItems)
+    setGovernanceSummary(buildPromotionGovernanceSummary(nextItems))
+  }
 
   const load = () => {
     setLoading(true)
@@ -79,6 +109,7 @@ export default function PromotionsPage() {
     getPromotionCampaigns()
       .then((result) => {
         setItems(result.data || [])
+        setGovernanceSummary(normalizePromotionGovernanceSummary(result.meta?.summary, result.data || []))
         if (result.status === 'data_required') setMessage('暂无促销活动。请先在平台后台或本系统创建活动，再添加参与商品。')
       })
       .catch((e: any) => {
@@ -117,6 +148,8 @@ export default function PromotionsPage() {
       const result = await createPromotionCampaign({
         platform_account_id: form.platformAccountId,
         name: form.name.trim(),
+        promotion_type: form.promotionType,
+        platform_data: { marketing_rules: buildMarketingRules(form), marketing_watermark: buildMarketingWatermark(form) },
         starts_at: form.startsAt || undefined,
         ends_at: form.endsAt || undefined,
         items: selectedListings.map((item) => ({
@@ -126,7 +159,7 @@ export default function PromotionsPage() {
         })),
       })
       if (result.data) {
-        setItems((current) => [result.data as PromotionCampaign, ...current])
+        applyCampaignList([result.data as PromotionCampaign, ...items])
         setShowCreate(false)
         setForm(EMPTY_CREATE_FORM)
         setSelectedListingIds([])
@@ -158,7 +191,7 @@ export default function PromotionsPage() {
     try {
       const result = await updatePromotionCampaignStatus(campaignId, 'ended')
       if (result.data) {
-        setItems((current) => current.map((item) => item.id === campaignId ? result.data as PromotionCampaign : item))
+        applyCampaignList(items.map((item) => item.id === campaignId ? result.data as PromotionCampaign : item))
         setMessage('促销活动已在本地结束；平台 Open API 接通前不会执行平台结束动作。')
       }
     } catch (e: any) {
@@ -178,12 +211,15 @@ export default function PromotionsPage() {
     setForm({
       ...EMPTY_CREATE_FORM,
       name: mode === 'edit' ? campaign.name : '',
+      promotionType: mode === 'edit' ? campaign.promotion_type : 'discount',
       platformAccountId: campaign.store.id,
       startsAt: mode === 'edit' ? String(campaign.starts_at || '') : '',
       endsAt: mode === 'edit' ? String(campaign.ends_at || '') : '',
-      discountValue: mode === 'discount' ? String(campaign.items[0]?.discount_value || '') : '',
-    })
-  }
+	      discountValue: mode === 'discount' ? String(campaign.items[0]?.discount_value || '') : '',
+	      ...marketingRulesToForm(campaign.platform_data?.marketing_rules),
+	      ...marketingWatermarkToForm(campaign.platform_data?.marketing_watermark),
+	    })
+	  }
 
   const handleUpdateCampaign = async () => {
     if (!actionCampaign) return
@@ -196,12 +232,14 @@ export default function PromotionsPage() {
     try {
       const result = await updatePromotionCampaign(actionCampaign.id, {
         name: form.name.trim(),
+        promotion_type: form.promotionType,
+	        platform_data: { marketing_rules: buildMarketingRules(form), marketing_watermark: buildMarketingWatermark(form) },
         starts_at: form.startsAt || undefined,
         ends_at: form.endsAt || undefined,
         stack_rule: form.stockLimit.trim() || undefined,
       })
       if (result.data) {
-        setItems((current) => current.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
+        applyCampaignList(items.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
         setActionMode(null)
         setActionCampaign(null)
         setForm(EMPTY_CREATE_FORM)
@@ -236,7 +274,7 @@ export default function PromotionsPage() {
         stock_limit: form.stockLimit ? Number(form.stockLimit) : undefined,
       })))
       if (result.data) {
-        setItems((current) => current.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
+        applyCampaignList(items.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
         setActionMode(null)
         setActionCampaign(null)
         setSelectedListingIds([])
@@ -263,7 +301,7 @@ export default function PromotionsPage() {
     try {
       const result = await updatePromotionCampaignDiscount(actionCampaign.id, discountValue)
       if (result.data) {
-        setItems((current) => current.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
+        applyCampaignList(items.map((item) => item.id === actionCampaign.id ? result.data as PromotionCampaign : item))
         setActionMode(null)
         setActionCampaign(null)
         setForm(EMPTY_CREATE_FORM)
@@ -291,7 +329,7 @@ export default function PromotionsPage() {
     try {
       const result = await syncPromotionCampaign(campaignId)
       if (result.data) {
-        setItems((current) => current.map((item) => item.id === campaignId ? result.data as PromotionCampaign : item))
+        applyCampaignList(items.map((item) => item.id === campaignId ? result.data as PromotionCampaign : item))
       }
       const gaps = result.data_gaps?.length ? `缺口：${result.data_gaps.join('、')}` : '平台同步未执行'
       setMessage(`促销活动平台同步未完成；${gaps}。`)
@@ -321,6 +359,9 @@ export default function PromotionsPage() {
         </div>
       </section>
 
+      <PromotionGovernancePanel summary={governanceSummary || buildPromotionGovernanceSummary(items)} />
+      <PromotionTypeRuleGuide />
+
       {message && <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-muted)]">{message}</p>}
 
       {showCreate && (
@@ -336,6 +377,7 @@ export default function PromotionsPage() {
           </div>
           <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr]">
             <Field label="活动名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} placeholder="如：7月新品测品折扣" />
+            <Select label="活动类型" value={form.promotionType} onChange={(promotionType) => setForm({ ...form, promotionType })} options={PROMOTION_TYPE_OPTIONS} />
             <Select
               label="所属店铺"
               value={form.platformAccountId}
@@ -343,11 +385,21 @@ export default function PromotionsPage() {
               options={[{ value: '', label: '请选择店铺' }, ...stores.map((store) => ({ value: store.id, label: `${store.account_name} · ${store.platform}` }))]}
             />
             <Field label="活动折扣比例(%)" value={form.discountValue} onChange={(value) => setForm({ ...form, discountValue: value })} placeholder="如：10" type="number" />
+            <Field label="券门槛/预算" value={form.ruleThreshold} onChange={(value) => setForm({ ...form, ruleThreshold: value })} placeholder="如满99可用 / 预算500" />
+            <Field label="限购/秒杀库存" value={form.ruleLimit} onChange={(value) => setForm({ ...form, ruleLimit: value })} placeholder="如每人1件 / 秒杀50件" />
+            <Field label="联盟佣金(%)" value={form.ruleCommission} onChange={(value) => setForm({ ...form, ruleCommission: value })} placeholder="联盟活动填写" type="number" />
             <Field label="开始时间" value={form.startsAt} onChange={(value) => setForm({ ...form, startsAt: value })} placeholder="2026-07-15T00:00:00+08:00" />
-            <Field label="结束时间" value={form.endsAt} onChange={(value) => setForm({ ...form, endsAt: value })} placeholder="2026-07-22T23:59:59+08:00" />
-            <Field label="单品活动库存上限" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="不填则不限制" type="number" />
-          </div>
-          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+	            <Field label="结束时间" value={form.endsAt} onChange={(value) => setForm({ ...form, endsAt: value })} placeholder="2026-07-22T23:59:59+08:00" />
+	            <Field label="单品活动库存上限" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="不填则不限制" type="number" />
+	          </div>
+	          <div className="mt-4">
+	            <PromotionWatermarkSelector
+	              platform={selectedStore?.platform}
+	              value={{ templateId: form.watermarkTemplateId, scope: form.watermarkScope }}
+	              onChange={(value) => setForm({ ...form, watermarkTemplateId: value.templateId, watermarkScope: value.scope })}
+	            />
+	          </div>
+	          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-fg)]">选择参与商品</p>
@@ -396,13 +448,26 @@ export default function PromotionsPage() {
             <Button variant="secondary" onClick={() => { setActionMode(null); setActionCampaign(null); setSelectedListingIds([]); setForm(EMPTY_CREATE_FORM) }}>关闭</Button>
           </div>
           {actionMode === 'edit' ? (
-            <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto] md:items-end">
-              <Field label="活动名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
+            <>
+              <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto] md:items-end">
+                <Field label="活动名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
+              <Select label="活动类型" value={form.promotionType} onChange={(promotionType) => setForm({ ...form, promotionType })} options={PROMOTION_TYPE_OPTIONS} />
+              <Field label="券门槛/预算" value={form.ruleThreshold} onChange={(value) => setForm({ ...form, ruleThreshold: value })} placeholder="按平台规则待同步" />
+              <Field label="限购/秒杀库存" value={form.ruleLimit} onChange={(value) => setForm({ ...form, ruleLimit: value })} placeholder="限购或锁库存" />
+              <Field label="联盟佣金(%)" value={form.ruleCommission} onChange={(value) => setForm({ ...form, ruleCommission: value })} placeholder="联盟活动填写" type="number" />
               <Field label="开始时间" value={form.startsAt} onChange={(value) => setForm({ ...form, startsAt: value })} placeholder="2026-07-20T00:00:00+08:00" />
               <Field label="结束时间" value={form.endsAt} onChange={(value) => setForm({ ...form, endsAt: value })} placeholder="2026-07-25T23:59:59+08:00" />
-              <Field label="叠加规则" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="如 no_stack" />
-              <Button onClick={handleUpdateCampaign} disabled={saving}>{saving ? '保存中...' : '保存活动'}</Button>
-            </div>
+                <Field label="叠加规则" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="如 no_stack" />
+                <Button onClick={handleUpdateCampaign} disabled={saving}>{saving ? '保存中...' : '保存活动'}</Button>
+              </div>
+              <div className="mt-3">
+                <PromotionWatermarkSelector
+                  platform={actionCampaign.platform}
+                  value={{ templateId: form.watermarkTemplateId, scope: form.watermarkScope }}
+                  onChange={(value) => setForm({ ...form, watermarkTemplateId: value.templateId, watermarkScope: value.scope })}
+                />
+              </div>
+            </>
           ) : actionMode === 'discount' ? (
             <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
               <Field label="新的活动折扣比例(%)" value={form.discountValue} onChange={(value) => setForm({ ...form, discountValue: value })} placeholder="如：15" type="number" />
@@ -465,8 +530,12 @@ export default function PromotionsPage() {
                 {items.map((item) => (
                   <tr key={item.id} className="border-t border-[var(--color-border)] align-top">
                     <td className="px-3 py-3">
-                      <p className="font-medium text-[var(--color-fg)]">{item.name}</p>
-                      <p className="mt-1 text-xs text-[var(--color-muted)]">{item.id}</p>
+	                      <p className="font-medium text-[var(--color-fg)]">{item.name}</p>
+	                      <p className="mt-1 text-xs text-[var(--color-primary)]">{promotionTypeLabel(item.promotion_type)}</p>
+	                      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{marketingRulesSummary(item.platform_data?.marketing_rules)}</p>
+	                      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{marketingWatermarkSummary(item.platform_data?.marketing_watermark)}</p>
+	                      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{promotionPlatformSyncSummary(item.platform_data?.promotion_platform_sync)}</p>
+	                      <p className="mt-1 text-xs text-[var(--color-muted)]">{item.id}</p>
                     </td>
                     <td className="px-3 py-3">
                       <Badge>{item.platform.toUpperCase()}</Badge>
@@ -547,6 +616,40 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
 
 function formatMoney(value: number) {
   return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function promotionTypeLabel(type: string) {
+  return PROMOTION_TYPE_OPTIONS.find(option => option.value === type)?.label || type
+}
+
+function buildMarketingRules(form: PromotionCreateFormState) {
+  return {
+    rule_schema: 'promotion_marketing_rules.v1',
+    promotion_type: form.promotionType,
+    threshold_or_budget: form.ruleThreshold.trim() || null,
+    purchase_limit_or_flash_stock: form.ruleLimit.trim() || null,
+    affiliate_commission_pct: form.ruleCommission.trim() ? Number(form.ruleCommission) : null,
+    platform_sync_state: 'local_rules_not_synced',
+  }
+}
+
+function marketingRulesToForm(value: unknown): Partial<PromotionCreateFormState> {
+  const rules = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  return {
+    ruleThreshold: String(rules.threshold_or_budget || ''),
+    ruleLimit: String(rules.purchase_limit_or_flash_stock || ''),
+    ruleCommission: rules.affiliate_commission_pct == null ? '' : String(rules.affiliate_commission_pct),
+  }
+}
+
+function marketingRulesSummary(value: unknown) {
+  const rules = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  const parts = [
+    rules.threshold_or_budget ? `门槛/预算：${rules.threshold_or_budget}` : '',
+    rules.purchase_limit_or_flash_stock ? `限购/库存：${rules.purchase_limit_or_flash_stock}` : '',
+    rules.affiliate_commission_pct ? `佣金：${rules.affiliate_commission_pct}%` : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : '平台规则字段待补'
 }
 
 function PromotionCandidateCard({

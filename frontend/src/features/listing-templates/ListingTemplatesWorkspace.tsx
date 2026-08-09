@@ -30,6 +30,17 @@ type WatermarkDraft = {
   isDefault: boolean
 }
 
+type WatermarkGovernanceSummary = {
+  templateCount: number
+  defaultTemplateCount: number
+  platformCount: number
+  scheduledCount: number
+  contentFactoryReadyCount: number
+  scopedProductCount: number
+  platformLabels: string
+  runtimeBoundary: string
+}
+
 const EMPTY_DRAFT: WatermarkDraft = {
   name: '',
   description: '',
@@ -102,6 +113,7 @@ export default function ListingTemplatesWorkspace() {
     const matchedScope = scopeFilter === 'all' || wm.scope === scopeFilter
     return matchedQuery && matchedScope
   })
+  const governanceSummary = buildWatermarkGovernanceSummary(templates)
 
   const startCreate = () => {
     setEditingId(null)
@@ -179,6 +191,7 @@ export default function ListingTemplatesWorkspace() {
         actions={<Button onClick={startCreate}><Plus className="mr-1 h-4 w-4" />创建水印</Button>}
       />
       <EvidenceBanner evidence={evidence} />
+      <WatermarkGovernancePanel summary={governanceSummary} />
 
       <Card>
         <CardContent className="space-y-4 pt-4">
@@ -297,8 +310,60 @@ export default function ListingTemplatesWorkspace() {
   )
 }
 
+function WatermarkGovernancePanel({ summary }: { summary: WatermarkGovernanceSummary }) {
+  return (
+    <section data-ui="watermark-template-governance-summary" className="grid gap-3 md:grid-cols-4">
+      <WatermarkMetric label="水印模板" value={summary.templateCount} note={`默认模板 ${summary.defaultTemplateCount} 个`} />
+      <WatermarkMetric label="平台覆盖" value={summary.platformCount} note={summary.platformLabels} />
+      <WatermarkMetric label="投放规则" value={summary.scheduledCount} note={`定时投放 ${summary.scheduledCount} · 指定商品 ${summary.scopedProductCount}`} />
+      <WatermarkMetric label="内容工厂可用" value={summary.contentFactoryReadyCount} note="有文字或品牌图层说明的模板可被图片工作台应用" />
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:col-span-4">
+        <p className="text-xs font-semibold text-[var(--color-fg)]">水印运行边界</p>
+        <p className="mt-2 text-sm text-[var(--color-muted)]">{summary.runtimeBoundary}</p>
+      </div>
+    </section>
+  )
+}
+
+function WatermarkMetric({ label, value, note }: { label: string; value: string | number; note: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-[var(--color-fg)]">{value}</p>
+      <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">{note || '待配置'}</p>
+    </div>
+  )
+}
+
 function isWatermarkTemplate(template: ListingTemplate) {
   return template.template_data?.template_type === 'image_watermark'
+}
+
+function buildWatermarkGovernanceSummary(templates: ListingTemplate[]): WatermarkGovernanceSummary {
+  const platformSet = new Set<string>()
+  let defaultTemplateCount = 0
+  let scheduledCount = 0
+  let contentFactoryReadyCount = 0
+  let scopedProductCount = 0
+  templates.forEach(template => {
+    const wm = toWatermarkDraft(template)
+    platformSet.add(template.platform)
+    if (template.is_default) defaultTemplateCount += 1
+    if (wm.scheduleMode === 'scheduled') scheduledCount += 1
+    if (wm.text || wm.description) contentFactoryReadyCount += 1
+    if (wm.scope === 'selected_products' || wm.productFilter) scopedProductCount += 1
+  })
+  const platformLabels = Array.from(platformSet).map(item => item.toUpperCase()).join(' / ')
+  return {
+    templateCount: templates.length,
+    defaultTemplateCount,
+    platformCount: platformSet.size,
+    scheduledCount,
+    contentFactoryReadyCount,
+    scopedProductCount,
+    platformLabels,
+    runtimeBoundary: '营销水印是图片处理模板，只有在内容工厂图片槽位应用并导出后才进入发布图；模板本身不修改商品基础图片或平台 Listing。',
+  }
 }
 
 function toWatermarkDraft(template: ListingTemplate): WatermarkDraft {

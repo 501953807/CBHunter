@@ -44,9 +44,26 @@ export interface PromotionCampaign {
   external_promotion_id?: string | null
   stack_rule?: string | null
   source: string
+  platform_data?: Record<string, unknown> | null
   product_count: number
   price_summary: PromotionPriceSummary
   items: PromotionCampaignItem[]
+}
+
+export interface PromotionGovernanceSummary {
+  campaign_count: number
+  platform_count: number
+  store_count: number
+  participating_item_count: number
+  priced_item_count: number
+  discount_amount_total: number
+  local_campaign_count: number
+  platform_sync_gap_count: number
+  platform_counts: Record<string, number>
+  status_counts: Record<string, number>
+  type_counts: Record<string, number>
+  runtime_boundary: string
+  next_action: string
 }
 
 export async function getPromotionCampaigns() {

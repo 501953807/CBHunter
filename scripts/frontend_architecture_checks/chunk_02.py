@@ -225,9 +225,9 @@ for required in (
     "sku_image",
     "description_image",
     "role: slot.role || roleMeta.role",
-    "label: slot.label || roleMeta.label", "publishable?: boolean", "isSlotPublishable", "preservePublishable", "data.publishable", "notifyImageSlotPlanSaved", "data-ui=\"content-image-plan-refresh-after-save\"", "最低发布图", "建议发布图", "发布图缺口", "发布图已达标",
+    "label: slot.label || roleMeta.label", "publishable?: boolean", "editOptions?: ImageEditOptions", "edit_options: slot.editOptions || imageOptions", "export_task_schema: 'listing_image_export_tasks.v1'", "export_tasks: imageExportTasks", "planned_not_exported", "content_workbench_image_export_task", "normalizeSavedImageEditOptions", "data-ui=\"image-slot-edit-options-state\"", "SellerImageCropControls", "data-ui=\"image-crop-region-controls\"", "buildCropPreviewStyle", "style={buildCropPreviewStyle(imageOptions)}", "SellerImageEnhancementControls", "data-ui=\"image-enhancement-inline-controls\"", "brightness", "contrast", "sharpness", "auto_contrast", "unsharp_mask", "background", "rotate_degrees", "flip_horizontal", "flip_vertical", "SellerImageExportTaskSummary", "data-ui=\"image-export-task-preview\"", "data-ui=\"image-export-task-row\"", "发布图", "素材池", "SellerImageOutputControls", "data-ui=\"image-output-format-controls\"", "output_format", "quality", "SellerImageWatermarkControls", "data-ui=\"image-watermark-inline-controls\"", "buildWatermarkPreviewStyle", "data-ui=\"image-watermark-live-preview\"", "watermark_text", "watermark_position", "watermark_opacity", "watermark_color", "application/cbhunter-image-asset-id", "data-ui=\"draggable-product-image-asset\"", "crop_x", "crop_y", "crop_width", "crop_height", "isSlotPublishable", "preservePublishable", "data.publishable", "notifyImageSlotPlanSaved", "data-ui=\"content-image-plan-refresh-after-save\"", "最低发布图", "建议发布图", "发布图缺口", "发布图已达标", "executeContentImageExportTasks", "data-ui=\"content-image-export-task-execute-button\"", "执行已保存导出任务", "buildExportTasksByPosition", "exportStatus?: string", "data-ui=\"image-slot-export-status\"", "data-ui=\"image-export-status-summary\"", "exported_to_content_asset", "export_failed",
 ):
-    if required not in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH:
+    if required not in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_EDITOR_UTILS + SELLER_IMAGE_CROP_CONTROLS + SELLER_IMAGE_ENHANCEMENT_CONTROLS + SELLER_IMAGE_EXPORT_TASK_SUMMARY + SELLER_IMAGE_OUTPUT_CONTROLS + SELLER_IMAGE_WATERMARK_CONTROLS:
         errors.append(f"content media studio must preserve V5 image slot roles in saved image plans: {required}")
 for required in (
     "SellerPlatformListingEditorPanel",
@@ -458,7 +458,7 @@ for required in (
     "清除水印",
     "watermarkTemplates.slice(0, 4)",
 ):
-    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_WATERMARK_CONTROLS:
         errors.append(f"seller image editor must expose quick watermark template application near the canvas: {required}")
 for required in (
     "processSourceImageIntoActiveSlot",
@@ -476,7 +476,7 @@ for forbidden in ("FALLBACK_WATERMARK", "mockWatermark", "defaultWatermarkTempla
     if forbidden in CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH:
         errors.append(f"content media watermark templates must come from API, not fallback/mock data: {forbidden}")
 for required in ("data-ui=\"image-orientation-controls\"", "旋转90°", "水平翻转", "垂直翻转"):
-    if required not in SELLER_IMAGE_EDITOR_WORKBENCH:
+    if required not in SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_ENHANCEMENT_CONTROLS:
         errors.append(f"seller image editor must expose deterministic orientation controls: {required}")
 for required in ("platformAttributeAliases", "platformFields(platformRequirements)", "pickLegacyAttributes"):
     if required not in SELLER_PLATFORM_LISTING_EDITOR_UTILS:
@@ -521,23 +521,11 @@ for required in (
     if required not in CONTENT_PRODUCT_QUEUE:
         errors.append(f"content product queue must follow seller-console product list structure: {required}")
 for required in (
-    "图片/水印模板",
-    "data-ui=\"image-watermark-template-workspace\"",
-    "data-ui=\"watermark-template-filter-toolbar\"",
-    "data-ui=\"watermark-template-console-table\"",
-    "营销水印",
-    "我的主图水印",
-    "系统水印模板",
-    "创建水印",
-    "搜水印 / 搜产品",
-    "水印信息",
-    "水印状态",
-    "定时添加",
-    "编辑水印",
-    "删除水印",
-    "投放详情",
-    "追加投放",
-    "fabric.js / cropperjs",
+    "图片/水印模板", "data-ui=\"image-watermark-template-workspace\"", "data-ui=\"watermark-template-filter-toolbar\"",
+    "data-ui=\"watermark-template-console-table\"", "营销水印", "我的主图水印", "系统水印模板", "创建水印",
+    "搜水印 / 搜产品", "水印信息", "水印状态", "定时添加", "编辑水印", "删除水印", "投放详情", "追加投放",
+    "fabric.js / cropperjs", "data-ui=\"watermark-template-governance-summary\"", "WatermarkGovernanceSummary",
+    "buildWatermarkGovernanceSummary", "水印运行边界", "内容工厂可用", "模板本身不修改商品基础图片或平台 Listing",
 ):
     if required not in MODULE_SUBNAV + ROUTE_META + LISTING_TEMPLATES_WORKSPACE:
         errors.append(f"listing templates route must become Miaoshou-style image/watermark templates: {required}")
@@ -621,7 +609,7 @@ for required in ("skuBlocked", "skuValidationCheck", "listing_validation.{check.
 for required in ("searchParams.get('platform_field_key')", "highlightPlatformFieldKey", "highlightedFieldKey", "data-ui=\"platform-field-highlight-target\"", "decodeURIComponent(highlightPlatformFieldKey)", "data-ui=\"platform-field-readiness-strip\"", "data-ui=\"platform-field-requirement-hint\"", "FieldReadinessStrip", "FieldRequirementHint"):
     if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR + PLATFORM_FIELD_GROUPS:
         errors.append(f"content factory must consume platform_field_key and highlight the dynamic platform field: {required}")
-for required in ("FieldValueControl", "normalizeFieldType", "fieldEnumOptions", "FieldFocusToolbar", "fieldMatchesFocus", "fallbackAttrMatchesFocus", "groupFieldStats", "data-ui=\"platform-field-group-readiness-summary\"", "data-ui=\"platform-field-focus-toolbar\"", "data-ui=\"platform-field-search-input\"", "data-ui=\"platform-field-focus-filter\"", "data-ui=\"platform-field-visible-count\"", "options?: unknown[]", "allowed_values?: unknown[]", "data-ui=\"platform-field-dynamic-input\"", "data-field-input-type=\"enum\"", "data-field-input-type=\"boolean\"", "data-field-input-type=\"number\"", "data-field-input-type=\"long_text\""):
+for required in ("FieldValueControl", "normalizeFieldType", "fieldEnumOptions", "FieldFocusToolbar", "fieldMatchesFocus", "fallbackAttrMatchesFocus", "groupFieldStats", "data-ui=\"platform-field-group-readiness-summary\"", "data-ui=\"platform-field-focus-toolbar\"", "data-ui=\"platform-field-search-input\"", "data-ui=\"platform-field-focus-filter\"", "data-ui=\"platform-field-visible-count\"", "options?: unknown[]", "allowed_values?: unknown[]", "data-ui=\"platform-field-dynamic-input\"", "data-field-input-type=\"enum\"", "data-field-input-type=\"boolean\"", "data-field-input-type=\"number\"", "data-field-input-type=\"long_text\"", "FieldEvidenceAuditSummary", "buildFieldEvidenceStats", "data-ui=\"platform-field-evidence-summary\"", "data-ui=\"platform-field-source-chip\"", "字段来源与资料"):
     if required not in PLATFORM_FIELD_GROUPS:
         errors.append(f"platform field editor must render dynamic input controls by field type: {required}")
 for required in ("草稿结果明细", "平台字段落库诊断", "PlatformFieldGroupSummary"):

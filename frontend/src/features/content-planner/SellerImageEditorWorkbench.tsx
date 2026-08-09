@@ -4,6 +4,13 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import type { ContentAsset, ContentWorkbenchItem } from '../../api/content'
 import { productImageSrc } from '../../utils/productImages'
+import { SellerImageCropControls } from './SellerImageCropControls'
+import { SellerImageEnhancementControls } from './SellerImageEnhancementControls'
+import { SellerImageExportTaskSummary } from './SellerImageExportTaskSummary'
+import { SellerImageOutputControls } from './SellerImageOutputControls'
+import { SellerImageWatermarkControls } from './SellerImageWatermarkControls'
+import { assetImageUrl, buildCropPreviewStyle, buildWatermarkPreviewStyle, clampImageSlotIndex, listingImageRoleByIndex } from './SellerImageEditorUtils'
+export { listingImageRoleByIndex } from './SellerImageEditorUtils'
 
 const inputClass = 'text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]'
 
@@ -41,6 +48,11 @@ export type MediaSlotPlan = {
   assetName: string
   sizeText: string
   publishable?: boolean
+  editOptions?: ImageEditOptions
+  exportStatus?: string
+  exportError?: string
+  generatedAssetUrl?: string
+  exportedAt?: string
 }
 
 export type ImageWatermarkTemplateOption = {
@@ -52,46 +64,6 @@ export type ImageWatermarkTemplateOption = {
   position: string
   opacity: number
   color: string
-}
-
-export const listingImageRoleByIndex = (index: number) => {
-  const roles = [
-    { role: 'main_image', label: '主图' },
-    { role: 'scene_image', label: '场景辅图' },
-    { role: 'dimension_image', label: '尺寸图' },
-    { role: 'detail_image', label: '细节图' },
-    { role: 'sku_image', label: 'SKU图' },
-    { role: 'description_image', label: '详情图' },
-  ]
-  return roles[index] || { role: `extra_image_${index + 1}`, label: `辅图 ${index + 1}` }
-}
-
-const assetImageUrl = (asset: ContentAsset) => {
-  const explicitUrl = asset.extra?.url ? String(asset.extra.url) : ''
-  return explicitUrl || `/api/v1/content/assets/${asset.id}/file`
-}
-
-const clampImageSlotIndex = (slotIndex: number, slotCount: number) => {
-  if (!Number.isFinite(slotIndex)) return 1
-  return Math.max(1, Math.min(Math.max(slotCount, 1), Math.floor(slotIndex)))
-}
-
-const buildImageProcessingSummary = (options: ImageEditOptions) => {
-  const summary = [
-    `尺寸 ${options.width}×${options.height}`,
-    options.fit === 'cover' ? '居中裁切' : '完整留白',
-    `背景 ${options.background || '保留'}`,
-    `输出 ${options.output_format.toUpperCase()} / 质量 ${options.quality}`,
-  ]
-  if (options.rotate_degrees) summary.push(`旋转 ${options.rotate_degrees}°`)
-  if (options.flip_horizontal) summary.push('水平翻转')
-  if (options.flip_vertical) summary.push('垂直翻转')
-  if (options.auto_contrast) summary.push('自动对比度')
-  if (options.unsharp_mask || options.sharpness > 1) summary.push(`锐化 ${options.sharpness}`)
-  if (options.brightness !== 1) summary.push(`亮度 ${options.brightness}`)
-  if (options.contrast !== 1) summary.push(`对比 ${options.contrast}`)
-  if (options.watermark_text) summary.push(`水印 ${options.watermark_position} / ${Math.round(options.watermark_opacity * 100)}%`)
-  return summary
 }
 
 export function SellerImageEditorWorkbench({
@@ -134,7 +106,7 @@ export function SellerImageEditorWorkbench({
   const slotCount = Math.max(product?.media_readiness?.recommended_platform_images ?? 9, 9)
   const publishImageLimit = product?.media_readiness?.recommended_platform_images ?? 9
   const imageAssetKey = productImageAssets.map(asset => `${asset.id}:${asset.created_at}`).join('|')
-  const savedSlotPlanKey = (initialSavedSlotPlan || []).map(slot => `${slot.index}:${slot.imageUrl}:${slot.assetName}:${slot.publishable}`).join('|')
+  const savedSlotPlanKey = (initialSavedSlotPlan || []).map(slot => `${slot.index}:${slot.imageUrl}:${slot.assetName}:${slot.publishable}:${slot.exportStatus}:${slot.generatedAssetUrl}:${slot.editOptions ? JSON.stringify(slot.editOptions) : ''}`).join('|')
   const [imageSlots, setImageSlots] = useState<MediaSlotPlan[]>([])
 
   useEffect(() => {
@@ -151,10 +123,17 @@ export function SellerImageEditorWorkbench({
         assetName: asset?.original_name || '',
         sizeText: asset ? `${asset.width}×${asset.height}px` : imageUrl ? '源图待处理' : '待补真实图片',
         publishable: index + 1 <= publishImageLimit,
+        editOptions: imageOptions,
       }
     })
     setImageSlots(nextSlots)
-    setActiveSlotIndex(clampImageSlotIndex(initialSlotIndex, nextSlots.length))
+    const nextActiveSlotIndex = clampImageSlotIndex(initialSlotIndex, nextSlots.length)
+    const nextActiveSlotOptions = nextSlots[nextActiveSlotIndex - 1]?.editOptions
+    if (nextActiveSlotOptions) {
+      imageOptionsKeyRef.current = JSON.stringify(nextActiveSlotOptions)
+      setImageOptions(nextActiveSlotOptions)
+    }
+    setActiveSlotIndex(nextActiveSlotIndex)
     setSlotPlanDirty(false)
     setSelectedAssetIds([])
   }, [product?.id, imageAssetKey, initialSlotIndex, savedSlotPlanKey, slotCount, sourceImage])
@@ -172,9 +151,10 @@ export function SellerImageEditorWorkbench({
     }
     if (imageOptionsKeyRef.current !== nextKey) {
       imageOptionsKeyRef.current = nextKey
+      setImageSlots(current => current.map(slot => slot.index === activeSlotIndex ? { ...slot, editOptions: imageOptions } : slot))
       setSlotPlanDirty(true)
     }
-  }, [imageOptions])
+  }, [imageOptions, activeSlotIndex])
 
   const activeSlot = imageSlots.find(slot => slot.index === activeSlotIndex) || imageSlots[0] || {
     index: 1,
@@ -184,7 +164,16 @@ export function SellerImageEditorWorkbench({
     assetName: '',
     sizeText: '待补真实图片',
     publishable: true,
+    editOptions: imageOptions,
   }
+
+  useEffect(() => {
+    if (!activeSlot.editOptions) return
+    const nextKey = JSON.stringify(activeSlot.editOptions)
+    if (imageOptionsKeyRef.current === nextKey) return
+    imageOptionsKeyRef.current = nextKey
+    setImageOptions(activeSlot.editOptions)
+  }, [activeSlotIndex])
 
   const isSlotPublishable = (slot: MediaSlotPlan) => slot.index === 1 || (typeof slot.publishable === 'boolean' ? slot.publishable : slot.index <= publishImageLimit)
 
@@ -193,16 +182,22 @@ export function SellerImageEditorWorkbench({
     return { ...slot, index: index + 1, role: roleMeta.role, label: roleMeta.label, publishable: preservePublishable && typeof slot.publishable === 'boolean' ? slot.publishable : index + 1 <= publishImageLimit }
   })
 
-  const replaceActiveSlotWithAsset = (asset: ContentAsset) => {
-    setImageSlots(current => current.map(slot => slot.index === activeSlotIndex
+  const replaceSlotWithAsset = (slotIndex: number, asset: ContentAsset) => {
+    setImageSlots(current => current.map(slot => slot.index === slotIndex
       ? {
         ...slot,
         imageUrl: assetImageUrl(asset),
         assetName: asset.original_name || asset.id,
         sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
+        editOptions: imageOptions,
       }
       : slot))
+    setActiveSlotIndex(slotIndex)
     setSlotPlanDirty(true)
+  }
+
+  const replaceActiveSlotWithAsset = (asset: ContentAsset) => {
+    replaceSlotWithAsset(activeSlotIndex, asset)
   }
 
   const uploadSlotImage = async (file: File) => {
@@ -250,6 +245,7 @@ export function SellerImageEditorWorkbench({
       assetName: '',
       sizeText: '新增图片空位',
       publishable: nextIndex <= publishImageLimit,
+      editOptions: imageOptions,
     }])
     setActiveSlotIndex(nextIndex)
     setSlotPlanDirty(true)
@@ -301,6 +297,7 @@ export function SellerImageEditorWorkbench({
         assetName: asset.original_name || asset.id,
         sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
         publishable: slot.index <= publishImageLimit,
+        editOptions: imageOptions,
       }
     })
 
@@ -334,6 +331,8 @@ export function SellerImageEditorWorkbench({
         imageUrl,
         assetName: asset.original_name || asset.id,
         sizeText: `${asset.width || imageOptions.width}×${asset.height || imageOptions.height}px`,
+        publishable: nextIndex <= publishImageLimit,
+        editOptions: imageOptions,
       }
     })
     setImageSlots(current => [...current, ...appendedSlots])
@@ -343,7 +342,9 @@ export function SellerImageEditorWorkbench({
   }
 
   const saveCurrentSlotPlan = async () => {
-    await onSaveImageSlotPlan(imageSlots)
+    const slotsToSave = imageSlots.map(slot => slot.index === activeSlotIndex ? { ...slot, editOptions: imageOptions } : slot)
+    await onSaveImageSlotPlan(slotsToSave)
+    setImageSlots(slotsToSave)
     setSlotPlanDirty(false)
   }
 
@@ -380,8 +381,8 @@ export function SellerImageEditorWorkbench({
 
   const filterStyle = { filter: `brightness(${imageOptions.brightness}) contrast(${imageOptions.contrast})` }
   const publishableSlotCount = imageSlots.filter(slot => slot.imageUrl && isSlotPublishable(slot)).length
-  const retainedAssetCount = imageSlots.filter(slot => slot.imageUrl && !isSlotPublishable(slot)).length
-  const emptySlotCount = imageSlots.filter(slot => !slot.imageUrl).length
+  const exportedSlotCount = imageSlots.filter(slot => slot.exportStatus === 'exported_to_content_asset').length
+  const exportFailedSlotCount = imageSlots.filter(slot => slot.exportStatus === 'export_failed').length
   const saveBlockedReason = !product
     ? '未选择商品，不能保存图片计划'
     : publishableSlotCount === 0
@@ -409,7 +410,6 @@ export function SellerImageEditorWorkbench({
     商品标尺: '记录尺寸标注任务。',
     放大镜: '记录细节放大任务。',
   }
-  const processingSummary = buildImageProcessingSummary(imageOptions)
   const imagePreviewStyle = {
     ...filterStyle,
     transform: `rotate(${imageOptions.rotate_degrees}deg) scaleX(${imageOptions.flip_horizontal ? -1 : 1}) scaleY(${imageOptions.flip_vertical ? -1 : 1})`,
@@ -437,6 +437,10 @@ export function SellerImageEditorWorkbench({
           {initialSavedSlotPlan?.length ? (
             <Badge variant="info" data-ui="restored-image-slot-plan-state">已回显保存计划</Badge>
           ) : null}
+          <Badge variant={activeSlot.editOptions ? 'info' : 'warning'} data-ui="image-slot-edit-options-state">{activeSlot.editOptions ? '槽位参数已绑定' : '使用当前参数'}</Badge>
+          <Badge variant={exportFailedSlotCount ? 'warning' : exportedSlotCount ? 'success' : 'info'} data-ui="image-export-status-summary">
+            导出 {exportedSlotCount}/{imageSlots.filter(slot => slot.imageUrl).length}
+          </Badge>
           <Badge variant="success">真实素材绑定</Badge>
         </div>
       </div>
@@ -474,13 +478,19 @@ export function SellerImageEditorWorkbench({
                 <div
                   aria-label="图片裁切预览框"
                   data-ui="image-crop-preview-frame"
-                  className="pointer-events-none absolute inset-8 rounded-xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)]/10"
+                  className="pointer-events-none absolute rounded-xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)]/10"
+                  style={buildCropPreviewStyle(imageOptions)}
                 >
                   <span className="absolute left-2 top-2 rounded-full bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] shadow-[var(--shadow-sm)]">
                     裁切预览 {imageOptions.crop_width || imageOptions.width}×{imageOptions.crop_height || imageOptions.height}
                   </span>
                 </div>
               )}
+              {imageOptions.watermark_text ? (
+                <div className="pointer-events-none absolute rounded-xl px-3 py-1.5 text-sm font-semibold shadow-[var(--shadow-sm)]" style={buildWatermarkPreviewStyle(imageOptions)} data-ui="image-watermark-live-preview" aria-label="图片水印实时预览">
+                  {imageOptions.watermark_text}
+                </div>
+              ) : null}
               <div className="absolute left-4 top-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs font-semibold text-[var(--color-fg)] shadow-[var(--shadow-sm)]">
                 {product?.product_name || '当前商品'}
               </div>
@@ -523,36 +533,11 @@ export function SellerImageEditorWorkbench({
             >
               {slotPlanDirty ? '当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。' : '当前槽位计划已同步到最近保存状态。'}
             </p>
-            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px]" data-ui="image-workbench-publish-readiness-summary">
-              <p className="font-semibold text-[var(--color-fg)]">发布范围校验</p>
-              <p className="mt-1 text-[var(--color-muted)]">发布前{publishImageLimit}张：可发布 {publishableSlotCount} 张；素材池保留 {retainedAssetCount} 张；空槽位 {emptySlotCount} 个。</p>
-              {saveBlockedReason ? (
-                <p className="mt-1 font-semibold text-[var(--color-danger)]" data-ui="image-workbench-save-blocked-reason">{saveBlockedReason}</p>
-              ) : (
-                <p className="mt-1 font-semibold text-[var(--color-success)]" data-ui="image-workbench-save-ready-state">图片计划可保存，保存后仍需回到 Listing 校验平台素材规则。</p>
-              )}
-            </div>
-            <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-processing-before-save-summary" aria-label="图片保存前处理摘要">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-[var(--color-fg)]">保存前处理摘要</p>
-                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{processingSummary.length} 项</span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {processingSummary.map(item => (
-                  <span key={item} className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[10px] text-[var(--color-muted)]" data-ui="image-processing-summary-chip">{item}</span>
-                ))}
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="text-[var(--color-muted)]">
-                宽度
-                <input className={`${inputClass} mt-1 w-full`} type="number" value={imageOptions.width} onChange={event => setImageOptions(prev => ({ ...prev, width: Number(event.target.value) || prev.width }))} />
-              </label>
-              <label className="text-[var(--color-muted)]">
-                高度
-                <input className={`${inputClass} mt-1 w-full`} type="number" value={imageOptions.height} onChange={event => setImageOptions(prev => ({ ...prev, height: Number(event.target.value) || prev.height }))} />
-              </label>
-            </div>
+            <SellerImageExportTaskSummary imageSlots={imageSlots} imageOptions={imageOptions} publishImageLimit={publishImageLimit} saveBlockedReason={saveBlockedReason} />
+            <SellerImageCropControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
+            <SellerImageEnhancementControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
+            <SellerImageOutputControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
+            <SellerImageWatermarkControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} onClearWatermark={onClearWatermark} />
             <div aria-label="平台图片尺寸预设" data-ui="image-platform-size-presets" className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
               <p className="mb-2 text-[11px] font-semibold text-[var(--color-fg)]">平台尺寸预设</p>
               <div className="grid gap-1.5">
@@ -568,12 +553,6 @@ export function SellerImageEditorWorkbench({
                 ))}
               </div>
             </div>
-            <div aria-label="图片旋转翻转控制" data-ui="image-orientation-controls" className="mt-3 grid grid-cols-3 gap-2">
-              <button type="button" className="rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-primary)]" onClick={() => setImageOptions(prev => ({ ...prev, rotate_degrees: (prev.rotate_degrees + 90) % 360 }))}>旋转90°</button>
-              <button type="button" className={imageOptions.flip_horizontal ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-1.5 text-[11px] text-[var(--color-primary)]' : 'rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'} onClick={() => setImageOptions(prev => ({ ...prev, flip_horizontal: !prev.flip_horizontal }))}>水平翻转</button>
-              <button type="button" className={imageOptions.flip_vertical ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-1.5 text-[11px] text-[var(--color-primary)]' : 'rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'} onClick={() => setImageOptions(prev => ({ ...prev, flip_vertical: !prev.flip_vertical }))}>垂直翻转</button>
-            </div>
-            <p className="mt-2 text-[11px] text-[var(--color-muted)]">当前方向：旋转 {imageOptions.rotate_degrees}°{imageOptions.flip_horizontal ? ' · 水平翻转' : ''}{imageOptions.flip_vertical ? ' · 垂直翻转' : ''}</p>
             <div
               aria-label="水印模板快速应用"
               data-ui="listing-image-watermark-template-picker"
@@ -581,14 +560,7 @@ export function SellerImageEditorWorkbench({
             >
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="font-semibold text-[var(--color-fg)]">水印模板</p>
-                <button
-                  type="button"
-                  onClick={onClearWatermark}
-                  disabled={!imageOptions.watermark_text}
-                  className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  清除水印
-                </button>
+                <span className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)]">模板快速套用</span>
               </div>
               {watermarkTemplates.length > 0 ? (
                 <div className="grid gap-1">
@@ -696,6 +668,13 @@ export function SellerImageEditorWorkbench({
                 onDragOver={event => event.preventDefault()}
                 onDrop={event => {
                   event.preventDefault()
+                  const droppedAssetId = event.dataTransfer.getData('application/cbhunter-image-asset-id')
+                  if (droppedAssetId) {
+                    const droppedAsset = productImageAssets.find(asset => asset.id === droppedAssetId)
+                    if (droppedAsset) replaceSlotWithAsset(slot.index, droppedAsset)
+                    setDraggingSlotIndex(null)
+                    return
+                  }
                   if (draggingSlotIndex !== null) reorderSlot(draggingSlotIndex, slot.index)
                   setDraggingSlotIndex(null)
                 }}
@@ -722,6 +701,17 @@ export function SellerImageEditorWorkbench({
                   data-ui="image-workbench-slot-publish-state"
                 >
                   {slot.index === 1 ? '平台主图' : isSlotPublishable(slot) ? `发布前${publishImageLimit}张` : '素材池保留'}
+                </p>
+                <p
+                  className={slot.exportStatus === 'exported_to_content_asset'
+                    ? 'mt-1 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-success)]'
+                    : slot.exportStatus === 'export_failed'
+                      ? 'mt-1 rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-warning)]'
+                      : 'mt-1 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-center text-[10px] text-[var(--color-muted)]'}
+                  data-ui="image-slot-export-status"
+                  title={slot.exportError || slot.generatedAssetUrl || '保存图片计划后执行导出任务'}
+                >
+                  {slot.exportStatus === 'exported_to_content_asset' ? '已导出素材' : slot.exportStatus === 'export_failed' ? '导出失败' : '待执行导出'}
                 </p>
                 <div className="mt-1 grid grid-cols-1 gap-1 text-[10px]">
                   <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">设为主图</button>
@@ -763,11 +753,14 @@ export function SellerImageEditorWorkbench({
                 {productImageAssets.slice(0, 8).map(asset => (
                   <div
                     key={asset.id}
+                    draggable
+                    onDragStart={event => event.dataTransfer.setData('application/cbhunter-image-asset-id', asset.id)}
                     className={selectedAssetIds.includes(asset.id)
                       ? 'overflow-hidden rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]'
                       : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]'}
                     data-ui="selectable-product-image-asset"
                   >
+                    <span className="sr-only" data-ui="draggable-product-image-asset">可拖拽素材</span>
                     <button
                       type="button"
                       data-ui="replace-active-slot-with-asset"

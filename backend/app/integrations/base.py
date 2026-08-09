@@ -160,6 +160,9 @@ class BasePlatformClient(ABC):
     async def publish_product(self, payload: dict) -> dict:
         raise PlatformOperationUnavailable(self.platform_name, "publish")
 
+    async def sync_promotion_campaign(self, payload: dict) -> dict:
+        raise PlatformOperationUnavailable(self.platform_name, "marketing")
+
     @property
     def platform_name(self) -> str:
         return self.__class__.__name__.replace("Client", "").lower()

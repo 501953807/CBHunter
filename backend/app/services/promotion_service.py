@@ -4,7 +4,7 @@ Promotions are independent campaign objects. A campaign belongs to one
 platform/store and contains many participating platform listings/SKUs.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -14,6 +14,10 @@ from app.models.platform_account import PlatformAccount
 from app.models.platform_listing import PlatformListing
 from app.models.product import Product
 from app.models.promotion import PromotionCampaign, PromotionCampaignItem
+from app.integrations.errors import PlatformOperationUnavailable
+from app.integrations.factory import PlatformClientFactory
+from app.integrations.status import get_platform_connector_status
+from app.utils.encryption import decrypt
 
 
 async def create_promotion_campaign(db: AsyncSession, user_id: str, data: dict[str, Any]) -> dict:
@@ -58,6 +62,63 @@ async def list_promotion_campaigns(db: AsyncSession, user_id: str) -> list[dict]
     return campaigns
 
 
+def build_promotion_governance_summary(campaigns: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build a page-level governance summary for local promotion campaigns.
+
+    The summary intentionally describes local campaign objects and known sync gaps.
+    It must not imply platform-side promotion success before Open API integration
+    returns real platform promotion IDs.
+    """
+
+    platform_counts: dict[str, int] = {}
+    store_counts: dict[str, int] = {}
+    status_counts: dict[str, int] = {}
+    type_counts: dict[str, int] = {}
+    item_total = 0
+    priced_item_total = 0
+    discount_total = 0.0
+    sync_gap_total = 0
+    local_campaign_total = 0
+
+    for campaign in campaigns:
+        platform = str(campaign.get("platform") or "unknown").lower()
+        store = campaign.get("store") if isinstance(campaign.get("store"), dict) else {}
+        store_id = str(store.get("id") or "unknown")
+        status = str(campaign.get("status") or "unknown")
+        promotion_type = str(campaign.get("promotion_type") or "discount")
+        platform_counts[platform] = platform_counts.get(platform, 0) + 1
+        store_counts[store_id] = store_counts.get(store_id, 0) + 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+        type_counts[promotion_type] = type_counts.get(promotion_type, 0) + 1
+        item_total += int(campaign.get("product_count") or 0)
+        price_summary = campaign.get("price_summary") if isinstance(campaign.get("price_summary"), dict) else {}
+        priced_item_total += int(price_summary.get("priced_item_count") or 0)
+        discount_total += float(price_summary.get("discount_amount_total") or 0)
+        if campaign.get("source") == "local":
+            local_campaign_total += 1
+            if not campaign.get("external_promotion_id"):
+                sync_gap_total += 1
+
+    return {
+        "campaign_count": len(campaigns),
+        "platform_count": len(platform_counts),
+        "store_count": len(store_counts),
+        "participating_item_count": item_total,
+        "priced_item_count": priced_item_total,
+        "discount_amount_total": round(discount_total, 2),
+        "local_campaign_count": local_campaign_total,
+        "platform_sync_gap_count": sync_gap_total,
+        "platform_counts": platform_counts,
+        "status_counts": status_counts,
+        "type_counts": type_counts,
+        "runtime_boundary": "promotion_campaign_local_object_not_platform_success",
+        "next_action": (
+            "配置平台促销 Open API 后同步活动"
+            if sync_gap_total else "继续维护活动商品与活动价"
+        ),
+    }
+
+
 async def get_promotion_campaign(db: AsyncSession, user_id: str, campaign_id: str) -> dict | None:
     result = await db.execute(
         select(PromotionCampaign, PlatformAccount)
@@ -91,6 +152,9 @@ async def update_promotion_campaign(db: AsyncSession, user_id: str, campaign_id:
         campaign.external_promotion_id = _optional_str(data.get("external_promotion_id"))
     if "stack_rule" in data:
         campaign.stack_rule = _optional_str(data.get("stack_rule"))
+    if "platform_data" in data and isinstance(data.get("platform_data"), dict):
+        current_data = campaign.platform_data if isinstance(campaign.platform_data, dict) else {}
+        campaign.platform_data = {**current_data, **data["platform_data"]}
     await db.commit()
     return await get_promotion_campaign(db, user_id, campaign_id) or {}
 
@@ -144,17 +208,118 @@ async def update_promotion_campaign_items_discount(db: AsyncSession, user_id: st
 
 
 async def sync_promotion_campaign(db: AsyncSession, user_id: str, campaign_id: str) -> dict:
-    campaign, _account = await _get_campaign_and_account(db, user_id, campaign_id)
+    campaign, account = await _get_campaign_and_account(db, user_id, campaign_id)
     if not campaign:
         raise ValueError("促销活动不存在或无权访问")
+    connector = get_platform_connector_status(account)
+    operation_details = connector.get("operation_details") if isinstance(connector.get("operation_details"), list) else []
+    marketing_operation = next((item for item in operation_details if item.get("id") == "marketing"), {})
+    gaps = _promotion_sync_data_gaps(connector, marketing_operation)
+    sync_attempt = _build_promotion_sync_attempt(account, connector, marketing_operation, gaps)
+
+    if not gaps:
+        client = PlatformClientFactory.get_client(account.platform, account, decrypt)
+        if not client:
+            gaps = ["promotion_open_api.client_not_registered"]
+            sync_attempt["data_gaps"] = gaps
+        else:
+            try:
+                if not await client.authenticate():
+                    gaps = ["promotion_open_api.authentication_failed"]
+                    sync_attempt["data_gaps"] = gaps
+                    sync_attempt["boundary"] = "promotion_open_api_authentication_failed"
+                else:
+                    response = await client.sync_promotion_campaign(_promotion_sync_payload(account, campaign))
+                    sync_attempt["platform_response"] = response
+                    sync_attempt["boundary"] = "promotion_open_api_response_received"
+                    official_id = _official_promotion_id(response)
+                    if official_id:
+                        campaign.external_promotion_id = official_id
+                        campaign.source = "platform"
+            except PlatformOperationUnavailable as exc:
+                gaps = ["promotion_open_api.not_implemented", "platform_operation.marketing_not_implemented"]
+                sync_attempt["data_gaps"] = gaps
+                sync_attempt["boundary"] = "promotion_open_api_not_executed_without_marketing_operation"
+                sync_attempt["platform_response"] = {"error": str(exc)}
+            except Exception as exc:
+                gaps = ["promotion_open_api.call_failed"]
+                sync_attempt["data_gaps"] = gaps
+                sync_attempt["boundary"] = "promotion_open_api_call_failed"
+                sync_attempt["platform_response"] = {"error": str(exc)}
+
+    current_data = campaign.platform_data if isinstance(campaign.platform_data, dict) else {}
+    campaign.platform_data = {**current_data, "promotion_platform_sync": sync_attempt}
+    await db.commit()
     serialized = await get_promotion_campaign(db, user_id, campaign_id) or {}
+    status = "synced" if not gaps and serialized.get("external_promotion_id") else "configuration_required"
     return {
-        "status": "configuration_required",
+        "status": status,
         "campaign": serialized,
-        "data_gaps": ["promotion_open_api.not_implemented"],
+        "data_gaps": gaps,
         "evidence_window": "促销活动平台同步",
-        "confidence_reason": "当前 Shopee/TEMU/TikTok Shop 促销 Open API 尚未接通；未写入平台活动 ID，未标记平台同步成功。",
+        "confidence_reason": (
+            "促销同步已读取当前店铺 Open API 连接状态和 marketing 操作能力；"
+            "未具备真实营销接口能力前只记录本地同步尝试，不写入平台活动 ID，不标记平台同步成功。"
+        ),
     }
+
+
+def _build_promotion_sync_attempt(
+    account: PlatformAccount,
+    connector: dict[str, Any],
+    marketing_operation: dict[str, Any],
+    gaps: list[str],
+) -> dict[str, Any]:
+    return {
+        "schema": "promotion_platform_sync_attempt.v1",
+        "platform": account.platform,
+        "account_id": account.id,
+        "connection_status": connector.get("connection_status"),
+        "authorization_status": connector.get("authorization_status"),
+        "marketing_operation_status": marketing_operation.get("status") or "not_implemented",
+        "data_gaps": gaps,
+        "attempted_at": datetime.now(timezone.utc).isoformat(),
+        "boundary": "promotion_open_api_not_executed_without_marketing_operation",
+    }
+
+
+def _promotion_sync_data_gaps(connector: dict[str, Any], marketing_operation: dict[str, Any]) -> list[str]:
+    gaps = ["promotion_open_api.not_implemented"]
+    connection_status = str(connector.get("connection_status") or "")
+    authorization_status = str(connector.get("authorization_status") or "")
+    marketing_status = str(marketing_operation.get("status") or "not_implemented")
+    if connection_status and connection_status != "unverified":
+        gaps.append(f"platform_connection.{connection_status}")
+    if authorization_status and authorization_status != "authorized":
+        gaps.append(f"platform_authorization.{authorization_status}")
+    if marketing_status != "implemented":
+        gaps.append("platform_operation.marketing_not_implemented")
+    if connection_status == "unverified" and authorization_status == "authorized" and marketing_status == "implemented":
+        gaps = []
+    return list(dict.fromkeys(gaps))
+
+
+def _promotion_sync_payload(account: PlatformAccount, campaign: PromotionCampaign) -> dict[str, Any]:
+    platform_data = campaign.platform_data if isinstance(campaign.platform_data, dict) else {}
+    return {
+        "platform": account.platform,
+        "shop_id": account.shop_id,
+        "campaign_id": campaign.id,
+        "name": campaign.name,
+        "promotion_type": campaign.promotion_type,
+        "starts_at": campaign.starts_at.isoformat() if campaign.starts_at else None,
+        "ends_at": campaign.ends_at.isoformat() if campaign.ends_at else None,
+        "marketing_rules": platform_data.get("marketing_rules") if isinstance(platform_data.get("marketing_rules"), dict) else {},
+        "marketing_watermark": platform_data.get("marketing_watermark") if isinstance(platform_data.get("marketing_watermark"), dict) else {},
+    }
+
+
+def _official_promotion_id(response: dict[str, Any]) -> str | None:
+    for key in ("platform_promotion_id", "promotion_id", "activity_id", "discount_id"):
+        value = response.get(key) if isinstance(response, dict) else None
+        if value:
+            return str(value)
+    return None
 
 
 async def _serialize_campaign(db: AsyncSession, campaign: PromotionCampaign, account: PlatformAccount) -> dict:
@@ -205,6 +370,7 @@ async def _serialize_campaign(db: AsyncSession, campaign: PromotionCampaign, acc
         "external_promotion_id": campaign.external_promotion_id,
         "stack_rule": campaign.stack_rule,
         "source": campaign.source,
+        "platform_data": campaign.platform_data if isinstance(campaign.platform_data, dict) else {},
         "product_count": len(items),
         "price_summary": price_summary,
         "items": items,

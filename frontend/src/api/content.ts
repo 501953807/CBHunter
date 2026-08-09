@@ -149,6 +149,16 @@ export interface ContentAsset {
   created_at: string
 }
 
+export interface ContentImageExportExecutionResult {
+  executed: number
+  failed: number
+  skipped: number
+  assets: Array<{ id: string; url: string; width?: number; height?: number; operation: string; original_name?: string | null }>
+  failures?: Array<{ task_id?: string; error: string }>
+  task_version?: { task_type: string; version: number } | number | null
+  message: string
+}
+
 export async function generateTitle(data: TitleGenerateRequest) {
   const res = await client.post<ApiResponse>('/content/generate-title', data)
   return res.data
@@ -221,6 +231,14 @@ export async function editContentImage(file: File, options: Record<string, strin
 
 export async function editContentImageFromUrl(data: Record<string, string | number | boolean | undefined | null>) {
   const res = await client.post<ApiResponse<ContentAsset>>('/content/assets/image-edit-url', data)
+  return res.data
+}
+
+export async function executeContentImageExportTasks(itemId: string, data: { task_ids?: string[]; limit?: number } = {}) {
+  const res = await client.post<ApiResponse<ContentImageExportExecutionResult>>(
+    `/content/workbench/${itemId}/image-export-tasks/execute`,
+    { task_ids: data.task_ids || [], limit: data.limit || 30 },
+  )
   return res.data
 }
 

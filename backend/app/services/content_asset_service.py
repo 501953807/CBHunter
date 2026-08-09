@@ -29,33 +29,15 @@ async def edit_image(
     options: dict[str, Any],
 ) -> ContentAsset:
     content = await _read_upload(upload)
-    output, metadata = process_image_bytes(content, options)
-    output_format = options.get("output_format", "jpeg").lower()
-    _, mime_type, suffix = IMAGE_FORMATS[output_format]
-    asset_id = gen_uuid()
-    stored_name = f"{asset_id}{suffix}"
-    path = _asset_dir(user_id) / stored_name
-    path.write_bytes(output)
-    asset = ContentAsset(
-        id=asset_id,
-        user_id=user_id,
-        asset_type="image",
+    return await create_image_asset_from_bytes(
+        db,
+        user_id,
+        content,
+        options,
         original_name=upload.filename,
-        stored_name=stored_name,
-        mime_type=mime_type,
-        size_bytes=len(output),
-        width=metadata["width"],
-        height=metadata["height"],
         operation="image_edit",
-        extra={
-            **metadata["options"],
-            "content_item_id": options.get("content_item_id") or None,
-        },
+        extra={"content_item_id": options.get("content_item_id") or None},
     )
-    db.add(asset)
-    await db.commit()
-    await db.refresh(asset)
-    return asset
 
 
 async def edit_image_from_url(
@@ -66,6 +48,31 @@ async def edit_image_from_url(
     content_item_id: str | None = None,
 ) -> ContentAsset:
     content, content_type = await _fetch_source_image_bytes(source_url)
+    return await create_image_asset_from_bytes(
+        db,
+        user_id,
+        content,
+        options,
+        original_name=Path(urlparse(source_url).path).name or "source-image",
+        operation="source_image_edit",
+        extra={
+            "source_url": source_url,
+            "source_content_type": content_type,
+            "content_item_id": content_item_id,
+        },
+    )
+
+
+async def create_image_asset_from_bytes(
+    db: AsyncSession,
+    user_id: str,
+    content: bytes,
+    options: dict[str, Any],
+    *,
+    original_name: str | None,
+    operation: str,
+    extra: dict[str, Any] | None = None,
+) -> ContentAsset:
     output, metadata = process_image_bytes(content, options)
     output_format = options.get("output_format", "jpeg").lower()
     _, mime_type, suffix = IMAGE_FORMATS[output_format]
@@ -77,18 +84,16 @@ async def edit_image_from_url(
         id=asset_id,
         user_id=user_id,
         asset_type="image",
-        original_name=Path(urlparse(source_url).path).name or "source-image",
+        original_name=original_name,
         stored_name=stored_name,
         mime_type=mime_type,
         size_bytes=len(output),
         width=metadata["width"],
         height=metadata["height"],
-        operation="source_image_edit",
+        operation=operation,
         extra={
             **metadata["options"],
-            "source_url": source_url,
-            "source_content_type": content_type,
-            "content_item_id": content_item_id,
+            **(extra or {}),
         },
     )
     db.add(asset)

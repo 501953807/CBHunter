@@ -27,6 +27,7 @@ UNIFIED_FIELD_DICTIONARY_HISTORY_KEY = "platform.unified_field_dictionary.histor
 PLATFORM_PRODUCT_FIELD_GROUPS_CONFIG_KEY = "platform.product_field_groups"
 PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY = "platform.product_field_groups.draft"
 PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY = "platform.product_field_groups.history"
+PLATFORM_PRODUCT_KEYS = ("shopee", "tiktok", "temu")
 FIELD_KEY_ALIASES = {
     "category": "category_l3",
     "platform_product_id": "product_id",
@@ -72,10 +73,26 @@ async def get_platform_product_field_group_versions(db: AsyncSession) -> dict:
     active = await _get_platform_product_field_groups_raw(db)
     draft = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_DRAFT_KEY)
     history = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY) or {"versions": []}
+    history_versions = history.get("versions", []) if isinstance(history, dict) else []
     return {
         "active": active,
         "draft": draft,
-        "history": history.get("versions", []) if isinstance(history, dict) else [],
+        "history": history_versions,
+        "category_tree_summary": {
+            "active": _platform_category_tree_summary(active),
+            "draft": _platform_category_tree_summary(draft) if _has_platform_schema(draft) else None,
+            "history": [
+                {
+                    "version": item.get("version"),
+                    "category_profile_count": item.get("category_profile_count", 0),
+                    "category_field_count": item.get("category_field_count", 0),
+                    "category_recheck_count": item.get("category_recheck_count", 0),
+                }
+                for item in history_versions
+                if isinstance(item, dict)
+            ],
+            "runtime_rule": "draft_is_review_only_until_published",
+        },
     }
 
 
@@ -115,11 +132,15 @@ async def publish_platform_product_field_group_draft(
     history = await get_config_json(db, PLATFORM_PRODUCT_FIELD_GROUPS_HISTORY_KEY) or {"versions": []}
     versions = history.get("versions", []) if isinstance(history, dict) else []
     if previous_active:
+        previous_category_summary = _platform_category_tree_summary(previous_active)
         versions = [
             {
                 "version": previous_active.get("version") or "default",
                 "status": previous_active.get("status") or "archived",
-                "platform_count": len([key for key in previous_active.keys() if key in {"shopee", "tiktok", "temu"}]),
+                "platform_count": len([key for key in previous_active.keys() if key in PLATFORM_PRODUCT_KEYS]),
+                "category_profile_count": previous_category_summary["profile_count"],
+                "category_field_count": previous_category_summary["category_field_count"],
+                "category_recheck_count": previous_category_summary["total_recheck_count"],
                 "archived_at": _now_iso(),
             },
             *versions,
@@ -293,7 +314,7 @@ def _versioned_platform_product_field_groups(
 ) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("平台字段组 Schema 必须是对象")
-    platform_keys = [key for key in ("shopee", "tiktok", "temu") if key in payload]
+    platform_keys = [key for key in PLATFORM_PRODUCT_KEYS if key in payload]
     if not platform_keys:
         raise ValueError("平台字段组 Schema 至少包含 Shopee、TikTok Shop 或 TEMU 之一")
     normalized = deepcopy(payload)
@@ -347,6 +368,87 @@ async def _upsert_json_config(db: AsyncSession, key: str, value: dict, label: st
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _has_platform_schema(payload: object) -> bool:
+    return isinstance(payload, dict) and any(key in payload for key in PLATFORM_PRODUCT_KEYS)
+
+
+def _platform_category_tree_summary(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        return {
+            "platform_count": 0,
+            "profile_count": 0,
+            "category_field_count": 0,
+            "total_recheck_count": 0,
+            "platforms": [],
+        }
+    platform_rows = []
+    for platform in PLATFORM_PRODUCT_KEYS:
+        schema = payload.get(platform)
+        if not isinstance(schema, dict):
+            continue
+        stats = _category_tree_platform_stats(platform, schema)
+        platform_rows.append(stats)
+    return {
+        "platform_count": len(platform_rows),
+        "profile_count": sum(item["profile_count"] for item in platform_rows),
+        "category_field_count": sum(item["category_field_count"] for item in platform_rows),
+        "total_recheck_count": sum(item["total_recheck_count"] for item in platform_rows),
+        "platforms": platform_rows,
+    }
+
+
+def _category_tree_platform_stats(platform: str, schema: dict) -> dict:
+    profiles = schema.get("category_profiles") if isinstance(schema.get("category_profiles"), list) else []
+    groups = schema.get("groups") if isinstance(schema.get("groups"), list) else []
+    category_groups = [
+        group for group in groups
+        if isinstance(group, dict) and str(group.get("id") or "").startswith("category_profile_")
+    ]
+    profile_fields = [
+        field
+        for profile in profiles
+        if isinstance(profile, dict)
+        for field in profile.get("fields", [])
+        if isinstance(field, dict)
+    ]
+    group_fields = [
+        field
+        for group in category_groups
+        for field in group.get("fields", [])
+        if isinstance(field, dict)
+    ]
+    category_fields = profile_fields or group_fields
+    gaps = schema.get("category_field_gaps") if isinstance(schema.get("category_field_gaps"), dict) else {}
+    category_recheck = _count_gap_items(gaps.get("needs_category_recheck")) or _count_fields_by_state(category_fields, "needs_category_recheck")
+    edit_page_recheck = _count_gap_items(gaps.get("needs_edit_page_recheck")) or _count_fields_by_state(category_fields, "needs_edit_page_recheck")
+    api_recheck = _count_gap_items(gaps.get("needs_api_recheck")) or _count_fields_by_state(category_fields, "needs_api_recheck")
+    profile_source = profiles or category_groups
+    return {
+        "platform": platform,
+        "profile_count": len(profiles) or len(category_groups),
+        "category_group_count": len(category_groups),
+        "category_field_count": len(category_fields),
+        "category_recheck_count": category_recheck,
+        "edit_page_recheck_count": edit_page_recheck,
+        "api_recheck_count": api_recheck,
+        "total_recheck_count": category_recheck + edit_page_recheck + api_recheck,
+        "match_rule_count": sum(len(profile.get("match", [])) for profile in profiles if isinstance(profile, dict) and isinstance(profile.get("match"), list)),
+        "profile_labels": [
+            str(item.get("label") or item.get("id") or "category_profile")
+            for item in profile_source
+            if isinstance(item, dict)
+        ][:5],
+    }
+
+
+def _count_gap_items(items: object) -> int:
+    return len(items) if isinstance(items, list) else 0
+
+
+def _count_fields_by_state(fields: list[dict], state: str) -> int:
+    return len([field for field in fields if field.get("evidence_state") == state])
 
 
 def _enrich_platform_field_groups(schemas: dict, field_dictionary: dict) -> dict:

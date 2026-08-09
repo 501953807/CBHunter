@@ -63,6 +63,7 @@ export default function PlatformSettingsPage() {
   const displayPlatforms = platforms.filter((p) => p.credential_fields?.length)
   const currentPlatform = displayPlatforms.find((p) => p.id === showConnect)
   const authorizationAccount = accounts.find((item) => item.id === authorizationAccountId)
+  const authorizationSummary = buildPlatformAuthorizationSummary(displayPlatforms, accounts, statuses)
 
   const getPlatformAccounts = (platform: string) =>
     accounts.filter((a) => a.platform === platform)
@@ -141,6 +142,51 @@ export default function PlatformSettingsPage() {
         <p className="text-sm text-[var(--color-muted)] mt-1">管理店铺凭证配置与真实 Open API 接入状态</p>
       </div>
       <EvidenceBanner evidence={statusData || platformsData} />
+      <div
+        className="rounded-xl border p-4"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+        data-ui="platform-authorization-governance-summary"
+        aria-label="平台授权治理摘要"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-fg)]">平台、店铺与授权治理摘要</h2>
+            <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+              这里只统计已保存店铺、凭证状态、OAuth 授权状态和同步就绪状态；API Key 不等同于店铺授权，未授权不会显示同步或发布成功。
+            </p>
+          </div>
+          <Badge variant={authorizationSummary.syncReadyCount ? 'success' : 'warning'}>
+            {authorizationSummary.syncReadyCount ? '已有可同步店铺' : '授权待补齐'}
+          </Badge>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+          <PlatformAuthorizationMetric label="平台入口" value={authorizationSummary.platformEntryCount} />
+          <PlatformAuthorizationMetric label="店铺配置" value={authorizationSummary.accountCount} />
+          <PlatformAuthorizationMetric label="凭证完整" value={authorizationSummary.credentialsStoredCount} />
+          <PlatformAuthorizationMetric label="已授权" value={authorizationSummary.authorizedCount} tone={authorizationSummary.authorizedCount ? 'success' : 'warning'} />
+          <PlatformAuthorizationMetric label="权限缺口" value={authorizationSummary.authorizationGapCount} tone={authorizationSummary.authorizationGapCount ? 'warning' : 'success'} />
+          <PlatformAuthorizationMetric label="可同步" value={authorizationSummary.syncReadyCount} tone={authorizationSummary.syncReadyCount ? 'success' : 'warning'} />
+        </div>
+        <div className="mt-3 grid gap-2 text-[11px] md:grid-cols-3">
+          {authorizationSummary.platformSummaries.map(item => (
+            <button
+              type="button"
+              key={item.platform}
+              onClick={() => setShowConnect(item.accountCount ? null : item.platform)}
+              className="rounded-lg border px-3 py-2 text-left"
+              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
+            >
+              <p className="font-medium text-[var(--color-fg)]">{item.label}</p>
+              <p className="mt-1 text-[var(--color-muted)]">
+                店铺 {item.accountCount} · 已授权 {item.authorizedCount} · 可同步 {item.syncReadyCount}
+              </p>
+              <p className={item.authorizationGapCount ? 'mt-1 text-[var(--color-warning)]' : 'mt-1 text-[var(--color-success)]'}>
+                {item.authorizationGapCount ? `授权缺口 ${item.authorizationGapCount}` : '当前无授权缺口'}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4">
         {displayPlatforms.map((platform) => {
@@ -357,6 +403,53 @@ function authorizationStatusLabel(status?: string | null) {
   if (status === 'expired') return '令牌过期'
   if (status === 'scope_insufficient') return '权限不足'
   return '待店铺授权'
+}
+
+function buildPlatformAuthorizationSummary(
+  platforms: Array<{ id: string; label: string }>,
+  accounts: Array<{ id: string; platform: string }>,
+  statuses: PlatformIntegrationStatus[],
+) {
+  const statusByAccount = new Map(statuses.map(status => [status.account_id, status]))
+  const platformSummaries = platforms.map(platform => {
+    const platformAccounts = accounts.filter(account => account.platform === platform.id)
+    const platformStatuses = platformAccounts.map(account => statusByAccount.get(account.id)).filter((item): item is PlatformIntegrationStatus => Boolean(item))
+    return {
+      platform: platform.id,
+      label: platform.label,
+      accountCount: platformAccounts.length,
+      authorizedCount: platformStatuses.filter(isAuthorizedStatus).length,
+      syncReadyCount: platformStatuses.filter(status => status.sync_ready).length,
+      authorizationGapCount: platformAccounts.length - platformStatuses.filter(isAuthorizedStatus).length,
+    }
+  })
+  return {
+    platformEntryCount: platforms.length,
+    accountCount: accounts.length,
+    credentialsStoredCount: statuses.filter(status => status.credentials_stored).length,
+    authorizedCount: statuses.filter(isAuthorizedStatus).length,
+    authorizationGapCount: statuses.filter(status => !isAuthorizedStatus(status)).length + Math.max(0, accounts.length - statuses.length),
+    syncReadyCount: statuses.filter(status => status.sync_ready).length,
+    platformSummaries,
+  }
+}
+
+function isAuthorizedStatus(status?: PlatformIntegrationStatus) {
+  return status?.authorization_status === 'authorized'
+}
+
+function PlatformAuthorizationMetric({ label, value, tone }: { label: string; value: number; tone?: 'success' | 'warning' }) {
+  const color = tone === 'success'
+    ? 'var(--color-success)'
+    : tone === 'warning'
+      ? 'var(--color-warning)'
+      : 'var(--color-fg)'
+  return (
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+      <div className="text-[11px] text-[var(--color-muted)]">{label}</div>
+      <div className="mt-1 text-base font-semibold" style={{ color }}>{value}</div>
+    </div>
+  )
 }
 
 function platformGuide(platformId: string) {
