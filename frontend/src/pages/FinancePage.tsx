@@ -181,10 +181,11 @@ export default function FinancePage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-fg)]">财务护卫</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>利润汇总 · 资金监控 · 风险预警</p>
+    <div className="finance-shell space-y-6 page-enter">
+      <div className="finance-hero rounded-[var(--radius-2xl)] px-5 py-5">
+        <p className="luxury-section-kicker">finance guard</p>
+        <h1 className="luxury-page-title mt-1">财务利润</h1>
+        <p className="luxury-page-description mt-2">按平台、店铺、市场统一查看收入、成本、净利润、资金余额、账单同步、利润回溯和资金风险。</p>
       </div>
       <StoreContextBanner
         platformAccountId={platformAccountId}
@@ -198,7 +199,7 @@ export default function FinancePage() {
       {financeSummaryQuery.isError && (
         <div
           data-ui="finance-summary-error"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+          className="finance-error-panel flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3 py-2 text-xs"
         >
           <span className="text-[var(--color-danger)]">财务汇总加载失败，当前收入、成本、净利润和资金余额暂不可用。</span>
           <button
@@ -213,7 +214,7 @@ export default function FinancePage() {
 
       {/* Profit Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="finance-summary-card" data-tone="revenue">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>总收入</p>
@@ -225,7 +226,7 @@ export default function FinancePage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="finance-summary-card" data-tone="cost">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>总成本</p>
@@ -235,7 +236,7 @@ export default function FinancePage() {
             <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{summary?.entry_count ? '来自财务台账' : '待录入采购、物流、平台费台账'}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="finance-summary-card" data-tone="profit">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>净利润</p>
@@ -248,7 +249,7 @@ export default function FinancePage() {
           </CardContent>
         </Card>
         {/* Cash Flow Monitoring - Key V3.0 feature */}
-        <Card className="border-2" style={{ borderColor: 'var(--color-border)' }}>
+        <Card className="finance-summary-card" data-tone="cash">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>可用资金</p>
@@ -268,14 +269,14 @@ export default function FinancePage() {
         hasData={Boolean(summary?.entry_count)}
       />
 
-      <Card>
+      <Card className="finance-panel">
         <CardHeader>
           <h2 className="font-semibold text-[var(--color-fg)]">统计日期区间财务结构</h2>
         </CardHeader>
         <CardContent>
           {summary?.entry_count ? (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div className="finance-structure-card rounded-[var(--radius-xl)] p-3">
                 <p className="mb-2 text-xs text-[var(--color-muted)]">收入 / 成本 / 净利润</p>
                 {[
                   ['收入', totalRevenue, 'var(--color-success)'],
@@ -287,17 +288,17 @@ export default function FinancePage() {
                   return (
                     <div key={label as string} className="mb-2">
                       <div className="mb-1 flex justify-between text-xs"><span className="text-[var(--color-muted)]">{label as string}</span><span className="text-[var(--color-fg)]">{typeof value === 'number' ? `¥${value.toFixed(2)}` : '--'}</span></div>
-                      <div className="h-2 rounded-full bg-[var(--color-border)]"><div className="h-full rounded-full" style={{ width: `${Math.max((numeric / maxValue) * 100, numeric > 0 ? 4 : 0)}%`, background: color as string }} /></div>
+                      <div className="h-2 rounded-full bg-[var(--color-border)]"><div className="h-full rounded-full transition-all" style={{ width: `${Math.max((numeric / maxValue) * 100, numeric > 0 ? 4 : 0)}%`, background: color as string }} /></div>
                     </div>
                   )
                 })}
               </div>
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div className="finance-structure-card rounded-[var(--radius-xl)] p-3">
                 <p className="mb-2 text-xs text-[var(--color-muted)]">成本拆分</p>
                 {Object.entries(costBreakdown).filter(([, value]) => Number(value || 0) > 0).length === 0 ? (
-                  <p className="py-6 text-center text-xs text-[var(--color-muted)]">当前筛选范围未形成可拆分成本台账</p>
+                  <p className="finance-empty-panel rounded-[var(--radius-lg)] py-6 text-center text-xs text-[var(--color-muted)]">当前筛选范围未形成可拆分成本台账</p>
                 ) : Object.entries(costBreakdown).filter(([, value]) => Number(value || 0) > 0).map(([key, value]) => (
-                  <div key={key} className="mb-2 flex items-center justify-between rounded-lg bg-[var(--color-surface)] px-3 py-2 text-xs">
+                  <div key={key} className="finance-mini-tile mb-2 flex items-center justify-between rounded-[var(--radius-md)] px-3 py-2 text-xs">
                     <span className="text-[var(--color-muted)]">{key}</span>
                     <span className="font-medium text-[var(--color-fg)]">¥{Number(value).toFixed(2)}</span>
                   </div>
@@ -305,12 +306,12 @@ export default function FinancePage() {
               </div>
             </div>
           ) : (
-            <p className="rounded-xl border border-dashed border-[var(--color-border)] p-6 text-center text-sm text-[var(--color-muted)]">当前{PERIOD_TABS.find(item => item.id === period)?.label}没有真实财务台账，图表保持空态；请先补录收入、采购、物流或平台费。</p>
+            <p className="finance-empty-panel rounded-[var(--radius-xl)] p-6 text-center text-sm text-[var(--color-muted)]">当前{PERIOD_TABS.find(item => item.id === period)?.label}没有真实财务台账，图表保持空态；请先补录收入、采购、物流或平台费。</p>
           )}
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="finance-panel">
         <CardHeader>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[var(--color-primary)]" />
@@ -323,7 +324,7 @@ export default function FinancePage() {
           {financeTracebackQuery.isError && (
             <div
               data-ui="finance-traceback-error"
-              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+              className="finance-error-panel mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3 py-2 text-xs"
             >
               <span className="text-[var(--color-danger)]">利润回溯加载失败，当前订单、商品和店铺利润拆解暂不可用。</span>
               <button
@@ -344,7 +345,7 @@ export default function FinancePage() {
               ['结算流动', formatMoney(traceback?.summary.settlement_movement_rmb ?? 0)],
               ['对象数', `${traceback?.summary.order_count ?? 0}单 / ${traceback?.summary.product_count ?? 0}品 / ${traceback?.summary.store_count ?? 0}店`],
             ].map(([label, value]) => (
-              <div key={label as string} className="rounded-xl bg-[var(--color-bg)] p-3">
+              <div key={label as string} className="finance-mini-tile rounded-[var(--radius-lg)] p-3">
                 <p className="text-[11px] text-[var(--color-muted)]">{label as string}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--color-fg)]">{value as string}</p>
               </div>
@@ -393,12 +394,12 @@ export default function FinancePage() {
         initialPlatformAccountId={platformAccountId}
       />
       {isCashBalancePrefill && (
-        <p className="rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-4 py-3 text-xs text-[var(--color-primary)]">
+        <p className="finance-input-panel rounded-[var(--radius-xl)] px-4 py-3 text-xs text-[var(--color-primary)]">
           当前已定位到“补录资金余额”场景，真实台账补录表单已预填 entry_type=cash_balance；请录入对应平台店铺钱包或公司现金余额。
         </p>
       )}
 
-      <Card>
+      <Card className="finance-bill-panel">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Banknote className="w-4 h-4 text-[var(--color-primary)]" />
@@ -414,16 +415,16 @@ export default function FinancePage() {
               value={billImportText}
               onChange={(event) => setBillImportText(event.target.value)}
               placeholder='粘贴 JSON 数组：每条记录至少包含 entry_type、amount_rmb，可附带 import_ref、order_id、platform、market、account_name、product_name。'
-              className="min-h-[132px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
+              className="luxury-input min-h-[132px] rounded-[var(--radius-xl)] p-3 text-xs"
             />
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
+            <div className="finance-input-panel rounded-[var(--radius-xl)] p-3 text-xs text-[var(--color-muted)]">
               <p className="font-medium text-[var(--color-fg)]">导入口径</p>
               <ul className="mt-2 space-y-1">
                 <li>1. import_ref 用于去重，重复账单不会再次入账。</li>
                 <li>2. order_id、sourcing_item_id、account_name 用于订单、商品、店铺利润回溯。</li>
                 <li>3. entry_type 支持平台费、交易费、退款、提现、供应商付款和物流成本。</li>
               </ul>
-              <div className="mt-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+              <div className="finance-empty-panel mt-3 rounded-[var(--radius-lg)] p-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] font-medium text-[var(--color-fg)]">平台账单 JSON 示例</p>
                   <button
@@ -434,16 +435,16 @@ export default function FinancePage() {
                     一键填入示例
                   </button>
                 </div>
-                <pre className="mt-2 max-h-24 overflow-auto rounded bg-[var(--color-bg)] p-2 text-[10px] leading-relaxed text-[var(--color-muted)]">
+                <pre className="finance-code-preview mt-2 max-h-24 overflow-auto rounded-[var(--radius-md)] p-2 text-[10px] leading-relaxed">
                   {PLATFORM_BILL_JSON_EXAMPLE}
                 </pre>
               </div>
-              <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
+              <div className="finance-input-panel mt-4 rounded-[var(--radius-lg)] p-2">
                 <p className="text-[11px] font-medium text-[var(--color-fg)]">Open API 同步</p>
                 <select
                   value={billSyncAccountId}
                   onChange={(event) => setBillSyncAccountId(event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
+                  className="luxury-select mt-2 w-full rounded-[var(--radius-lg)] px-2 py-1.5 text-xs"
                 >
                   <option value="">选择平台店铺</option>
                   {platformStatuses.map((item) => (
@@ -461,7 +462,7 @@ export default function FinancePage() {
                   {billSyncing ? '同步中...' : '同步平台账单 Open API'}
                 </button>
                 {billSyncMessage && (
-                  <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-[11px] text-[var(--color-fg)]">
+                  <p className="finance-mini-tile mt-2 rounded-[var(--radius-lg)] px-2 py-1.5 text-[11px] text-[var(--color-fg)]">
                     {billSyncMessage}
                   </p>
                 )}
@@ -475,7 +476,7 @@ export default function FinancePage() {
                 {billImporting ? '导入中...' : '导入平台账单'}
               </button>
               {billImportMessage && (
-                <p className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-fg)]">
+                <p className="finance-mini-tile mt-3 rounded-[var(--radius-lg)] px-3 py-2 text-[var(--color-fg)]">
                   {billImportMessage}
                 </p>
               )}
@@ -484,7 +485,7 @@ export default function FinancePage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="finance-settlement-panel">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Wallet className="w-4 h-4 text-[var(--color-primary)]" />
@@ -494,12 +495,12 @@ export default function FinancePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <div className="finance-settlement-card rounded-[var(--radius-xl)] p-3">
               <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">店铺钱包</p>
               {settlement?.wallet_balances?.length ? (
                 <div className="space-y-2">
                   {settlement.wallet_balances.map((wallet) => (
-                    <div key={wallet.source_entry_id} className="rounded-lg bg-[var(--color-surface)] p-3 text-xs">
+                    <div key={wallet.source_entry_id} className="finance-mini-tile rounded-[var(--radius-lg)] p-3 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-[var(--color-fg)]">{wallet.account_name || [labelFor(platforms || [], wallet.platform), labelFor(markets || [], wallet.market)].filter(Boolean).join(' / ') || '平台钱包'}</span>
                         <span className="text-[var(--color-primary)]">{formatMoney(wallet.amount_rmb)}</span>
@@ -511,34 +512,34 @@ export default function FinancePage() {
                   ))}
                 </div>
               ) : (
-                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">尚未录入或同步平台钱包余额。</p>
+                <p className="finance-empty-panel rounded-[var(--radius-lg)] p-4 text-center text-xs text-[var(--color-muted)]">尚未录入或同步平台钱包余额。</p>
               )}
             </div>
 
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <div className="finance-settlement-card rounded-[var(--radius-xl)] p-3">
               <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">提现/付款/费用</p>
               {movementTotals.length ? (
                 <div className="space-y-2">
                   {movementTotals.map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between rounded-lg bg-[var(--color-surface)] px-3 py-2 text-xs">
+                    <div key={key} className="finance-mini-tile flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-xs">
                       <span className="text-[var(--color-muted)]">{financeEntryLabel(finance_entry_types || [], key)}</span>
                       <span className="font-medium text-[var(--color-fg)]">{formatMoney(Number(value))}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">尚未录入提现、付款或平台费用流水。</p>
+                <p className="finance-empty-panel rounded-[var(--radius-lg)] p-4 text-center text-xs text-[var(--color-muted)]">尚未录入提现、付款或平台费用流水。</p>
               )}
             </div>
 
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <div className="finance-settlement-card rounded-[var(--radius-xl)] p-3">
               <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">订单对账</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-[var(--color-surface)] p-3">
+                <div className="finance-mini-tile rounded-[var(--radius-lg)] p-3">
                   <p className="text-[11px] text-[var(--color-muted)]">已关联订单</p>
                   <p className="mt-1 text-lg font-semibold text-[var(--color-fg)]">{settlement?.order_reconciliation?.linked_order_count ?? 0}</p>
                 </div>
-                <div className="rounded-lg bg-[var(--color-surface)] p-3">
+                <div className="finance-mini-tile rounded-[var(--radius-lg)] p-3">
                   <p className="text-[11px] text-[var(--color-muted)]">账单流水</p>
                   <p className="mt-1 text-lg font-semibold text-[var(--color-fg)]">{settlement?.order_reconciliation?.linked_entry_count ?? 0}</p>
                 </div>
@@ -551,7 +552,7 @@ export default function FinancePage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="finance-risk-panel">
         <CardHeader>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[var(--color-primary)]" />
@@ -563,7 +564,7 @@ export default function FinancePage() {
             {(dataRisks.length ? dataRisks : [
               { level: 'info', title: '台账数据完整', detail: '当前筛选范围收入、成本和资金余额已具备基础判断条件。', action_label: '查看财务台账', action_route: '/finance#finance-ledger' },
             ]).map((risk, i) => (
-              <div key={i} className={`rounded-xl p-3 border text-sm ${
+              <div key={i} className={`finance-risk-card rounded-[var(--radius-xl)] p-3 text-sm ${
                 risk.level === 'medium' ? 'border-[var(--color-warning)] bg-[var(--color-warning-light)]' :
                 risk.level === 'high' ? 'border-[var(--color-danger)] bg-[var(--color-danger-light)]' :
                 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
@@ -622,7 +623,7 @@ function FinanceTrendSnapshot({
     .join(' ')
 
   return (
-    <Card>
+    <Card className="finance-panel">
       <CardHeader>
         <h2 className="font-semibold text-[var(--color-fg)]">财务趋势快照</h2>
         <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -632,7 +633,7 @@ function FinanceTrendSnapshot({
       <CardContent>
         {hasData ? (
           <div data-ui="finance-trend-chart" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <div className="finance-chart-panel rounded-[var(--radius-xl)] p-3">
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="财务趋势快照图" className="h-44 w-full overflow-visible">
                 {[0, 1, 2, 3].map((line) => (
                   <line key={line} x1="0" x2={chartWidth} y1={20 + line * 34} y2={20 + line * 34} stroke="var(--color-border)" strokeDasharray="4 6" />
@@ -654,20 +655,20 @@ function FinanceTrendSnapshot({
             </div>
             <div className="space-y-2">
               {points.map(point => (
-                <div key={point.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                <div key={point.label} className="finance-structure-card rounded-[var(--radius-xl)] p-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-[var(--color-fg)]">{point.label}</span>
                     <span style={{ color: point.tone }}>{formatMoney(point.value)}</span>
                   </div>
                   <div className="mt-2 h-1.5 rounded-full bg-[var(--color-border)]">
-                    <div className="h-full rounded-full" style={{ width: `${Math.max(Math.abs(point.value) / maxAbs * 100, point.value ? 4 : 0)}%`, background: point.tone }} />
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(Math.abs(point.value) / maxAbs * 100, point.value ? 4 : 0)}%`, background: point.tone }} />
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-sm text-[var(--color-muted)]">
+          <p className="finance-empty-panel rounded-[var(--radius-xl)] p-5 text-center text-sm text-[var(--color-muted)]">
             暂无真实财务台账，收入趋势、成本趋势、利润趋势和资金趋势不展示模拟数据。
           </p>
         )}
@@ -688,14 +689,14 @@ type TracebackRow = {
 
 function TracebackColumn({ title, empty, rows }: { title: string; empty: string; rows: TracebackRow[] }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div className="finance-traceback-card rounded-[var(--radius-xl)] p-3">
       <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">{title}</p>
       {rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">{empty}</p>
+        <p className="finance-empty-panel rounded-[var(--radius-lg)] p-4 text-center text-xs text-[var(--color-muted)]">{empty}</p>
       ) : (
         <div className="space-y-2">
           {rows.map((row) => (
-            <div key={row.id} className="rounded-lg bg-[var(--color-surface)] p-3 text-xs">
+            <div key={row.id} className="finance-mini-tile rounded-[var(--radius-lg)] p-3 text-xs">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-medium text-[var(--color-fg)]">{row.title}</p>

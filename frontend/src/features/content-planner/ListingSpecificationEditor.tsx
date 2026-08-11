@@ -301,7 +301,7 @@ export function ListingSpecificationEditor({
     <section
       aria-label="Listing SKU 属性物流合规工作台"
       data-ui="listing-spec-editor-seller-console"
-      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+      className="listing-spec-workbench overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
     >
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">

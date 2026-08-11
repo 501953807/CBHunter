@@ -16,9 +16,9 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
       : '立即发布计划'
   const blockedResults = result.results.filter(item => item.publish_status !== 'draft' || item.blocking_reasons?.length || item.error)
   return (
-    <Card>
+    <Card className="batch-publish-result-panel">
       <CardContent className="space-y-4 pt-4">
-        <div className="flex flex-wrap items-start gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+        <div className="batch-publish-result-hero flex flex-wrap items-start gap-4 rounded-[var(--radius-xl)] border border-[var(--color-hairline)] p-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-success-light)]">
             <Check className="h-7 w-7 text-[var(--color-success)]" />
           </div>
@@ -39,13 +39,13 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
               </span>
             </div>
           </div>
-            <button onClick={onReset} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)]">
+            <button onClick={onReset} className="rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)] transition hover:-translate-y-0.5">
               继续创建
             </button>
           </div>
         {blockedResults.length > 0 && (
           <section
-            className="rounded-xl border border-[var(--color-warning-light)] bg-[var(--color-warning-light)] p-4"
+            className="batch-publish-warning-panel rounded-[var(--radius-xl)] p-4"
             aria-label="发布失败与重试处理队列"
             data-ui="publish-result-retry-action-panel"
           >
@@ -54,7 +54,7 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
                 <h3 className="font-semibold text-[var(--color-warning)]">发布失败 / 跳过处理队列</h3>
                 <p className="mt-1 text-xs text-[var(--color-warning)]">逐条回写阻断原因，先补内容、补字段或补定价，再返回本页重新生成发布计划。</p>
               </div>
-              <button onClick={onReset} className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-warning)] px-3 py-2 text-xs font-medium text-[var(--color-warning)]">
+              <button onClick={onReset} className="inline-flex items-center gap-1 rounded-full border border-[var(--color-warning)] px-3 py-2 text-xs font-medium text-[var(--color-warning)] transition hover:-translate-y-0.5">
                 <RotateCcw className="h-3.5 w-3.5" /> 返回重选重试
               </button>
             </div>
@@ -65,7 +65,7 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
             </div>
           </section>
         )}
-        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="草稿结果明细" data-ui="publish-result-receipt-status-table">
+        <section className="batch-publish-result-panel rounded-[var(--radius-xl)] p-4" aria-label="草稿结果明细" data-ui="publish-result-receipt-status-table">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-semibold text-[var(--color-fg)]">草稿结果明细</h3>
@@ -88,7 +88,7 @@ export function BatchPublishResultStep({ result, onReset }: Props) {
               </thead>
               <tbody>
                 {result.results.map((item, index) => (
-                  <tr key={item.listing_id || `${item.platform}-${item.product_name}-${index}`} className="border-t border-[var(--color-border)] align-top">
+                  <tr key={item.listing_id || `${item.platform}-${item.product_name}-${index}`} className="batch-publish-result-row border-t border-[var(--color-border)] align-top">
                     <td className="px-3 py-3">
                       <p className="font-medium text-[var(--color-fg)]">{item.template_title || item.product_name || '未命名 Listing'}</p>
                       <p className="mt-1 text-[11px] text-[var(--color-muted)]">商品 {item.product_id || item.source_product_id || '待关联'} · 草稿 {item.listing_id || '未创建'}</p>
@@ -145,7 +145,7 @@ function PublishReceiptSummary({ item }: { item: BatchPublishResponse['results']
 function FailureActionCard({ item }: { item: BatchPublishResponse['results'][number] }) {
   const reasons = item.blocking_reasons?.length ? item.blocking_reasons : [item.error || '平台返回或本地校验未通过']
   return (
-    <div className="rounded-lg border border-[var(--color-warning)] bg-[var(--color-surface)] p-3" aria-label="发布失败原因卡片">
+    <div className="batch-publish-gate-card rounded-[var(--radius-lg)] border p-3" aria-label="发布失败原因卡片" data-ok="false">
       <p className="line-clamp-2 text-sm font-semibold text-[var(--color-fg)]">{item.template_title || item.product_name || '未命名 Listing'}</p>
       <p className="mt-1 text-xs text-[var(--color-muted)]">{item.platform} / {item.store?.account_name || item.market_label || item.market}</p>
       <ul className="mt-2 space-y-1 text-xs text-[var(--color-warning)]">

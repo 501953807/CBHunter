@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Copy, Image, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import { PageHeader } from '../../components/shared/PageHeader'
 import { Card, CardContent } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { useConfirm } from '../../components/ui/ConfirmDialog'
@@ -184,43 +183,54 @@ export default function ListingTemplatesWorkspace() {
   }
 
   return (
-    <div className="space-y-6 page-enter" data-ui="image-watermark-template-workspace">
-      <PageHeader
-        title="图片/水印模板"
-        description="参考妙手 ERP 营销水印：管理主图水印、系统模板、投放范围和追加投放，不再作为 Listing 文案模板入口。"
-        actions={<Button onClick={startCreate}><Plus className="mr-1 h-4 w-4" />创建水印</Button>}
-      />
+    <div className="listing-templates-shell page-enter" data-ui="image-watermark-template-workspace">
+      <section className="listing-templates-hero p-5" aria-label="图片水印模板工作台标题区">
+        <div className="listing-templates-hero-content">
+          <div>
+            <p className="listing-templates-eyebrow">Image Watermark Studio</p>
+            <h1 className="listing-templates-title">图片/水印模板</h1>
+            <p className="listing-templates-subtitle">
+              参考妙手 ERP 营销水印：管理主图水印、系统模板、投放范围和追加投放，不再作为 Listing 文案模板入口。
+            </p>
+          </div>
+          <Button onClick={startCreate}><Plus className="mr-1 h-4 w-4" />创建水印</Button>
+        </div>
+      </section>
       <EvidenceBanner evidence={evidence} />
       <WatermarkGovernancePanel summary={governanceSummary} />
 
-      <Card>
+      <Card className="listing-templates-workbench-card">
         <CardContent className="space-y-4 pt-4">
-          <div className="flex flex-wrap items-center gap-2" aria-label="水印模板筛选工具条" data-ui="watermark-template-filter-toolbar">
-            <div className="flex w-full flex-wrap items-center gap-2">
+          <div className="listing-templates-filter-toolbar" aria-label="水印模板筛选工具条" data-ui="watermark-template-filter-toolbar">
+            <div className="listing-templates-segment-row">
               {['我的主图水印', '系统水印模板'].map(label => (
                 <button
                   key={label}
                   type="button"
-                  className={label === '我的主图水印' ? 'rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-4 py-2 text-sm font-semibold text-[var(--color-primary)]' : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}
+                  className="listing-templates-segment"
+                  data-active={label === '我的主图水印' ? 'true' : 'false'}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+            <div className="listing-templates-scope-row">
+            <div className="listing-templates-search">
               <Search className="h-4 w-4 text-[var(--color-muted)]" />
-              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜水印 / 搜产品" className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)]" />
+              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜水印 / 搜产品" />
             </div>
             {[{ value: 'all', label: '全部水印' }, ...WATERMARK_SCOPES].map(item => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setScopeFilter(item.value)}
-                className={scopeFilter === item.value ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]' : 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}
+                className="listing-templates-scope-chip"
+                data-active={scopeFilter === item.value ? 'true' : 'false'}
               >
                 {item.label}
               </button>
             ))}
+            </div>
           </div>
 
           {loading ? (
@@ -233,40 +243,40 @@ export default function ListingTemplatesWorkspace() {
               action={<Button onClick={startCreate}><Plus className="mr-1 h-4 w-4" />创建水印</Button>}
             />
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]" data-ui="watermark-template-console-table">
-              <table className="w-full min-w-[980px] text-left text-xs">
-                <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
+            <div className="listing-templates-table-shell" data-ui="watermark-template-console-table">
+              <table className="listing-templates-table">
+                <thead>
                   <tr>
-                    {['水印信息', '使用范围', '水印状态', '定时添加', '适用平台', '操作'].map(header => <th key={header} className="border-b border-[var(--color-border)] px-3 py-2">{header}</th>)}
+                    {['水印信息', '使用范围', '水印状态', '定时添加', '适用平台', '操作'].map(header => <th key={header}>{header}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTemplates.map(template => {
                     const wm = toWatermarkDraft(template)
                     return (
-                      <tr key={template.id} className="border-b border-[var(--color-border)] align-top hover:bg-[var(--color-bg)]">
-                        <td className="px-3 py-3">
+                      <tr key={template.id}>
+                        <td>
                           <p className="font-semibold text-[var(--color-fg)]">{template.name}</p>
                           <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{template.description || '无备注'}</p>
                           <p className="mt-1 text-[11px] text-[var(--color-muted)]">文字：{wm.text || '图片/品牌图层待配置'}</p>
                         </td>
-                        <td className="px-3 py-3 text-[var(--color-muted)]">{labelOf(WATERMARK_SCOPES, wm.scope)}</td>
-                        <td className="px-3 py-3">
-                          <div className="grid gap-1 text-[11px]">
+                        <td className="text-[var(--color-muted)]">{labelOf(WATERMARK_SCOPES, wm.scope)}</td>
+                        <td>
+                          <div className="listing-templates-status-stack">
                             <span className="text-[var(--color-success)]">成功：0 个</span>
                             <span className="text-[var(--color-danger)]">失败：0 个</span>
                             <span className="text-[var(--color-warning)]">处理中：0 个</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-[var(--color-muted)]">{wm.scheduleMode === 'scheduled' ? '已配置' : '0 个'}</td>
-                        <td className="px-3 py-3 text-[var(--color-muted)]">{template.platform}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <button type="button" onClick={() => startEdit(template)} className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-primary)] hover:border-[var(--color-primary)]"><Pencil className="mr-1 inline h-3.5 w-3.5" />编辑水印</button>
-                            <button type="button" className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)] hover:border-[var(--color-primary)]"><Copy className="mr-1 inline h-3.5 w-3.5" />复制水印</button>
-                            <button type="button" className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)] hover:border-[var(--color-primary)]">投放详情</button>
-                            <button type="button" className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-muted)] hover:border-[var(--color-primary)]">追加投放</button>
-                            <button type="button" onClick={() => remove(template)} className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[var(--color-danger)] hover:border-[var(--color-danger)]"><Trash2 className="mr-1 inline h-3.5 w-3.5" />删除水印</button>
+                        <td className="text-[var(--color-muted)]">{wm.scheduleMode === 'scheduled' ? '已配置' : '0 个'}</td>
+                        <td className="text-[var(--color-muted)]">{template.platform}</td>
+                        <td>
+                          <div className="listing-templates-row-actions">
+                            <button type="button" onClick={() => startEdit(template)} className="listing-templates-row-action" data-tone="primary"><Pencil className="mr-1 inline h-3.5 w-3.5" />编辑水印</button>
+                            <button type="button" className="listing-templates-row-action"><Copy className="mr-1 inline h-3.5 w-3.5" />复制水印</button>
+                            <button type="button" className="listing-templates-row-action">投放详情</button>
+                            <button type="button" className="listing-templates-row-action">追加投放</button>
+                            <button type="button" onClick={() => remove(template)} className="listing-templates-row-action" data-tone="danger"><Trash2 className="mr-1 inline h-3.5 w-3.5" />删除水印</button>
                           </div>
                         </td>
                       </tr>
@@ -298,9 +308,9 @@ export default function ListingTemplatesWorkspace() {
             <input type="checkbox" checked={draft.isDefault} onChange={event => setDraft({ ...draft, isDefault: event.target.checked })} />
             设为该平台默认水印模板
           </label>
-          <section aria-label="营销水印预览占位" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+          <section aria-label="营销水印预览占位" className="listing-templates-preview-panel">
             <p className="text-sm font-semibold text-[var(--color-fg)]">主图水印预览</p>
-            <div className="mt-3 grid aspect-video place-items-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-muted)]">
+            <div className="listing-templates-preview-canvas mt-3">
               后续接入 fabric.js / cropperjs 后在此预览真实主图、水印位置、透明度和导出效果。
             </div>
           </section>
@@ -312,12 +322,12 @@ export default function ListingTemplatesWorkspace() {
 
 function WatermarkGovernancePanel({ summary }: { summary: WatermarkGovernanceSummary }) {
   return (
-    <section data-ui="watermark-template-governance-summary" className="grid gap-3 md:grid-cols-4">
+    <section data-ui="watermark-template-governance-summary" className="listing-templates-governance-grid">
       <WatermarkMetric label="水印模板" value={summary.templateCount} note={`默认模板 ${summary.defaultTemplateCount} 个`} />
       <WatermarkMetric label="平台覆盖" value={summary.platformCount} note={summary.platformLabels} />
       <WatermarkMetric label="投放规则" value={summary.scheduledCount} note={`定时投放 ${summary.scheduledCount} · 指定商品 ${summary.scopedProductCount}`} />
       <WatermarkMetric label="内容工厂可用" value={summary.contentFactoryReadyCount} note="有文字或品牌图层说明的模板可被图片工作台应用" />
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:col-span-4">
+      <div className="listing-templates-boundary-panel md:col-span-4">
         <p className="text-xs font-semibold text-[var(--color-fg)]">水印运行边界</p>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{summary.runtimeBoundary}</p>
       </div>
@@ -327,10 +337,10 @@ function WatermarkGovernancePanel({ summary }: { summary: WatermarkGovernanceSum
 
 function WatermarkMetric({ label, value, note }: { label: string; value: string | number; note: string }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <p className="text-xs text-[var(--color-muted)]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-[var(--color-fg)]">{value}</p>
-      <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">{note || '待配置'}</p>
+    <div className="listing-templates-metric-card">
+      <p className="listing-templates-metric-label">{label}</p>
+      <p className="listing-templates-metric-value">{value}</p>
+      <p className="listing-templates-metric-note line-clamp-2">{note || '待配置'}</p>
     </div>
   )
 }

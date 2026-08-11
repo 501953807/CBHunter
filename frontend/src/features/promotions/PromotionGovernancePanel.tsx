@@ -11,20 +11,20 @@ export function PromotionGovernancePanel({ summary }: { summary: PromotionGovern
     .map(([type, count]) => `${promotionTypeLabel(type)} ${count}`)
     .join(' / ') || '暂无活动类型'
   return (
-    <section data-ui="promotion-governance-summary" className="grid gap-3 md:grid-cols-4">
+    <section data-ui="promotion-governance-summary" className="promotions-governance-grid">
       <PromotionGovernanceMetric label="活动对象" value={summary.campaign_count} note={`平台 ${summary.platform_count} · 店铺 ${summary.store_count}`} />
       <PromotionGovernanceMetric label="参与商品" value={summary.participating_item_count} note={`已定价 ${summary.priced_item_count} 个`} />
       <PromotionGovernanceMetric label="预计让利" value={formatMoney(summary.discount_amount_total)} note="只按活动明细计算，不代表平台成交" />
       <PromotionGovernanceMetric label="同步缺口" value={summary.platform_sync_gap_count} note={summary.next_action} tone={summary.platform_sync_gap_count > 0 ? 'warning' : 'success'} />
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:col-span-2">
+      <div className="promotions-governance-card md:col-span-2">
         <p className="text-xs font-semibold text-[var(--color-fg)]">平台/店铺活动分布</p>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{platformText}</p>
       </div>
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="promotions-governance-card">
         <p className="text-xs font-semibold text-[var(--color-fg)]">活动类型</p>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{typeText}</p>
       </div>
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="promotions-governance-card">
         <p className="text-xs font-semibold text-[var(--color-fg)]">活动状态与运行边界</p>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{statusText}</p>
         <p className="mt-1 text-[11px] text-[var(--color-muted)]">{summary.runtime_boundary}</p>
@@ -46,7 +46,7 @@ function PromotionGovernanceMetric({
 }) {
   const color = tone === 'success' ? 'var(--color-success)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="promotions-governance-card">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="mt-2 text-2xl font-semibold" style={{ color }}>{value}</p>
       <p className="mt-1 text-xs text-[var(--color-muted)]">{note}</p>

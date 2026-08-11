@@ -31,21 +31,26 @@ export function CockpitMetricStrip({ data, onNavigate }: { data: CockpitData; on
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 2xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6" data-ui="cockpit-v5-operating-metric-grid">
       {metrics.map((item) => (
         <button
           key={item.label}
           onClick={() => onNavigate(item.route)}
           title={`查看${item.label}明细`}
-          className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-light)]"
+          className="cockpit-metric-card group min-w-0 rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-4 py-3 text-left shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-md)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-light)]"
+          data-ui="cockpit-v5-operating-metric-card"
         >
-          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-muted)]">
-            <item.icon className="h-3.5 w-3.5" style={{ color: item.danger ? 'var(--color-danger)' : item.warning ? 'var(--color-warning)' : 'var(--color-primary)' }} />
-            <span>{item.label}</span>
-            {item.warning && <AlertTriangle className="h-3.5 w-3.5 text-[var(--color-warning)]" />}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--color-muted)]">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <span className="cockpit-metric-icon">
+                <item.icon className="h-3.5 w-3.5" style={{ color: item.danger ? 'var(--color-danger)' : item.warning ? 'var(--color-warning)' : 'var(--color-primary)' }} />
+              </span>
+              <span className="truncate font-semibold tracking-wide">{item.label}</span>
+            </span>
+            {item.warning && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-[var(--color-warning)]" />}
           </div>
-          <p className="mt-1 truncate text-base font-semibold" style={{ color: item.danger ? 'var(--color-danger)' : item.warning ? 'var(--color-warning)' : 'var(--color-fg)' }}>{item.value}</p>
-          <p className="mt-1 truncate text-[11px] text-[var(--color-muted)]">{item.sub}</p>
+          <p className="mt-3 truncate text-lg font-bold tracking-tight" style={{ color: item.danger ? 'var(--color-danger)' : item.warning ? 'var(--color-warning)' : 'var(--color-fg)' }}>{item.value}</p>
+          <p className="mt-1 truncate text-[11px] leading-5 text-[var(--color-muted)]">{item.sub}</p>
         </button>
       ))}
     </div>

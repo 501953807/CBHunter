@@ -1,0 +1,222 @@
+/* V5 Listing specification editor visuals. Presentation only; SKU/attribute save logic stays unchanged. */
+.listing-spec-workbench {
+  position: relative;
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface) 94%, var(--color-primary) 6%), var(--color-surface)),
+    var(--color-surface);
+  box-shadow: 0 18px 52px color-mix(in oklch, var(--color-fg) 9%, transparent);
+}
+
+.listing-spec-workbench::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 28%),
+    radial-gradient(circle at 92% 8%, color-mix(in oklch, var(--color-warning) 8%, transparent), transparent 24%);
+  opacity: .82;
+}
+
+.listing-spec-workbench > * {
+  position: relative;
+  z-index: 1;
+}
+
+.listing-spec-workbench > div:first-child {
+  background: color-mix(in oklch, var(--color-bg) 78%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.listing-spec-workbench > div:first-child h3 {
+  letter-spacing: -.02em;
+}
+
+.listing-spec-workbench [data-ui="spec-editor-section-nav"] {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: color-mix(in oklch, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.listing-spec-workbench [data-ui="spec-editor-section-nav"] button {
+  border-color: color-mix(in oklch, var(--color-border) 84%, transparent);
+  background: color-mix(in oklch, var(--color-bg) 82%, transparent);
+  font-weight: 760;
+  transition: transform .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.listing-spec-workbench [data-ui="spec-editor-section-nav"] button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary) 8%, var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.listing-spec-workbench [aria-label="SKU 变体草稿表"],
+.listing-spec-workbench [data-ui="sku-platform-readiness-checklist"],
+.listing-spec-workbench [aria-label="平台属性编辑工作台"],
+.listing-spec-workbench [aria-label="物流包装编辑区"],
+.listing-spec-workbench [aria-label="规格合规校验面板"] {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in oklch, var(--color-border) 84%, transparent);
+  background: color-mix(in oklch, var(--color-bg) 78%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.listing-spec-workbench [aria-label="SKU 变体草稿表"]::before,
+.listing-spec-workbench [data-ui="sku-platform-readiness-checklist"]::before,
+.listing-spec-workbench [aria-label="平台属性编辑工作台"]::before,
+.listing-spec-workbench [aria-label="物流包装编辑区"]::before,
+.listing-spec-workbench [aria-label="规格合规校验面板"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 72%, transparent), transparent);
+  opacity: .78;
+}
+
+.listing-spec-workbench [aria-label="SKU 变体草稿表"] > *,
+.listing-spec-workbench [data-ui="sku-platform-readiness-checklist"] > *,
+.listing-spec-workbench [aria-label="平台属性编辑工作台"] > *,
+.listing-spec-workbench [aria-label="物流包装编辑区"] > *,
+.listing-spec-workbench [aria-label="规格合规校验面板"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.listing-spec-workbench [data-ui="sku-bulk-edit-toolbar"] {
+  align-items: center;
+  border: 1px solid color-mix(in oklch, var(--color-border) 72%, transparent);
+  border-radius: 1rem;
+  padding: .45rem;
+  background: color-mix(in oklch, var(--color-surface) 74%, transparent);
+}
+
+.listing-spec-workbench [data-ui="sku-variation-combination-generator"] {
+  border-color: color-mix(in oklch, var(--color-primary) 22%, var(--color-border));
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-primary) 7%, var(--color-surface)), var(--color-surface)),
+    var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-surface-raised) 80%, transparent);
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"],
+.listing-spec-workbench [aria-label="SKU发布缺口列表"],
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] table,
+.listing-spec-workbench [aria-label="平台必填字段状态表"] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] thead,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] thead,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] thead,
+.listing-spec-workbench [aria-label="平台必填字段状态表"] thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: color-mix(in oklch, var(--color-surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] th,
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] td,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] th,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] td,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] th,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] td,
+.listing-spec-workbench [aria-label="平台必填字段状态表"] th,
+.listing-spec-workbench [aria-label="平台必填字段状态表"] td {
+  border-top: 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--color-border) 72%, transparent);
+  padding: .65rem .55rem;
+  vertical-align: top;
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] th,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] th,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] th,
+.listing-spec-workbench [aria-label="平台必填字段状态表"] th {
+  color: var(--color-muted);
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] tbody tr,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] tbody tr,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] tbody tr {
+  transition: background .16s ease, box-shadow .16s ease;
+}
+
+.listing-spec-workbench [data-ui="listing-sku-editable-variant-table"] tbody tr:hover,
+.listing-spec-workbench [aria-label="SKU发布缺口列表"] tbody tr:hover,
+.listing-spec-workbench [data-ui="sku-platform-field-mapping-table"] tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary) 6%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in oklch, var(--color-primary) 70%, transparent);
+}
+
+.listing-spec-workbench input,
+.listing-spec-workbench select,
+.listing-spec-workbench textarea {
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.listing-spec-workbench input:focus,
+.listing-spec-workbench select:focus,
+.listing-spec-workbench textarea:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 72%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 12%, transparent);
+}
+
+.listing-spec-workbench [data-ui="sku-image-asset-picker"] > div {
+  border-color: color-mix(in oklch, var(--color-border) 82%, transparent);
+  background: color-mix(in oklch, var(--color-surface) 86%, transparent);
+}
+
+.listing-spec-workbench [data-ui="sku-image-asset-picker"] button {
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.listing-spec-workbench [data-ui="sku-image-asset-picker"] button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.listing-spec-workbench [aria-label="SKU 平台字段映射表"] {
+  margin-top: .9rem;
+  border-color: color-mix(in oklch, var(--color-border) 82%, transparent);
+  background: color-mix(in oklch, var(--color-bg) 74%, transparent);
+}
+
+.listing-spec-workbench [aria-label="物流包裹尺寸表"] {
+  margin-top: .9rem;
+}
+
+.listing-spec-workbench [aria-label="规格合规校验面板"] {
+  align-self: start;
+}
+
+.listing-spec-workbench [aria-label="规格合规校验面板"] textarea {
+  min-height: 8rem;
+  background: color-mix(in oklch, var(--color-surface) 88%, transparent);
+}
+
+.listing-spec-workbench [aria-label="规格合规校验面板"] > div:last-child {
+  border-color: color-mix(in oklch, var(--color-primary) 20%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary) 6%, var(--color-surface));
+}
+
+@media (min-width: 1280px) {
+  .listing-spec-workbench > div:last-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(19rem, 22rem);
+    gap: 1rem;
+    align-items: start;
+  }
+}

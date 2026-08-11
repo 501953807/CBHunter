@@ -10,6 +10,7 @@ MODULE_DOC = Path("docs/02_CBHunter_V5.0模块功能说明.md")
 MASTER_PLAN_DOC = Path("docs/03_CBHunter_V5.0实施任务总表.md")
 PROGRESS_DOC = Path("docs/迭代改造清单_V5.0/04_CBHunter_V5.0分阶段迭代开发排期与实施进度.md")
 COLLAB_DOC = Path("docs/05_CBHunter_V5.0三平台开放接口申请协作清单.md")
+UI_SPEC_DOC = Path("docs/06_CBHunter_V5.0全局UI设计规范.md")
 MODULE_DESIGN_DIR = Path("docs/功能模块设计")
 
 ACTIVE_DOCS = [
@@ -19,6 +20,7 @@ ACTIVE_DOCS = [
     MASTER_PLAN_DOC,
     PROGRESS_DOC,
     COLLAB_DOC,
+    UI_SPEC_DOC,
     Path("README.md"),
     Path("CLAUDE.md"),
     Path("AGENTS.md"),
@@ -30,6 +32,7 @@ ALLOWED_DOC_ROOT_FILES = {
     MODULE_DOC,
     MASTER_PLAN_DOC,
     COLLAB_DOC,
+    UI_SPEC_DOC,
 }
 
 FORBIDDEN_ACTIVE_REFS = [
@@ -83,19 +86,20 @@ def validate_docs(root: Path | None = None) -> dict:
     _validate_system_plan(base / SYSTEM_PLAN_DOC)
     _validate_data_flow(base / DATA_FLOW_DOC)
     _validate_master_and_progress(base / MASTER_PLAN_DOC, base / PROGRESS_DOC)
+    _validate_ui_spec(base / UI_SPEC_DOC)
     _validate_module_designs(base / MODULE_DESIGN_DIR)
     _validate_unique_outlets(base)
     _require_absent(base, OBSOLETE_PLANNING_DOCS)
     _require_no_forbidden_refs(base, ACTIVE_DOCS, FORBIDDEN_ACTIVE_REFS)
     return {
-        "checked": [str(p) for p in [SYSTEM_PLAN_DOC, DATA_FLOW_DOC, MASTER_PLAN_DOC, PROGRESS_DOC]],
+        "checked": [str(p) for p in [SYSTEM_PLAN_DOC, DATA_FLOW_DOC, MASTER_PLAN_DOC, PROGRESS_DOC, UI_SPEC_DOC]],
         "module_designs": 17,
         "task_ids_checked": len(REQUIRED_TASK_IDS),
     }
 
 
 def _require_files(base: Path) -> None:
-    required = [SYSTEM_PLAN_DOC, DATA_FLOW_DOC, MODULE_DOC, MASTER_PLAN_DOC, PROGRESS_DOC]
+    required = [SYSTEM_PLAN_DOC, DATA_FLOW_DOC, MODULE_DOC, MASTER_PLAN_DOC, PROGRESS_DOC, UI_SPEC_DOC]
     missing = [str(p) for p in required if not (base / p).exists()]
     if missing:
         raise RuntimeError("missing active docs: " + ", ".join(missing))
@@ -219,6 +223,40 @@ def _validate_master_and_progress(master: Path, progress: Path) -> None:
             raise RuntimeError(f"{task_id} missing from master plan")
         if task_id not in progress_text:
             raise RuntimeError(f"{task_id} missing from progress plan")
+
+
+def _validate_ui_spec(path: Path) -> None:
+    required = [
+        "# CBHunter V5.0 全局UI设计规范",
+        "## 0. 文档定位",
+        "## 1. 设计目标与参考来源",
+        "## 2. 全局布局框架",
+        "## 3. 视觉语言",
+        "## 4. Theme preset 主题体系",
+        "## 5. 全局设计 Token",
+        "## 6. 公共组件库标准",
+        "## 7. 页面重构规则",
+        "## 8. 后续开发沿用标准",
+        "## 9. 当前落地范围",
+        "浅轻奢",
+        "深暗夜轻奢",
+        "暖调轻奢",
+        "固定左侧一级导航",
+        "顶部通栏状态栏",
+        "卡片式数据分区",
+        "不改业务代码逻辑",
+        "Button",
+        "Card",
+        "Badge",
+        "Tabs",
+        "Select",
+        "DataTable",
+        "var(--color-*)",
+        "ThemeContext",
+        "theme-preset-select",
+        "UI-V5-001",
+    ]
+    _require_text(path, required)
 
 
 def _validate_module_designs(module_dir: Path) -> None:

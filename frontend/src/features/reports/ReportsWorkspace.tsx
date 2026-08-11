@@ -26,7 +26,7 @@ export default function ReportsPage() {
   const [month, setMonth] = useState('')
 
   return (
-    <div className="space-y-6 page-enter">
+    <div className="reports-shell space-y-6 page-enter">
       <PageHeader title="报表中心" description="经营日报、周期复盘、异常检测与订阅管理" />
 
       <ReportOperationsPanel />
@@ -70,7 +70,7 @@ function ReportOperationsPanel() {
   const maxRevenue = Math.max(1, ...reports.map(item => item.report?.data?.summary?.total_revenue ?? 0))
 
   return (
-    <Card>
+    <Card className="reports-operations-panel">
       <CardContent>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -87,7 +87,7 @@ function ReportOperationsPanel() {
           {reports.map(item => {
             const summary = item.report?.data?.summary
             return (
-              <div key={item.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div key={item.label} className="reports-summary-card rounded-[var(--radius-lg)] p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-[var(--color-fg)]">{item.label}</p>
@@ -107,7 +107,7 @@ function ReportOperationsPanel() {
           })}
         </div>
 
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4" data-ui="report-business-chart">
+        <div className="reports-chart-panel mt-4 rounded-[var(--radius-lg)] p-4" data-ui="report-business-chart">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-fg)]">经营数据趋势图</h3>
@@ -124,8 +124,8 @@ function ReportOperationsPanel() {
                     <span className="font-medium text-[var(--color-fg)]">{item.label.replace('生成', '')}</span>
                     <span className="text-[var(--color-muted)]">¥{Math.round(revenue)}</span>
                   </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-[var(--color-surface)]">
-                    <div className="h-full rounded-full bg-[var(--color-primary)] transition-all" style={{ width: `${width}%` }} />
+                  <div className="reports-progress-track h-3 overflow-hidden rounded-full">
+                    <div className="reports-progress-bar h-full rounded-full transition-all" style={{ width: `${width}%` }} />
                   </div>
                 </div>
               )
@@ -139,7 +139,7 @@ function ReportOperationsPanel() {
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2">
+    <div className="reports-metric-tile rounded-[var(--radius-md)] px-2 py-2">
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className="mt-1 truncate font-semibold text-[var(--color-fg)]">{value}</p>
     </div>

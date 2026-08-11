@@ -1,0 +1,167 @@
+/* V5 Listing editor visuals. Presentation only; content task and listing data logic stays unchanged. */
+.listing-editor-shell,
+.listing-editor-header,
+.listing-editor-nav,
+.listing-editor-section,
+.listing-auxiliary-panel,
+.listing-editor-summary-card,
+.listing-critical-action-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.listing-editor-shell::before,
+.listing-editor-header::before,
+.listing-editor-nav::before,
+.listing-editor-section::before,
+.listing-auxiliary-panel::before,
+.listing-editor-summary-card::before,
+.listing-critical-action-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 30%),
+    radial-gradient(circle at 88% 6%, color-mix(in oklch, var(--color-warning) 8%, transparent), transparent 24%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 78%, transparent), transparent);
+  opacity: .86;
+}
+
+.listing-editor-shell > *,
+.listing-editor-header > *,
+.listing-editor-nav > *,
+.listing-editor-section > *,
+.listing-auxiliary-panel > *,
+.listing-editor-summary-card > *,
+.listing-critical-action-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.listing-editor-shell {
+  box-shadow: var(--shadow-lg);
+}
+
+.listing-editor-header {
+  border-top: 1px solid color-mix(in oklch, var(--color-primary) 18%, transparent);
+}
+
+.listing-editor-header h3 {
+  letter-spacing: -.02em;
+}
+
+.listing-editor-nav {
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 28px color-mix(in oklch, var(--color-shadow) 10%, transparent);
+}
+
+.listing-editor-nav-pill {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-primary) 8%, transparent);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.listing-editor-nav-pill:hover,
+.listing-editor-nav-pill:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+.listing-editor-section,
+.listing-editor-summary-card,
+.listing-critical-action-panel {
+  box-shadow: var(--shadow-sm);
+}
+
+.listing-editor-section {
+  scroll-margin-top: 112px;
+}
+
+.listing-editor-section:hover,
+.listing-editor-summary-card:hover,
+.listing-critical-action-panel:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 36%, var(--color-border));
+}
+
+.listing-editor-section > div:first-child {
+  margin-bottom: 1rem;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--color-border) 78%, transparent);
+}
+
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"],
+.listing-editor-section [data-ui="content-media-studio"],
+.listing-editor-section .listing-spec-workbench {
+  border-color: color-mix(in oklch, var(--color-primary) 16%, var(--color-border));
+  box-shadow: 0 18px 42px color-mix(in oklch, var(--color-shadow) 10%, transparent);
+}
+
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] input,
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] select,
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] textarea,
+.listing-editor-section [data-ui="content-media-studio"] input,
+.listing-editor-section [data-ui="content-media-studio"] select,
+.listing-editor-section [data-ui="content-media-studio"] textarea {
+  border-color: color-mix(in oklch, var(--color-border) 92%, transparent);
+  background: color-mix(in oklch, var(--color-surface-raised) 82%, transparent);
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] input:focus,
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] select:focus,
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] textarea:focus,
+.listing-editor-section [data-ui="content-media-studio"] input:focus,
+.listing-editor-section [data-ui="content-media-studio"] select:focus,
+.listing-editor-section [data-ui="content-media-studio"] textarea:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 52%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 12%, transparent);
+  outline: none;
+}
+
+.listing-editor-section [data-ui="copy-editor-section-nav"] {
+  position: sticky;
+  top: 72px;
+  z-index: 8;
+  backdrop-filter: blur(16px);
+}
+
+.listing-editor-section [data-ui="copy-editor-section-nav"] button,
+.listing-auxiliary-panel button {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-primary) 7%, transparent);
+}
+
+.listing-editor-section [id^="listing-copy-"] {
+  scroll-margin-top: 148px;
+}
+
+.listing-editor-section [data-ui="listing-copy-editor-seller-console"] textarea {
+  min-height: 132px;
+  line-height: 1.7;
+}
+
+.listing-editor-section [data-ui="content-media-studio"] img {
+  background: color-mix(in oklch, var(--color-bg) 86%, var(--color-surface));
+}
+
+.listing-editor-summary-card {
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.listing-editor-summary-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.listing-auxiliary-panel {
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface-raised) 92%, transparent), color-mix(in oklch, var(--color-bg) 88%, transparent)),
+    var(--color-surface);
+}
+
+@media (min-width: 1280px) {
+  .listing-editor-shell [data-ui="listing-v5-editor-section-copy"] > div:nth-child(2) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

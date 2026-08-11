@@ -1,0 +1,94 @@
+.reports-shell {
+  position: relative;
+}
+
+.reports-operations-panel {
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 15%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 88%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-md);
+}
+
+.reports-summary-card,
+.reports-chart-panel,
+.reports-tab-panel,
+.reports-anomaly-panel,
+.reports-subscription-row,
+.reports-error-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 30%),
+    color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+}
+
+.reports-summary-card::before,
+.reports-chart-panel::before,
+.reports-tab-panel::before,
+.reports-anomaly-panel::before,
+.reports-subscription-row::before,
+.reports-error-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .55;
+}
+
+.reports-summary-card > *,
+.reports-chart-panel > *,
+.reports-tab-panel > *,
+.reports-anomaly-panel > *,
+.reports-subscription-row > *,
+.reports-error-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.reports-summary-card,
+.reports-subscription-row {
+  transition:
+    transform var(--motion-standard),
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.reports-summary-card:hover,
+.reports-subscription-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.reports-metric-tile {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 90%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 46%, transparent);
+}
+
+.reports-date-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklch, var(--color-surface) 86%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  padding: .75rem;
+}
+
+.reports-progress-track {
+  background: color-mix(in oklch, var(--color-surface) 82%, var(--color-bg));
+  box-shadow: inset 0 1px 2px color-mix(in oklch, var(--color-fg) 10%, transparent);
+}
+
+.reports-progress-bar {
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  box-shadow: 0 6px 18px color-mix(in oklch, var(--color-primary) 24%, transparent);
+}

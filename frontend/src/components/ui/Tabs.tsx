@@ -14,18 +14,18 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div data-ui-scheme="professional-tabs" className="professional-tabbar overflow-x-auto">
-      <nav className="-mb-px flex gap-5 min-w-max" aria-label="页面视图">
+    <div data-ui-scheme="professional-tabs" className="professional-tabbar overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-hairline)] px-2 py-1 shadow-[var(--shadow-sm)]">
+      <nav className="flex min-w-max gap-1" aria-label="页面视图">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
             aria-pressed={activeTab === tab.id}
             className={cn(
-              'py-3 px-1 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+              'rounded-full px-3 py-2 text-sm font-semibold tracking-tight transition-all whitespace-nowrap',
               activeTab === tab.id
-                ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-                : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-fg)] hover:border-[var(--color-border)]'
+                ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)] shadow-[var(--shadow-sm)]'
+                : 'text-[var(--color-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]'
             )}
           >
             {tab.label}
@@ -34,7 +34,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
                 className={cn(
                   'ml-2 rounded-full px-2 py-0.5 text-xs',
                   activeTab === tab.id
-                    ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                    ? 'bg-[var(--color-surface)] text-[var(--color-primary)]'
                     : 'bg-[var(--color-border)] text-[var(--color-muted)]'
                 )}
               >

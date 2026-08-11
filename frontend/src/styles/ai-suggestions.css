@@ -1,0 +1,321 @@
+.ai-suggestions-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-suggestions-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 94%, var(--color-primary) 6%), var(--color-surface)),
+    radial-gradient(circle at 88% 14%, color-mix(in srgb, var(--color-primary) 13%, transparent), transparent 34%);
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--color-fg) 8%, transparent);
+}
+
+.ai-suggestions-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-primary) 5%, transparent), transparent);
+}
+
+.ai-suggestions-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ai-suggestions-eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ai-suggestions-title {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: clamp(24px, 2vw, 32px);
+  font-weight: 850;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.ai-suggestions-subtitle {
+  margin: 8px 0 0;
+  max-width: 760px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.ai-suggestions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ai-suggestions-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg) 8%);
+  padding: 12px 14px;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--color-fg) 5%, transparent);
+}
+
+.ai-suggestions-filter-copy {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ai-suggestions-engine-panel {
+  border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary) 18%);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%), var(--color-surface)),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 28%);
+  box-shadow: 0 16px 42px color-mix(in srgb, var(--color-fg) 7%, transparent);
+}
+
+.ai-suggestions-provider-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, var(--color-primary) 28%);
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-suggestions-provider-link:hover {
+  background: color-mix(in srgb, var(--color-primary-light) 64%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.ai-suggestions-metric-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ai-suggestions-metric-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-bg) 74%, var(--color-surface) 26%);
+  padding: 14px;
+}
+
+.ai-suggestions-metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  opacity: 0.45;
+}
+
+.ai-suggestions-metric-label {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ai-suggestions-metric-value {
+  margin: 10px 0 0;
+  color: var(--color-fg);
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.ai-suggestions-trace-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
+}
+
+.ai-suggestions-task-panel,
+.ai-suggestions-trace-panel {
+  border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-bg) 76%, var(--color-surface) 24%);
+  padding: 14px;
+}
+
+.ai-suggestions-panel-title {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.ai-suggestions-task-row {
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface) 90%, var(--color-bg) 10%);
+  padding: 13px;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-suggestions-task-row:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-fg) 6%, transparent);
+  transform: translateY(-1px);
+}
+
+.ai-suggestions-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-suggestion-card {
+  border-color: color-mix(in srgb, var(--color-border) 84%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 95%, var(--color-bg) 5%);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-fg) 5%, transparent);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-suggestion-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--color-fg) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.ai-suggestion-card[data-unread="true"] {
+  border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent), 0 16px 34px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.ai-suggestion-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.ai-suggestion-evidence-panel {
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bg) 78%, var(--color-surface) 22%);
+  padding: 10px 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ai-suggestion-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.ai-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 188px;
+}
+
+.ai-suggestions-error-panel,
+.ai-suggestions-empty-panel {
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-bg) 6%);
+  padding: 24px;
+}
+
+.ai-suggestions-empty-panel {
+  text-align: center;
+}
+
+.ai-suggestions-empty-icon {
+  margin: 0 auto 12px;
+  color: var(--color-muted);
+}
+
+.ai-suggestions-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-suggestions-skeleton-item {
+  height: 104px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--color-bg), color-mix(in srgb, var(--color-surface) 72%, var(--color-bg) 28%), var(--color-bg));
+  background-size: 220% 100%;
+  animation: ai-suggestions-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes ai-suggestions-shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+@media (max-width: 1180px) {
+  .ai-suggestions-metric-grid,
+  .ai-suggestions-trace-grid,
+  .ai-suggestion-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-suggestion-actions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .ai-suggestions-hero-content,
+  .ai-suggestions-filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-suggestions-toolbar {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-suggestions-provider-link,
+  .ai-suggestions-task-row,
+  .ai-suggestion-card,
+  .ai-suggestions-skeleton-item {
+    animation: none;
+    transition: none;
+  }
+}

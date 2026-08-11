@@ -17,7 +17,7 @@ export function Input({ className, label, error, id, ...props }: InputProps) {
       <input
         id={id}
         className={cn(
-          'block w-full rounded-lg border px-3 py-2 text-sm shadow-sm',
+          'luxury-input block w-full rounded-[var(--radius-lg)] border px-3 py-2 text-sm shadow-sm transition-colors',
           'bg-[var(--color-surface)]',
           'border-[var(--color-border)] text-[var(--color-fg)]',
           'placeholder:text-[var(--color-muted)]',

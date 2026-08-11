@@ -25,18 +25,23 @@ export default function AISuggestionsPage() {
   const unreadCount = suggestions.filter((s) => !s.is_read).length
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="ai-suggestions-shell">
+      <div className="ai-suggestions-hero p-5">
+        <div className="ai-suggestions-hero-content">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-fg)]">AI 运营建议</h1>
-          <p className="text-sm text-[var(--color-muted)] mt-1">
+          <p className="ai-suggestions-eyebrow">AI Engine Operations</p>
+          <h1 className="ai-suggestions-title">AI 运营建议</h1>
+          <p className="ai-suggestions-subtitle">
             基于数据分析的智能运营建议 · {unreadCount > 0 ? `${unreadCount} 条未读` : '全部已读'}
           </p>
         </div>
-        <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}>
-          <RotateCcw className={`w-4 h-4 mr-1.5 ${runMutation.isPending ? 'animate-spin' : ''}`} />
-          重新分析
-        </Button>
+          <div className="ai-suggestions-toolbar">
+            <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}>
+              <RotateCcw className={`w-4 h-4 mr-1.5 ${runMutation.isPending ? 'animate-spin' : ''}`} />
+              重新分析
+            </Button>
+          </div>
+        </div>
       </div>
       <EvidenceBanner evidence={aiSuggestionsQuery.data} />
 
@@ -46,14 +51,15 @@ export default function AISuggestionsPage() {
         running={runMutation.isPending}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="ai-suggestions-filter-bar">
+        <p className="ai-suggestions-filter-copy">建议列表只展示接口返回的真实分析结果；筛选仅改变建议严重级别，不触发业务写入。</p>
         <Select options={withAllOption('全部', toDomainOptions(ai_suggestion_severities))} value={severity} onChange={setSeverity} className="w-32" placeholder="筛选" />
       </div>
 
       {aiSuggestionsQuery.isError ? (
         <Card data-ui="ai-suggestions-error">
           <CardContent className="py-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="ai-suggestions-error-panel flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-fg)]">AI 建议加载失败</p>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">
@@ -67,25 +73,27 @@ export default function AISuggestionsPage() {
           </CardContent>
         </Card>
       ) : aiSuggestionsQuery.isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-24 bg-[var(--color-bg)] rounded-xl animate-pulse" />)}
+        <div className="ai-suggestions-skeleton">
+          {[1, 2, 3].map((i) => <div key={i} className="ai-suggestions-skeleton-item" />)}
         </div>
       ) : suggestions.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Brain className="w-12 h-12 mx-auto mb-3 text-[var(--color-muted)]" />
+          <CardContent>
+            <div className="ai-suggestions-empty-panel">
+            <Brain className="ai-suggestions-empty-icon w-12 h-12" />
             <p className="text-[var(--color-muted)] font-medium">暂无建议</p>
             <p className="text-sm text-[var(--color-muted)] mt-1">点击「重新分析」生成运营建议</p>
+            </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="ai-suggestions-list">
           {suggestions.map((s) => {
             const sev = getStatusMeta(ai_suggestion_severities, s.severity, 'info')
             return (
-              <Card key={s.id} className={`${!s.is_read ? 'ring-1 ring-[var(--color-primary)]' : ''}`}>
+              <Card key={s.id} className="ai-suggestion-card" data-unread={!s.is_read ? 'true' : 'false'}>
                 <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
+                  <div className="ai-suggestion-layout">
                     <div className="mt-0.5">
                       <Badge variant={sev.variant}>{sev.label}</Badge>
                     </div>
@@ -93,7 +101,7 @@ export default function AISuggestionsPage() {
                       <h3 className="text-sm font-medium text-[var(--color-fg)]">{s.title}</h3>
                       <p className="text-sm text-[var(--color-muted)] mt-1">{s.description}</p>
                       {(s.evidence_window || s.confidence_reason || (s.source_refs?.length || 0) > 0) && (
-                        <div className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs space-y-1">
+                        <div className="ai-suggestion-evidence-panel space-y-1">
                           {s.evidence_window && (
                             <p style={{ color: 'var(--color-muted)' }}>依据窗口: {s.evidence_window}</p>
                           )}
@@ -105,7 +113,7 @@ export default function AISuggestionsPage() {
                           )}
                         </div>
                       )}
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="ai-suggestion-meta-row">
                         <span className="text-xs text-[var(--color-muted)]">
                           {s.suggestion_type} · {s.created_at ? new Date(s.created_at).toLocaleDateString('zh-CN') : ''}
                         </span>
@@ -116,7 +124,7 @@ export default function AISuggestionsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="ai-suggestion-actions">
                       {!s.is_read && (
                         <Button size="sm" variant="ghost" onClick={() => markReadMutation.mutate(s.id)}>
                           已读
@@ -162,7 +170,7 @@ function AIEngineDetailPanel({
   const latest = suggestions.slice(0, 3)
 
   return (
-    <Card>
+    <Card className="ai-suggestions-engine-panel">
       <CardContent>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -172,22 +180,22 @@ function AIEngineDetailPanel({
               汇总 AI任务列表、Provider管理、反馈收集、可信度评分和来源追溯；当前只展示真实建议与接口状态。
             </p>
           </div>
-          <Link to="/settings" className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-bg)]">
+          <Link to="/settings" className="ai-suggestions-provider-link">
             进入 Provider管理
           </Link>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-4">
+        <div className="ai-suggestions-metric-grid mt-4">
           <AIEngineMetric label="AI任务列表" value={running ? '运行中' : loading ? '加载中' : `${suggestions.length} 条`} />
           <AIEngineMetric label="反馈收集" value={`采纳 ${applied} / 忽略 ${dismissed}`} />
           <AIEngineMetric label="可信度评分" value={averageConfidence == null ? '待补' : `${averageConfidence}%`} />
           <AIEngineMetric label="来源追溯" value={`${traceable} 条`} />
         </div>
 
-        <div className="mt-4 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]" data-ui="ai-engine-traceability">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="ai-suggestions-trace-grid mt-4" data-ui="ai-engine-traceability">
+          <div className="ai-suggestions-task-panel">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-[var(--color-fg)]">AI任务列表</h3>
+              <h3 className="ai-suggestions-panel-title">AI任务列表</h3>
               <Badge variant={running ? 'warning' : 'outline'}>{running ? '分析任务执行中' : '等待手动触发'}</Badge>
             </div>
             <div className="space-y-2">
@@ -204,15 +212,15 @@ function AIEngineDetailPanel({
             </div>
           </div>
 
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <h3 className="text-sm font-semibold text-[var(--color-fg)]">可信度与来源追溯</h3>
+          <div className="ai-suggestions-trace-panel">
+            <h3 className="ai-suggestions-panel-title">可信度与来源追溯</h3>
             <div className="mt-3 space-y-2">
               {latest.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-muted)]">
                   暂无 AI 建议。请先运行分析，系统会展示可信度评分、依据窗口和来源追溯。
                 </p>
               ) : latest.map(item => (
-                <div key={item.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                <div key={item.id} className="ai-suggestions-task-row">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-[var(--color-fg)]">{item.title}</p>
                     <Badge variant={item.confidence == null ? 'outline' : item.confidence >= 0.7 ? 'success' : 'warning'}>
@@ -237,16 +245,16 @@ function AIEngineDetailPanel({
 
 function AIEngineMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-      <p className="text-xs text-[var(--color-muted)]">{label}</p>
-      <p className="mt-2 text-lg font-bold text-[var(--color-fg)]">{value}</p>
+    <div className="ai-suggestions-metric-card">
+      <p className="ai-suggestions-metric-label">{label}</p>
+      <p className="ai-suggestions-metric-value">{value}</p>
     </div>
   )
 }
 
 function AIEngineTaskRow({ title, detail, status }: { title: string; detail: string; status: string }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="ai-suggestions-task-row">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-[var(--color-fg)]">{title}</p>
         <Badge variant={status === '运行中' ? 'warning' : status.includes('已有') ? 'success' : 'outline'}>{status}</Badge>

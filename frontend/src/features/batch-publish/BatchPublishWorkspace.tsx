@@ -295,7 +295,7 @@ export default function BatchPublishPage() {
   }
 
   return (
-    <div className="space-y-6 page-enter">
+    <div className="batch-publish-shell space-y-6 page-enter">
       <ContentListingStageRail />
       <ProfessionalWorkspaceFrame
         eyebrow="Listing Publish"

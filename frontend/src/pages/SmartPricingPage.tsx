@@ -208,15 +208,15 @@ export default function SmartPricingPage() {
   }
 
   return (
-    <div className="space-y-6 page-enter">
+    <div className="pricing-shell space-y-6 page-enter">
       <ContentListingStageRail />
       <PageHeader title="智能定价" description="成本 + 费率 + 利润 = 自动推荐最优售价" />
       <EvidenceBanner evidence={evidence} />
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         {/* Left: Inputs */}
-        <div className="col-span-2 space-y-4">
-          <Card>
+        <div className="space-y-4">
+          <Card className="pricing-panel">
             <CardContent className="pt-4 space-y-4">
               {pricingWorkbenchQuery.isError && (
                 <div
@@ -241,7 +241,7 @@ export default function SmartPricingPage() {
               {(initialProductId || initialTargetPlatform || initialTargetStore || initialTargetMarket) && (
                 <div
                   data-ui="pricing-content-context-handoff"
-                  className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs"
+                  className="pricing-context-chip flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-xs"
                   aria-label="内容工厂带入的定价上下文"
                 >
                   <span className="font-semibold text-[var(--color-fg)]">内容工厂带入</span>
@@ -252,7 +252,7 @@ export default function SmartPricingPage() {
                 </div>
               )}
               <PricingItemSelector items={pricingItems} selectedItemId={selectedItemId} selectedStoreId={selectedStoreId} onSelectItem={handleSelectItem} onSelectStore={setSelectedStoreId} />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="pricing-form-grid">
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: 'var(--color-muted)' }}>采购价 (RMB)</label>
                   <input
@@ -329,9 +329,9 @@ export default function SmartPricingPage() {
 
               <div
                 data-ui="pricing-adjustment-template-inputs"
-                className="grid grid-cols-3 gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+                className="pricing-form-panel pricing-form-grid rounded-[var(--radius-xl)] p-3"
               >
-                <div className="col-span-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+                  <div className="col-span-full flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
                   <div>
                     <p className="text-xs font-semibold text-[var(--color-fg)]">定价附加模板</p>
                     <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">复用当前平台/市场的物流费、活动折扣和最低利润底线。</p>
@@ -398,7 +398,7 @@ export default function SmartPricingPage() {
                     style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-fg)' }}
                   />
                 </div>
-                <p className="col-span-3 text-[11px] leading-5 text-[var(--color-muted)]">
+                <p className="col-span-full text-[11px] leading-5 text-[var(--color-muted)]">
                   物流费计入总成本；活动折扣按成交后实收折算；最低利润额用于防止活动价或平台费压穿利润底线。
                 </p>
               </div>
@@ -406,7 +406,7 @@ export default function SmartPricingPage() {
               <button
                 onClick={handleRecommend}
                 disabled={loading || !platform || !market || !sourcePrice || !targetProfit || !pricingMode}
-                className="w-full py-2.5 rounded-lg text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
+                className="w-full py-2.5 rounded-full text-[var(--color-primary-text)] font-medium disabled:opacity-40 transition-colors"
                 style={{ background: 'var(--gradient-accent)' }}
               >
                 {loading ? '计算中...' : '计算推荐售价'}
@@ -468,7 +468,7 @@ export default function SmartPricingPage() {
                   const rec = result.recommendations[tier]
                   if (!rec) return null
                   return (
-                    <Card key={tier}>
+                    <Card key={tier} className="pricing-result-card">
                       <CardContent className="pt-4 text-center">
                         <div className="flex justify-center mb-2">
                           {tier === 'conservative' ? <Shield className="w-5 h-5" style={{ color: 'var(--color-info)' }} />
@@ -491,7 +491,7 @@ export default function SmartPricingPage() {
                             净利润 ¥{rec.net_profit_rmb.toFixed(2)}
                           </p>
                         </div>
-                        <button onClick={() => handleConfirmPrice(tier)} disabled={!selectedItemId || !selectedStoreId || confirmingTier === tier || !rec.selling_price_local} className="mt-3 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] disabled:opacity-40">
+                        <button onClick={() => handleConfirmPrice(tier)} disabled={!selectedItemId || !selectedStoreId || confirmingTier === tier || !rec.selling_price_local} className="mt-3 rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-40">
                           {confirmingTier === tier ? '确认中...' : '确认并创建草稿'}
                         </button>
                       </CardContent>
@@ -522,7 +522,7 @@ export default function SmartPricingPage() {
             icon={<Target className="w-4 h-4" />}
             change={result?.status === 'ready' ? result.recommendations.balanced?.net_profit_pct : undefined}
           />
-          <div data-ui="pricing-activity-price-preview" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs">
+          <div data-ui="pricing-activity-price-preview" className="pricing-summary-card rounded-[var(--radius-xl)] p-4 text-xs">
             <p className="font-semibold text-[var(--color-fg)]">活动价口径</p>
             <p className="mt-2 text-[var(--color-muted)]">活动折扣：{activityDiscount ? `${activityDiscount}%` : '未设置'}</p>
             <p className="mt-1 text-[var(--color-muted)]">平衡折后实收：{result?.status === 'ready' && result.recommendations.balanced?.effective_selling_price_rmb != null ? `¥${result.recommendations.balanced.effective_selling_price_rmb.toFixed(2)}` : '计算后显示'}</p>
@@ -554,8 +554,7 @@ export default function SmartPricingPage() {
             targetProfit={targetProfit}
           />
           <div
-            className="rounded-2xl p-4"
-            style={{ background: 'var(--color-primary-light)', border: '1px solid var(--color-primary)' }}
+            className="pricing-tip-panel rounded-[var(--radius-xl)] p-4"
           >
             <p className="text-xs" style={{ color: 'var(--color-primary)' }}>
               <strong>💡 定价提示</strong><br />

@@ -101,10 +101,7 @@ export default function OrderListPage() {
       width: '150px',
       render: (row) => (
         <div>
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
+          <span className="orders-platform-badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">
             {platformLabelMap.get(row.platform) || row.platform.toUpperCase() || '--'}
           </span>
           <p className="mt-1 text-[11px] text-[var(--color-muted)]">{row.platform_account_name || '店铺未命名'}</p>
@@ -209,20 +206,23 @@ export default function OrderListPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="orders-shell space-y-6 page-enter">
+      <div className="orders-hero rounded-[var(--radius-2xl)] px-5 py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-fg)]">订单跟踪</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>跨平台统一订单管理</p>
+          <p className="luxury-section-kicker">order fulfillment</p>
+          <h1 className="luxury-page-title mt-1">订单履约</h1>
+          <p className="luxury-page-description mt-2">统一跟踪 Shopee、TEMU、TikTok Shop 店铺订单、发货时限、物流售后、同步复盘和财务对账状态。</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setImportHelpOpen((value) => !value)}>CSV/Excel批量导入</Button>
           <Button onClick={() => setManualOpen(true)}><Plus className="h-4 w-4" />手工创建订单</Button>
         </div>
+        </div>
       </div>
 
       {importHelpOpen && (
-        <Card>
+        <Card className="orders-import-panel">
           <CardContent className="pt-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -244,17 +244,17 @@ export default function OrderListPage() {
                 'items[].name / items[].sku / items[].quantity / items[].unit_price',
                 'notes / source_file / import_ref',
               ].map((field) => (
-                <span key={field} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[var(--color-muted)]">
+                <span key={field} className="orders-import-chip rounded-[var(--radius-lg)] px-3 py-2 text-[var(--color-muted)]">
                   {field}
                 </span>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <div className="orders-gap-panel mt-4 rounded-[var(--radius-xl)] p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <label className="text-xs font-medium text-[var(--color-fg)]">
                   选择 CSV 文件
                   <input
-                    className="mt-2 block w-full rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)]"
+                    className="luxury-input mt-2 block w-full rounded-[var(--radius-lg)] px-3 py-2 text-xs"
                     type="file"
                     accept=".csv,text/csv"
                     onChange={async (event) => {
@@ -301,10 +301,10 @@ export default function OrderListPage() {
               </div>
               {importResult && (
                 <div className="mt-3 grid gap-2 text-xs md:grid-cols-4">
-                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">接收 {importResult.received_count} 单</span>
-                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">新增 {importResult.created_count} 单</span>
-                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">跳过 {importResult.skipped_count} 单</span>
-                  <span className="rounded-xl bg-[var(--color-bg)] px-3 py-2">失败 {importResult.failed_count} 单</span>
+                  <span className="orders-result-tile rounded-[var(--radius-lg)] px-3 py-2">接收 {importResult.received_count} 单</span>
+                  <span className="orders-result-tile rounded-[var(--radius-lg)] px-3 py-2">新增 {importResult.created_count} 单</span>
+                  <span className="orders-result-tile rounded-[var(--radius-lg)] px-3 py-2">跳过 {importResult.skipped_count} 单</span>
+                  <span className="orders-result-tile rounded-[var(--radius-lg)] px-3 py-2">失败 {importResult.failed_count} 单</span>
                 </div>
               )}
             </div>
@@ -317,7 +317,7 @@ export default function OrderListPage() {
           <CardContent className="pt-4">
             <div
               data-ui="order-stats-error"
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+              className="orders-error-panel flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3 py-2 text-xs"
             >
               <span className="text-[var(--color-danger)]">履约统计加载失败，无法判断当前平台/店铺的待发货、临近超期和售后风险。</span>
               <Button size="sm" variant="secondary" onClick={() => orderStatsQuery.refetch()}>
@@ -338,7 +338,7 @@ export default function OrderListPage() {
         />
       )}
 
-      <Card>
+      <Card className="orders-table-panel">
         <CardContent className="pt-4">
           <EvidenceBanner evidence={data} compact />
           <StoreContextBanner
@@ -351,7 +351,7 @@ export default function OrderListPage() {
           {orderListQuery.isError && (
             <div
               data-ui="order-list-error"
-              className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+              className="orders-error-panel mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-xl)] px-3 py-2 text-xs"
             >
               <span className="text-[var(--color-danger)]">订单列表加载失败，当前筛选条件下的订单、履约异常和同步复盘暂不可用。</span>
               <Button size="sm" variant="secondary" onClick={() => orderListQuery.refetch()}>
@@ -361,7 +361,7 @@ export default function OrderListPage() {
           )}
           <div
             data-ui="order-fulfillment-filter-bar"
-            className="mb-4 grid gap-3 lg:grid-cols-[minmax(130px,0.8fr)_minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_auto]"
+            className="orders-filter-grid mb-4 grid gap-3 rounded-[var(--radius-xl)] p-3 lg:grid-cols-[minmax(130px,0.8fr)_minmax(130px,0.8fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_auto]"
           >
             <Select
               options={withAllOption('全部状态', orderStatusOptions)}
@@ -434,7 +434,7 @@ function OrderFulfillmentOverview({
   const totalRisk = (fulfillment?.overdue || 0) + (fulfillment?.due_soon || 0) + (fulfillment?.logistics_missing || 0) + (fulfillment?.after_sales_open || 0)
   return (
     <section aria-label="订单履约运营总览" className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <Card>
+      <Card className="orders-command-panel">
         <CardContent className="space-y-4 pt-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -459,13 +459,13 @@ function OrderFulfillmentOverview({
             <FulfillmentMetric label="时限缺口" value={fulfillment?.missing_deadline || 0} detail="缺平台发货时限" tone="info" compact />
           </div>
           {(stats?.data_gaps || []).length > 0 && (
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-muted)]">
+            <div className="orders-gap-panel rounded-[var(--radius-xl)] px-3 py-2 text-xs text-[var(--color-muted)]">
               数据缺口：{stats?.data_gaps.join('、')}
             </div>
           )}
         </CardContent>
       </Card>
-      <Card>
+      <Card className="orders-command-panel">
         <CardContent className="space-y-3 pt-4">
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">平台/店铺履约分布</h3>
@@ -473,7 +473,7 @@ function OrderFulfillmentOverview({
           </div>
           <div className="space-y-2">
             {(stats?.store_breakdown || []).slice(0, 4).map(store => (
-              <div key={store.platform_account_id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div key={store.platform_account_id} className="orders-store-card rounded-[var(--radius-xl)] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-[var(--color-fg)]">{store.platform_account_name}</p>
@@ -484,14 +484,14 @@ function OrderFulfillmentOverview({
                   </Badge>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span className="rounded-xl bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">待发 {store.pending_shipment}</span>
-                  <span className="rounded-xl bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">已发 {store.shipped}</span>
-                  <span className="rounded-xl bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">风险 {store.due_soon + store.overdue}</span>
+                  <span className="rounded-[var(--radius-md)] bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">待发 {store.pending_shipment}</span>
+                  <span className="rounded-[var(--radius-md)] bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">已发 {store.shipped}</span>
+                  <span className="rounded-[var(--radius-md)] bg-[var(--color-surface)] px-2 py-1 text-[var(--color-muted)]">风险 {store.due_soon + store.overdue}</span>
                 </div>
               </div>
             ))}
             {!stats?.store_breakdown?.length && (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-4 text-sm text-[var(--color-muted)]">
+              <div className="orders-gap-panel rounded-[var(--radius-xl)] border-dashed p-4 text-sm text-[var(--color-muted)]">
                 暂无订单履约统计；同步平台订单或创建手工订单后展示店铺分布。
               </div>
             )}
@@ -523,7 +523,7 @@ function FulfillmentMetric({
         ? 'var(--color-success)'
         : 'var(--color-info)'
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div className="orders-metric-card rounded-[var(--radius-xl)] p-3" data-tone={tone}>
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className={compact ? 'mt-1 text-xl font-semibold' : 'mt-2 text-3xl font-bold'} style={{ color }}>{value}</p>
       <p className="mt-1 text-[11px] leading-4 text-[var(--color-muted)]">{detail}</p>

@@ -46,6 +46,86 @@ for required in (
 for required in ("--color-command-bg", "--color-command-panel", "--color-command-accent", "--color-workspace-chrome", "--shadow-command"):
     if required not in INDEX_CSS:
         errors.append(f"mixed UI scheme tokens must be declared in index.css: {required}")
+for required in (
+    "--color-surface-raised",
+    "--color-hairline",
+    "--gradient-workspace",
+    "./styles/modules.css",
+    "./styles/luxury-system.css",
+    "[data-theme=\"dark-luxury\"]",
+    "[data-theme=\"warm-luxury\"]",
+    "font-family: var(--font-sans)",
+):
+    if required not in INDEX_CSS:
+        errors.append(f"V5 luxury UI token system must be declared in index.css: {required}")
+for required in ("luxury-app-shell", "luxury-header", "luxury-sidebar", "luxury-card", "luxury-table-shell", "luxury-theme-select", "theme-preset-menu", "theme-preset-option", "luxury-toolbar", "luxury-input", "luxury-page-title", "luxury-page-description", "luxury-page-actions", "luxury-section-header", "luxury-action-bar", "luxury-kpi-grid", "luxury-form-grid", "luxury-modal-panel", "luxury-modal-close", "luxury-menu-popover", "luxury-menu-item", "luxury-pagination", "table:not(.professional-table)", ".rounded-xl.border", "prefers-reduced-motion"):
+    if required not in LUXURY_SYSTEM_CSS:
+        errors.append(f"global luxury system stylesheet must keep reusable admin UI primitives: {required}")
+for component_name, component_content, required_class in (
+    ("AppLayout", APP_LAYOUT, "luxury-app-shell"),
+    ("Header", HEADER, "luxury-theme-select"),
+    ("Sidebar", SIDEBAR, "luxury-sidebar"),
+    ("Card", CARD_COMPONENT, "luxury-card"),
+    ("Button", BUTTON_COMPONENT, "luxury-control"),
+    ("Input", INPUT_COMPONENT, "luxury-input"),
+    ("Modal", MODAL_COMPONENT, "luxury-modal-panel"),
+    ("EmptyState", EMPTY_STATE_COMPONENT, "luxury-empty-state"),
+    ("Select", SELECT_COMPONENT, "luxury-select"),
+    ("DataTable", DATA_TABLE, "luxury-table-shell"),
+    ("DataTable", DATA_TABLE, "luxury-pagination"),
+    ("PageHeader", PAGE_HEADER_COMPONENT, "luxury-page-title"),
+    ("PageHeader", PAGE_HEADER_COMPONENT, "luxury-page-actions"),
+    ("Badge", BADGE_COMPONENT, "data-ui=\"luxury-status-badge\""),
+    ("FilterBar", FILTER_BAR, "luxury-menu-item"),
+):
+    if required_class not in component_content:
+        errors.append(f"{component_name} must consume the reusable global luxury UI primitive: {required_class}")
+for required in (
+    "THEME_PRESETS",
+    "'light-luxury'",
+    "'dark-luxury'",
+    "'warm-luxury'",
+    "root.dataset.theme = theme",
+):
+    if required not in THEME_CONTEXT:
+        errors.append(f"ThemeContext must expose the V5 theme preset model: {required}")
+for required in ("Palette", "Check", "theme-preset-select", "theme-preset-menu", "theme-preset-option", "V5 UI", "Theme preset"):
+    if required not in HEADER:
+        errors.append(f"Header must keep the right-top Theme preset entry and V5 chrome marker: {required}")
+for component_name, component_content in (
+    ("AppLayout", APP_LAYOUT),
+    ("Sidebar", SIDEBAR),
+    ("Card", CARD_COMPONENT),
+    ("Button", BUTTON_COMPONENT),
+    ("Input", INPUT_COMPONENT),
+    ("Modal", MODAL_COMPONENT),
+    ("EmptyState", EMPTY_STATE_COMPONENT),
+    ("Badge", BADGE_COMPONENT),
+    ("Select", SELECT_COMPONENT),
+    ("Tabs", TABS_COMPONENT),
+    ("DataTable", DATA_TABLE),
+):
+    for required in ("var(--color-", "transition"):
+        if required not in component_content:
+            errors.append(f"{component_name} must use shared V5 tokenized visual styling: {required}")
+for required in ("cockpit-metric-card", "cockpit-command-panel", "cockpit-metric-icon", "cockpit-panel-icon"):
+    if required not in COCKPIT_CSS:
+        errors.append(f"operating cockpit must keep V5 luxury command visuals in cockpit.css: {required}")
+for required in ("data-ui=\"cockpit-v5-operating-metric-grid\"", "data-ui=\"cockpit-v5-operating-metric-card\"", "cockpit-metric-card", "cockpit-metric-icon"):
+    if required not in COCKPIT_METRIC_STRIP:
+        errors.append(f"operating cockpit metric strip must use V5 command metric cards: {required}")
+for required in ("data-ui=\"cockpit-v5-command-panel\"", "cockpit-command-panel", "cockpit-panel-icon"):
+    if required not in COCKPIT_COMMAND_WIDGETS:
+        errors.append(f"operating cockpit command panels must use V5 command card styling: {required}")
+for required in ("risk-command-metric", "risk-command-panel", "risk-signal-card", "risk-signal-row"):
+    if required not in RISK_CONTROL_CSS:
+        errors.append(f"risk control must keep V5 luxury command visuals in risk-control.css: {required}")
+for required in ("data-ui=\"risk-v5-command-metric-grid\"", "data-ui=\"risk-v5-command-metric-card\"", "data-ui=\"risk-v5-queue-panel\"", "data-ui=\"risk-v5-detail-panel\"", "data-ui=\"risk-v5-action-panel\"", "risk-command-panel", "risk-command-metric", "risk-signal-row"):
+    if required not in RISK_CONTROL_WORKSPACE:
+        errors.append(f"risk control workspace must use V5 risk command panels: {required}")
+for required in ("data-ui=\"risk-v5-signal-board\"", "data-ui=\"risk-v5-heatmap-panel\"", "data-ui=\"risk-v5-disposition-matrix\"", "data-ui=\"risk-v5-review-panel\"", "risk-signal-card", "risk-signal-row"):
+    if required not in RISK_SIGNAL_BOARD:
+        errors.append(f"risk signal board must use V5 risk signal cards: {required}")
 for required in ("aria-label=\"三大中枢控制塔框架\"", "data-ui-scheme=\"hybrid-command-center\"", "command-center-shell", "command-center-hero"):
     if required not in COMMAND_CENTER_FRAME:
         errors.append(f"command center frame must implement hybrid B/C shell: {required}")
@@ -61,6 +141,49 @@ if "data-ui-scheme=\"professional-saas\"" not in PROFESSIONAL_WORKSPACE_FRAME:
 for required in ("professional-tabbar", "professional-table", "professional-context-rail", "professional-status-chip"):
     if required not in INDEX_CSS:
         errors.append(f"professional SaaS workspaces must share density/style utility: {required}")
+for required in ("./product-inventory.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"product inventory V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in ("product-inventory-shell", "product-store-console", "product-store-summary-card", "product-store-board", "product-store-table-shell", "product-master-console", "product-master-inspector", "product-inventory-action"):
+    if required not in PRODUCT_INVENTORY_CSS:
+        errors.append(f"product inventory stylesheet must keep V5 seller-console visual primitive: {required}")
+for component_name, component_content, required_class in (
+    ("ProductListPage", PRODUCT_LIST_PAGE, "product-inventory-shell"),
+    ("PlatformStoreProductsPanel", PLATFORM_STORE_PRODUCTS_PANEL, "product-store-console"),
+    ("PlatformStoreProductsPanel", PLATFORM_STORE_PRODUCTS_PANEL, "product-store-table-shell"),
+    ("ProductSellerWorkbench", PRODUCT_SELLER_WORKBENCH, "product-master-console"),
+    ("ProductSellerWorkbench", PRODUCT_SELLER_WORKBENCH, "product-master-inspector"),
+):
+    if required_class not in component_content:
+        errors.append(f"{component_name} must consume the product inventory V5 visual primitive: {required_class}")
+for required in ("./batch-publish.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"batch publish V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in ("batch-publish-shell", "batch-publish-target-bar", "batch-publish-toolbar", "batch-publish-table-shell", "batch-publish-preview-panel", "batch-publish-result-panel", "batch-publish-gate-card", "batch-publish-row", "batch-publish-result-row", "batch-publish-chip"):
+    if required not in BATCH_PUBLISH_CSS:
+        errors.append(f"batch publish stylesheet must keep V5 seller-console visual primitive: {required}")
+for component_name, component_content, required_class in (
+    ("BatchPublishWorkspace", BATCH_PUBLISH_WORKSPACE, "batch-publish-shell"),
+    ("BatchPublishSelectStep", BATCH_PUBLISH_SELECT, "batch-publish-table-shell"),
+    ("BatchPublishPreviewStep", BATCH_PUBLISH_PREVIEW, "batch-publish-preview-panel"),
+    ("BatchPublishResultStep", BATCH_PUBLISH_RESULT, "batch-publish-result-panel"),
+):
+    if required_class not in component_content:
+        errors.append(f"{component_name} must consume the batch publish V5 visual primitive: {required_class}")
+for required in ("./pricing.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"smart pricing V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in ("pricing-shell", "pricing-panel", "pricing-form-panel", "pricing-template-panel", "pricing-item-context", "pricing-result-card", "pricing-summary-card", "pricing-tip-panel"):
+    if required not in PRICING_CSS:
+        errors.append(f"smart pricing stylesheet must keep V5 pricing visual primitive: {required}")
+for component_name, component_content, required_class in (
+    ("SmartPricingPage", SMART_PRICING_PAGE, "pricing-shell"),
+    ("SmartPricingPage", SMART_PRICING_PAGE, "pricing-panel"),
+    ("PricingItemSelector", PRICING_ITEM_SELECTOR, "pricing-item-context"),
+    ("PricingTemplateStorePreview", PRICING_TEMPLATE_STORE_PREVIEW, "pricing-template-panel"),
+):
+    if required_class not in component_content:
+        errors.append(f"{component_name} must consume the smart pricing V5 visual primitive: {required_class}")
 if "professional-tabbar" not in TABS_COMPONENT or "data-ui-scheme=\"professional-tabs\"" not in TABS_COMPONENT:
     errors.append("shared Tabs component must use the professional tabbar scheme")
 if "professional-tabbar" not in MODULE_SUBNAV or "data-ui-scheme=\"professional-tabs\"" not in MODULE_SUBNAV:
@@ -338,6 +461,15 @@ business_flow_board_with_range_util = BUSINESS_FLOW_COMMAND_BOARD + COMPARISON_R
 for required in ("业务流程总分看板", "业务流程卡点总览", "业务处理总览", "当前瓶颈", "卡点率", "待补关键资料", "业务处理动作", "data-ui=\"flow-hero\"", "商品流程数量对比", "业务核心判断条", "业务核心判断", "链路卡点率", "当前瓶颈阶段", "下一步动作", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "商品流程对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "八阶段卡点矩阵", "平台业务对象分布", "平台对象占比", "店铺卡点热力", "推进结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺业务推进结构", "信号收集", "候选验证", "选品决策", "Listing 制作", "定价策略", "平台刊登", "BarChart", "PieChart", "comparisonRangeLabel"):
     if required not in business_flow_board_with_range_util:
         errors.append(f"business monitor V5 board must expose total/breakdown/stage charts: {required}")
+for required in ("flow-command-board", "flow-command-card", "flow-stage-card", "flow-object-panel", "flow-object-row"):
+    if required not in BUSINESS_FLOW_CSS:
+        errors.append(f"business monitor V5 CSS must keep command-tower visual primitives: {required}")
+for required in ("data-ui=\"flow-v5-command-board\"", "data-ui=\"flow-v5-action-panel\"", "data-ui=\"flow-v5-unassigned-actions\"", "data-ui=\"flow-v5-stage-matrix-card\"", "data-ui=\"flow-v5-platform-distribution\"", "data-ui=\"flow-v5-platform-share\"", "data-ui=\"flow-v5-store-heatmap\"", "flow-command-board", "flow-command-card", "flow-stage-card"):
+    if required not in BUSINESS_FLOW_COMMAND_BOARD:
+        errors.append(f"business monitor command board must keep V5 visual marker: {required}")
+for required in ("data-ui=\"flow-v5-processing-workspace\"", "data-ui=\"flow-v5-object-table-panel\"", "data-ui=\"flow-v5-stage-swimlanes\"", "data-ui=\"flow-v5-swimlane-card\"", "data-ui=\"flow-v5-stage-ribbon\"", "flow-object-panel", "flow-object-row"):
+    if required not in BUSINESS_FLOW_V2:
+        errors.append(f"business monitor workspace must keep V5 visual marker: {required}")
 business_flow_service_content = (ROOT / "backend/app/services/business_flow_service.py").read_text(encoding="utf-8")
 business_flow_projection_content = (ROOT / "backend/app/services/business_flow_projection_service.py").read_text(encoding="utf-8")
 business_flow_dwell_content = business_flow_board_with_range_util + BUSINESS_FLOW_V2 + business_flow_service_content + business_flow_projection_content

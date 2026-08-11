@@ -1,0 +1,114 @@
+/* Growth engine V5 visual primitives. Visual only; business logic stays in GrowthEnginePage. */
+
+.growth-shell {
+  position: relative;
+}
+
+.growth-hero,
+.growth-panel,
+.growth-summary-panel,
+.growth-opportunity-card,
+.growth-diagnostic-card,
+.growth-experiment-card,
+.growth-feedback-card,
+.growth-action-card,
+.growth-error-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 30%),
+    var(--surface-card-gradient);
+  box-shadow: var(--shadow-sm);
+}
+
+.growth-hero {
+  border-radius: var(--radius-xl);
+}
+
+.growth-hero::before,
+.growth-panel::before,
+.growth-summary-panel::before,
+.growth-opportunity-card::before,
+.growth-diagnostic-card::before,
+.growth-experiment-card::before,
+.growth-feedback-card::before,
+.growth-action-card::before,
+.growth-error-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .58;
+}
+
+.growth-panel,
+.growth-summary-panel,
+.growth-opportunity-card,
+.growth-diagnostic-card,
+.growth-experiment-card,
+.growth-feedback-card,
+.growth-action-card,
+.growth-error-panel {
+  border-radius: var(--radius-xl);
+}
+
+.growth-summary-grid,
+.growth-opportunity-grid,
+.growth-diagnostic-grid,
+.growth-action-grid {
+  display: grid;
+  gap: .875rem;
+}
+
+.growth-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.growth-opportunity-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.growth-diagnostic-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.growth-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.growth-mini-tile {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-surface) 84%, var(--color-bg));
+}
+
+.growth-score-strip {
+  height: .35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-border) 60%, var(--color-surface));
+}
+
+.growth-score-strip > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gradient-accent);
+}
+
+.growth-action-card {
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    transform var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.growth-action-card:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 46%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 42%, var(--color-surface));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}

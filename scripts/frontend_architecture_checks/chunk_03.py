@@ -667,6 +667,101 @@ for required in (
 ):
     if required not in REPORT_PANELS:
         errors.append(f"AUDIT-P2-03 reports center must expose visible React Query error recovery: {required}")
+for required in ("./reports.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"reports center V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in (
+    "reports-shell",
+    "reports-operations-panel",
+    "reports-summary-card",
+    "reports-chart-panel",
+    "reports-tab-panel",
+    "reports-date-toolbar",
+    "reports-anomaly-panel",
+    "reports-subscription-row",
+    "reports-error-panel",
+    "reports-progress-bar",
+):
+    if required not in REPORTS_CSS:
+        errors.append(f"reports center stylesheet must keep V5 report visual primitive: {required}")
+for component_name, component_content, required_class in (
+    ("ReportsWorkspace", REPORTS_WORKSPACE, "reports-shell"),
+    ("ReportsWorkspace", REPORTS_WORKSPACE, "reports-operations-panel"),
+    ("ReportsWorkspace", REPORTS_WORKSPACE, "reports-summary-card"),
+    ("ReportsPanels", REPORT_PANELS, "reports-date-toolbar"),
+    ("ReportsPanels", REPORT_PANELS, "reports-tab-panel"),
+    ("ReportsPanels", REPORT_PANELS, "reports-subscription-row"),
+    ("ReportsPanels", REPORT_PANELS, "reports-error-panel"),
+):
+    if required_class not in component_content:
+        errors.append(f"{component_name} must consume the reports center V5 visual primitive: {required_class}")
+for required in ("./orders.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"orders fulfillment V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in (
+    "orders-shell",
+    "orders-hero",
+    "orders-command-panel",
+    "orders-table-panel",
+    "orders-filter-grid",
+    "orders-metric-card",
+    "orders-store-card",
+    "orders-error-panel",
+    "orders-platform-badge",
+):
+    if required not in ORDERS_CSS:
+        errors.append(f"orders stylesheet must keep V5 fulfillment visual primitive: {required}")
+for required in (
+    "orders-shell",
+    "orders-hero",
+    "orders-command-panel",
+    "orders-table-panel",
+    "orders-filter-grid",
+    "orders-metric-card",
+    "orders-store-card",
+    "orders-error-panel",
+    "orders-platform-badge",
+    "data-ui=\"order-fulfillment-filter-bar\"",
+    "StoreContextBanner",
+    "DataTable",
+):
+    if required not in ORDER_LIST_PAGE:
+        errors.append(f"order list page must consume V5 fulfillment visual primitive and keep business controls: {required}")
+for required in ("./finance.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"finance V5 stylesheet must be imported in styles/modules.css: {required}")
+for required in (
+    "finance-shell",
+    "finance-hero",
+    "finance-panel",
+    "finance-summary-card",
+    "finance-chart-panel",
+    "finance-traceback-card",
+    "finance-bill-panel",
+    "finance-settlement-panel",
+    "finance-risk-panel",
+    "finance-error-panel",
+    "finance-empty-panel",
+):
+    if required not in FINANCE_CSS:
+        errors.append(f"finance stylesheet must keep V5 finance visual primitive: {required}")
+for required in (
+    "finance-shell",
+    "finance-hero",
+    "finance-summary-card",
+    "finance-panel",
+    "finance-chart-panel",
+    "finance-traceback-card",
+    "finance-bill-panel",
+    "finance-settlement-panel",
+    "finance-risk-panel",
+    "finance-error-panel",
+    "data-ui=\"finance-trend-chart\"",
+    "StoreContextBanner",
+    "FinanceLedgerPanel",
+):
+    if required not in FINANCE_PAGE:
+        errors.append(f"finance page must consume V5 finance visual primitive and keep business controls: {required}")
 '''
 
 def run(env: dict[str, object]) -> None:

@@ -1,0 +1,230 @@
+.competitor-shell {
+  --competitor-radius-lg: 24px;
+  --competitor-radius-md: 18px;
+}
+
+.competitor-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 86%, var(--color-primary) 14%);
+  border-radius: var(--competitor-radius-lg);
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-primary-light) 42%, transparent) 0, transparent 30%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%), var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.competitor-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.competitor-primary-action,
+.competitor-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, opacity 180ms ease;
+}
+
+.competitor-primary-action {
+  min-height: 38px;
+  padding: 0 16px;
+  color: var(--color-primary-text);
+  background: var(--gradient-accent);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.competitor-secondary-action {
+  min-height: 34px;
+  border: 1px solid var(--color-border);
+  padding: 0 14px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-light) 8%);
+}
+
+.competitor-primary-action:hover,
+.competitor-secondary-action:hover,
+.competitor-metric-card:hover,
+.competitor-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.competitor-primary-action:active,
+.competitor-secondary-action:active,
+.competitor-metric-card:active,
+.competitor-action-button:active {
+  transform: translateY(0);
+}
+
+.competitor-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.competitor-metric-card {
+  min-height: 116px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--competitor-radius-md);
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-bg) 6%);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.competitor-metric-card[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border) 54%);
+  background: color-mix(in srgb, var(--color-primary-light) 30%, var(--color-surface) 70%);
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.competitor-metric-card strong {
+  display: block;
+  margin-top: 12px;
+  color: var(--color-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.competitor-metric-icon {
+  margin-bottom: 12px;
+  display: inline-flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-light) 72%, var(--color-surface) 28%);
+}
+
+.competitor-gap-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 38%, var(--color-border) 62%);
+  border-radius: var(--competitor-radius-md);
+  background: color-mix(in srgb, var(--color-warning-light) 34%, var(--color-surface) 66%);
+  padding: 13px 16px;
+}
+
+.competitor-gap-chip,
+.competitor-count-pill {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg) 12%);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.competitor-panel,
+.competitor-table-panel {
+  border-radius: var(--competitor-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.competitor-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--competitor-radius-md);
+}
+
+.competitor-row {
+  transition: background-color 180ms ease;
+}
+
+.competitor-row:hover {
+  background: color-mix(in srgb, var(--color-primary-light) 18%, var(--color-bg) 82%);
+}
+
+.competitor-platform-chip {
+  display: inline-flex;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-light) 64%, var(--color-surface) 36%);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: 4px 9px;
+}
+
+.competitor-insight-card,
+.competitor-trend-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--competitor-radius-md);
+  background: color-mix(in srgb, var(--color-bg) 82%, var(--color-surface) 18%);
+  padding: 14px;
+}
+
+.competitor-trend-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 72%, var(--color-surface) 28%);
+}
+
+.competitor-error-panel {
+  border: 1px solid color-mix(in srgb, var(--color-danger) 46%, var(--color-border) 54%);
+  border-radius: var(--competitor-radius-md);
+  background: color-mix(in srgb, var(--color-danger-light) 42%, var(--color-surface) 58%);
+  padding: 16px;
+}
+
+.competitor-action-button {
+  border-radius: 999px;
+  padding: 7px;
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+.competitor-action-button:hover {
+  background: color-mix(in srgb, var(--color-border) 58%, var(--color-surface) 42%);
+}
+
+@media (max-width: 1024px) {
+  .competitor-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .competitor-hero {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .competitor-hero-actions,
+  .competitor-primary-action {
+    width: 100%;
+  }
+
+  .competitor-metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .competitor-primary-action,
+  .competitor-secondary-action,
+  .competitor-metric-card,
+  .competitor-action-button,
+  .competitor-row {
+    transition: none;
+  }
+}

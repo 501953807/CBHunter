@@ -1,0 +1,128 @@
+/* CBHunter V5 batch publishing workflow visuals. */
+
+.batch-publish-shell {
+  position: relative;
+}
+
+.batch-publish-shell::before {
+  content: "";
+  position: absolute;
+  inset: -16px -12px auto;
+  height: 240px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 34%),
+    radial-gradient(circle at 86% 4%, color-mix(in oklch, var(--color-accent) 11%, transparent), transparent 32%);
+}
+
+.batch-publish-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.batch-publish-panel,
+.batch-publish-target-bar,
+.batch-publish-toolbar,
+.batch-publish-table-shell,
+.batch-publish-preview-panel,
+.batch-publish-result-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 88%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.batch-publish-panel::before,
+.batch-publish-target-bar::before,
+.batch-publish-toolbar::before,
+.batch-publish-table-shell::before,
+.batch-publish-preview-panel::before,
+.batch-publish-result-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .58;
+}
+
+.batch-publish-panel > *,
+.batch-publish-target-bar > *,
+.batch-publish-toolbar > *,
+.batch-publish-table-shell > *,
+.batch-publish-preview-panel > *,
+.batch-publish-result-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.batch-publish-gate-card,
+.batch-publish-row,
+.batch-publish-result-row,
+.batch-publish-chip {
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    transform var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.batch-publish-gate-card {
+  border-color: var(--color-hairline);
+  background: color-mix(in oklch, var(--color-bg) 54%, var(--color-surface));
+}
+
+.batch-publish-gate-card:hover,
+.batch-publish-row:hover,
+.batch-publish-result-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.batch-publish-gate-card[data-ok="false"] {
+  border-color: color-mix(in oklch, var(--color-warning) 44%, var(--color-border));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklch, var(--color-warning) 18%, transparent), transparent 38%),
+    var(--color-surface);
+}
+
+.batch-publish-row[data-selected="true"] {
+  background: color-mix(in oklch, var(--color-primary-light) 64%, var(--color-surface));
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.batch-publish-chip {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 84%, var(--color-primary-light));
+}
+
+.batch-publish-chip:hover,
+.batch-publish-chip[data-active="true"] {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 46%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 68%, var(--color-surface));
+  color: var(--color-primary);
+}
+
+.batch-publish-chip[data-active="true"][data-tone="success"] {
+  border-color: color-mix(in oklch, var(--color-success) 52%, var(--color-border));
+  background: color-mix(in oklch, var(--color-success-light) 66%, var(--color-surface));
+  color: var(--color-success);
+}
+
+.batch-publish-result-hero {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in oklch, var(--color-success) 16%, transparent), transparent 32%),
+    color-mix(in oklch, var(--color-success-light) 42%, var(--color-surface));
+}
+
+.batch-publish-warning-panel {
+  border-color: color-mix(in oklch, var(--color-warning) 45%, var(--color-border));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklch, var(--color-warning) 20%, transparent), transparent 36%),
+    color-mix(in oklch, var(--color-warning-light) 52%, var(--color-surface));
+}

@@ -19,10 +19,9 @@ export function DailyTab({ date, setDate }: { date: string; setDate: (v: string)
   const reportDailyQuery = useDailyReport(query)
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="reports-date-toolbar">
         <input type="date" value={date || today} onChange={e => setDate(e.target.value)}
-          className="px-3 py-2 rounded-lg border text-sm"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
+          className="luxury-input rounded-[var(--radius-lg)] px-3 py-2 text-sm" />
       </div>
       {reportDailyQuery.isError ? (
         <div data-ui="report-daily-error">
@@ -44,10 +43,9 @@ export function WeeklyTab({ weekStart, setWeekStart }: { weekStart: string; setW
   const reportWeeklyQuery = useWeeklyReport(query)
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="reports-date-toolbar">
         <input type="date" value={weekStart || weekAgo} onChange={e => setWeekStart(e.target.value)}
-          className="px-3 py-2 rounded-lg border text-sm"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
+          className="luxury-input rounded-[var(--radius-lg)] px-3 py-2 text-sm" />
         <span className="text-xs" style={{ color: 'var(--color-muted)' }}>起止日期</span>
       </div>
       {reportWeeklyQuery.isError ? (
@@ -68,10 +66,9 @@ export function MonthlyTab({ month, setMonth }: { month: string; setMonth: (v: s
   const reportMonthlyQuery = useMonthlyReport(query)
   return (
     <>
-      <div className="flex items-center gap-3">
+      <div className="reports-date-toolbar">
         <input type="month" value={month || curMonth} onChange={e => setMonth(e.target.value)}
-          className="px-3 py-2 rounded-lg border text-sm"
-          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }} />
+          className="luxury-input rounded-[var(--radius-lg)] px-3 py-2 text-sm" />
       </div>
       {reportMonthlyQuery.isError ? (
         <div data-ui="report-monthly-error">
@@ -100,7 +97,7 @@ export function AnomalyTab() {
   const metricAnomalies = anomalies.filter((item: any) => item.metric !== 'financial_risk')
 
   return (
-    <Card>
+    <Card className="reports-tab-panel">
       <CardContent>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
@@ -121,14 +118,14 @@ export function AnomalyTab() {
         ) : (
           <div className="space-y-4">
             {financeRisks.length > 0 && (
-              <div className="rounded-xl border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3" data-ui="report-finance-anomaly-list">
+              <div className="reports-anomaly-panel rounded-[var(--radius-lg)] p-3" data-ui="report-finance-anomaly-list">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[var(--color-fg)]">财务风险异常</p>
                   <Badge variant="warning">{financeRisks.length} 项</Badge>
                 </div>
                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                   {financeRisks.map((a: any) => (
-                    <div key={a.risk_code || a.title} className="rounded-lg bg-[var(--color-surface)] p-3">
+                    <div key={a.risk_code || a.title} className="reports-metric-tile rounded-[var(--radius-md)] p-3">
                       <p className="text-sm font-medium text-[var(--color-fg)]">{a.title || a.actual || a.risk_code}</p>
                       <p className="mt-1 text-xs text-[var(--color-muted)]">{a.detail || '财务台账风险待复核'}</p>
                       {a.action_route && (
@@ -200,7 +197,7 @@ export function SubscriptionsTab() {
   }
 
   return (
-    <Card>
+    <Card className="reports-tab-panel">
       <CardContent>
         <EvidenceBanner evidence={reportSubscriptionsQuery.data} compact />
         <div className="flex items-center justify-between mb-4">
@@ -223,8 +220,7 @@ export function SubscriptionsTab() {
         ) : (
           <div className="space-y-2">
             {items.map((s: any) => (
-              <div key={s.id} className="flex items-center justify-between p-3 rounded-lg"
-                style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+              <div key={s.id} className="reports-subscription-row flex items-center justify-between rounded-[var(--radius-lg)] p-3">
                 <div className="flex items-center gap-3">
                   <BellRing className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
                   <div>
@@ -262,8 +258,7 @@ export function SubscriptionsTab() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--color-muted)' }}>推送渠道</label>
-                <div className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                <div className="reports-metric-tile w-full rounded-[var(--radius-lg)] px-3 py-2 text-sm text-[var(--color-fg)]">
                   站内通知
                 </div>
                 <p className="text-[11px] mt-1" style={{ color: 'var(--color-muted)' }}>邮件、钉钉和飞书需配置真实发送渠道后再开放。</p>
@@ -271,8 +266,7 @@ export function SubscriptionsTab() {
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--color-muted)' }}>推送频率</label>
                 <select value={form.frequency} onChange={e => setForm({ ...form, frequency: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
-                  style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-fg)' }}>
+                  className="luxury-select w-full rounded-[var(--radius-lg)] px-3 py-2 text-sm">
                   <option value="">请选择频率</option>
                   {Object.entries(FREQ_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
@@ -291,10 +285,7 @@ function ReportLoadError({ title, actionLabel, onRetry }: {
   onRetry: () => void
 }) {
   return (
-    <div
-      className="mt-4 rounded-xl border p-4"
-      style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}
-    >
+    <div className="reports-error-panel mt-4 rounded-[var(--radius-lg)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>{title}</p>

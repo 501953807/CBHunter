@@ -1,0 +1,219 @@
+.promotions-shell {
+  --promotions-radius-lg: 24px;
+  --promotions-radius-md: 18px;
+}
+
+.promotions-hero,
+.promotions-form-panel,
+.promotions-action-panel,
+.promotions-table-panel {
+  border: 1px solid color-mix(in srgb, var(--color-border) 86%, var(--color-primary) 14%);
+  border-radius: var(--promotions-radius-lg);
+  background:
+    radial-gradient(circle at 4% 0%, color-mix(in srgb, var(--color-primary-light) 38%, transparent) 0, transparent 30%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%), var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.promotions-hero-actions,
+.promotions-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.promotions-governance-panel,
+.promotions-rule-panel {
+  border-radius: var(--promotions-radius-lg);
+}
+
+.promotions-governance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.promotions-governance-card,
+.promotions-sub-panel,
+.promotions-picker-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--promotions-radius-md);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg) 8%);
+  box-shadow: var(--shadow-sm);
+  padding: 14px;
+}
+
+.promotions-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.promotions-message {
+  border: 1px solid color-mix(in srgb, var(--color-warning) 34%, var(--color-border) 66%);
+  border-radius: var(--promotions-radius-md);
+  background: color-mix(in srgb, var(--color-warning-light) 28%, var(--color-surface) 72%);
+  color: var(--color-muted);
+  font-size: 14px;
+  padding: 12px 14px;
+}
+
+.promotions-form-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 14px;
+}
+
+.promotions-inline-form-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.promotions-discount-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.promotions-add-items-grid {
+  display: grid;
+  grid-template-columns: 1fr 160px 160px;
+  gap: 14px;
+}
+
+.promotions-field-input {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-bg) 6%);
+  color: var(--color-fg);
+  font-size: 14px;
+  padding: 10px 12px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.promotions-field-input::placeholder {
+  color: var(--color-muted);
+}
+
+.promotions-field-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+  outline: none;
+}
+
+.promotions-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.promotions-candidate-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--promotions-radius-md);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg) 8%);
+  padding: 12px;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.promotions-candidate-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border) 56%);
+  box-shadow: var(--shadow-sm);
+}
+
+.promotions-candidate-card.is-selected {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-light) 42%, var(--color-surface) 58%);
+}
+
+.promotions-count-pill,
+.promotions-row-action {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg) 12%);
+  font-size: 11px;
+  font-weight: 650;
+  min-height: 26px;
+  padding: 4px 10px;
+}
+
+.promotions-count-pill {
+  color: var(--color-muted);
+}
+
+.promotions-row-action {
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.promotions-row-action:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border) 62%);
+  background: color-mix(in srgb, var(--color-primary-light) 18%, var(--color-surface) 82%);
+}
+
+.promotions-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--promotions-radius-md);
+}
+
+.promotions-row {
+  transition: background-color 180ms ease;
+}
+
+.promotions-row:hover {
+  background: color-mix(in srgb, var(--color-primary-light) 14%, var(--color-bg) 86%);
+}
+
+@media (max-width: 1100px) {
+  .promotions-governance-grid,
+  .promotions-form-grid,
+  .promotions-inline-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .promotions-add-items-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .promotions-hero,
+  .promotions-form-panel,
+  .promotions-action-panel,
+  .promotions-table-panel {
+    padding: 18px;
+  }
+
+  .promotions-governance-grid,
+  .promotions-form-grid,
+  .promotions-inline-form-grid,
+  .promotions-discount-grid,
+  .promotions-candidate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .promotions-section-heading {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promotions-field-input,
+  .promotions-candidate-card,
+  .promotions-row-action,
+  .promotions-row {
+    transition: none;
+  }
+}

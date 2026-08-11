@@ -34,7 +34,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     >
       <div
         className={cn(
-          'bg-[var(--color-surface)] rounded-xl shadow-[var(--shadow-lg)] max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 transition-colors',
+          'luxury-modal-panel max-h-[82vh] w-[calc(100vw-2rem)] flex flex-col animate-in fade-in zoom-in-95 rounded-[var(--radius-xl)] transition-colors',
           {
             'max-w-sm': size === 'sm',
             'max-w-lg': size === 'md',
@@ -43,16 +43,19 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
-            <h3 className="text-lg font-semibold text-[var(--color-fg)]">{title}</h3>
-            <button onClick={onClose} className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
+          <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-6 py-4">
+            <div>
+              <p className="luxury-section-kicker">Dialog</p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight text-[var(--color-fg)]">{title}</h3>
+            </div>
+            <button onClick={onClose} className="luxury-modal-close rounded-full p-2" aria-label="关闭弹窗">
               <X className="w-5 h-5" />
             </button>
           </div>
         )}
         <div className="overflow-y-auto px-6 py-4 flex-1">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)]">
+          <div className="flex items-center justify-end gap-3 border-t border-[var(--color-hairline)] px-6 py-4">
             {footer}
           </div>
         )}

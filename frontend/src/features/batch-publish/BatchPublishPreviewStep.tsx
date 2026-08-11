@@ -110,7 +110,7 @@ export function BatchPublishPreviewStep({
     }
   }
   return (
-    <div className="space-y-4">
+    <div className="batch-publish-preview-panel space-y-4 rounded-[var(--radius-xl)] p-4">
       {summary && (
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           <StatCard label="产品数" value={summary.total_products} icon={<Package className="w-4 h-4" />} />
@@ -125,7 +125,7 @@ export function BatchPublishPreviewStep({
         </div>
       )}
 
-      <Card>
+      <Card className="batch-publish-panel">
         <CardContent className="pt-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -164,7 +164,7 @@ export function BatchPublishPreviewStep({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="batch-publish-preview-panel">
         <CardContent className="pt-4">
           <div className="flex items-center gap-2 mb-4">
             <Check className="w-4 h-4 text-[var(--color-success)]" />
@@ -186,7 +186,7 @@ export function BatchPublishPreviewStep({
               return (
               <div
                 key={`${draft.sourcing_item_id || draft.source_product_id}-${draft.platform}-${draft.platform_account_id || draft.market}-${index}`}
-                className="p-4 rounded-2xl border transition-all"
+                className="batch-publish-panel p-4 rounded-[var(--radius-xl)] transition-all"
                 style={{
                   background: confirmedDrafts.has(index) ? 'var(--color-success-light)' : 'var(--color-bg)',
                   borderColor: confirmedDrafts.has(index) ? 'var(--color-success)' : 'var(--color-border)',
@@ -331,7 +331,7 @@ export function BatchPublishPreviewStep({
                 )}
               </div>
             )}) : (
-              <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-6 text-sm text-[var(--color-muted)]">
+              <div className="batch-publish-panel rounded-[var(--radius-xl)] border border-dashed p-6 text-sm text-[var(--color-muted)]">
                 暂无可编辑 Listing 草稿，请返回选择商品、平台和市场后生成预览。
               </div>
             )}
@@ -347,7 +347,7 @@ export function BatchPublishPreviewStep({
 	        <button
 	          onClick={onPublish}
 	          disabled={publishDisabled}
-	          className="inline-flex items-center gap-2 px-8 py-3 rounded-lg text-[var(--color-primary-text)] font-semibold disabled:opacity-40 transition-all"
+	          className="inline-flex items-center gap-2 px-8 py-3 rounded-full text-[var(--color-primary-text)] font-semibold disabled:opacity-40 transition-all"
 	          style={{ background: 'var(--gradient-accent)' }}
 	        >
           {publishing

@@ -8,7 +8,7 @@ export function SellerImageWatermarkControls({ imageOptions, setImageOptions, in
   onClearWatermark?: () => void
 }) {
   return (
-    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-watermark-inline-controls" aria-label="图片水印参数控制">
+    <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-watermark-inline-controls" aria-label="图片水印参数控制">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">水印参数</p>
         <button type="button" onClick={onClearWatermark} disabled={!imageOptions.watermark_text} className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)] disabled:cursor-not-allowed disabled:opacity-40">清除水印</button>

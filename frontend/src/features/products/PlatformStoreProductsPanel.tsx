@@ -94,7 +94,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="product-store-console rounded-[var(--radius-xl)] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-[var(--color-fg)]">平台店铺商品</h2>
@@ -116,7 +116,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
             </Button>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[140px_220px_140px_140px_1fr]">
+        <div className="product-store-filter-bar mt-4 grid grid-cols-1 gap-3 rounded-[var(--radius-xl)] p-3 lg:grid-cols-[140px_220px_140px_140px_1fr]">
           <Select
             value={platform}
             onChange={(value) => { setPlatform(value); setPlatformAccountId(''); setMarket(''); setPage(1) }}
@@ -203,7 +203,7 @@ export function PlatformStoreProductsPanel({ initialPlatform = '', initialPlatfo
         onRetry={() => productSyncLogsQuery.refetch()}
       />
 
-      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="product-store-table-shell overflow-x-auto rounded-[var(--radius-xl)]">
         <table className="professional-table w-full text-left text-xs">
           <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
             <tr>
@@ -241,7 +241,7 @@ function PlatformStoreGroupingBoard({ items }: { items: PlatformStoreProduct[] }
     <section
       aria-label="平台店铺商品分组态势"
       data-ui="platform-store-grouping-board"
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+      className="product-store-board rounded-[var(--radius-xl)] p-4"
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -255,7 +255,7 @@ function PlatformStoreGroupingBoard({ items }: { items: PlatformStoreProduct[] }
       ) : (
         <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {groups.map(group => (
-            <article key={group.key} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <article key={group.key} className="product-store-group-card rounded-[var(--radius-xl)] border p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-[var(--color-fg)]">{group.storeName}</p>
@@ -279,7 +279,7 @@ function PlatformStoreGroupingBoard({ items }: { items: PlatformStoreProduct[] }
 
 function GroupMetric({ label, value, warning }: { label: string; value: string; warning?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+    <div className="product-store-metric rounded-lg border px-3 py-2">
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className={warning ? 'mt-1 text-sm font-semibold text-[var(--color-warning)]' : 'mt-1 text-sm font-semibold text-[var(--color-fg)]'}>{value}</p>
     </div>
@@ -288,7 +288,7 @@ function GroupMetric({ label, value, warning }: { label: string; value: string; 
 
 function SummaryCard({ label, value, hint, warning, dataUi }: { label: string; value: string; hint: string; warning?: boolean; dataUi?: string }) {
   return (
-    <div data-ui={dataUi} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+    <div data-ui={dataUi} data-warning={warning ? 'true' : 'false'} className="product-store-summary-card rounded-[var(--radius-xl)] border p-3 shadow-[var(--shadow-sm)]">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className={warning ? 'mt-1 text-2xl font-bold text-[var(--color-warning)]' : 'mt-1 text-2xl font-bold text-[var(--color-fg)]'}>{value}</p>
       <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{hint}</p>
@@ -415,7 +415,7 @@ function PlatformStoreProductRow({ item }: { item: PlatformStoreProduct }) {
   const statusMeta = getStatusMeta(platform_listing_statuses, item.status)
   const override = item.store_override_summary
   return (
-    <tr className="border-t border-[var(--color-border)] align-top">
+    <tr className="product-store-row border-t border-[var(--color-border)] align-top">
       <td className="min-w-72 px-3 py-3">
         <div className="flex gap-3">
           {item.images?.[0] ? <img src={productImageSrc(item.images[0])} alt="平台商品图" className="h-14 w-14 rounded-lg object-cover bg-[var(--color-bg)]" /> : <div className="h-14 w-14 rounded-lg bg-[var(--color-bg)]" />}
@@ -479,7 +479,7 @@ function PlatformStoreProductRow({ item }: { item: PlatformStoreProduct }) {
         <PublishPlanInlineStatus item={item} />
         <Link
           to={`/products/${item.product_master.id}?tab=listings&listing_id=${item.id}`}
-          className="mt-2 inline-flex rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] font-medium text-[var(--color-primary)] hover:bg-[var(--color-bg)]"
+          className="product-inventory-action mt-2 inline-flex rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--color-primary)]"
         >
           编辑店铺 Listing
         </Link>
@@ -495,7 +495,7 @@ function PublishPlanQueueBoard({ items }: { items: PlatformStoreProduct[] }) {
     <section
       aria-label="发布计划队列"
       data-ui="platform-store-publish-plan-queue"
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+      className="product-store-board rounded-[var(--radius-xl)] p-4"
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -509,7 +509,7 @@ function PublishPlanQueueBoard({ items }: { items: PlatformStoreProduct[] }) {
       ) : (
         <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {queueItems.slice(0, 6).map(item => (
-            <article key={item.id} className="rounded-xl border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3" data-ui="platform-store-publish-plan-card">
+            <article key={item.id} className="product-store-group-card rounded-[var(--radius-xl)] border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3" data-ui="platform-store-publish-plan-card">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="line-clamp-2 text-sm font-semibold text-[var(--color-fg)]">{item.title}</p>

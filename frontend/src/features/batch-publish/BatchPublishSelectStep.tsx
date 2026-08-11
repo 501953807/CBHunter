@@ -182,7 +182,7 @@ export function BatchPublishSelectStep({
           <section
             aria-label="发布目标批量操作条"
             data-ui="publish-target-command-bar"
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3"
+            className="batch-publish-target-bar rounded-[var(--radius-xl)] p-3"
           >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -231,7 +231,7 @@ export function BatchPublishSelectStep({
           <section
             aria-label="发布就绪商品筛选工具栏"
             data-ui="batch-publish-ready-list-toolbar"
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+            className="batch-publish-toolbar rounded-[var(--radius-xl)] p-3"
           >
             <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_180px_220px_160px_auto]">
               <label className="text-xs text-[var(--color-muted)]">
@@ -278,7 +278,7 @@ export function BatchPublishSelectStep({
               当前显示 {filteredItems.length} 条，已选本页 {selectedOnPage}/{selectablePageItems.length}；发布动作只针对勾选商品和已选目标店铺生成店铺级草稿。
             </p>
           </section>
-          <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]" style={{ scrollbarWidth: 'thin' }} data-ui="batch-publish-ready-list-table">
+          <div className="batch-publish-table-shell overflow-x-auto rounded-[var(--radius-xl)]" style={{ scrollbarWidth: 'thin' }} data-ui="batch-publish-ready-list-table">
             <table className="professional-table min-w-[1240px] w-full text-left text-xs">
               <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
                 <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
@@ -302,8 +302,8 @@ export function BatchPublishSelectStep({
               return (
                 <tr
                   key={item.key}
-                  className="border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
-                  style={{ background: selectedItems.has(item.key) ? 'var(--color-primary-light)' : 'transparent' }}
+                  data-selected={selectedItems.has(item.key) ? 'true' : 'false'}
+                  className="batch-publish-row border-b border-[var(--color-border)] align-top transition-colors"
                 >
                   <td className="px-3 py-3">
                     <input
@@ -454,9 +454,8 @@ function TargetChipGroup({
   emptyText?: string
   tone?: 'primary' | 'success'
 }) {
-  const activeColor = tone === 'success' ? 'var(--color-success)' : 'var(--color-primary)'
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="batch-publish-panel rounded-[var(--radius-xl)] p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-[var(--color-fg)]">{title}</p>
         <span className="text-[11px] text-[var(--color-muted)]">已选 {selected.size}</span>
@@ -473,12 +472,9 @@ function TargetChipGroup({
                   key={item.id}
                   type="button"
                   onClick={() => onToggle(item.id)}
-                  className="rounded-full border px-3 py-1.5 text-left text-xs transition hover:-translate-y-0.5"
-                  style={{
-                    background: checked ? activeColor : 'var(--color-bg)',
-                    borderColor: checked ? activeColor : 'var(--color-border)',
-                    color: checked ? 'var(--color-primary-text)' : 'var(--color-muted)',
-                  }}
+                  className="batch-publish-chip rounded-full px-3 py-1.5 text-left text-xs transition"
+                  data-active={checked ? 'true' : 'false'}
+                  data-tone={tone}
                 >
                   <span className="font-medium">{item.label}</span>
                   {item.meta && <span className="ml-1 opacity-80">{item.meta}</span>}
@@ -561,7 +557,7 @@ function isTrustedMediaSource(source?: string) { return source === 'confirmed_im
 
 function PublishGateCard({ label, value, detail, ok }: { label: string; value: string; detail: string; ok: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div className="batch-publish-gate-card rounded-[var(--radius-xl)] border p-3" data-ok={ok ? 'true' : 'false'}>
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className={ok ? 'mt-1 text-lg font-semibold text-[var(--color-success)]' : 'mt-1 text-lg font-semibold text-[var(--color-warning)]'}>{value}</p>
       <p className="mt-1 text-[11px] text-[var(--color-muted)]">{detail}</p>

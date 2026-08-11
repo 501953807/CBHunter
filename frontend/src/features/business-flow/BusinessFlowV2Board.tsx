@@ -97,11 +97,11 @@ export function BusinessFlowV2Board({ data, selectedStage, currentUsername, onSt
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div data-ui="flow-v5-processing-workspace" className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="min-w-0 space-y-3">
         <StageRibbon stages={data.stage_health} selectedStage={selectedStage} onStageFocus={onStageFocus} />
         <FlowStageSwimlanes lanes={data.product_pipeline} activeKey={activeItem?.work_item_id || ''} onPick={setActiveItemKey} onNavigate={onNavigate} />
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <div data-ui="flow-v5-object-table-panel" className="flow-object-panel rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
           <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] p-3">
             <ScopeButton active={scope === 'all'} onClick={() => setScope('all')}>全部 ({data.metrics.item_count})</ScopeButton>
             <ScopeButton active={scope === 'assigned'} onClick={() => setScope('assigned')}>我负责 ({data.metrics.assigned_to_me})</ScopeButton>
@@ -139,7 +139,7 @@ function FlowStageSwimlanes({ lanes, activeKey, onPick, onNavigate }: {
 }) {
   const visible = lanes.slice(0, 6)
   return (
-    <section aria-label="阶段泳道" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+    <section aria-label="阶段泳道" data-ui="flow-v5-stage-swimlanes" className="flow-command-card rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-[var(--color-fg)]">商品泳道</p>
@@ -149,7 +149,7 @@ function FlowStageSwimlanes({ lanes, activeKey, onPick, onNavigate }: {
       </div>
       <div className="grid gap-2 xl:grid-cols-6">
         {visible.map((lane) => (
-          <div key={lane.stage_key} className="min-h-36 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+          <div key={lane.stage_key} data-ui="flow-v5-swimlane-card" className="flow-stage-card min-h-36 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
             <div className="mb-2 flex items-start justify-between gap-2">
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-[var(--color-fg)]">{lane.label}</span>
@@ -209,7 +209,7 @@ function StageRibbon({ stages, selectedStage, onStageFocus }: { stages: Business
   const totalObjects = stages.reduce((sum, stage) => sum + stage.object_count, 0)
   const totalGaps = stages.reduce((sum, stage) => sum + stage.data_required_count + stage.blocked_count, 0)
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+    <div data-ui="flow-v5-stage-ribbon" className="flow-command-card rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-[var(--color-fg)]">业务处理总线</p>
@@ -273,7 +273,7 @@ function FlowTable({ items, selectedKeys, activeKey, onToggle, onPick, onNavigat
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={itemKey(item)} onClick={() => onPick(item.work_item_id)} className={`border-b border-[var(--color-border)] transition hover:bg-[var(--color-primary-light)] ${activeKey === item.work_item_id ? 'bg-[var(--color-primary-light)]' : ''}`}>
+            <tr key={itemKey(item)} onClick={() => onPick(item.work_item_id)} className={`flow-object-row border-b border-[var(--color-border)] transition hover:bg-[var(--color-primary-light)] ${activeKey === item.work_item_id ? 'bg-[var(--color-primary-light)]' : ''}`}>
               <td className="px-3 py-3"><input type="checkbox" checked={selectedKeys.includes(itemKey(item))} onChange={() => onToggle(item)} onClick={(event) => event.stopPropagation()} /></td>
               <td className="max-w-[280px] px-2 py-3">
                 <div className="flex items-center gap-3">

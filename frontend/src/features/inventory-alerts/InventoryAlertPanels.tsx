@@ -59,7 +59,7 @@ export function InventoryRiskWorkbench({
     <section
       aria-label="库存风险处理工作台"
       data-ui="inventory-risk-workbench"
-      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]"
+      className="inventory-risk-workbench p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -69,37 +69,37 @@ export function InventoryRiskWorkbench({
             围绕平台店铺 Listing 处理缺货风险、库存资金占用、滞销风险和发货超期风险；缺少平台库存、订单或运营指标时只标出缺口，不用假数据补齐。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/products?tab=platform_store_products" className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-bg)]">
+        <div className="inventory-risk-actions">
+          <Link to="/products?tab=platform_store_products" className="inventory-alert-action px-3 py-2 text-xs font-medium">
             查看店铺商品
           </Link>
           <button
             type="button"
             onClick={() => productSync.mutate(undefined)}
             disabled={productSync.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-bg)] disabled:opacity-50"
+            className="inventory-alert-action px-3 py-2 text-xs font-medium disabled:opacity-50"
             title="同步平台商品库存；未接通真实商品 Open API 时会返回缺口，不会伪造同步成功。"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${productSync.isPending ? "animate-spin" : ""}`} />
             同步平台商品库存
           </button>
-          <Link to="/orders" className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-bg)]">
+          <Link to="/orders" className="inventory-alert-action px-3 py-2 text-xs font-medium">
             复核订单履约
           </Link>
-          <Link to="/growth" className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-bg)]">
+          <Link to="/growth" className="inventory-alert-action px-3 py-2 text-xs font-medium">
             复核运营诊断
           </Link>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-4">
+      <div className="inventory-risk-grid mt-4">
         {lanes.map(lane => (
           <InventoryRiskLaneCard key={lane.key} lane={lane} />
         ))}
       </div>
 
       {snapshot?.stock_sources ? (
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3" data-ui="inventory-stock-source-summary">
+        <div className="inventory-alert-panel mt-4 p-3" data-ui="inventory-stock-source-summary">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-fg)]">库存来源质量</h3>
@@ -109,16 +109,16 @@ export function InventoryRiskWorkbench({
               缺口 {snapshot.stock_sources.missing_platform_stock_count}
             </Badge>
           </div>
-          <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+          <div className="inventory-stock-source-grid">
             {buildInventoryStockSourceCards(snapshot).map(item => (
-              <article key={item.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <article key={item.label} className="inventory-stock-source-card p-3">
                 <p className="text-[11px] text-[var(--color-muted)]">{item.label}</p>
                 <p className="mt-1 text-base font-bold text-[var(--color-fg)]">{item.value}</p>
               </article>
             ))}
           </div>
           {snapshot.supply_readiness ? (
-            <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3" data-ui="inventory-supply-readiness-summary">
+            <div className="inventory-detail-row mt-3 p-3" data-ui="inventory-supply-readiness-summary">
               <p className="text-xs font-semibold text-[var(--color-fg)]">供应与轻仓准备度</p>
               <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
                 供应商品 {snapshot.supply_readiness.active_supply_product_count} 个，
@@ -140,7 +140,7 @@ export function InventoryRiskWorkbench({
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <div className="inventory-alert-panel mt-4 p-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">库存风险处理队列</h3>
@@ -157,7 +157,7 @@ export function InventoryRiskWorkbench({
         ) : (
           <div className="grid gap-2 lg:grid-cols-2">
             {actions.map(action => (
-              <Link key={`${action.label}-${action.detail}`} to={action.route} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]">
+              <Link key={`${action.label}-${action.detail}`} to={action.route} className="inventory-risk-action-card">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-[var(--color-fg)]">{action.label}</p>
@@ -172,7 +172,7 @@ export function InventoryRiskWorkbench({
       </div>
 
       {slowMovingItems.length ? (
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="inventory-alert-panel mt-4 p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-fg)]">滞销 Listing 运营动作</h3>
@@ -182,7 +182,7 @@ export function InventoryRiskWorkbench({
           </div>
           <div className="grid gap-2 lg:grid-cols-2">
             {slowMovingItems.map(item => (
-              <article key={item.listing_id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <article key={item.listing_id} className="inventory-detail-row p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[var(--color-fg)]">{item.title}</p>
@@ -227,7 +227,7 @@ function InventoryV5SkuFieldDictionary({
   return (
     <div data-ui="inventory-v5-sku-field-dictionary" className="mt-2 flex flex-wrap gap-1.5">
       {rows.map(row => (
-        <span key={row.key} className="rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] text-[var(--color-muted)]">
+        <span key={row.key} className="inventory-v5-field-chip">
           <span className="font-medium text-[var(--color-fg)]">{row.label}</span>
           <span className="mx-1">·</span>
           <span>{row.value}</span>
@@ -289,7 +289,7 @@ function normalizeInventoryPlatformKey(platform: string) {
 function InventoryRiskLaneCard({ lane }: { lane: InventoryRiskLane }) {
   const color = lane.tone === "danger" ? "var(--color-danger)" : lane.tone === "warning" ? "var(--color-warning)" : lane.tone === "success" ? "var(--color-success)" : "var(--color-primary)"
   return (
-    <article className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <article className="inventory-risk-lane-card p-3">
       <div className="flex items-start justify-between gap-2">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--color-surface)]" style={{ color }}>{lane.icon}</span>
         <Badge variant={lane.tone === "danger" ? "danger" : lane.tone === "warning" ? "warning" : lane.tone === "success" ? "success" : "outline"}>{lane.value}</Badge>
@@ -400,8 +400,7 @@ export function CheckInventoryButton() {
     <button
       onClick={() => check.mutate()}
       disabled={check.isPending}
-      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border transition-colors hover:bg-[var(--color-border)] disabled:opacity-50"
-      style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+      className="inventory-alert-action text-xs px-3 py-2 disabled:opacity-50"
     >
       <Bell className={`w-3.5 h-3.5 ${check.isPending ? 'animate-pulse' : ''}`} />
       扫描库存
@@ -433,14 +432,13 @@ export function RulesTab() {
   }
 
   return (
-    <Card>
+    <Card className="inventory-rule-table-panel">
       <CardContent>
         <EvidenceBanner evidence={alertRulesQuery.data} compact />
         {alertRulesQuery.isError ? (
           <div
             data-ui="inventory-alert-rules-error"
-            className="rounded-xl border p-4"
-            style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}
+            className="inventory-alert-error-panel"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -462,8 +460,8 @@ export function RulesTab() {
         ) : items.length === 0 ? (
           <EmptyState icon={<Bell className="w-10 h-10" />} title="暂无预警规则" description="点击「添加规则」设置库存阈值" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="professional-table w-full text-sm">
+          <div className="inventory-alert-table-shell overflow-x-auto">
+            <table className="professional-table text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>SKU</th>
@@ -476,7 +474,7 @@ export function RulesTab() {
               </thead>
               <tbody>
                 {items.map((rule: any) => (
-                  <tr key={rule.id} className="transition-colors hover:bg-[var(--color-bg)]" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <tr key={rule.id} className="inventory-alert-row" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td className="py-2.5 px-3" style={{ color: 'var(--color-fg)' }}>{rule.sku}</td>
                     <td className="py-2.5 px-3 text-xs" style={{ color: 'var(--color-muted)' }}>{rule.product_name}</td>
                     <td className="py-2.5 px-3 text-right font-mono" style={{ color: 'var(--color-fg)' }}>{rule.safety_stock}</td>
@@ -532,16 +530,15 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
   const meta = alertLogsQuery.data?.meta
 
   return (
-    <Card>
+    <Card className="inventory-history-table-panel">
       <CardContent>
         <EvidenceBanner evidence={alertLogsQuery.data} compact />
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="inventory-alert-filter-bar mb-4">
           <select
             value={status}
             onChange={(e) => { onStatusChange(e.target.value); onPageChange(1) }}
-            className="text-sm px-3 py-1.5 rounded-lg border"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }}
+            className="inventory-alert-select"
           >
             <option value="">全部状态</option>
             {inventory_alert_statuses.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
@@ -549,16 +546,15 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
           <select
             value={severity}
             onChange={(e) => { onSevChange(e.target.value); onPageChange(1) }}
-            className="text-sm px-3 py-1.5 rounded-lg border"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-fg)' }}
+            className="inventory-alert-select"
           >
             <option value="">全部级别</option>
             {inventory_alert_severities.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="inventory-alert-table-shell overflow-x-auto">
+          <table className="professional-table text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <th className="text-left py-2 px-3 font-medium" style={{ color: 'var(--color-muted)' }}>时间</th>
@@ -575,7 +571,7 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
               {alertLogsQuery.isError ? (
                 <tr data-ui="inventory-alert-logs-error">
                   <td colSpan={8} className="py-12 text-center">
-                    <div className="mx-auto max-w-xl rounded-xl border p-4 text-left" style={{ borderColor: 'var(--color-danger)', backgroundColor: 'var(--color-danger-light)' }}>
+                    <div className="inventory-alert-error-panel mx-auto max-w-xl text-left">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-[var(--color-fg)]">预警历史加载失败</p>
@@ -601,7 +597,7 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
                 <tr><td colSpan={8}><EmptyState icon={<Bell className="h-9 w-9" />} title="暂无预警记录" description="先配置库存规则并执行扫描；没有真实库存时会保留数据缺口。" /></td></tr>
               ) : (
                 items.map((item: any) => (
-                  <tr key={item.id} className="transition-colors hover:bg-[var(--color-bg)]" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <tr key={item.id} className="inventory-alert-row" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td className="py-2.5 px-3 text-xs" style={{ color: 'var(--color-muted)' }}>
                       {item.created_at ? new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }) : '-'}
                     </td>
@@ -651,11 +647,9 @@ export function HistoryTab({ status, severity, page, onStatusChange, onSevChange
             <span className="text-xs" style={{ color: 'var(--color-muted)' }}>共 {meta.total} 条</span>
             <div className="flex items-center gap-2">
               <button disabled={page <= 1} onClick={() => onPageChange(page - 1)}
-                className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}>上一页</button>
+                className="inventory-alert-mini-button px-3 py-1.5 text-xs disabled:opacity-40">上一页</button>
               <button disabled={page >= meta.total_pages} onClick={() => onPageChange(page + 1)}
-                className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}>下一页</button>
+                className="inventory-alert-mini-button px-3 py-1.5 text-xs disabled:opacity-40">下一页</button>
             </div>
           </div>
         )}

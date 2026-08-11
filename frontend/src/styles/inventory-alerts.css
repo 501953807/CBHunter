@@ -1,0 +1,248 @@
+.inventory-alert-shell {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.inventory-alert-hero,
+.inventory-alert-panel,
+.inventory-alert-detail-panel,
+.inventory-risk-workbench {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface-raised) 96%, transparent), var(--color-surface)),
+    var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-alert-hero::before,
+.inventory-risk-workbench::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-warning) 14%, transparent), transparent 32%),
+    linear-gradient(90deg, color-mix(in oklch, white 18%, transparent), transparent 42%);
+}
+
+.inventory-alert-hero > *,
+.inventory-risk-workbench > * {
+  position: relative;
+}
+
+.inventory-alert-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+}
+
+.inventory-alert-metric-card,
+.inventory-risk-lane-card,
+.inventory-stock-source-card,
+.inventory-detail-card,
+.inventory-detail-row,
+.inventory-rule-table-panel,
+.inventory-history-table-panel {
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 92%, transparent), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.inventory-alert-metric-card:hover,
+.inventory-risk-lane-card:hover,
+.inventory-detail-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.inventory-alert-toolbar,
+.inventory-risk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+}
+
+.inventory-alert-action,
+.inventory-alert-mini-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 999px;
+  background: var(--color-glass-bg);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.inventory-alert-action:hover,
+.inventory-alert-mini-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 48%, var(--color-border));
+  background: var(--color-primary-light);
+}
+
+.inventory-alert-tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: .25rem;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 999px;
+  background: var(--color-glass-bg);
+  padding: .25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-alert-tab {
+  min-width: 8rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  padding: .6rem 1rem;
+  font-size: .85rem;
+  font-weight: 650;
+  transition:
+    transform var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.inventory-alert-tab[data-active="true"] {
+  background: var(--gradient-accent);
+  color: var(--color-primary-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-alert-table-shell {
+  overflow: hidden;
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-alert-table-shell table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.inventory-alert-row {
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.inventory-alert-row:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 42%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.inventory-alert-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-glass-bg);
+  padding: .75rem;
+}
+
+.inventory-alert-select {
+  min-height: 2.35rem;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  padding: .45rem .9rem;
+  font-size: .85rem;
+}
+
+.inventory-alert-error-panel {
+  border: 1px solid color-mix(in oklch, var(--color-danger) 54%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-danger-light) 82%, var(--color-surface));
+  padding: 1rem;
+}
+
+.inventory-risk-grid,
+.inventory-stock-source-grid {
+  display: grid;
+  gap: .75rem;
+}
+
+.inventory-risk-action-card {
+  display: block;
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: .85rem;
+  text-decoration: none;
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.inventory-risk-action-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 46%, var(--color-border));
+  background: var(--color-primary-light);
+}
+
+.inventory-v5-field-chip {
+  border: 1px solid var(--color-glass-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  padding: .35rem .6rem;
+  font-size: .72rem;
+}
+
+@media (min-width: 768px) {
+  .inventory-alert-metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .inventory-risk-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .inventory-stock-source-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .inventory-stock-source-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-alert-metric-card,
+  .inventory-risk-lane-card,
+  .inventory-detail-row,
+  .inventory-alert-action,
+  .inventory-risk-action-card {
+    transition: none;
+  }
+}

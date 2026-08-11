@@ -136,22 +136,35 @@ export default function PlatformSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[var(--color-fg)]">平台管理</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-1">管理店铺凭证配置与真实 Open API 接入状态</p>
-      </div>
+    <div className="platform-settings-shell page-enter">
+      <section className="platform-settings-hero" aria-label="平台接入总览">
+        <div className="platform-settings-hero-content">
+          <span className="platform-settings-eyebrow">MULTI-PLATFORM ACCESS</span>
+          <h1 className="platform-settings-title">平台接入与店铺授权</h1>
+          <p className="platform-settings-subtitle">
+            统一管理 Shopee、TEMU、TikTok Shop 的店铺凭证、OAuth 授权、同步就绪状态和最近执行结果；API Key 不等同于店铺授权。
+          </p>
+        </div>
+        <div className="platform-settings-action-row">
+          <Badge variant={authorizationSummary.syncReadyCount ? 'success' : 'warning'}>
+            {authorizationSummary.syncReadyCount ? '已有可同步店铺' : '授权待补齐'}
+          </Badge>
+          <span>{authorizationSummary.accountCount} 个店铺配置</span>
+          <span>{authorizationSummary.platformEntryCount} 个平台入口</span>
+        </div>
+      </section>
+
       <EvidenceBanner evidence={statusData || platformsData} />
-      <div
-        className="rounded-xl border p-4"
-        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+
+      <section
+        className="platform-settings-governance-panel"
         data-ui="platform-authorization-governance-summary"
         aria-label="平台授权治理摘要"
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="platform-settings-section-heading">
           <div>
-            <h2 className="text-sm font-semibold text-[var(--color-fg)]">平台、店铺与授权治理摘要</h2>
-            <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            <h2>平台、店铺与授权治理摘要</h2>
+            <p>
               这里只统计已保存店铺、凭证状态、OAuth 授权状态和同步就绪状态；API Key 不等同于店铺授权，未授权不会显示同步或发布成功。
             </p>
           </div>
@@ -159,7 +172,7 @@ export default function PlatformSettingsPage() {
             {authorizationSummary.syncReadyCount ? '已有可同步店铺' : '授权待补齐'}
           </Badge>
         </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <div className="platform-settings-governance-grid">
           <PlatformAuthorizationMetric label="平台入口" value={authorizationSummary.platformEntryCount} />
           <PlatformAuthorizationMetric label="店铺配置" value={authorizationSummary.accountCount} />
           <PlatformAuthorizationMetric label="凭证完整" value={authorizationSummary.credentialsStoredCount} />
@@ -167,43 +180,42 @@ export default function PlatformSettingsPage() {
           <PlatformAuthorizationMetric label="权限缺口" value={authorizationSummary.authorizationGapCount} tone={authorizationSummary.authorizationGapCount ? 'warning' : 'success'} />
           <PlatformAuthorizationMetric label="可同步" value={authorizationSummary.syncReadyCount} tone={authorizationSummary.syncReadyCount ? 'success' : 'warning'} />
         </div>
-        <div className="mt-3 grid gap-2 text-[11px] md:grid-cols-3">
+        <div className="platform-settings-boundary-grid">
           {authorizationSummary.platformSummaries.map(item => (
             <button
               type="button"
               key={item.platform}
               onClick={() => setShowConnect(item.accountCount ? null : item.platform)}
-              className="rounded-lg border px-3 py-2 text-left"
-              style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
+              className="platform-settings-boundary-card"
             >
-              <p className="font-medium text-[var(--color-fg)]">{item.label}</p>
-              <p className="mt-1 text-[var(--color-muted)]">
+              <p className="platform-settings-boundary-title">{item.label}</p>
+              <p>
                 店铺 {item.accountCount} · 已授权 {item.authorizedCount} · 可同步 {item.syncReadyCount}
               </p>
-              <p className={item.authorizationGapCount ? 'mt-1 text-[var(--color-warning)]' : 'mt-1 text-[var(--color-success)]'}>
+              <p className={item.authorizationGapCount ? 'platform-settings-warning-text' : 'platform-settings-success-text'}>
                 {item.authorizationGapCount ? `授权缺口 ${item.authorizationGapCount}` : '当前无授权缺口'}
               </p>
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4">
+      <section className="platform-settings-platform-grid" aria-label="平台店铺配置">
         {displayPlatforms.map((platform) => {
           const platformAccounts = getPlatformAccounts(platform.id)
           const guide = platformGuide(platform.id)
           return (
-            <Card key={platform.id}>
+            <Card key={platform.id} className="platform-settings-platform-card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--color-primary-text)] text-sm font-bold"
+                <div className="platform-settings-platform-header">
+                  <div className="platform-settings-platform-title-row">
+                    <div className="platform-settings-platform-icon"
                       style={{ backgroundColor: platform.color }}>
                       {platform.icon}
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-[var(--color-fg)]">{platform.label}</h3>
-                      <p className="text-xs text-[var(--color-muted)] mt-0.5">{platformAccounts.length} 个账号配置</p>
+                      <h3>{platform.label}</h3>
+                      <p>{platformAccounts.length} 个账号配置</p>
                     </div>
                   </div>
                   <Button size="sm" onClick={() => setShowConnect(platform.id)}>
@@ -214,55 +226,55 @@ export default function PlatformSettingsPage() {
               </CardHeader>
               <CardContent>
                 {platformAccounts.length === 0 ? (
-                  <div className="text-center py-6 text-[var(--color-muted)]">
-                    <Store className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">暂无 {platform.label} 店铺配置</p>
-                    <p className="text-xs mt-1">点击「添加店铺」开始配置</p>
-                    <p className="mx-auto mt-2 max-w-xl text-xs">{guide.credentials}；{guide.steps}</p>
+                  <div className="platform-settings-empty-state">
+                    <Store className="platform-settings-empty-icon" />
+                    <p>暂无 {platform.label} 店铺配置</p>
+                    <span>点击「添加店铺」开始配置</span>
+                    <small>{guide.credentials}；{guide.steps}</small>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="platform-settings-store-list">
                     {platformAccounts.map((acc) => {
                       const status = statuses.find((item) => item.account_id === acc.id)
                       const badge = statusBadge(status)
                       return (
-                        <div key={acc.id} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-md bg-[var(--color-bg)] hover:bg-[var(--color-border)] transition-colors">
-                          <div className="flex items-center gap-3">
-                            <Store className="w-4 h-4 text-[var(--color-muted)]" />
+                        <div key={acc.id} className="platform-settings-store-card">
+                          <div className="platform-settings-store-main">
+                            <Store className="platform-settings-store-icon" />
                             <div>
-                              <p className="text-sm font-medium text-[var(--color-fg)]">{acc.account_name}</p>
-                              <p className="text-xs text-[var(--color-muted)]">
+                              <p className="platform-settings-store-name">{acc.account_name}</p>
+                              <p className="platform-settings-store-meta">
                                 {acc.shop_id ? `ID: ${acc.shop_id} · ` : ''}
                                 {acc.last_sync_at ? `最后同步: ${new Date(acc.last_sync_at).toLocaleString('zh-CN')}` : '尚未同步'}
                               </p>
-                              {status?.message && <p className="text-xs text-[var(--color-muted)] mt-0.5">{status.message}</p>}
+                              {status?.message && <p className="platform-settings-store-message">{status.message}</p>}
                               {status?.authorization && (
-                                <div className="mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]" aria-label="店铺授权状态">
-                                  <span className="font-semibold text-[var(--color-fg)]">店铺授权：{authorizationStatusLabel(status.authorization_status)}</span>
+                                <div className="platform-settings-token-panel" aria-label="店铺授权状态">
+                                  <span>店铺授权：{authorizationStatusLabel(status.authorization_status)}</span>
                                   <span className="ml-2">令牌有效期：{status.authorization.token_expires_at ? new Date(status.authorization.token_expires_at).toLocaleString('zh-CN') : '未保存'}</span>
                                   <span className="ml-2">权限范围：{(status.authorization.token_scopes || []).length ? status.authorization.token_scopes?.join('、') : '未授权'}</span>
                                   {status.authorization.missing_scopes?.length ? <span className="ml-2 text-[var(--color-warning)]">缺少：{status.authorization.missing_scopes.join('、')}</span> : null}
                                 </div>
                               )}
                               {status && (
-                                <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-[var(--color-muted)]" aria-label="店铺同步状态回写">
-                                  <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5">
+                                <div className="platform-settings-sync-chip-row" aria-label="店铺同步状态回写">
+                                  <span>
                                     最近商品同步：{syncStateText(status.last_product_sync_status, status.last_product_sync_at)}
                                   </span>
-                                  <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5">
+                                  <span>
                                     最近订单同步：{syncStateText(status.last_order_sync_status, status.last_order_sync_at)}
                                   </span>
                                 </div>
                               )}
-                              {status?.operation_details && <p className="text-[11px] text-[var(--color-muted)] mt-1">待接通：{status.operation_details.filter(item => item.status !== 'implemented').map(item => item.label).join('、')}</p>}
-                              {status?.next_action && <p className="text-[11px] text-[var(--color-warning)] mt-0.5">{status.next_action}</p>}
+                              {status?.operation_details && <p className="platform-settings-store-message">待接通：{status.operation_details.filter(item => item.status !== 'implemented').map(item => item.label).join('、')}</p>}
+                              {status?.next_action && <p className="platform-settings-warning-text">{status.next_action}</p>}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="platform-settings-store-actions">
                             <Badge variant={badge.variant}>{badge.label}</Badge>
                             <button
                               onClick={() => openAuthorizationModal(acc.id, status)}
-                              className="p-1.5 rounded hover:bg-[var(--color-border)] text-[var(--color-muted)]"
+                              className="platform-settings-icon-button"
                               title="登记店铺 OAuth 授权"
                               aria-label="登记店铺 OAuth 授权"
                             >
@@ -271,14 +283,14 @@ export default function PlatformSettingsPage() {
                             <button
                               onClick={() => syncMutation.mutate(acc.id)}
                               disabled={!status?.sync_ready || syncMutation.isPending}
-                              className="p-1.5 rounded hover:bg-[var(--color-border)] text-[var(--color-muted)] disabled:opacity-50 disabled:pointer-events-none"
+                              className="platform-settings-icon-button"
                               title={status?.sync_ready ? '同步此店铺' : status?.message || '接入状态加载中'}
                             >
                               <RefreshCw className={`w-3.5 h-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
                             </button>
                             <button
                               onClick={() => void handleDeletePlatform(acc)}
-                              className="p-1.5 rounded hover:bg-[var(--color-danger-light)] text-[var(--color-muted)] hover:text-[var(--color-danger)]"
+                              className="platform-settings-icon-button platform-settings-icon-button-danger"
                               title="删除账号配置"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -293,18 +305,18 @@ export default function PlatformSettingsPage() {
             </Card>
           )
         })}
-      </div>
+      </section>
 
-      <Card>
-        <CardHeader><div className="flex items-center gap-2"><History className="w-4 h-4 text-[var(--color-primary)]" /><h3 className="text-sm font-semibold text-[var(--color-fg)]">最近同步日志</h3></div></CardHeader>
+      <Card className="platform-settings-log-panel">
+        <CardHeader><div className="platform-settings-log-title"><History className="w-4 h-4" /><h3>最近同步日志</h3></div></CardHeader>
         <CardContent>
           <EvidenceBanner evidence={syncLogs} compact />
-          {!syncLogs?.data?.length ? <p className="py-4 text-center text-xs text-[var(--color-muted)]">暂无真实同步执行记录</p> : (
-            <div className="space-y-2">{syncLogs.data.map(log => (
-              <div key={log.id} className="grid grid-cols-[1fr_auto_auto] gap-3 rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs">
-                <div><p className="text-[var(--color-fg)]">{accounts.find(item => item.id === log.platform_account_id)?.account_name || log.platform_account_id}</p><p className="text-[var(--color-muted)]">{log.started_at ? new Date(log.started_at).toLocaleString('zh-CN') : '未记录开始时间'}</p></div>
+          {!syncLogs?.data?.length ? <p className="platform-settings-log-empty">暂无真实同步执行记录</p> : (
+            <div className="platform-settings-log-list">{syncLogs.data.map(log => (
+              <div key={log.id} className="platform-settings-log-row">
+                <div><p>{accounts.find(item => item.id === log.platform_account_id)?.account_name || log.platform_account_id}</p><span>{log.started_at ? new Date(log.started_at).toLocaleString('zh-CN') : '未记录开始时间'}</span></div>
                 <Badge variant={log.status === 'success' ? 'success' : log.status === 'failed' ? 'danger' : 'warning'}>{log.status}</Badge>
-                <span className="text-[var(--color-muted)]">处理 {log.records_processed ?? '--'} / 失败 {log.records_failed ?? '--'}</span>
+                <span>处理 {log.records_processed ?? '--'} / 失败 {log.records_failed ?? '--'}</span>
               </div>
             ))}</div>
           )}
@@ -314,12 +326,12 @@ export default function PlatformSettingsPage() {
       <Modal open={!!showConnect} onClose={() => setShowConnect(null)}
         title={`添加 ${currentPlatform?.label || ''} 店铺`}
         size="md">
-        <div className="space-y-4">
+        <div className="platform-settings-modal-form">
           {currentPlatform && (
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
-              <p className="font-medium text-[var(--color-fg)]">接入前准备</p>
-              <p className="mt-1">{platformGuide(currentPlatform.id).credentials}</p>
-              <p className="mt-1">{platformGuide(currentPlatform.id).steps}</p>
+            <div className="platform-settings-modal-note">
+              <p>接入前准备</p>
+              <span>{platformGuide(currentPlatform.id).credentials}</span>
+              <span>{platformGuide(currentPlatform.id).steps}</span>
             </div>
           )}
           <Input label="店铺名称 *" id="name" value={form.account_name || ''}
@@ -337,7 +349,7 @@ export default function PlatformSettingsPage() {
             />
           ))}
         </div>
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="platform-settings-modal-actions">
           <Button variant="secondary" onClick={() => setShowConnect(null)}>取消</Button>
           <Button onClick={handleConnect} disabled={createPlatform.isPending}>
             {createPlatform.isPending ? '保存中...' : '保存账号配置'}
@@ -348,11 +360,11 @@ export default function PlatformSettingsPage() {
       <Modal open={!!authorizationAccountId} onClose={() => setAuthorizationAccountId(null)}
         title={`登记店铺授权${authorizationAccount ? `：${authorizationAccount.account_name}` : ''}`}
         size="md">
-        <div className="space-y-4">
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
-            <p className="font-medium text-[var(--color-fg)]">用途说明</p>
-            <p className="mt-1">这里仅保存已从官方 OAuth 流程取得的店铺访问令牌、刷新令牌和权限范围，用于判断订单/商品等同步是否具备真实授权。</p>
-            <p className="mt-1">系统不会把 API Key 等同为店铺授权，也不会因为手工保存令牌而模拟平台同步成功。</p>
+        <div className="platform-settings-modal-form">
+          <div className="platform-settings-modal-note">
+            <p>用途说明</p>
+            <span>这里仅保存已从官方 OAuth 流程取得的店铺访问令牌、刷新令牌和权限范围，用于判断订单/商品等同步是否具备真实授权。</span>
+            <span>系统不会把 API Key 等同为店铺授权，也不会因为手工保存令牌而模拟平台同步成功。</span>
           </div>
           <Input label="Access Token *" id="access_token" type="password" value={authForm.access_token || ''}
             onChange={(e) => setAuthForm({ ...authForm, access_token: e.target.value })}
@@ -366,7 +378,7 @@ export default function PlatformSettingsPage() {
             onChange={(e) => setAuthForm({ ...authForm, token_scopes: e.target.value })}
             placeholder="例如：orders, products, publish" />
         </div>
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="platform-settings-modal-actions">
           <Button variant="secondary" onClick={() => setAuthorizationAccountId(null)}>取消</Button>
           <Button onClick={handleAuthorizationSave} disabled={updateAuthorization.isPending}>
             {updateAuthorization.isPending ? '保存中...' : '保存授权令牌'}
@@ -445,9 +457,9 @@ function PlatformAuthorizationMetric({ label, value, tone }: { label: string; va
       ? 'var(--color-warning)'
       : 'var(--color-fg)'
   return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
-      <div className="text-[11px] text-[var(--color-muted)]">{label}</div>
-      <div className="mt-1 text-base font-semibold" style={{ color }}>{value}</div>
+    <div className="platform-settings-metric-card">
+      <div className="platform-settings-metric-label">{label}</div>
+      <div className="platform-settings-metric-value" style={{ color }}>{value}</div>
     </div>
   )
 }

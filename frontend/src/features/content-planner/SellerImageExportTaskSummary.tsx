@@ -24,7 +24,7 @@ export function SellerImageExportTaskSummary({ imageSlots, imageOptions, publish
 
   return (
     <>
-      <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px]" data-ui="image-workbench-publish-readiness-summary">
+      <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-[11px]" data-ui="image-workbench-publish-readiness-summary">
         <p className="font-semibold text-[var(--color-fg)]">发布范围校验</p>
         <p className="mt-1 text-[var(--color-muted)]">发布前{publishImageLimit}张：可发布 {publishableSlotCount} 张；素材池保留 {retainedAssetCount} 张；空槽位 {emptySlotCount} 个；已导出 {exportedSlotCount} 张；失败 {exportFailedSlotCount} 张。</p>
         {saveBlockedReason ? (
@@ -33,7 +33,7 @@ export function SellerImageExportTaskSummary({ imageSlots, imageOptions, publish
           <p className="mt-1 font-semibold text-[var(--color-success)]" data-ui="image-workbench-save-ready-state">图片计划可保存，保存后仍需回到 Listing 校验平台素材规则。</p>
         )}
       </div>
-      <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-processing-before-save-summary" aria-label="图片保存前处理摘要">
+      <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-processing-before-save-summary" aria-label="图片保存前处理摘要">
         <div className="flex items-center justify-between gap-2">
           <p className="font-semibold text-[var(--color-fg)]">保存前处理摘要</p>
           <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{processingSummary.length} 项</span>
@@ -44,7 +44,7 @@ export function SellerImageExportTaskSummary({ imageSlots, imageOptions, publish
           ))}
         </div>
       </div>
-      <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-export-task-preview" aria-label="图片导出任务预览">
+      <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-export-task-preview" aria-label="图片导出任务预览">
         <div className="flex items-center justify-between gap-2">
           <p className="font-semibold text-[var(--color-fg)]">导出任务预览</p>
           <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{exportTasks.length} 个槽位</span>

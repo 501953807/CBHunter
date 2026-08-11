@@ -167,7 +167,7 @@ export default function RiskControlWorkspace() {
             setAppliedRiskDateRange({})
           }}
         />
-        <div aria-label="风险处置指标" className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-6">
+        <div aria-label="风险处置指标" className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-6" data-ui="risk-v5-command-metric-grid">
           <Metric label="高风险" value={String(data?.metrics.critical ?? 0)} tone="danger" />
           <Metric label="警告" value={String(data?.metrics.warning ?? 0)} tone="warning" />
           <Metric label="SLA逾期" value={String(data?.metrics.overdue ?? 0)} tone="danger" />
@@ -183,7 +183,7 @@ export default function RiskControlWorkspace() {
       {data && <RiskStoreCommandBoard data={data} onNavigate={navigate} />}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[400px_minmax(0,1fr)_320px]">
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+        <section className="risk-command-panel rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-4" data-ui="risk-v5-queue-panel">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-[var(--color-warning)]" />
             <h2 className="text-sm font-semibold text-[var(--color-fg)]">风险队列</h2>
@@ -212,7 +212,7 @@ export default function RiskControlWorkspace() {
               <button
                 key={risk.id}
                 onClick={() => setSelectedId(risk.id)}
-                className={`w-full rounded-md border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${selected?.id === risk.id ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]' : 'border-[var(--color-border)] bg-[var(--color-bg)]'}`}
+                className={`risk-signal-row w-full rounded-[var(--radius-lg)] p-3 text-left ${selected?.id === risk.id ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] shadow-[var(--shadow-sm)]' : ''}`}
               >
                 <div className="flex items-start gap-2">
                   <LevelIcon level={risk.severity === 'critical' ? 'danger' : risk.severity === 'warning' ? 'warning' : 'info'} />
@@ -239,7 +239,7 @@ export default function RiskControlWorkspace() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+        <section className="risk-command-panel rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-4" data-ui="risk-v5-detail-panel">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-[var(--color-primary)]" />
             <h2 className="text-sm font-semibold text-[var(--color-fg)]">风险详情</h2>
@@ -254,7 +254,7 @@ export default function RiskControlWorkspace() {
           )}
         </section>
 
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+        <section className="risk-command-panel rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-4" data-ui="risk-v5-action-panel">
           {selected && (
             <>
               <RiskDispositionStatusCard risk={selected} />
@@ -560,9 +560,9 @@ function RiskSlaTemplateStrip({ data, onOpenConfig }: { data: RiskControlOvervie
 function Metric({ label, value, tone }: { label: string; value: string; tone: 'danger' | 'warning' | 'info' | 'ready' }) {
   const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : tone === 'info' ? 'var(--color-info)' : 'var(--color-success)'
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]">
-      <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
-      <p className="mt-1 text-xl font-semibold" style={{ color }}>{value}</p>
+    <div className="risk-command-metric rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-3 transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-md)]" data-ui="risk-v5-command-metric-card">
+      <p className="text-[11px] font-semibold tracking-wide text-[var(--color-muted)]">{label}</p>
+      <p className="mt-2 text-2xl font-bold tracking-tight" style={{ color }}>{value}</p>
     </div>
   )
 }

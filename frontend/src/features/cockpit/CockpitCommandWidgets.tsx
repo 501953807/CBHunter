@@ -17,7 +17,7 @@ export interface ActionItem {
 
 export function StatusPill({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 text-xs">
+    <div className="inline-flex h-9 items-center gap-2 rounded-full border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 text-xs shadow-[var(--shadow-sm)]">
       <span className="text-[var(--color-primary)]">{icon}</span>
       <span className="text-[var(--color-muted)]">{label}</span>
       <span className="font-semibold text-[var(--color-fg)]">{value}</span>
@@ -27,12 +27,12 @@ export function StatusPill({ icon, label, value }: { icon: ReactNode; label: str
 
 export function CommandPanel({ title, icon, section, onOpen, children }: { title: string; icon: ReactNode; section: SourceSection; onOpen: () => void; children: ReactNode }) {
   return (
-    <section className="min-h-[260px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]">
+    <section className="cockpit-command-panel min-h-[260px] rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-md)]" data-ui="cockpit-v5-command-panel">
       <div className="flex items-center gap-2">
-        <span className="text-[var(--color-primary)]">{icon}</span>
+        <span className="cockpit-panel-icon text-[var(--color-primary)]">{icon}</span>
         <h2 className="text-sm font-semibold text-[var(--color-fg)]">{title}</h2>
         <Badge variant={section.status === 'ready' ? 'success' : 'warning'} className="ml-auto">{section.status === 'ready' ? '真实数据' : '待补数据'}</Badge>
-        <button onClick={onOpen} title={`打开${title}`} className="rounded p-1 text-[var(--color-muted)] hover:text-[var(--color-primary)]">
+        <button onClick={onOpen} title={`打开${title}`} className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]">
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>
@@ -45,7 +45,7 @@ export function CommandPanel({ title, icon, section, onOpen, children }: { title
 export function Mini({ label, value, tone = 'normal' }: { label: string; value: string; tone?: 'normal' | 'warning' | 'danger' }) {
   const toneClass = tone === 'danger' ? 'text-[var(--color-danger)]' : tone === 'warning' ? 'text-[var(--color-warning)]' : 'text-[var(--color-fg)]'
   return (
-    <div className="min-w-0 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+    <div className="min-w-0 rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-bg)] p-2.5 shadow-[var(--shadow-sm)]">
       <p className="truncate text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className={`mt-1 truncate text-sm font-semibold ${toneClass}`}>{value}</p>
     </div>
@@ -53,11 +53,11 @@ export function Mini({ label, value, tone = 'normal' }: { label: string; value: 
 }
 
 export function DenseRows({ rows, empty }: { rows: { key: string; title: string; detail: string; value: string; danger?: boolean }[]; empty: string }) {
-  if (rows.length === 0) return <p className="rounded-md border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">{empty}</p>
+  if (rows.length === 0) return <p className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">{empty}</p>
   return (
     <div className="space-y-1.5">
       {rows.map((row) => (
-        <div key={row.key} className="flex items-center gap-2 rounded-md bg-[var(--color-bg)] px-2 py-1.5 text-xs">
+        <div key={row.key} className="flex items-center gap-2 rounded-[var(--radius-lg)] border border-transparent bg-[var(--color-bg)] px-2.5 py-2 text-xs transition hover:border-[var(--color-hairline)] hover:bg-[var(--color-surface)]">
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium text-[var(--color-fg)]">{row.title}</p>
             <p className="truncate text-[11px] text-[var(--color-muted)]">{row.detail}</p>

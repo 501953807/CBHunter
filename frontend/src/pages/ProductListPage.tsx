@@ -146,7 +146,7 @@ export default function ProductListPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="product-inventory-shell space-y-6">
       <ProfessionalWorkspaceFrame
         eyebrow="Product Console"
         title="平台店铺商品库"

@@ -102,26 +102,26 @@ export function ContentProductQueue({
   }
 
   return (
-    <Card className="h-full">
-      <CardContent className="space-y-3 p-0">
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
-          <div className="mr-auto flex items-center gap-2">
-            <PackageOpen className="h-4 w-4 text-[var(--color-primary)]" />
-            <h3 className="font-semibold text-[var(--color-fg)]">内容工厂商品列表</h3>
+    <Card className="content-product-queue-workbench h-full" data-ui="content-product-queue-workbench">
+      <CardContent className="content-product-queue-content">
+        <div data-ui="content-v5-queue-summary-bar" className="content-product-queue-summary-bar">
+          <div className="content-product-queue-title">
+            <PackageOpen className="h-4 w-4" />
+            <h3>内容工厂商品列表</h3>
           </div>
-          <span className="text-xs text-[var(--color-muted)]">共 {workbench?.metrics.total || 0} 个</span>
-          <span className="text-xs text-[var(--color-muted)]">待制作 {workbench?.metrics.not_started || 0}</span>
-          <span className="text-xs text-[var(--color-success)]">已完成 {workbench?.metrics.ready || 0}</span>
+          <span>共 {workbench?.metrics.total || 0} 个</span>
+          <span>待制作 {workbench?.metrics.not_started || 0}</span>
+          <span className="content-product-queue-success-text">已完成 {workbench?.metrics.ready || 0}</span>
         </div>
         {layout === 'table' && (
-          <div aria-label="内容商品卖家后台筛选工具条" data-ui="content-product-seller-filter-toolbar" className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <div className="flex min-w-[280px] flex-1 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-              <Search className="h-4 w-4 text-[var(--color-muted)]" />
+          <div aria-label="内容商品卖家后台筛选工具条" data-ui="content-product-seller-filter-toolbar" className="content-product-seller-filter-toolbar">
+            <div className="content-product-search-box">
+              <Search className="h-4 w-4" />
               <input
                 value={searchTerm}
                 onChange={event => { setSearchTerm(event.target.value); setQueuePage(1) }}
                 placeholder="搜索商品名称、平台、市场、类目"
-                className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)]"
+                className="content-product-search-input"
               />
             </div>
             {[
@@ -134,17 +134,17 @@ export function ContentProductQueue({
                 key={value}
                 type="button"
                 onClick={() => { setStatusFilter(value); setQueuePage(1) }}
-                className={statusFilter === value ? 'rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-2 text-xs font-semibold text-[var(--color-primary)]' : 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}
+                className={statusFilter === value ? 'content-product-filter-chip content-product-filter-chip-active' : 'content-product-filter-chip'}
               >
                 {label}
               </button>
             ))}
-            <label className="ml-auto flex items-center gap-2 text-xs text-[var(--color-muted)]">
+            <label className="content-product-page-size">
               每页
               <select
                 value={tablePageSize}
                 onChange={event => { setTablePageSize(Number(event.target.value)); setQueuePage(1) }}
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-xs text-[var(--color-fg)] outline-none"
+                className="content-product-page-size-select"
                 aria-label="内容商品列表每页条数"
               >
                 {[20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
@@ -152,13 +152,13 @@ export function ContentProductQueue({
             </label>
           </div>
         )}
-	        {layout === 'table' && items.length > 0 && (
-	          <div
-	            aria-label="内容商品批量操作工具栏"
-	            data-ui="content-product-bulk-action-toolbar"
-            className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs shadow-[var(--shadow-sm)]"
+        {layout === 'table' && items.length > 0 && (
+          <div
+            aria-label="内容商品批量操作工具栏"
+            data-ui="content-product-bulk-action-toolbar"
+            className="content-product-bulk-action-toolbar"
           >
-            <label className="flex items-center gap-2 text-[var(--color-fg)]">
+            <label className="content-product-check-label">
               <input
                 type="checkbox"
                 checked={allVisibleChecked}
@@ -168,15 +168,15 @@ export function ContentProductQueue({
               />
               当前页全选
             </label>
-            <span className="text-[var(--color-muted)]">已选择 {selectedItems.length} 个商品</span>
-            <span className="text-[var(--color-muted)]">发布图缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
-            <span className="text-[var(--color-muted)]">内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
-            <div className="ml-auto flex flex-wrap gap-2">
+            <span>已选择 {selectedItems.length} 个商品</span>
+            <span>发布图缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
+            <span>内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
+            <div className="content-product-bulk-action-set">
               <button
                 type="button"
                 disabled={selectedItems.length === 0}
                 onClick={() => runBulkAction('copy')}
-                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="content-product-secondary-action"
                 title="生成批量文案处理队列，逐个进入 Listing 编辑区处理"
               >
                 批量生成文案
@@ -185,7 +185,7 @@ export function ContentProductQueue({
                 type="button"
                 disabled={selectedItems.length === 0}
                 onClick={() => runBulkAction('media')}
-                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="content-product-secondary-action"
                 title="生成批量发布图处理队列，逐个进入图片工作台补图/校验"
               >
                 批量校验素材
@@ -194,46 +194,46 @@ export function ContentProductQueue({
                 type="button"
                 disabled={selectedItems.length === 0}
                 onClick={() => runBulkAction('pricing')}
-                className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="content-product-secondary-action"
                 title="生成定价校验处理队列，逐个进入定价页或 Listing 价格区"
               >
                 送入定价校验
               </button>
-	            </div>
-	          </div>
-	        )}
+            </div>
+          </div>
+        )}
         {layout === 'table' && selectedItems.length > 0 && (
           <section
             aria-label="已选内容商品发布准备操作台"
             data-ui="content-product-selection-command-deck"
-            className="grid gap-3 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 text-xs shadow-[var(--shadow-sm)] xl:grid-cols-[minmax(0,1fr)_auto]"
+            className="content-product-selection-command-deck"
           >
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-[var(--color-primary)] px-3 py-1 font-semibold text-[var(--color-primary-text)]">已选 {selectedItems.length} 个商品</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">发布图缺口 {selectedMediaGaps}</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">属性缺口 {selectedAttributeGaps}</span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[var(--color-warning)]">内容缺口 {selectedContentGaps}</span>
+              <div className="content-product-selection-chip-row">
+                <span className="content-product-selection-primary-chip">已选 {selectedItems.length} 个商品</span>
+                <span>发布图缺口 {selectedMediaGaps}</span>
+                <span>属性缺口 {selectedAttributeGaps}</span>
+                <span>内容缺口 {selectedContentGaps}</span>
               </div>
-              <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">
+              <p className="content-product-selection-note">
                 已选商品先在内容工厂补齐 Listing、发布图、SKU/属性/物流，再按目标店铺进入定价或批量刊登；这里不伪造批量生成或平台发布结果。
               </p>
-              <div className="mt-3 flex min-w-0 gap-2 overflow-x-auto pb-1">
+              <div className="content-product-selection-strip">
                 {selectedItems.slice(0, 8).map(item => (
                   <button
                     key={`selected-${item.work_item_id}`}
                     type="button"
                     onClick={() => openRow(item)}
-                    className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-left text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                    className="content-product-selection-item"
                   >
-                    <span className="block max-w-[180px] truncate text-[var(--color-fg)]">{item.product_name}</span>
+                    <span>{item.product_name}</span>
                     <span>{item.target_platform || '--'} / {storeContextLabel(item)}</span>
                   </button>
                 ))}
-                {selectedItems.length > 8 && <span className="shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[11px] text-[var(--color-muted)]">另 {selectedItems.length - 8} 个</span>}
+                {selectedItems.length > 8 && <span className="content-product-selection-more">另 {selectedItems.length - 8} 个</span>}
               </div>
             </div>
-            <div className="flex flex-wrap items-start justify-end gap-2 xl:max-w-[420px]">
+            <div className="content-product-selection-actions">
               <button
                 type="button"
                 onClick={() => {
@@ -242,7 +242,7 @@ export function ContentProductQueue({
                   openRow(first)
                   onOpenListing?.(first)
                 }}
-                className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-surface)] px-3 py-2 font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-bg)]"
+                className="content-product-primary-outline-action"
               >
                 打开首个 Listing
               </button>
@@ -255,13 +255,13 @@ export function ContentProductQueue({
                     openRow(first)
                     onOpenMediaWorkbench(first)
                   }}
-                  className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-surface)] px-3 py-2 font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-bg)]"
+                  className="content-product-primary-outline-action"
                 >
                   处理首个发布图
                 </button>
               )}
-              <a href={selectedPricingUrl} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">送入定价</a>
-              <a href={selectedPublishUrl} className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-2 font-semibold text-[var(--color-primary-text)] transition hover:opacity-90">进入批量刊登</a>
+              <a href={selectedPricingUrl} className="content-product-secondary-action">送入定价</a>
+              <a href={selectedPublishUrl} className="content-product-primary-action">进入批量刊登</a>
             </div>
           </section>
         )}
@@ -283,22 +283,22 @@ export function ContentProductQueue({
           />
         )}
         {items.length > 0 && (
-          <div aria-label="内容商品队列分页" className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            <span className="mr-auto">显示 {startIndex}-{endIndex} / {items.length}</span>
+          <div aria-label="内容商品队列分页" className="content-product-pagination">
+            <span>显示 {startIndex}-{endIndex} / {items.length}</span>
             <button
               type="button"
               disabled={safePage <= 1}
               onClick={() => setQueuePage(page => Math.max(1, page - 1))}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              className="content-product-pagination-button"
             >
               上一页
             </button>
-            <span>第 {safePage}/{totalPages} 页</span>
+            <small>第 {safePage}/{totalPages} 页</small>
             <button
               type="button"
               disabled={safePage >= totalPages}
               onClick={() => setQueuePage(page => Math.min(totalPages, page + 1))}
-              className="rounded-lg border border-[var(--color-border)] px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              className="content-product-pagination-button"
             >
               下一页
             </button>
@@ -308,21 +308,21 @@ export function ContentProductQueue({
         {contentWorkbenchQuery.isError && (
           <div
             data-ui="content-workbench-error"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-danger)] bg-[var(--color-danger-light)] px-3 py-2 text-xs"
+            className="content-product-error-panel"
           >
-            <span className="text-[var(--color-danger)]">内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和发布图缺口暂不可用。</span>
+            <span>内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和发布图缺口暂不可用。</span>
             <button
               type="button"
               onClick={() => contentWorkbenchQuery.refetch()}
-              className="rounded-lg border border-[var(--color-danger)] px-3 py-1.5 text-[var(--color-danger)] hover:bg-[var(--color-surface)]"
+              className="content-product-danger-action"
             >
               重新加载内容商品队列
             </button>
           </div>
         )}
         {!contentWorkbenchQuery.isError && items.length === 0 && (
-          <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">
-            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" />
+          <div className="content-product-empty-state">
+            <TriangleAlert className="h-4 w-4" />
             <span>暂无已通过选品决策的商品。请先在选品决策完成绿灯/黄灯验证，再进入内容制作。</span>
           </div>
         )}
@@ -366,11 +366,11 @@ export function ContentProductQueue({
           </div>
         )}
         {items.length > 0 && layout === 'table' && (
-          <div className="min-h-[calc(100vh-300px)] overflow-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]" style={{ scrollbarWidth: 'thin' }} data-ui="content-product-seller-console-table">
-            <table className="w-full min-w-[1480px] text-left text-xs">
-              <thead className="sticky top-0 z-10 bg-[var(--color-surface)]">
-	                <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
-	                  <th className="w-10 px-3 py-2">
+          <div className="content-product-table" style={{ scrollbarWidth: 'thin' }} data-ui="content-product-seller-console-table">
+            <table>
+              <thead>
+                <tr>
+                  <th className="w-10">
                       <input
                         type="checkbox"
                         checked={allVisibleChecked}
@@ -379,15 +379,15 @@ export function ContentProductQueue({
                         aria-label="选择当前页全部商品"
                       />
                     </th>
-	                  <th className="px-3 py-2">商品信息</th>
-                  <th className="px-3 py-2">平台 / 店铺 / 市场</th>
-                  <th className="px-3 py-2">内容状态</th>
-                  <th className="px-3 py-2">发布图 / 视频</th>
-                  <th className="px-3 py-2">标题 / 描述</th>
-                  <th className="px-3 py-2">SKU / 属性</th>
-                  <th className="px-3 py-2">价格 / 库存</th>
-                  <th className="px-3 py-2">待处理缺口</th>
-                  <th className="px-3 py-2 text-right">操作</th>
+                  <th>商品信息</th>
+                  <th>平台 / 店铺 / 市场</th>
+                  <th>内容状态</th>
+                  <th>发布图 / 视频</th>
+                  <th>标题 / 描述</th>
+                  <th>SKU / 属性</th>
+                  <th>价格 / 库存</th>
+                  <th>待处理缺口</th>
+                  <th className="text-right">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -403,13 +403,12 @@ export function ContentProductQueue({
               const pricingUrl = workflowUrl('/pricing', item)
               const publishUrl = workflowUrl('/publish', item)
               return (
-		                <tr
-		                  key={item.work_item_id}
-		                  onClick={() => openRow(item)}
-	                  className="cursor-pointer border-b border-[var(--color-border)] align-top transition-colors hover:bg-[var(--color-bg)]"
-	                  style={{ backgroundColor: active ? 'var(--color-primary-light)' : 'transparent' }}
-		                >
-	                  <td className="px-3 py-3">
+                <tr
+                  key={item.work_item_id}
+                  onClick={() => openRow(item)}
+                  className={active ? 'content-product-row content-product-row-active' : 'content-product-row'}
+                >
+                  <td>
                       <input
                         type="checkbox"
                         checked={checkedIds.includes(item.work_item_id)}
@@ -418,112 +417,110 @@ export function ContentProductQueue({
                         aria-label={`选择商品 ${item.product_name}`}
                       />
                     </td>
-		                  <td className="px-3 py-3">
-	                    <div className="flex min-w-0 gap-2">
-	                      {item.image_url ? (
-	                        <img
-	                          src={productImageSrc(item.image_url)}
-	                          alt={item.product_name}
-	                          className="h-12 w-12 shrink-0 rounded-lg border object-cover"
-	                          style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
-	                        />
-	                      ) : (
-	                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[10px] text-[var(--color-muted)]">缺主图</div>
-	                      )}
-	                      <div className="min-w-0">
-	                        <p className="line-clamp-2 text-sm font-medium text-[var(--color-fg)]">{item.product_name}</p>
-	                        <p className="mt-1 text-[11px] text-[var(--color-muted)]">资料 {item.evidence_summary.present}/{item.evidence_summary.total}</p>
-	                        <p className="mt-1 text-[11px] text-[var(--color-muted)]">ID：{productId}</p>
-	                      </div>
-	                    </div>
-	                  </td>
-                  <td className="px-3 py-3 text-[var(--color-muted)]" data-ui="content-product-store-context-summary">
-                    <p className="font-medium text-[var(--color-fg)]">{item.target_platform || '--'}</p>
-                    <p className="mt-1 text-[11px]">{storeContextLabel(item)}</p>
-                    <p className="mt-1 text-[11px]">市场：{item.target_market || '--'}</p>
-                    <p className="mt-1 text-[11px]">{objectRefContextLabel(item)}</p>
+                  <td>
+                    <div className="content-product-info-cell">
+                      {item.image_url ? (
+                        <img
+                          src={productImageSrc(item.image_url)}
+                          alt={item.product_name}
+                        />
+                      ) : (
+                        <div className="content-product-image-missing">缺主图</div>
+                      )}
+                      <div>
+                        <p className="content-product-name">{item.product_name}</p>
+                        <p>资料 {item.evidence_summary.present}/{item.evidence_summary.total}</p>
+                        <p>ID：{productId}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
+                  <td data-ui="content-product-store-context-summary">
+                    <p className="content-product-strong-text">{item.target_platform || '--'}</p>
+                    <p>{storeContextLabel(item)}</p>
+                    <p>市场：{item.target_market || '--'}</p>
+                    <p>{objectRefContextLabel(item)}</p>
+                  </td>
+                  <td>
+                    <div className="content-product-status-line">
                     {item.content_status === 'ready'
                       ? <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />
                       : <FileText className="h-4 w-4 text-[var(--color-warning)]" />}
-                      <span className="text-[var(--color-fg)]">{STATUS_LABELS[item.content_status] || item.content_status}</span>
+                      <span>{STATUS_LABELS[item.content_status] || item.content_status}</span>
                     </div>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.lifecycle_label}</p>
+                    <p>{item.lifecycle_label}</p>
                   </td>
-	                  <td className="px-3 py-3">
-	                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}>
-	                      发布图 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
-	                    </p>
-	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">推荐 {mediaReadiness?.recommended_platform_images ?? 9} 张 · 主图/辅图/SKU图</p>
-	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
-	                  </td>
-                  <td className="px-3 py-3">
-                    <p className="line-clamp-2 text-[var(--color-fg)]">{item.content_brief?.title || item.product_name}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">卖点摘要 {brief.length} 项 · 描述 {brief.join('').length} 字</p>
+                  <td>
+                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'content-product-success-text' : 'content-product-warning-text'}>
+                      发布图 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
+                    </p>
+                    <p>推荐 {mediaReadiness?.recommended_platform_images ?? 9} 张 · 主图/辅图/SKU图</p>
+                    <p>视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
                   </td>
-	                  <td className="min-w-72 px-3 py-3">
-	                    <PlatformFieldGroupSummary requirements={item.platform_requirements} compact maxGroups={1} />
-	                    <p className={requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length ? 'mt-1 text-[11px] text-[var(--color-success)]' : 'mt-1 text-[11px] text-[var(--color-warning)]'}>
-	                      平台属性 {filledAttributes}/{requiredAttributes.length || 0}
-	                    </p>
-	                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">SKU/变体：进入 Listing 编辑页维护组合、价格、库存和SKU图</p>
-	                  </td>
-                  <td className="px-3 py-3">
-                    <p className="font-medium text-[var(--color-fg)]">{item.selling_price_local != null ? item.selling_price_local : '待定价'}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">采购 {item.source_price_rmb != null ? `¥${item.source_price_rmb}` : '待补'} · 利润 {item.profit_margin_pct != null ? `${item.profit_margin_pct}%` : '待校验'}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">库存：发布/同步后回写</p>
+                  <td>
+                    <p className="content-product-copy-title">{item.content_brief?.title || item.product_name}</p>
+                    <p>卖点摘要 {brief.length} 项 · 描述 {brief.join('').length} 字</p>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="content-product-attribute-cell">
+                    <PlatformFieldGroupSummary requirements={item.platform_requirements} compact maxGroups={1} />
+                    <p className={requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length ? 'content-product-success-text' : 'content-product-warning-text'}>
+                      平台属性 {filledAttributes}/{requiredAttributes.length || 0}
+                    </p>
+                    <p>SKU/变体：进入 Listing 编辑页维护组合、价格、库存和SKU图</p>
+                  </td>
+                  <td>
+                    <p className="content-product-strong-text">{item.selling_price_local != null ? item.selling_price_local : '待定价'}</p>
+                    <p>采购 {item.source_price_rmb != null ? `¥${item.source_price_rmb}` : '待补'} · 利润 {item.profit_margin_pct != null ? `${item.profit_margin_pct}%` : '待校验'}</p>
+                    <p>库存：发布/同步后回写</p>
+                  </td>
+                  <td>
                     {[...item.content_gaps, ...mediaGaps].length > 0
-                      ? <p className="line-clamp-3 text-[11px] text-[var(--color-warning)]">{[...item.content_gaps, ...mediaGaps].slice(0, 5).join('、')}</p>
-                      : <span className="text-[var(--color-success)]">无阻断缺口</span>}
+                      ? <p className="content-product-gap-text">{[...item.content_gaps, ...mediaGaps].slice(0, 5).join('、')}</p>
+                      : <span className="content-product-success-text">无阻断缺口</span>}
                   </td>
-	                  <td className="px-3 py-3">
-	                    <div className="flex flex-wrap justify-end gap-2" data-ui="content-product-row-action-set">
-	                      <button
-	                        type="button"
-	                        onClick={(event) => {
-	                          event.stopPropagation()
-	                          openRow(item)
-	                          onOpenListing?.(item)
-	                        }}
-	                        className="inline-flex items-center rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[11px] font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-surface)]"
+                  <td>
+                    <div className="content-product-row-action-set" data-ui="content-product-row-action-set">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openRow(item)
+                          onOpenListing?.(item)
+                        }}
+                        className="content-product-action content-product-action-primary"
                       >
-	                        <Edit3 className="mr-1 h-3 w-3" />
-	                        编辑 Listing
-	                      </button>
-	                      <button
-	                        type="button"
-	                        onClick={(event) => {
-	                          event.stopPropagation()
-	                          openRow(item)
-	                          onOpenMediaWorkbench?.(item)
-	                        }}
-	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-	                      >
-	                        <Image className="mr-1 h-3 w-3" />
-	                        处理图片
-	                      </button>
-	                      <a
-	                        href={pricingUrl}
-	                        onClick={event => event.stopPropagation()}
-	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-	                      >
-	                        <DollarSign className="mr-1 h-3 w-3" />
-	                        定价
-	                      </a>
-	                      <a
-	                        href={publishUrl}
-	                        onClick={event => event.stopPropagation()}
-	                        className="inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-	                      >
-	                        <Megaphone className="mr-1 h-3 w-3" />
-	                        刊登
-	                      </a>
-	                    </div>
-	                  </td>
+                        <Edit3 className="mr-1 h-3 w-3" />
+                        编辑 Listing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openRow(item)
+                          onOpenMediaWorkbench?.(item)
+                        }}
+                        className="content-product-action"
+                      >
+                        <Image className="mr-1 h-3 w-3" />
+                        处理图片
+                      </button>
+                      <a
+                        href={pricingUrl}
+                        onClick={event => event.stopPropagation()}
+                        className="content-product-action"
+                      >
+                        <DollarSign className="mr-1 h-3 w-3" />
+                        定价
+                      </a>
+                      <a
+                        href={publishUrl}
+                        onClick={event => event.stopPropagation()}
+                        className="content-product-action"
+                      >
+                        <Megaphone className="mr-1 h-3 w-3" />
+                        刊登
+                      </a>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
@@ -554,52 +551,52 @@ function BulkActionWorkbench({
     <section
       aria-label="内容商品批量处理队列"
       data-ui="content-product-bulk-action-workbench"
-      className="space-y-3 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 text-xs shadow-[var(--shadow-sm)]"
+      className="content-product-bulk-action-workbench"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="content-product-bulk-workbench-header">
         <div>
-          <p className="font-semibold text-[var(--color-primary)]">{meta.title}</p>
-          <p className="mt-1 text-[var(--color-muted)]">{meta.description}</p>
+          <p>{meta.title}</p>
+          <span>{meta.description}</span>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+          className="content-product-secondary-action"
         >
           收起队列
         </button>
       </div>
-      <div className="overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <table className="w-full min-w-[880px] text-left">
+      <div className="content-product-bulk-table-shell">
+        <table>
           <thead>
-            <tr className="border-b border-[var(--color-border)] text-[var(--color-muted)]">
-              <th className="px-3 py-2">商品</th>
-              <th className="px-3 py-2">平台/市场</th>
-              <th className="px-3 py-2">当前缺口</th>
-              <th className="px-3 py-2 text-right">处理动作</th>
+            <tr>
+              <th>商品</th>
+              <th>平台/市场</th>
+              <th>当前缺口</th>
+              <th className="text-right">处理动作</th>
             </tr>
           </thead>
           <tbody>
             {items.map(item => (
-              <tr key={`${action}-${item.work_item_id}`} className="border-b border-[var(--color-border)] align-top last:border-b-0">
-                <td className="px-3 py-2">
-                  <p className="font-medium text-[var(--color-fg)]">{item.product_name}</p>
-                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">状态：{STATUS_LABELS[item.content_status] || item.content_status}</p>
+              <tr key={`${action}-${item.work_item_id}`}>
+                <td>
+                  <p>{item.product_name}</p>
+                  <span>状态：{STATUS_LABELS[item.content_status] || item.content_status}</span>
                 </td>
-                <td className="px-3 py-2 text-[var(--color-muted)]">
+                <td>
                   <p>{item.target_platform || '--'}</p>
-                  <p className="mt-1">{item.target_market || '--'}</p>
+                  <span>{item.target_market || '--'}</span>
                 </td>
-                <td className="px-3 py-2 text-[var(--color-warning)]">
+                <td className="content-product-warning-text">
                   {bulkActionGaps(action, item).join('、') || '未发现该类阻断缺口，可进入人工复核'}
                 </td>
-                <td className="px-3 py-2">
-                  <div className="flex justify-end gap-2">
+                <td>
+                  <div className="content-product-bulk-row-actions">
                     {action === 'media' && onOpenMediaWorkbench ? (
                       <button
                         type="button"
                         onClick={() => onOpenMediaWorkbench(item)}
-                        className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[var(--color-primary)]"
+                        className="content-product-primary-outline-action"
                       >
                         处理图片
                       </button>
@@ -607,7 +604,7 @@ function BulkActionWorkbench({
                       <button
                         type="button"
                         onClick={() => onOpenListing(item)}
-                        className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-1.5 text-[var(--color-primary)]"
+                        className="content-product-primary-outline-action"
                       >
                         打开 Listing
                       </button>
@@ -615,7 +612,7 @@ function BulkActionWorkbench({
                     {action === 'pricing' && (
                       <a
                         href={workflowUrl('/pricing', item)}
-                        className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        className="content-product-secondary-action"
                       >
                         定价页
                       </a>
@@ -627,7 +624,7 @@ function BulkActionWorkbench({
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-[var(--color-muted)]">
+      <p className="content-product-bulk-boundary-note">
         该队列只组织本地处理入口，不声明已批量生成、已完成素材校验或已完成定价；实际写入仍在 Listing、图片或定价页面人工确认后发生。
       </p>
     </section>

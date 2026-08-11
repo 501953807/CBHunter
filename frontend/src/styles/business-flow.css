@@ -1,0 +1,59 @@
+/* V5 business flow command visuals. Presentation only; workflow data and actions stay unchanged. */
+.flow-command-board,
+.flow-command-card,
+.flow-stage-card,
+.flow-object-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.flow-command-board::before,
+.flow-command-card::before,
+.flow-stage-card::before,
+.flow-object-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-info) 10%, transparent), transparent 28%),
+    radial-gradient(circle at 92% 12%, color-mix(in oklch, var(--color-primary) 8%, transparent), transparent 24%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 82%, transparent), transparent);
+  opacity: .84;
+}
+
+.flow-command-board > *,
+.flow-command-card > *,
+.flow-stage-card > *,
+.flow-object-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.flow-command-board {
+  box-shadow: var(--shadow-md);
+}
+
+.flow-command-card,
+.flow-stage-card,
+.flow-object-panel {
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.flow-command-card:hover,
+.flow-stage-card:hover,
+.flow-object-panel:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--color-primary) 54%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.flow-object-row {
+  transition: background .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.flow-object-row:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}

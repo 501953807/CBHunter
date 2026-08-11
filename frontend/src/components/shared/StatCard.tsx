@@ -14,9 +14,9 @@ interface StatCardProps {
 export function StatCard({ label, value, icon, change, loading, onClick, active }: StatCardProps) {
   if (loading) {
     return (
-      <div className="rounded-xl p-5 animate-pulse" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <div className="h-3 w-20 rounded mb-3" style={{ background: 'var(--color-border)' }} />
-        <div className="h-7 w-28 rounded" style={{ background: 'var(--color-border)' }} />
+      <div className="luxury-stat-card animate-pulse rounded-[var(--radius-xl)] p-5">
+        <div className="luxury-skeleton mb-3 h-3 w-20 rounded" />
+        <div className="luxury-skeleton h-7 w-28 rounded" />
       </div>
     )
   }
@@ -27,10 +27,8 @@ export function StatCard({ label, value, icon, change, loading, onClick, active 
       disabled={!onClick}
       onClick={onClick}
       aria-pressed={onClick ? active : undefined}
-      className="w-full rounded-xl p-5 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-default"
-      style={{ background: 'var(--color-surface)', boxShadow: active ? '0 0 0 2px var(--color-primary), var(--shadow-md)' : 'var(--shadow-sm)' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = active ? '0 0 0 2px var(--color-primary), var(--shadow-md)' : 'var(--shadow-sm)' }}
+      data-active={active ? 'true' : 'false'}
+      className="luxury-stat-card w-full rounded-[var(--radius-xl)] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-default"
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium" style={{ color: 'var(--color-muted)' }}>{label}</span>

@@ -45,7 +45,7 @@ export function PricingItemSelector({
       </div>
 
       {item && (
-        <section aria-label="定价商品上下文" className="rounded-xl p-3 flex gap-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+        <section aria-label="定价商品上下文" className="pricing-item-context rounded-[var(--radius-xl)] p-3 flex gap-3">
           {item.image_url ? (
             <img src={productImageSrc(item.image_url)} alt={item.product_name} className="w-20 h-20 object-cover rounded-lg shrink-0" />
           ) : (

@@ -50,7 +50,7 @@ export function ProductSellerWorkbench({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <section className="product-master-console rounded-[var(--radius-xl)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
           <div>
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">基础商品资料列表</h3>
@@ -86,8 +86,8 @@ export function ProductSellerWorkbench({
                   <tr
                     key={row.id}
                     onClick={() => onActiveIdChange(row.id)}
-                    className="cursor-pointer border-b border-[var(--color-border)] align-top hover:bg-[var(--color-bg)]"
-                    style={{ background: activeRow ? 'var(--color-primary-light)' : 'transparent' }}
+                    data-active={activeRow ? 'true' : 'false'}
+                    className="product-master-row cursor-pointer border-b border-[var(--color-border)] align-top"
                   >
                     <td className="px-3 py-3" onClick={event => event.stopPropagation()}>
                       <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleOne(row.id)} />
@@ -151,13 +151,13 @@ export function ProductSellerWorkbench({
 }
 
 function ProductInspector({ product, productStatuses, onEdit, onPublish }: { product?: ProductListRow; productStatuses: Props['productStatuses']; onEdit: (id: string) => void; onPublish: (id: string) => void }) {
-  if (!product) return <aside className="rounded-2xl border border-dashed border-[var(--color-border)] p-6 text-sm text-[var(--color-muted)]">选择左侧商品查看详情和诊断。</aside>
+  if (!product) return <aside className="product-master-inspector rounded-[var(--radius-xl)] border-dashed p-6 text-sm text-[var(--color-muted)]">选择左侧商品查看详情和诊断。</aside>
   const statusMeta = getStatusMeta(productStatuses, product.status)
   const requirements = primaryRequirements(product)
   const opportunities = opportunityActions(product)
   const media = mediaReadinessForProduct(product)
   return (
-    <aside className="professional-context-rail rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="商品机会处理">
+    <aside className="product-master-inspector professional-context-rail rounded-[var(--radius-xl)] p-4" aria-label="商品机会处理">
       <ProductThumb row={product} large />
       <h3 className="mt-3 line-clamp-2 text-base font-semibold text-[var(--color-fg)]">{product.name}</h3>
       <p className="mt-1 text-xs text-[var(--color-muted)]">{product.sku}</p>
@@ -223,8 +223,8 @@ function ProductInspector({ product, productStatuses, onEdit, onPublish }: { pro
 function ProductThumb({ row, large = false }: { row: ProductListRow; large?: boolean }) {
   const size = large ? 'h-40 w-full' : 'h-12 w-12'
   return row.images?.[0]
-    ? <img src={productImageSrc(row.images[0])} alt={row.name} className={`${size} shrink-0 rounded-xl border border-[var(--color-border)] object-cover`} loading="lazy" />
-    : <div className={`${size} flex shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]`}><Package className="h-5 w-5" /></div>
+    ? <img src={productImageSrc(row.images[0])} alt={row.name} className={`product-master-thumb ${size} shrink-0 rounded-xl border border-[var(--color-border)] object-cover`} loading="lazy" />
+    : <div className={`product-master-thumb ${size} flex shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]`}><Package className="h-5 w-5" /></div>
 }
 
 function Info({ label, value }: { label: string; value: string }) {

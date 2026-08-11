@@ -1,0 +1,551 @@
+/* CBHunter V5 global luxury admin system layer.
+   Scope: visual normalization only. Do not put business logic assumptions here. */
+
+:root {
+  --layout-sidebar-expanded: 104px;
+  --layout-sidebar-collapsed: 72px;
+  --layout-header-height: 64px;
+  --layout-page-max: 1680px;
+  --space-page-x: clamp(1rem, 1.4vw, 1.5rem);
+  --space-page-y: clamp(1rem, 1.6vw, 1.625rem);
+  --surface-metal-line: linear-gradient(90deg, transparent, color-mix(in oklch, var(--color-primary) 36%, transparent), transparent);
+  --surface-soft-radial: radial-gradient(circle at 14% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 34%);
+  --surface-card-gradient: linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 86%, var(--color-bg)), var(--color-surface));
+  --motion-standard: 180ms cubic-bezier(.2,.8,.2,1);
+}
+
+.luxury-app-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 86% -10%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 30%),
+    var(--gradient-workspace);
+}
+
+.luxury-main-shell {
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-workspace-chrome) 88%, transparent), transparent 280px),
+    var(--color-bg);
+}
+
+.luxury-page-pad {
+  padding: var(--space-page-y) var(--space-page-x);
+}
+
+.luxury-page-frame {
+  max-width: var(--layout-page-max);
+}
+
+.luxury-sidebar {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in oklch, var(--color-primary) 24%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-sidebar-bg) 94%, black), var(--color-sidebar-bg));
+}
+
+.luxury-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .75;
+}
+
+.luxury-nav-item {
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+.luxury-nav-item:hover,
+.luxury-nav-item[data-active="true"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--color-primary) 24%, transparent),
+    0 12px 28px color-mix(in oklch, black 18%, transparent);
+}
+
+.luxury-header {
+  position: relative;
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-glass-bg) 92%, var(--color-surface)), var(--color-glass-bg));
+}
+
+.luxury-header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .52;
+}
+
+.theme-preset-menu {
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 34%),
+    var(--surface-card-gradient);
+  backdrop-filter: blur(18px);
+}
+
+.theme-preset-option {
+  border: 1px solid transparent;
+  color: var(--color-muted);
+}
+
+.theme-preset-option:hover,
+.theme-preset-option[data-active="true"] {
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 42%, var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.theme-preset-swatch {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 38%, var(--color-border));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 72%, transparent), var(--shadow-sm);
+}
+
+.theme-preset-option[data-theme-option="light-luxury"] .theme-preset-swatch {
+  background: linear-gradient(135deg, oklch(97% 0.006 78), oklch(56% 0.087 75));
+}
+
+.theme-preset-option[data-theme-option="dark-luxury"] .theme-preset-swatch {
+  background: linear-gradient(135deg, oklch(13% 0.012 74), oklch(69% 0.082 78));
+}
+
+.theme-preset-option[data-theme-option="warm-luxury"] .theme-preset-swatch {
+  background: linear-gradient(135deg, oklch(95.5% 0.014 66), oklch(53% 0.083 62));
+}
+
+.luxury-control,
+.luxury-select,
+.luxury-filter {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 90%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    transform var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.luxury-control:hover,
+.luxury-select:hover,
+.luxury-filter:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 52%, var(--color-border));
+  background: color-mix(in oklch, var(--color-surface) 78%, var(--color-primary-light));
+  box-shadow: var(--shadow-md);
+}
+
+.luxury-control:focus-visible,
+.luxury-select:focus-visible,
+.luxury-filter:focus-visible,
+.theme-preset-option:focus-visible,
+.luxury-nav-item:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--color-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.luxury-card,
+.luxury-stat-card,
+.luxury-workspace-frame,
+.luxury-table-shell,
+.luxury-empty-state {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    var(--surface-soft-radial),
+    var(--surface-card-gradient);
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-card::before,
+.luxury-stat-card::before,
+.luxury-workspace-frame::before,
+.luxury-table-shell::before,
+.luxury-empty-state::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .58;
+}
+
+.luxury-card > *,
+.luxury-stat-card > *,
+.luxury-workspace-frame > *,
+.luxury-table-shell > *,
+.luxury-empty-state > * {
+  position: relative;
+  z-index: 1;
+}
+
+.luxury-card,
+.luxury-stat-card {
+  transition:
+    transform var(--motion-standard),
+    box-shadow var(--motion-standard),
+    border-color var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.luxury-card:hover,
+.luxury-stat-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 38%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.luxury-stat-card[data-active="true"] {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 48%, transparent), var(--shadow-md);
+}
+
+.luxury-table-shell table {
+  background: transparent;
+}
+
+.luxury-table-shell thead {
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-bg) 72%, var(--color-surface)), color-mix(in oklch, var(--color-surface) 88%, var(--color-bg)));
+}
+
+.luxury-table-shell tbody tr {
+  transition:
+    background var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.luxury-table-shell tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 36%, var(--color-surface));
+  box-shadow: inset 3px 0 0 color-mix(in oklch, var(--color-primary) 72%, transparent);
+}
+
+.luxury-table-shell input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+
+.luxury-toolbar {
+  border: 1px solid var(--color-hairline);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 82%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-input {
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  color: var(--color-fg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.luxury-input:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 16%, transparent);
+  outline: none;
+}
+
+.luxury-page-frame input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.luxury-page-frame textarea,
+.luxury-page-frame select {
+  border-color: var(--color-border);
+  background-color: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  color: var(--color-fg);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background-color var(--motion-standard);
+}
+
+.luxury-page-frame input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+.luxury-page-frame textarea:focus,
+.luxury-page-frame select:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  background-color: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 16%, transparent);
+  outline: none;
+}
+
+.luxury-page-frame input[type="checkbox"],
+.luxury-page-frame input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+.luxury-page-frame textarea {
+  line-height: 1.65;
+}
+
+.luxury-page-frame ::selection {
+  background: color-mix(in oklch, var(--color-primary) 26%, transparent);
+  color: var(--color-fg);
+}
+
+.luxury-page-frame :where(.rounded-xl.border, .rounded-2xl.border):not(.luxury-card):not(.luxury-table-shell):not(.luxury-empty-state):not(.luxury-modal-panel) {
+  border-color: var(--color-hairline);
+  background-color: color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-page-frame :where(.rounded-lg.border, .rounded-md.border):not(.luxury-filter):not(.luxury-control) {
+  border-color: var(--color-hairline);
+  background-color: color-mix(in oklch, var(--color-surface) 90%, var(--color-bg));
+}
+
+.luxury-page-frame :where(button, a)[class*="rounded"]:not(:disabled) {
+  transition:
+    transform var(--motion-standard),
+    border-color var(--motion-standard),
+    background var(--motion-standard),
+    color var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.luxury-page-frame :where(button, a)[class*="rounded"]:not(:disabled):active {
+  transform: scale(.98);
+}
+
+.luxury-page-frame table:not(.professional-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--color-fg);
+}
+
+.luxury-page-frame table:not(.professional-table) th {
+  background: color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.luxury-page-frame table:not(.professional-table) td,
+.luxury-page-frame table:not(.professional-table) th {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: .75rem 1rem;
+}
+
+.luxury-page-frame table:not(.professional-table) tbody tr {
+  transition: background var(--motion-standard), box-shadow var(--motion-standard);
+}
+
+.luxury-page-frame table:not(.professional-table) tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 34%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in oklch, var(--color-primary) 64%, transparent);
+}
+
+.luxury-page-frame ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.luxury-page-frame ::-webkit-scrollbar-track {
+  background: color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+}
+
+.luxury-page-frame ::-webkit-scrollbar-thumb {
+  border: 2px solid color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-primary) 34%, var(--color-border));
+}
+
+.luxury-page-frame ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--color-primary) 54%, var(--color-border));
+}
+
+.luxury-theme-select {
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-primary-light) 42%, var(--color-surface)), var(--color-surface));
+}
+
+.luxury-skeleton {
+  background: linear-gradient(90deg,
+    color-mix(in oklch, var(--color-border) 78%, var(--color-surface)) 25%,
+    color-mix(in oklch, var(--color-surface) 92%, var(--color-primary-light)) 50%,
+    color-mix(in oklch, var(--color-border) 78%, var(--color-surface)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.45s infinite;
+}
+
+.luxury-page-title {
+  letter-spacing: -.035em;
+  color: var(--color-fg);
+}
+
+.luxury-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.luxury-page-description {
+  max-width: 72ch;
+  color: var(--color-muted);
+  font-size: .875rem;
+  line-height: 1.7;
+}
+
+.luxury-page-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+}
+
+.luxury-section-kicker {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.luxury-action-bar {
+  border: 1px solid var(--color-hairline);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface-raised) 88%, var(--color-primary-light)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .875rem;
+}
+
+.luxury-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.luxury-modal-panel {
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 32%),
+    var(--surface-card-gradient);
+  box-shadow: var(--shadow-lg);
+}
+
+.luxury-menu-popover {
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 30%),
+    var(--surface-card-gradient);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(18px);
+}
+
+.luxury-menu-item {
+  color: var(--color-fg);
+  transition:
+    background var(--motion-standard),
+    color var(--motion-standard),
+    transform var(--motion-standard);
+}
+
+.luxury-menu-item:hover,
+.luxury-menu-item[data-selected="true"] {
+  background: color-mix(in oklch, var(--color-primary-light) 62%, var(--color-surface));
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.luxury-modal-close {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+  color: var(--color-muted);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background var(--motion-standard),
+    color var(--motion-standard),
+    transform var(--motion-standard),
+    border-color var(--motion-standard);
+}
+
+.luxury-modal-close:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 52%, var(--color-surface));
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.luxury-pagination {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 86%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+}
+
+.professional-tabbar {
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 86%, var(--color-bg)), var(--color-surface));
+}
+
+.professional-status-chip {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.professional-status-chip::before {
+  content: "";
+  width: .4rem;
+  height: .4rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklch, currentColor 16%, transparent);
+}
+
+.professional-table th {
+  letter-spacing: .08em;
+}
+
+.professional-table td {
+  vertical-align: middle;
+}
+
+.luxury-empty-state {
+  min-height: 180px;
+}
+
+.luxury-filter[data-active="true"] {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.luxury-filter[data-active="false"] {
+  color: var(--color-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luxury-card,
+  .luxury-stat-card,
+  .luxury-control,
+  .luxury-select,
+  .luxury-filter,
+  .theme-preset-option,
+  .luxury-input,
+  .luxury-table-shell tbody tr {
+    transition: none;
+  }
+
+  .luxury-card:hover,
+  .luxury-stat-card:hover {
+    transform: none;
+  }
+
+  .luxury-skeleton {
+    animation: none;
+  }
+}

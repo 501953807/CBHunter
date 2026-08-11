@@ -422,8 +422,8 @@ export function SellerImageEditorWorkbench({
   ]
 
   return (
-    <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-primary-light)] px-4 py-2 text-xs">
+    <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="image-workbench-shell overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+      <div className="image-workbench-header flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-primary-light)] px-4 py-2 text-xs">
         <span className="font-semibold text-[var(--color-primary)]">商品图片工作台：拖拽排序、空位补图、当前槽位替换</span>
         <span
           className="rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 font-semibold text-[var(--color-primary)]"
@@ -445,7 +445,7 @@ export function SellerImageEditorWorkbench({
         </div>
       </div>
       <div className="grid min-h-[560px] grid-cols-1 2xl:grid-cols-[220px_minmax(640px,1fr)_180px]">
-        <aside aria-label="左侧图片工具栏" className="border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-b-0 2xl:border-r">
+        <aside aria-label="左侧图片工具栏" className="image-workbench-tool-rail border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-b-0 2xl:border-r">
           <div className="space-y-4">
             {toolGroups.map(group => (
               <div key={group.title}>
@@ -457,8 +457,8 @@ export function SellerImageEditorWorkbench({
                       type="button"
                       onClick={() => applyToolPreset(tool)}
                       className={tool === activeTool
-                        ? 'rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-3 text-xs font-semibold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
-                        : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-3 text-xs text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'}
+                        ? 'image-workbench-tool-button rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-3 text-xs font-semibold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
+                        : 'image-workbench-tool-button rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-3 text-xs text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'}
                     >
                       <SlidersHorizontal className="mx-auto mb-1 h-4 w-4 text-[var(--color-muted)]" />
                       {tool}
@@ -470,7 +470,7 @@ export function SellerImageEditorWorkbench({
           </div>
         </aside>
 
-        <div aria-label="图片编辑画布" className="relative grid place-items-center bg-[var(--color-bg)] p-8">
+        <div aria-label="图片编辑画布" className="image-workbench-canvas relative grid place-items-center bg-[var(--color-bg)] p-8">
           {activeSlot.imageUrl ? (
             <div className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
               <img src={productImageSrc(activeSlot.imageUrl)} alt={`${product?.product_name || '商品'}${activeSlot.label}`} className={imageOptions.fit === 'cover' ? 'aspect-square w-full object-cover' : 'aspect-square w-full object-contain'} style={imagePreviewStyle} data-ui="image-canvas-transform-preview" />
@@ -519,7 +519,7 @@ export function SellerImageEditorWorkbench({
               </span>
             </label>
           )}
-          <div className="absolute left-4 top-4 max-w-[360px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 text-xs shadow-[var(--shadow-sm)] backdrop-blur">
+          <div className="image-workbench-control-panel absolute left-4 top-4 max-w-[360px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 text-xs shadow-[var(--shadow-sm)] backdrop-blur">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="default">{activeSlot.label}</Badge>
               <span className="text-[var(--color-muted)]">当前工具：{activeTool}</span>
@@ -638,7 +638,7 @@ export function SellerImageEditorWorkbench({
           </div>
         </div>
 
-        <aside aria-label="右侧图片槽位缩略图" className="border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-l 2xl:border-t-0">
+        <aside aria-label="右侧图片槽位缩略图" className="image-workbench-slot-rail border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-l 2xl:border-t-0">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
@@ -680,10 +680,10 @@ export function SellerImageEditorWorkbench({
                 }}
                 onDragEnd={() => setDraggingSlotIndex(null)}
                 className={slot.index === activeSlot.index
-                  ? 'rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left shadow-[var(--shadow-sm)]'
+                  ? 'image-workbench-slot-card rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left shadow-[var(--shadow-sm)]'
                   : draggingSlotIndex === slot.index
-                    ? 'rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-1 text-left opacity-70'
-                    : 'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left transition hover:border-[var(--color-primary)]'}
+                    ? 'image-workbench-slot-card rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-1 text-left opacity-70'
+                    : 'image-workbench-slot-card rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left transition hover:border-[var(--color-primary)]'}
               >
                 <button type="button" onClick={() => setActiveSlotIndex(slot.index)} className="block w-full text-left">
                   {slot.imageUrl ? (
@@ -756,8 +756,8 @@ export function SellerImageEditorWorkbench({
                     draggable
                     onDragStart={event => event.dataTransfer.setData('application/cbhunter-image-asset-id', asset.id)}
                     className={selectedAssetIds.includes(asset.id)
-                      ? 'overflow-hidden rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]'}
+                      ? 'image-workbench-asset-card overflow-hidden rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                      : 'image-workbench-asset-card overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]'}
                     data-ui="selectable-product-image-asset"
                   >
                     <span className="sr-only" data-ui="draggable-product-image-asset">可拖拽素材</span>

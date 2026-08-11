@@ -1,0 +1,115 @@
+.finance-shell {
+  position: relative;
+}
+
+.finance-shell::before {
+  pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: var(--app-header-height, 64px) 0 auto var(--app-sidebar-width, 96px);
+  height: 280px;
+  background:
+    radial-gradient(circle at 12% 10%, color-mix(in oklch, var(--color-success) 14%, transparent), transparent 32%),
+    radial-gradient(circle at 78% 6%, color-mix(in oklch, var(--color-primary) 15%, transparent), transparent 34%);
+  opacity: 0.34;
+  z-index: -1;
+}
+
+.finance-hero,
+.finance-panel,
+.finance-ledger-panel,
+.finance-bill-panel,
+.finance-settlement-panel,
+.finance-risk-panel {
+  border: 1px solid var(--color-glass-border);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 94%, transparent), var(--color-surface)),
+    var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.finance-hero {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.finance-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent),
+    repeating-linear-gradient(135deg, transparent 0 20px, color-mix(in oklch, var(--color-border) 34%, transparent) 20px 21px);
+  opacity: 0.45;
+}
+
+.finance-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.finance-summary-card,
+.finance-structure-card,
+.finance-traceback-card,
+.finance-settlement-card,
+.finance-risk-card,
+.finance-mini-tile {
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 88%, transparent), var(--color-bg)),
+    var(--color-bg);
+  transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.finance-summary-card:hover,
+.finance-structure-card:hover,
+.finance-traceback-card:hover,
+.finance-settlement-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 40%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+}
+
+.finance-summary-card[data-tone="revenue"] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--color-success-light) 46%, var(--color-surface)), var(--color-bg));
+}
+
+.finance-summary-card[data-tone="cost"] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--color-danger-light) 42%, var(--color-surface)), var(--color-bg));
+}
+
+.finance-summary-card[data-tone="profit"] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--color-primary-light) 54%, var(--color-surface)), var(--color-bg));
+}
+
+.finance-summary-card[data-tone="cash"] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--color-info-light) 48%, var(--color-surface)), var(--color-bg));
+}
+
+.finance-error-panel {
+  border: 1px solid color-mix(in oklch, var(--color-danger) 72%, var(--color-border));
+  background: linear-gradient(135deg, color-mix(in oklch, var(--color-danger-light) 82%, var(--color-surface)), var(--color-surface));
+}
+
+.finance-empty-panel {
+  border: 1px dashed var(--color-border);
+  background: color-mix(in oklch, var(--color-bg) 72%, var(--color-surface));
+}
+
+.finance-chart-panel {
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface) 90%, var(--color-primary) 4%), var(--color-bg)),
+    var(--color-bg);
+}
+
+.finance-input-panel {
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-bg) 84%, var(--color-surface));
+}
+
+.finance-code-preview {
+  background: color-mix(in oklch, var(--color-bg) 78%, var(--color-surface));
+  color: var(--color-muted);
+}

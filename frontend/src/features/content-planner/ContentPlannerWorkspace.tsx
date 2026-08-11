@@ -142,8 +142,8 @@ export default function ContentPlannerPage() {
         }
       />
 
-      <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="min-h-[calc(100vh-190px)] space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
-        <div data-ui="content-queue-command-toolbar" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
+      <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="content-factory-shell min-h-[calc(100vh-190px)] space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
+        <div data-ui="content-queue-command-toolbar" className="content-factory-toolbar flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
           <div>
             <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 一体化内容工作台</p>
             <p className="text-sm font-semibold text-[var(--color-fg)]">待制作商品列表</p>
@@ -155,7 +155,7 @@ export default function ContentPlannerPage() {
               ['2', '选择动作', '使用表格批量区生成文案、素材或定价队列'],
               ['3', '进入工作台', '逐个打开 Listing 详情或图片工作台人工确认'],
             ].map(([step, title, desc]) => (
-              <div key={step} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+              <div key={step} className="content-factory-card rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">{step}</span>
                 <p className="mt-1 font-semibold text-[var(--color-fg)]">{title}</p>
                 <p className="text-[var(--color-muted)]">{desc}</p>
@@ -263,7 +263,7 @@ function ContentEditorOverlay({ title, onClose, children }: { title: string; onC
       aria-label={title}
       data-ui="content-factory-editor-overlay"
     >
-      <div className="mx-auto flex h-full max-w-[1760px] flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
+      <div className="content-editor-overlay mx-auto flex h-full max-w-[1760px] flex-col overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-lg)]">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
           <div>
             <p className="text-xs font-semibold text-[var(--color-primary)]">内容工厂覆盖式工作台</p>

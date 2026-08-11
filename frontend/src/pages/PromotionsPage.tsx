@@ -342,31 +342,35 @@ export default function PromotionsPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <div className="promotions-shell space-y-5">
+      <section className="promotions-hero">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-[var(--color-primary)]">运营增长 / 促销活动</p>
+            <p className="text-xs font-semibold tracking-[0.18em] text-[var(--color-primary)]">PROMOTION OPERATIONS</p>
             <h1 className="mt-1 text-2xl font-semibold text-[var(--color-fg)]">促销活动</h1>
             <p className="mt-2 max-w-3xl text-sm text-[var(--color-muted)]">
               促销折扣是独立活动对象：一个活动归属于一个平台店铺，可以包含多个参与商品或 Listing。商品编辑页不再直接维护折扣价。
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="promotions-hero-actions">
             <Button variant="secondary" onClick={load} disabled={loading}><RefreshCw className="mr-1 h-4 w-4" />刷新</Button>
             <Button onClick={() => { setShowCreate((value) => !value); setMessage('') }}><PackagePlus className="mr-1 h-4 w-4" />创建促销活动</Button>
           </div>
         </div>
       </section>
 
-      <PromotionGovernancePanel summary={governanceSummary || buildPromotionGovernanceSummary(items)} />
-      <PromotionTypeRuleGuide />
+      <div className="promotions-governance-panel">
+        <PromotionGovernancePanel summary={governanceSummary || buildPromotionGovernanceSummary(items)} />
+      </div>
+      <div className="promotions-rule-panel">
+        <PromotionTypeRuleGuide />
+      </div>
 
-      {message && <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-muted)]">{message}</p>}
+      {message && <p className="promotions-message">{message}</p>}
 
       {showCreate && (
-        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="创建促销活动">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <section className="promotions-form-panel" aria-label="创建促销活动">
+          <div className="promotions-section-heading mb-4">
             <div>
               <h2 className="text-lg font-semibold text-[var(--color-fg)]">创建本地促销活动</h2>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
@@ -375,7 +379,7 @@ export default function PromotionsPage() {
             </div>
             <Badge variant="outline">本地活动</Badge>
           </div>
-          <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr]">
+          <div className="promotions-form-grid">
             <Field label="活动名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} placeholder="如：7月新品测品折扣" />
             <Select label="活动类型" value={form.promotionType} onChange={(promotionType) => setForm({ ...form, promotionType })} options={PROMOTION_TYPE_OPTIONS} />
             <Select
@@ -392,14 +396,14 @@ export default function PromotionsPage() {
 	            <Field label="结束时间" value={form.endsAt} onChange={(value) => setForm({ ...form, endsAt: value })} placeholder="2026-07-22T23:59:59+08:00" />
 	            <Field label="单品活动库存上限" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="不填则不限制" type="number" />
 	          </div>
-	          <div className="mt-4">
+	          <div className="promotions-sub-panel mt-4">
 	            <PromotionWatermarkSelector
 	              platform={selectedStore?.platform}
 	              value={{ templateId: form.watermarkTemplateId, scope: form.watermarkScope }}
 	              onChange={(value) => setForm({ ...form, watermarkTemplateId: value.templateId, watermarkScope: value.scope })}
 	            />
 	          </div>
-	          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+	          <div className="promotions-picker-panel mt-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-fg)]">选择参与商品</p>
@@ -416,7 +420,7 @@ export default function PromotionsPage() {
             ) : candidateListings.length === 0 ? (
               <p className="mt-3 rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-sm text-[var(--color-muted)]">当前店铺暂无可选 Listing；请先同步平台商品或创建本地 Listing 草稿。</p>
             ) : (
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              <div className="promotions-candidate-grid mt-3">
                 {candidateListings.map((listing) => (
                   <PromotionCandidateCard
                     key={listing.id}
@@ -429,7 +433,7 @@ export default function PromotionsPage() {
               </div>
             )}
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="promotions-form-actions mt-4">
             <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={saving}>取消</Button>
             <Button onClick={handleCreateCampaign} disabled={saving}>{saving ? '保存中...' : '保存促销活动'}</Button>
           </div>
@@ -437,8 +441,8 @@ export default function PromotionsPage() {
       )}
 
       {actionCampaign && actionMode && (
-        <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4" aria-label="促销活动行内操作">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <section className="promotions-action-panel" aria-label="促销活动行内操作">
+          <div className="promotions-section-heading mb-4">
             <div>
               <h2 className="text-lg font-semibold text-[var(--color-fg)]">{actionMode === 'edit' ? '修改活动' : actionMode === 'add-items' ? '添加参与商品' : '修改活动折扣'}</h2>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
@@ -449,7 +453,7 @@ export default function PromotionsPage() {
           </div>
           {actionMode === 'edit' ? (
             <>
-              <div className="grid gap-3 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto] md:items-end">
+              <div className="promotions-inline-form-grid">
                 <Field label="活动名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
               <Select label="活动类型" value={form.promotionType} onChange={(promotionType) => setForm({ ...form, promotionType })} options={PROMOTION_TYPE_OPTIONS} />
               <Field label="券门槛/预算" value={form.ruleThreshold} onChange={(value) => setForm({ ...form, ruleThreshold: value })} placeholder="按平台规则待同步" />
@@ -460,7 +464,7 @@ export default function PromotionsPage() {
                 <Field label="叠加规则" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="如 no_stack" />
                 <Button onClick={handleUpdateCampaign} disabled={saving}>{saving ? '保存中...' : '保存活动'}</Button>
               </div>
-              <div className="mt-3">
+              <div className="promotions-sub-panel mt-3">
                 <PromotionWatermarkSelector
                   platform={actionCampaign.platform}
                   value={{ templateId: form.watermarkTemplateId, scope: form.watermarkScope }}
@@ -469,13 +473,13 @@ export default function PromotionsPage() {
               </div>
             </>
           ) : actionMode === 'discount' ? (
-            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="promotions-discount-grid">
               <Field label="新的活动折扣比例(%)" value={form.discountValue} onChange={(value) => setForm({ ...form, discountValue: value })} placeholder="如：15" type="number" />
               <Button onClick={handleUpdateCampaignDiscount} disabled={saving}>{saving ? '保存中...' : '保存折扣'}</Button>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-[1fr_160px_160px]">
+              <div className="promotions-add-items-grid">
                 <Field label="搜索商品" value={form.productSearch} onChange={(value) => setForm({ ...form, productSearch: value })} placeholder="标题、平台商品ID、SKU" />
                 <Field label="追加商品折扣比例(%)" value={form.discountValue} onChange={(value) => setForm({ ...form, discountValue: value })} placeholder="默认沿用活动折扣" type="number" />
                 <Field label="单品库存上限" value={form.stockLimit} onChange={(value) => setForm({ ...form, stockLimit: value })} placeholder="不填则不限制" type="number" />
@@ -484,7 +488,7 @@ export default function PromotionsPage() {
               {candidateListings.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-sm text-[var(--color-muted)]">当前店铺暂无可追加 Listing。</p>
               ) : (
-                <div className="grid gap-2 lg:grid-cols-2">
+                <div className="promotions-candidate-grid">
                   {candidateListings.map((listing) => (
                     <PromotionCandidateCard
                       key={listing.id}
@@ -504,18 +508,21 @@ export default function PromotionsPage() {
         </section>
       )}
 
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[var(--color-fg)]">活动列表</h2>
-          <span className="text-xs text-[var(--color-muted)]">活动 {items.length} 个</span>
+      <section className="promotions-table-panel">
+        <div className="promotions-section-heading mb-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--color-fg)]">活动列表</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">集中维护本地促销活动、参与商品、活动价格、营销水印和平台同步边界。</p>
+          </div>
+          <span className="promotions-count-pill">活动 {items.length} 个</span>
         </div>
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
             暂无促销活动。促销活动应先独立创建，再添加多个参与商品。
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+          <div className="promotions-table-shell">
+            <table className="professional-table w-full text-left text-sm">
               <thead className="bg-[var(--color-bg)] text-xs text-[var(--color-muted)]">
                 <tr>
                   <th className="px-3 py-2">活动名称/ID</th>
@@ -528,7 +535,7 @@ export default function PromotionsPage() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-t border-[var(--color-border)] align-top">
+                  <tr key={item.id} className="promotions-row border-t border-[var(--color-border)] align-top">
                     <td className="px-3 py-3">
 	                      <p className="font-medium text-[var(--color-fg)]">{item.name}</p>
 	                      <p className="mt-1 text-xs text-[var(--color-primary)]">{promotionTypeLabel(item.promotion_type)}</p>
@@ -555,11 +562,11 @@ export default function PromotionsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2 text-xs">
-                        <button type="button" className="text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'edit')}>修改活动</button>
-                        <button type="button" className="text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'add-items')}>添加产品</button>
-                        <button type="button" className="text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'discount')}>修改折扣</button>
-                        <button type="button" className="text-[var(--color-danger)] disabled:text-[var(--color-muted)]" disabled={saving || item.status === 'ended'} onClick={() => handleEndCampaign(item.id)}>结束活动</button>
-                        <button type="button" className="text-[var(--color-muted)]" disabled={saving} onClick={() => handleSyncCampaign(item.id)}>同步</button>
+                        <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'edit')}>修改活动</button>
+                        <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'add-items')}>添加产品</button>
+                        <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => startCampaignAction(item, 'discount')}>修改折扣</button>
+                        <button type="button" className="promotions-row-action text-[var(--color-danger)] disabled:text-[var(--color-muted)]" disabled={saving || item.status === 'ended'} onClick={() => handleEndCampaign(item.id)}>结束活动</button>
+                        <button type="button" className="promotions-row-action text-[var(--color-muted)]" disabled={saving} onClick={() => handleSyncCampaign(item.id)}>同步</button>
                       </div>
                     </td>
                   </tr>
@@ -608,7 +615,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+        className="promotions-field-input"
       />
     </label>
   )
@@ -674,7 +681,7 @@ function PromotionCandidateCard({
     <button
       type="button"
       onClick={onToggle}
-      className={`rounded-xl border p-3 text-left transition ${selected ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]' : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]'}`}
+      className={`promotions-candidate-card ${selected ? 'is-selected' : ''}`}
       aria-pressed={selected}
     >
       <div className="flex gap-3">

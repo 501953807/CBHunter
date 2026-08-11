@@ -8,7 +8,7 @@ export function SellerImageOutputControls({ imageOptions, setImageOptions, input
 }) {
   const setQuality = (quality: number) => setImageOptions(prev => ({ ...prev, quality: Math.min(100, Math.max(40, Number(quality) || prev.quality)) }))
   return (
-    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-output-format-controls" aria-label="图片输出格式与质量控制">
+    <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-output-format-controls" aria-label="图片输出格式与质量控制">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">输出格式</p>
         <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{imageOptions.output_format.toUpperCase()} · Q{imageOptions.quality}</span>

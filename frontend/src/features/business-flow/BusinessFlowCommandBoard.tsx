@@ -91,7 +91,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
   }
 
   return (
-    <section aria-label="业务流程总分看板" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)]">
+    <section aria-label="业务流程总分看板" data-ui="flow-v5-command-board" className="flow-command-board rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-md)]">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-primary)]">flow command</p>
@@ -109,7 +109,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
       <section
         aria-label="业务处理总览"
         data-ui="flow-hero"
-        className="mb-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-sm)]"
+        className="flow-command-card mb-4 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[var(--shadow-sm)]"
       >
         <div
           className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]"
@@ -131,7 +131,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
             </div>
           </div>
 
-          <aside aria-label="业务处理动作" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+          <aside aria-label="业务处理动作" data-ui="flow-v5-action-panel" className="flow-command-card rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-fg)]">业务处理动作</p>
@@ -219,7 +219,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
         <SummaryTile icon={<Store className="h-4 w-4" />} label="涉及店铺" value={String(data.flow_store_matrix.length)} sub="已定位平台店铺对象" danger={data.flow_store_matrix.some((item) => item.account_name === '待定位店铺')} />
       </div>
 
-      <section data-ui="flow-unassigned-actions" aria-label="未分配对象处理" className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <section data-ui="flow-v5-unassigned-actions" aria-label="未分配对象处理" className="flow-command-card mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[var(--color-fg)]">未分配对象处理</p>
@@ -252,7 +252,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
               type="button"
               key={item.work_item_id || item.id}
               onClick={() => onNavigate(buildObjectRoute(item.next_action_route || item.route, item))}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
+              className="flow-object-panel rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
             >
               <p className="truncate text-sm font-semibold text-[var(--color-fg)]" title={item.name}>{truncateObjectName(item.name)}</p>
               <p className="mt-1 text-xs text-[var(--color-muted)]">{item.stage_name} · {item.lifecycle_label}</p>
@@ -328,7 +328,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
             const currentStageItems = stageItems.get(stage.key) || []
             const hiddenCount = Math.max(0, currentStageItems.length - 3)
             return (
-              <article key={stage.key} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
+              <article key={stage.key} data-ui="flow-v5-stage-matrix-card" className="flow-stage-card rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
                 <span className="grid h-7 w-7 place-items-center rounded-full border border-[var(--color-border)] text-[11px] text-[var(--color-muted)]">{index + 1}</span>
                 <p className="mt-2 truncate text-xs font-semibold text-[var(--color-fg)]">{stage.label}</p>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-border)]">
@@ -370,7 +370,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div data-ui="flow-v5-platform-distribution" className="flow-command-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <p className="mb-2 text-sm font-semibold text-[var(--color-fg)]">平台业务对象分布</p>
           {platformRows.length === 0 ? (
             <EmptyChart text="暂无可定位平台对象" />
@@ -389,7 +389,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
           )}
         </div>
 
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div data-ui="flow-v5-platform-share" className="flow-command-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <p className="mb-2 text-sm font-semibold text-[var(--color-fg)]">平台对象占比</p>
           {pieRows.every((row) => row.value === 0) ? (
             <EmptyChart text="暂无平台占比" />
@@ -406,7 +406,7 @@ export function BusinessFlowCommandBoard({ data, onNavigate, onReload }: Props) 
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <div data-ui="flow-v5-store-heatmap" className="flow-command-card mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-[var(--color-fg)]">店铺卡点热力</p>
           <span className="text-[11px] text-[var(--color-muted)]">优先处理阻塞和待补资料最多的店铺</span>

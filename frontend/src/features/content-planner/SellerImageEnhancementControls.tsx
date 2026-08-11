@@ -14,7 +14,7 @@ export function SellerImageEnhancementControls({ imageOptions, setImageOptions, 
     : 'rounded-lg border border-[var(--color-border)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'
 
   return (
-    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-enhancement-inline-controls" aria-label="图片增强与方向控制">
+    <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-enhancement-inline-controls" aria-label="图片增强与方向控制">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">增强与方向</p>
         <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">B{imageOptions.brightness} · C{imageOptions.contrast} · S{imageOptions.sharpness}</span>

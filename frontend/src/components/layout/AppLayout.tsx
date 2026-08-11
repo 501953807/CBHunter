@@ -35,19 +35,19 @@ export function AppLayout() {
   const title = resolveRouteTitle(location.pathname)
 
   return (
-    <div className="flex h-screen bg-[var(--color-bg)] transition-colors">
+    <div className="luxury-app-shell flex h-screen text-[var(--color-fg)] transition-colors">
       <Sidebar
         expanded={sidebarExpanded}
         onToggle={toggleSidebar}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="luxury-main-shell flex flex-1 flex-col overflow-hidden">
         <Header title={title} />
 
         <main className="flex-1 overflow-auto">
           <ModuleSubnav />
-          <div className="p-3 sm:p-5">
-            <div className="page-enter">
+          <div className="luxury-page-pad">
+            <div className="luxury-page-frame page-enter mx-auto w-full">
               <Outlet />
             </div>
           </div>

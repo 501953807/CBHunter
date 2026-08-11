@@ -1,0 +1,169 @@
+.operations-shell {
+  --operations-radius-lg: 24px;
+  --operations-radius-md: 18px;
+}
+
+.operations-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 84%, var(--color-primary) 16%);
+  border-radius: var(--operations-radius-lg);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--color-primary-light) 42%, transparent) 0, transparent 32%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 95%, var(--color-primary) 5%), var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.operations-evidence-panel {
+  border-radius: var(--operations-radius-md);
+}
+
+.operations-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.operations-summary-card,
+.operations-cadence-panel,
+.operations-form-panel,
+.operations-table-panel {
+  border-radius: var(--operations-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.operations-summary-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 94%, var(--color-primary-light) 6%), var(--color-bg));
+}
+
+.operations-summary-icon {
+  display: inline-flex;
+  height: 38px;
+  width: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-light) 74%, var(--color-surface) 26%);
+}
+
+.operations-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.operations-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.operations-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.operations-editing-pill,
+.operations-count-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg) 12%);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 650;
+  min-height: 26px;
+  padding: 4px 10px;
+}
+
+.operations-editing-pill {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-light) 54%, var(--color-surface) 46%);
+}
+
+.operations-cadence-tile {
+  border: 1px solid var(--color-border);
+  border-radius: var(--operations-radius-md);
+  background: color-mix(in srgb, var(--color-bg) 84%, var(--color-surface) 16%);
+  padding: 14px;
+}
+
+.operations-cadence-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 72%, var(--color-surface) 28%);
+  margin-top: 10px;
+}
+
+.operations-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--operations-radius-md);
+}
+
+.operations-row {
+  transition: background-color 180ms ease;
+}
+
+.operations-row:hover {
+  background: color-mix(in srgb, var(--color-primary-light) 16%, var(--color-bg) 84%);
+}
+
+.operations-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px;
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+.operations-action-button:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-border) 58%, var(--color-surface) 42%);
+}
+
+.operations-action-button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 1024px) {
+  .operations-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .operations-hero {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .operations-metric-grid,
+  .operations-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-section-heading {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operations-row,
+  .operations-action-button {
+    transition: none;
+  }
+}

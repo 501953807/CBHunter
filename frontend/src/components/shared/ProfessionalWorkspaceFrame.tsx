@@ -21,7 +21,7 @@ export function ProfessionalWorkspaceFrame({ eyebrow, title, description = '', m
     <section
       aria-label="专业工作台视觉框架"
       data-ui-scheme="professional-saas"
-      className="professional-workspace-shell overflow-hidden rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-sm)]"
+	      className="luxury-workspace-frame professional-workspace-shell overflow-hidden rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-sm)]"
     >
       <div className={compact ? 'grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto]' : 'grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto]'}>
         <div>

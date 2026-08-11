@@ -18,16 +18,16 @@ interface SelectProps {
 
 export function Select({ label, options, value, onChange, placeholder, className, error }: SelectProps) {
   return (
-    <div className="space-y-1">
-      {label && <label className="block text-sm font-medium text-[var(--color-fg)]">{label}</label>}
+    <div className="space-y-1.5">
+      {label && <label className="block text-sm font-semibold tracking-tight text-[var(--color-fg)]">{label}</label>}
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           className={cn(
-            'block w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm shadow-sm',
+            'luxury-select block w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm shadow-[var(--shadow-sm)] transition-all',
             'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-fg)]',
-            'focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]',
+            'focus:border-[var(--color-primary)]',
             'disabled:bg-[var(--color-border)]/50 disabled:text-[var(--color-muted)]',
             !value && 'text-[var(--color-muted)]',
             error && 'border-[var(--color-danger)]',

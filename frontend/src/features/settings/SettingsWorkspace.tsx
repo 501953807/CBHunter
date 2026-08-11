@@ -40,30 +40,40 @@ export default function SettingsPage() {
   const toast = useToast()
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>设置中心</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{TITLE_MAP[effectiveTab] || '账号信息'} · 系统设置与配置管理</p>
+    <div className="settings-shell space-y-6">
+      <div className="settings-hero px-5 py-5">
+        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="luxury-section-kicker">System governance</p>
+            <h1 className="luxury-page-title mt-2 text-3xl font-bold">设置中心</h1>
+            <p className="luxury-page-description mt-2">{TITLE_MAP[effectiveTab] || '账号信息'} · 系统设置与配置管理</p>
+          </div>
+          <div className="luxury-page-actions text-xs text-[var(--color-muted)]">
+            <span className="rounded-full border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-1.5">配置治理</span>
+            <span className="rounded-full border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-1.5">主题与网络归属系统框架</span>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="h-max rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="settings-layout">
+        <aside className="settings-nav-panel h-max rounded-[var(--radius-xl)] p-3 lg:sticky lg:top-4">
           {SETTINGS_NAV_GROUPS.map((group) => {
             const tabs = group.tabs.filter((id) => visibleTabIds.has(id))
             if (tabs.length === 0) return null
             return (
               <div key={group.title} className="mb-4 last:mb-0">
-                <div className="mb-2 px-2 text-[11px] font-semibold text-[var(--color-muted)]">{group.title}</div>
+                <div className="settings-nav-group-label mb-2 px-2">{group.title}</div>
                 <div className="space-y-1">
                   {tabs.map((id) => (
                     <button
                       key={id}
                       onClick={() => navigate(`/settings/${id}`)}
+                      data-active={effectiveTab === id ? 'true' : 'false'}
                       className={cn(
-                        'flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors',
+                        'settings-nav-item flex w-full items-center rounded-[var(--radius-lg)] border px-3 py-2 text-left text-sm',
                         effectiveTab === id
-                          ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
-                          : 'text-[var(--color-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)]'
+                          ? 'border-[var(--color-primary)]'
+                          : 'border-transparent'
                       )}
                     >
                       {TITLE_MAP[id]}
@@ -73,13 +83,13 @@ export default function SettingsPage() {
               </div>
             )
           })}
-          <div className="mt-4 rounded-lg bg-[var(--color-bg)] p-3 text-[11px] leading-5 text-[var(--color-muted)]">
+          <div className="settings-framework-note mt-4 rounded-[var(--radius-lg)] p-3 text-[11px] leading-5">
             网络状态和主题切换已并入顶部系统框架；平台同步由右上角“平台同步”统一触发。
           </div>
           <SettingsQualitySummary onOpen={() => navigate('/settings/quality')} onOpenFees={() => navigate('/settings/fees')} />
         </aside>
 
-        <section className="min-w-0">
+        <section className="settings-content-panel min-w-0 rounded-[var(--radius-xl)] p-4">
           {effectiveTab === 'profile' && <ProfileSettings toast={toast} />}
           {effectiveTab === 'access' && <AccessControlSettings toast={toast} />}
           {effectiveTab === 'aiproviders' && <AIProviderSettings toast={toast} />}
@@ -115,15 +125,15 @@ function SettingsQualitySummary({ onOpen, onOpenFees }: { onOpen: () => void; on
   const statusText = quality?.status === 'ready' ? '配置可用' : gapCount ? `${gapCount} 个缺口` : '等待巡检'
 
   return (
-    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="settings-quality-panel mt-3 rounded-[var(--radius-lg)] p-3">
+      <div className="relative z-[1] flex items-center justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold text-[var(--color-fg)]">配置健康度</p>
           <p className="mt-1 text-[11px] text-[var(--color-muted)]">{statusText}</p>
         </div>
         <span
           className={cn(
-            'rounded-full px-2 py-1 text-[11px] font-semibold',
+            'settings-quality-score rounded-full px-2 py-1 text-[11px] font-semibold',
             quality?.status === 'ready'
               ? 'bg-[var(--color-success-light)] text-[var(--color-success)]'
               : 'bg-[var(--color-warning-light)] text-[var(--color-warning)]'
@@ -132,20 +142,22 @@ function SettingsQualitySummary({ onOpen, onOpenFees }: { onOpen: () => void; on
           {score == null ? '--' : `${score}%`}
         </span>
       </div>
+      <div className="settings-quality-actions relative z-[1] mt-3">
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-left text-[11px] text-[var(--color-primary)] transition hover:border-[var(--color-primary)]"
+        className="luxury-control w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-[11px] text-[var(--color-primary)]"
       >
         进入配置巡检
       </button>
       <button
         type="button"
         onClick={onOpenFees}
-        className="mt-2 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-left text-[11px] text-[var(--color-primary)] transition hover:border-[var(--color-primary)]"
+        className="luxury-control w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-[11px] text-[var(--color-primary)]"
       >
         配置费率与汇率
       </button>
+      </div>
     </div>
   )
 }

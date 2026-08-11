@@ -50,7 +50,7 @@ export function PricingTemplateStorePreview({
     <section
       aria-label="定价模板店铺售价覆盖预览"
       data-ui="pricing-template-store-override-preview"
-      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+      className="pricing-template-panel rounded-[var(--radius-xl)] p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -65,7 +65,7 @@ export function PricingTemplateStorePreview({
       </div>
 
       <div className="mt-3 grid gap-2 text-xs">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="pricing-template-row rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <div className="flex items-center gap-2 text-[var(--color-fg)]">
             <Store className="h-4 w-4 text-[var(--color-primary)]" />
             <span className="font-semibold">目标店铺</span>
@@ -80,14 +80,14 @@ export function PricingTemplateStorePreview({
 
         <div className="grid grid-cols-2 gap-2">
           {rows.map(row => (
-            <div key={row.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+            <div key={row.label} className="pricing-info-tile rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
               <p className="text-[var(--color-muted)]">{row.label}</p>
               <p className="mt-1 font-semibold text-[var(--color-fg)]">{row.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="pricing-template-row rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <div className="flex items-center gap-2 text-[var(--color-fg)]">
             <Tag className="h-4 w-4 text-[var(--color-primary)]" />
             <span className="font-semibold">模板与汇率来源</span>

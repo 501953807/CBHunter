@@ -8,14 +8,15 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>{title}</h1>
+    <div className="luxury-section-header">
+      <div className="min-w-0">
+        <p className="luxury-section-kicker">CBHunter V5</p>
+        <h1 className="luxury-page-title mt-1 text-2xl font-bold">{title}</h1>
         {description && (
-          <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{description}</p>
+          <p className="luxury-page-description mt-2">{description}</p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
+      {actions && <div className="luxury-page-actions">{actions}</div>}
     </div>
   )
 }

@@ -73,8 +73,8 @@ export function ListingUnifiedEditorSections({
   const searchTermPackage = [...new Set([...titleTerms, ...categoryTerms, ...sceneTerms, ...platformTags])].join(' ')
 
   return (
-    <section aria-label="当前商品 Listing 同屏分组编辑" data-ui="listing-editor-wide-continuous-layout" className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <section aria-label="当前商品 Listing 同屏分组编辑" data-ui="listing-editor-wide-continuous-layout" className="listing-editor-shell luxury-workspace-frame overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+      <div className="listing-editor-header border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 同屏编辑台</p>
         <h3 className="mt-1 text-base font-semibold text-[var(--color-fg)]">围绕一个商品连续编辑完整 Listing</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
@@ -84,13 +84,13 @@ export function ListingUnifiedEditorSections({
       </div>
 
       <div>
-        <nav aria-label="Listing 字段导航" className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+        <nav aria-label="Listing 字段导航" data-ui="listing-v5-field-nav" className="listing-editor-nav sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
           <div className="flex min-w-0 gap-2 overflow-x-auto">
             {sections.map(section => (
               <a
                 key={section.id}
                 href={`#listing-editor-${section.id}`}
-                className="min-w-[108px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+                className="listing-editor-nav-pill min-w-[108px] rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
               >
                 <span className="block text-xs font-semibold text-[var(--color-fg)]">{section.label}</span>
                 <span className="mt-1 block text-[11px] text-[var(--color-muted)]">{section.status}</span>
@@ -138,11 +138,11 @@ export function ListingUnifiedEditorSections({
           />
         </div>
 
-        <section aria-label="Listing 段落校验摘要" className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+        <section aria-label="Listing 段落校验摘要" data-ui="listing-v5-section-summary" className="listing-editor-nav border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3">
           <p className="text-xs font-semibold text-[var(--color-fg)]">段落校验摘要</p>
           <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {sections.map(section => (
-              <div key={section.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+              <div key={section.id} className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-[var(--color-fg)]">{section.title}</p>
                   <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{section.status}</span>
@@ -181,8 +181,8 @@ function ListingAuxiliaryStrip({
   onCopy: (text: string, index: number) => void
 }) {
   return (
-    <section aria-label="Listing 辅助功能收拢条" data-ui="listing-auxiliary-support-strip" className="grid gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.8fr)_minmax(260px,1fr)]">
-      <section aria-label="Listing 搜索词后台编辑区" data-ui="listing-search-terms-editor" className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+    <section aria-label="Listing 辅助功能收拢条" data-ui="listing-auxiliary-support-strip" className="listing-auxiliary-panel grid gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.8fr)_minmax(260px,1fr)]">
+      <section aria-label="Listing 搜索词后台编辑区" data-ui="listing-search-terms-editor" className="listing-editor-summary-card min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border)] p-3">
           <div>
             <p className="text-xs font-semibold text-[var(--color-primary)]">后台 Search Terms</p>
@@ -203,7 +203,7 @@ function ListingAuxiliaryStrip({
         )}
       </section>
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <div className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <p className="text-xs font-semibold text-[var(--color-primary)]">内容素材辅助</p>
         <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">视频与话题只做候选摘要</h3>
         <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">
@@ -215,7 +215,7 @@ function ListingAuxiliaryStrip({
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <div className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
         <p className="text-xs font-semibold text-[var(--color-primary)]">下游动作</p>
         <h3 className="mt-1 text-sm font-semibold text-[var(--color-fg)]">定价与发布只保留去向</h3>
         <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">当前页不重复定价或发布功能，完成 Listing 主表单后再进入定价校验和批量刊登。</p>
@@ -287,7 +287,7 @@ function ContentListingCapabilityMap({
   return (
     <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4" data-ui="content-listing-capability-map">
       {capabilities.map(item => (
-        <div key={item.title} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div key={item.title} className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-xs font-semibold text-[var(--color-fg)]">{item.title}</p>
             <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{item.status}</span>
@@ -311,7 +311,7 @@ function SearchTermColumn({
   onCopy: (text: string, index: number) => void
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <div className="mb-2 flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold text-[var(--color-fg)]">{title}</p>
@@ -342,7 +342,7 @@ function SearchTermColumn({
 
 function ListingEditorSection({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
   return (
-    <section id={`listing-editor-${id}`} className="scroll-mt-28 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+    <section id={`listing-editor-${id}`} data-ui={`listing-v5-editor-section-${id}`} className="listing-editor-section scroll-mt-28 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
       <div className="mb-3">
         <h4 className="text-sm font-semibold text-[var(--color-fg)]">{title}</h4>
         <p className="mt-1 text-xs text-[var(--color-muted)]">{description}</p>

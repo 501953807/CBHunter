@@ -134,22 +134,36 @@ export default function OperationsWorkspace() {
   const formIncomplete = !form.record_type || !form.status || !form.name.trim() || !form.counterparty.trim() || plannedAmountInvalid || temporaryName
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-fg)]">运营台账</h1>
-        <p className="text-sm mt-1 text-[var(--color-muted)]">广告投放、达人合作与应收回款的真实业务记录</p>
+    <div className="operations-shell space-y-6">
+      <section className="operations-hero">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.18em] text-[var(--color-primary)]">OPERATIONS LEDGER</p>
+          <h1 className="mt-2 text-2xl font-bold text-[var(--color-fg)]">运营台账</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-muted)]">广告投放、达人合作、Listing 优化与应收回款的真实业务记录，联动财务台账和经营复盘。</p>
+        </div>
+        <Button variant="outline" onClick={load}><RefreshCw className="w-3.5 h-3.5 mr-1" />刷新台账</Button>
+      </section>
+      <div className="operations-evidence-panel">
+        <EvidenceBanner evidence={evidence} />
       </div>
-      <EvidenceBanner evidence={evidence} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="operations-metric-grid">
         <SummaryCard icon={Megaphone} label="运营记录" value={String(records.length)} />
         <SummaryCard icon={CheckCircle2} label="已关联财务台账" value={String(linkedCount)} />
         <SummaryCard icon={Users} label="真实发生金额" value={`¥${totalActual.toFixed(2)}`} />
       </div>
       <OperationCadencePanel records={records} />
-      <Card>
-        <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">{editingId ? '编辑运营记录' : '新增运营记录'}</h2></CardHeader>
+      <Card className="operations-form-panel">
+        <CardHeader>
+          <div className="operations-section-heading">
+            <div>
+              <h2 className="font-semibold text-[var(--color-fg)]">{editingId ? '编辑运营记录' : '新增运营记录'}</h2>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">记录必须来自真实运营动作；金额变更会触发财务同步确认。</p>
+            </div>
+            {editingId && <span className="operations-editing-pill">编辑中</span>}
+          </div>
+        </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="operations-form-grid">
             <Select label="业务类型" value={form.record_type} onChange={record_type => setForm({...form, record_type})} options={options.record_types.map(item => ({ value: item.id, label: item.label }))} />
             <Select label="状态" value={form.status} onChange={status => setForm({...form, status})} options={options.statuses.map(item => ({ value: item.id, label: item.label }))} />
             <Input label="记录名称" value={form.name} onChange={event => setForm({...form, name: event.target.value})} />
@@ -160,7 +174,7 @@ export default function OperationsWorkspace() {
             <Input label="真实发生金额 RMB" type="number" min="0" step="0.01" value={form.actual_amount_rmb} onChange={event => setForm({...form, actual_amount_rmb: event.target.value})} />
           </div>
           <Input label="说明" value={form.notes} onChange={event => setForm({...form, notes: event.target.value})} />
-          <div className="flex gap-2">
+          <div className="operations-form-actions">
             <Button onClick={save} disabled={saving || formIncomplete}><Plus className="w-4 h-4 mr-1" />{saving ? '保存中' : '保存记录'}</Button>
             {editingId && <Button variant="outline" onClick={() => { setEditingId(null); setOriginalAmounts(null); setForm(emptyForm) }}>取消编辑</Button>}
             {(!form.name.trim() || !form.counterparty.trim() || plannedAmountInvalid) && <span className="text-xs text-[var(--color-muted)] self-center">{plannedAmountHint(form)}</span>}
@@ -168,20 +182,26 @@ export default function OperationsWorkspace() {
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="operations-table-panel">
         <CardHeader>
-          <div className="flex items-center justify-between"><h2 className="font-semibold text-[var(--color-fg)]">运营记录</h2><Button size="sm" variant="outline" onClick={load}><RefreshCw className="w-3.5 h-3.5" /></Button></div>
+          <div className="operations-section-heading">
+            <div>
+              <h2 className="font-semibold text-[var(--color-fg)]">运营记录</h2>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">按业务类型、状态、平台、市场、金额和财务联动关系追踪真实运营动作。</p>
+            </div>
+            <span className="operations-count-pill">当前 {records.length} 条</span>
+          </div>
         </CardHeader>
         <CardContent>
           {records.length === 0 ? <EmptyState icon={<Megaphone className="h-9 w-9" />} title="暂无运营记录" description="使用上方表单录入真实广告、达人或回款动作。" /> : (
-            <div className="overflow-x-auto"><table className="professional-table w-full text-xs">
+            <div className="operations-table-shell"><table className="professional-table w-full text-xs">
               <thead className="bg-[var(--color-bg)]"><tr className="border-b border-[var(--color-border)] text-left text-[var(--color-muted)]"><th className="py-2">类型/名称</th><th>状态</th><th>平台/市场</th><th className="text-right">计划金额</th><th className="text-right">真实金额</th><th>财务台账</th><th>操作</th></tr></thead>
-              <tbody>{records.map(record => <tr key={record.id} className="border-b border-[var(--color-border)]">
-                <td className="py-3"><p className="font-medium text-[var(--color-fg)]">{record.name}</p><p className="text-[var(--color-muted)]">{label(options.record_types, record.record_type)} · {record.counterparty || '-'}</p></td>
+              <tbody>{records.map(record => <tr key={record.id} className="operations-row border-b border-[var(--color-border)]">
+                <td className="py-3"><p className="font-medium text-[var(--color-fg)]">{record.name}</p><p className="text-[var(--color-muted)]">{label(options.record_types, record.record_type)} / {record.counterparty || '-'}</p></td>
                 <td><Badge variant="default">{label(options.statuses, record.status)}</Badge></td><td className="text-[var(--color-muted)]">{[record.platform, record.market].filter(Boolean).join(' / ') || '-'}</td>
                 <td className="text-[var(--color-fg)] text-right tabular-nums">{record.planned_amount_rmb == null ? '--' : `¥${record.planned_amount_rmb.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}</td><td className="text-[var(--color-fg)] text-right tabular-nums">{record.actual_amount_rmb == null ? '--' : `¥${record.actual_amount_rmb.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`}</td>
                 <td>{record.ledger_entry_id ? <Badge variant="success">已自动入账</Badge> : <Badge variant="default">待真实金额</Badge>}</td>
-                <td><button title="编辑" onClick={() => edit(record)} className="p-1 text-[var(--color-primary)]"><Edit3 className="w-3.5 h-3.5" /></button><button title="删除" onClick={() => remove(record)} className="p-1 text-[var(--color-danger)]"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                <td><button title="编辑" onClick={() => edit(record)} className="operations-action-button text-[var(--color-primary)]"><Edit3 className="w-3.5 h-3.5" /></button><button title="删除" onClick={() => remove(record)} className="operations-action-button text-[var(--color-danger)]"><Trash2 className="w-3.5 h-3.5" /></button></td>
               </tr>)}</tbody>
             </table></div>
           )}
@@ -192,7 +212,7 @@ export default function OperationsWorkspace() {
 }
 
 function SummaryCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
-  return <Card><CardContent className="pt-4 flex items-center gap-3"><Icon className="w-5 h-5 text-[var(--color-primary)]" /><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="text-xl font-bold text-[var(--color-fg)]">{value}</p></div></CardContent></Card>
+  return <Card className="operations-summary-card"><CardContent className="pt-4 flex items-center gap-3"><span className="operations-summary-icon"><Icon className="w-5 h-5" /></span><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="text-xl font-bold text-[var(--color-fg)]">{value}</p></div></CardContent></Card>
 }
 
 function OperationCadencePanel({ records }: { records: OperationRecord[] }) {
@@ -215,21 +235,25 @@ function OperationCadencePanel({ records }: { records: OperationRecord[] }) {
   })
   const maxAmount = Math.max(...buckets.map(bucket => bucket.amount), 1)
   return (
-    <Card>
+    <Card className="operations-cadence-panel">
       <CardHeader>
-        <h2 className="font-semibold text-[var(--color-fg)]">运营节奏与趋势</h2>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">按真实运营台账生成日/周/月记录视图；无记录时只显示空态，不生成模板任务。</p>
+        <div className="operations-section-heading">
+          <div>
+            <h2 className="font-semibold text-[var(--color-fg)]">运营节奏与趋势</h2>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">按真实运营台账生成日/周/月记录视图；无记录时只显示空态，不生成模板任务。</p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3" data-ui="operation-trend-chart">
           {buckets.map(bucket => (
-            <div key={bucket.label} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+            <div key={bucket.label} className="operations-cadence-tile">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[var(--color-fg)]">{bucket.label}</p>
-                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] text-[var(--color-muted)]">{bucket.count} 条</span>
+                <span className="operations-count-pill">{bucket.count} 条</span>
               </div>
               <p className="mt-2 text-xl font-semibold text-[var(--color-fg)]">¥{bucket.amount.toFixed(2)}</p>
-              <div className="mt-2 h-2 rounded-full bg-[var(--color-border)]">
+              <div className="operations-cadence-bar">
                 <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${Math.max(bucket.amount / maxAmount * 100, bucket.amount ? 4 : 0)}%` }} />
               </div>
             </div>

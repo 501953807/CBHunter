@@ -89,7 +89,7 @@ export function DataTable<T>({
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-10 bg-[var(--color-border)] rounded animate-pulse" />
+          <div key={i} className="luxury-skeleton h-11 animate-pulse rounded-2xl" />
         ))}
       </div>
     )
@@ -97,8 +97,10 @@ export function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Inbox className="mb-3 h-9 w-9 text-[var(--color-muted)]" />
+      <div className="luxury-empty-state flex flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] py-12 text-center shadow-[var(--shadow-sm)]">
+        <div className="mb-3 rounded-2xl bg-[var(--color-primary-light)] p-3 text-[var(--color-primary)]">
+          <Inbox className="h-8 w-8" />
+        </div>
         <p className="text-sm text-[var(--color-muted)] mb-3">{emptyMessage}</p>
         {emptyAction}
       </div>
@@ -107,9 +109,9 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+      <div className="luxury-table-shell overflow-x-auto rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
         <table className="professional-table min-w-full divide-y divide-[var(--color-border)]">
-          <thead className="bg-[var(--color-border)]/40">
+          <thead>
             <tr>
               {onSelectionChange && (
                 <th className="w-10 px-3 py-3">
@@ -159,7 +161,7 @@ export function DataTable<T>({
                 <tr
                   key={rowId}
                   className={cn(
-                    'hover:bg-[var(--color-bg)] transition-colors',
+                    'transition-[background,box-shadow] hover:bg-[var(--color-primary-light)]',
                     onRowClick && 'cursor-pointer'
                   )}
                   onClick={() => onRowClick?.(row)}
@@ -191,7 +193,7 @@ export function DataTable<T>({
       </div>
 
       {pagination && pagination.total_pages > 1 && (
-        <div className="flex items-center justify-between pt-4">
+        <div className="luxury-pagination mt-4 flex items-center justify-between rounded-full px-3 py-2">
           <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
             <span>
               {pagination.page_size * (pagination.page - 1) + 1}-
@@ -202,7 +204,7 @@ export function DataTable<T>({
               <select
                 value={pagination.page_size}
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                className="ml-2 rounded border border-[var(--color-border)] text-sm px-2 py-1 bg-[var(--color-surface)] text-[var(--color-fg)]"
+                className="ml-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-fg)] shadow-[var(--shadow-sm)]"
               >
                 {[20, 50, 100].map((s) => (
                   <option key={s} value={s}>{s}/page</option>
@@ -215,7 +217,7 @@ export function DataTable<T>({
               aria-label="上一页"
               disabled={pagination.page <= 1}
               onClick={() => onPageChange?.(pagination.page - 1)}
-              className="p-1.5 rounded hover:bg-[var(--color-border)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--color-muted)]"
+              className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -227,10 +229,10 @@ export function DataTable<T>({
                   key={pageNum}
                   onClick={() => onPageChange?.(pageNum)}
                   className={cn(
-                    'w-8 h-8 rounded text-sm transition-colors',
+                    'h-8 w-8 rounded-full text-sm font-semibold transition-colors',
                     pageNum === pagination.page
                       ? 'bg-[var(--color-primary)] text-[var(--color-primary-text)]'
-                      : 'hover:bg-[var(--color-border)] text-[var(--color-muted)]'
+                      : 'text-[var(--color-muted)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]'
                   )}
                 >
                   {pageNum}
@@ -241,7 +243,7 @@ export function DataTable<T>({
               aria-label="下一页"
               disabled={pagination.page >= pagination.total_pages}
               onClick={() => onPageChange?.(pagination.page + 1)}
-              className="p-1.5 rounded hover:bg-[var(--color-border)] disabled:opacity-30 disabled:cursor-not-allowed text-[var(--color-muted)]"
+              className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

@@ -9,7 +9,7 @@ interface Props {
 
 export function RiskSignalBoard({ data, onNavigate }: Props) {
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-4 space-y-3" data-ui="risk-v5-signal-board">
       <RiskDispositionMatrix data={data} onNavigate={onNavigate} />
       <div className="grid gap-3 2xl:grid-cols-2">
         <RiskHeatmapPanel data={data} onNavigate={onNavigate} />
@@ -21,13 +21,13 @@ export function RiskSignalBoard({ data, onNavigate }: Props) {
 
 function RiskHeatmapPanel({ data, onNavigate }: Props) {
   return (
-    <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <section className="risk-signal-card border border-[var(--color-hairline)] bg-[var(--color-bg)] p-4" data-ui="risk-v5-heatmap-panel">
       <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">风险雷达</p>
       <div className="space-y-1.5">
         {data.risk_heatmap.length === 0 ? (
           <p className="text-xs text-[var(--color-muted)]">暂无热力分布数据。</p>
         ) : data.risk_heatmap.slice(0, 5).map((item) => (
-          <button key={item.category} onClick={() => onNavigate(item.route)} className="w-full rounded-md border border-[var(--color-border)] px-2 py-1.5 text-left transition hover:border-[var(--color-primary)]">
+          <button key={item.category} onClick={() => onNavigate(item.route)} className="risk-signal-row w-full rounded-[var(--radius-lg)] px-2.5 py-2 text-left">
             <span className="flex items-center justify-between gap-2 text-xs">
               <span className="font-medium text-[var(--color-fg)]">{item.label}</span>
               <Badge variant={item.heat_level === 'critical' ? 'danger' : item.heat_level === 'warning' ? 'warning' : item.heat_level === 'data_required' ? 'info' : 'success'}>{item.total}</Badge>
@@ -44,7 +44,7 @@ function RiskHeatmapPanel({ data, onNavigate }: Props) {
 
 function RiskDispositionMatrix({ data, onNavigate }: Props) {
   return (
-    <section aria-label="风险处置矩阵" className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <section aria-label="风险处置矩阵" className="risk-signal-card border border-[var(--color-hairline)] bg-[var(--color-bg)] p-4" data-ui="risk-v5-disposition-matrix">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-[var(--color-fg)]">风险处置矩阵</p>
         <Badge variant="outline">按评分 / 高危 / 逾期排序</Badge>
@@ -53,7 +53,7 @@ function RiskDispositionMatrix({ data, onNavigate }: Props) {
         {data.risk_radar.length === 0 ? (
           <p className="rounded-md border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-muted)]">暂无风险评分数据。</p>
         ) : data.risk_radar.slice(0, 6).map((item) => (
-          <button key={item.key} onClick={() => onNavigate(item.route)} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]">
+          <button key={item.key} onClick={() => onNavigate(item.route)} className="risk-signal-row rounded-[var(--radius-lg)] p-2.5 text-left">
             <span className="flex items-center justify-between gap-2">
               <span className="truncate text-xs font-semibold text-[var(--color-fg)]">{item.label}</span>
               <span className={item.score >= 80 ? 'text-xs font-semibold text-[var(--color-danger)]' : item.score >= 50 ? 'text-xs font-semibold text-[var(--color-warning)]' : 'text-xs font-semibold text-[var(--color-success)]'}>{item.score}</span>
@@ -76,13 +76,13 @@ function RiskDispositionMatrix({ data, onNavigate }: Props) {
 
 function RiskReviewPanel({ data, onNavigate }: Props) {
   return (
-    <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <section className="risk-signal-card border border-[var(--color-hairline)] bg-[var(--color-bg)] p-4" data-ui="risk-v5-review-panel">
       <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">处置复盘</p>
       <div className="space-y-1.5">
         {data.review_records.length === 0 ? (
           <p className="text-xs text-[var(--color-muted)]">暂无已关闭风险复盘。</p>
         ) : data.review_records.slice(0, 5).map((item) => (
-          <button key={item.risk_id} onClick={() => onNavigate(item.route)} className="w-full rounded-md border border-[var(--color-border)] px-2 py-1.5 text-left transition hover:border-[var(--color-primary)]">
+          <button key={item.risk_id} onClick={() => onNavigate(item.route)} className="risk-signal-row w-full rounded-[var(--radius-lg)] px-2.5 py-2 text-left">
             <span className="block truncate text-xs font-medium text-[var(--color-fg)]">{item.title}</span>
             <span className="mt-1 block text-[11px] text-[var(--color-muted)]">
               {item.type_label || item.type} · {item.closed_at ? formatTime(item.closed_at) : '关闭时间待补'}

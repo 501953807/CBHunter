@@ -5,7 +5,7 @@ _CHUNK = r'''
 for required in (
     "ListingMediaSlotBoard",
     "data-ui=\"listing-media-editor-seller-console\"",
-    "SellerImageEditorWorkbench",
+    "SellerImageEditorWorkbench", "image-workbench-shell", "image-workbench-canvas", "image-workbench-slot-card", "image-workbench-control-card",
     "data-ui=\"listing-image-editor-workbench\"",
     "2xl:grid-cols-[220px_minmax(640px,1fr)_180px]",
     "aria-label=\"Listing 图片编辑工作台\"",
@@ -148,7 +148,7 @@ if "aria-label=\"专业工作台视觉框架\"" not in PROFESSIONAL_WORKSPACE_FR
     errors.append("professional workspace visual frame component must exist with accessible shell label")
 if "aria-label=\"业务对象下钻动作\"" not in BUSINESS_OBJECT_ACTION_BAR:
     errors.append("business object action bar must exist with accessible drill-down action label")
-for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-overlay-workspace\"", "data-ui=\"content-image-edit-overlay-workspace\"", "data-ui=\"content-factory-editor-overlay\"", "覆盖式工作台", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\"", "data-ui=\"content-queue-real-action-guide\""):
+for required in ("内容工厂待制作产品列表", "data-ui=\"content-factory-product-queue-page\"", "data-ui=\"content-queue-command-toolbar\"", "content-factory-shell", "content-factory-toolbar", "content-editor-overlay", "min-h-[calc(100vh-190px)]", "data-ui=\"content-listing-detail-overlay-workspace\"", "data-ui=\"content-image-edit-overlay-workspace\"", "data-ui=\"content-factory-editor-overlay\"", "覆盖式工作台", "workspaceMode === 'listing'", "workspaceMode === 'image'", "onOpenListing", "SellerPlatformListingEditorPanel", "layout=\"table\"", "data-ui=\"content-queue-real-action-guide\""):
     if required not in CONTENT_PLANNER_WORKSPACE:
         errors.append(f"content planner must separate queue, listing detail, and image editor flows: {required}")
 for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "ListingCompositionBoard product={selectedProduct}", "<Button variant=\"outline\" disabled>批量生成文案</Button>", "<Button variant=\"outline\" disabled>批量校验素材</Button>", "<Button variant=\"secondary\" disabled>推送到定价队列</Button>"):
@@ -157,6 +157,14 @@ for forbidden in ("onOpenImageEditor={openImageEditor}", "编辑主图", "Listin
 for required in ("listing-master-copy", "listing-master-media", "listing-master-attributes", "listing-master-sku", "listing-master-logistics"):
     if required not in CONTENT_PLANNER_WORKSPACE + SELLER_PLATFORM_LISTING_EDITOR:
         errors.append(f"listing detail must keep direct anchors to editable sections: {required}")
+for required in (
+    "content-product-queue-workbench", "content-product-seller-filter-toolbar", "content-product-bulk-action-toolbar",
+    "content-product-selection-command-deck", "content-product-table", "content-product-row", "content-product-row-active",
+    "content-product-row-action-set", "content-product-action", "content-product-bulk-action-workbench",
+    "content-product-bulk-table-shell", "content-factory-card",
+):
+    if required not in CONTENT_FACTORY_CSS + CONTENT_PRODUCT_QUEUE:
+        errors.append(f"content factory V5 seller-console visuals must remain: {required}")
 for required in (
     "data-ui=\"content-product-bulk-action-workbench\"",
     "aria-label=\"内容商品批量处理队列\"",
@@ -316,7 +324,7 @@ for forbidden in ("xl:grid-cols-[180px_minmax(0,1fr)_240px]", "xl:border-l xl:bo
         errors.append(f"listing unified editor must not compress fields into nested three-column layout: {forbidden}")
 for forbidden in ("短视频与内容计划", "标签与搜索词", "listing-editor-video", "listing-editor-tags", "listing-editor-handoff"):
     if forbidden in LISTING_UNIFIED_EDITOR_SECTIONS: errors.append(f"listing unified editor must keep secondary helpers out of the primary listing form: {forbidden}")
-for required in ("data-ui=\"listing-auxiliary-support-strip\"", "Listing 辅助功能收拢条", "视频与话题只做候选摘要", "定价与发布只保留去向"):
+for required in ("listing-editor-shell", "data-ui=\"listing-v5-field-nav\"", "listing-editor-section", "data-ui=\"listing-v5-section-summary\"", "listing-editor-summary-card", "data-ui=\"listing-auxiliary-support-strip\"", "Listing 辅助功能收拢条", "视频与话题只做候选摘要", "定价与发布只保留去向"):
     if required not in LISTING_UNIFIED_EDITOR_SECTIONS: errors.append(f"listing unified editor must collapse secondary helpers into an auxiliary strip: {required}")
 for required in (
     "aria-label=\"Listing 搜索词后台编辑区\"",

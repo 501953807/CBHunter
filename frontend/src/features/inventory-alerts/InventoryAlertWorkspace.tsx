@@ -22,26 +22,28 @@ export default function InventoryAlertPage() {
   const riskWorkbench = useInventoryRiskWorkbench()
 
   return (
-    <div className="space-y-6 page-enter">
-      <PageHeader
-        title="库存预警"
-        description="设置安全库存阈值，自动监控库存变化"
-        actions={
-          <div className="flex items-center gap-2">
+    <div className="inventory-alert-shell page-enter">
+      <div className="inventory-alert-hero p-5">
+        <PageHeader
+          title="库存预警"
+          description="按平台店铺 Listing、SKU 库存、补货建议和履约风险统一监控库存异常"
+          actions={
+          <div className="inventory-alert-toolbar">
             <CheckInventoryButton />
             <Button onClick={() => setShowAddModal(true)}>
               <Plus className="w-4 h-4" /> 添加规则
             </Button>
           </div>
-        }
-      />
+          }
+        />
+      </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="预警规则" value={s?.total_rules ?? 0} icon={<Bell className="w-4 h-4" />} />
-        <StatCard label="未处理预警" value={s?.total_open ?? 0} icon={<AlertTriangle className="w-4 h-4" />} />
-        <StatCard label="严重" value={s?.critical ?? 0} icon={<AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-danger)' }} />} />
-        <StatCard label="警告" value={s?.warning ?? 0} icon={<AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-warning)' }} />} />
+      <div className="inventory-alert-metric-grid">
+        <div className="inventory-alert-metric-card"><StatCard label="预警规则" value={s?.total_rules ?? 0} icon={<Bell className="w-4 h-4" />} /></div>
+        <div className="inventory-alert-metric-card"><StatCard label="未处理预警" value={s?.total_open ?? 0} icon={<AlertTriangle className="w-4 h-4" />} /></div>
+        <div className="inventory-alert-metric-card"><StatCard label="严重" value={s?.critical ?? 0} icon={<AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-danger)' }} />} /></div>
+        <div className="inventory-alert-metric-card"><StatCard label="警告" value={s?.warning ?? 0} icon={<AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-warning)' }} />} /></div>
       </div>
 
       <EvidenceBanner evidence={stats.data} />
@@ -62,24 +64,18 @@ export default function InventoryAlertPage() {
       />
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: 'var(--color-border)' }}>
+      <div className="inventory-alert-tabs">
         <button
           onClick={() => setTab('rules')}
-          className="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-          style={{
-            color: tab === 'rules' ? 'var(--color-fg)' : 'var(--color-muted)',
-            backgroundColor: tab === 'rules' ? 'var(--color-surface)' : 'transparent',
-          }}
+          className="inventory-alert-tab"
+          data-active={tab === 'rules' ? 'true' : 'false'}
         >
           预警规则
         </button>
         <button
           onClick={() => setTab('history')}
-          className="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-          style={{
-            color: tab === 'history' ? 'var(--color-fg)' : 'var(--color-muted)',
-            backgroundColor: tab === 'history' ? 'var(--color-surface)' : 'transparent',
-          }}
+          className="inventory-alert-tab"
+          data-active={tab === 'history' ? 'true' : 'false'}
         >
           预警历史
         </button>
@@ -140,7 +136,7 @@ function InventoryDetailViewPanel({
   const turnoverItems = slowMovingItems.slice(0, 5)
 
   return (
-    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]" data-ui="inventory-aging-turnover">
+    <section className="inventory-alert-detail-panel p-4" data-ui="inventory-aging-turnover">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-primary)]">inventory detail views</p>
@@ -157,7 +153,7 @@ function InventoryDetailViewPanel({
       </div>
 
       <div className="mt-4 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+        <div className="inventory-detail-card p-3">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">库存列表</h3>
             <span className="text-xs text-[var(--color-muted)]">{loading ? '加载中' : `${stockRows.length} 条`}</span>
@@ -167,8 +163,8 @@ function InventoryDetailViewPanel({
               暂无已确认库存 Listing。请先同步平台店铺商品或配置库存预警规则。
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="inventory-alert-table-shell overflow-x-auto">
+              <table className="professional-table text-sm">
                 <thead>
                   <tr className="border-b border-[var(--color-border)] text-xs text-[var(--color-muted)]">
                     <th className="px-3 py-2 text-left font-medium">SKU</th>
@@ -180,7 +176,7 @@ function InventoryDetailViewPanel({
                 </thead>
                 <tbody>
                   {stockRows.map(item => (
-                    <tr key={item.key} className="border-b border-[var(--color-border)] text-xs">
+                    <tr key={item.key} className="inventory-alert-row border-b border-[var(--color-border)] text-xs">
                       <td className="px-3 py-2 font-mono text-[var(--color-fg)]">{item.sku}</td>
                       <td className="max-w-[260px] truncate px-3 py-2 text-[var(--color-muted)]">{item.name}</td>
                       <td className="px-3 py-2 text-right font-semibold text-[var(--color-fg)]">{item.stock}</td>
@@ -195,7 +191,7 @@ function InventoryDetailViewPanel({
         </div>
 
         <div className="space-y-3">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="inventory-detail-card p-3">
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">补货建议</h3>
             <div className="mt-3 space-y-2">
               {replenishItems.length === 0 ? (
@@ -203,7 +199,7 @@ function InventoryDetailViewPanel({
                   当前没有低于阈值的库存预警。
                 </p>
               ) : replenishItems.map(item => (
-                <div key={item.alert_id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                <div key={item.alert_id} className="inventory-detail-row p-3">
                   <p className="text-sm font-semibold text-[var(--color-fg)]">{item.product_name}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
                     SKU {item.sku} · 当前 {item.current_stock} · 安全库存 {item.threshold} · 建议至少补 {Math.max(0, item.shortage)} 件
@@ -213,7 +209,7 @@ function InventoryDetailViewPanel({
             </div>
           </div>
 
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="inventory-detail-card p-3">
             <h3 className="text-sm font-semibold text-[var(--color-fg)]">周转天数 / 库龄分析</h3>
             <div className="mt-3 space-y-2">
               {turnoverItems.length === 0 ? (
@@ -223,7 +219,7 @@ function InventoryDetailViewPanel({
               ) : turnoverItems.map(item => {
                 const turnoverDays = item.orders_30d > 0 ? Math.ceil((item.stock / item.orders_30d) * 30) : null
                 return (
-                  <div key={item.listing_id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                  <div key={item.listing_id} className="inventory-detail-row p-3">
                     <p className="text-sm font-semibold text-[var(--color-fg)]">{item.title}</p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">
                       周转天数：{turnoverDays == null ? '近30日无销量' : `${turnoverDays} 天`} · 库龄分析：平台库龄字段待接入 · 浏览 {item.views_30d} · 订单 {item.orders_30d}
@@ -248,7 +244,7 @@ function InventoryDetailViewPanel({
 
 function InventoryMiniMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-right">
+    <div className="inventory-detail-row px-3 py-2 text-right">
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className="mt-1 text-base font-bold text-[var(--color-fg)]">{value}</p>
     </div>

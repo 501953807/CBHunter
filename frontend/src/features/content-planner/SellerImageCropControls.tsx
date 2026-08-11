@@ -8,7 +8,7 @@ export function SellerImageCropControls({ imageOptions, setImageOptions, inputCl
 }) {
   const setNumber = (key: keyof ImageEditOptions, value: number) => setImageOptions(prev => ({ ...prev, [key]: Number.isFinite(value) ? Math.max(0, value) : prev[key] }))
   return (
-    <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-crop-region-controls" aria-label="图片裁切区域控制">
+    <div className="image-workbench-control-card mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2" data-ui="image-crop-region-controls" aria-label="图片裁切区域控制">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold text-[var(--color-fg)]">输出与裁切区域</p>
         <select className={`${inputClass} max-w-[112px] py-1 text-[11px]`} value={imageOptions.crop_mode} onChange={event => setImageOptions(prev => ({ ...prev, crop_mode: event.target.value }))}>

@@ -20,7 +20,7 @@ interface FilterBarProps {
 
 export function FilterBar({ filters, extra }: FilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3" style={{ color: 'var(--color-fg)' }}>
+    <div className="luxury-toolbar flex flex-wrap items-center gap-3 rounded-[var(--radius-xl)] px-3 py-2 text-[var(--color-fg)]">
       {filters.map(f => (
         <FilterDropdown key={f.key} filter={f} />
       ))}
@@ -47,29 +47,22 @@ function FilterDropdown({ filter }: { filter: FilterBarProps['filters'][0] }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-        style={{
-          background: filter.value ? 'var(--color-primary)' : 'var(--color-border)',
-          color: filter.value ? 'var(--color-primary-text)' : 'var(--color-muted)',
-        }}
+        data-active={filter.value ? 'true' : 'false'}
+        className="luxury-filter inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
       >
         {selected?.label || filter.label}
         <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div
-          className="absolute top-full mt-1 rounded-xl py-1.5 min-w-[140px] z-50"
-          style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--color-border)' }}
+          className="luxury-menu-popover absolute top-full z-50 mt-2 min-w-[160px] rounded-[var(--radius-lg)] p-1.5"
         >
           {filter.options.map(o => (
             <button
               key={o.value}
               onClick={() => { filter.onChange(o.value); setOpen(false) }}
-              className="block w-full text-left px-3 py-1.5 text-xs hover:opacity-80 transition-opacity"
-              style={{
-                color: o.value === filter.value ? 'var(--color-primary)' : 'var(--color-fg)',
-                background: o.value === filter.value ? 'var(--color-primary-light)' : 'transparent',
-              }}
+              data-selected={o.value === filter.value ? 'true' : 'false'}
+              className="luxury-menu-item block w-full rounded-xl px-3 py-2 text-left text-xs font-medium"
             >
               {o.label}
             </button>
