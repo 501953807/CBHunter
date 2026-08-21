@@ -2,13 +2,19 @@
 @import "./risk-control.css";
 @import "./business-flow.css";
 @import "./content-factory.css";
+@import "./content-product-queue.css";
 @import "./listing-editor.css";
 @import "./listing-spec-editor.css";
 @import "./product-inventory.css";
+@import "./product-edit.css";
 @import "./batch-publish.css";
 @import "./pricing.css";
 @import "./reports.css";
 @import "./orders.css";
+@import "./after-sales.css";
+@import "./warehouse.css";
+@import "./shipments.css";
+@import "./notifications.css";
 @import "./finance.css";
 @import "./settings.css";
 @import "./growth.css";
@@ -19,3 +25,6 @@
 @import "./ai-suggestions.css";
 @import "./listing-templates.css";
 @import "./platform-settings.css";
+@import "./product-selection.css";
+@import "./scout-workflow.css";
+@import "./trend-discovery.css";

@@ -1,0 +1,126 @@
+.notifications-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 112px);
+}
+
+.notifications-shell::before {
+  content: "";
+  position: fixed;
+  inset: 72px 0 0 var(--sidebar-width, 260px);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 16% 8%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 30%),
+    radial-gradient(circle at 84% 18%, color-mix(in oklch, var(--color-info) 8%, transparent), transparent 26%);
+}
+
+.notifications-hero,
+.notifications-list,
+.notifications-empty,
+.notifications-loading {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface) 98%, transparent), color-mix(in oklch, var(--color-surface-raised) 94%, transparent)),
+    var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.notifications-hero {
+  padding: 20px;
+}
+
+.notifications-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.notifications-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 7px 12px;
+  font-size: 12px;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.notifications-action-button:hover:not(:disabled) {
+  border-color: color-mix(in oklch, var(--color-primary) 34%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.notifications-segmented {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--color-bg) 72%, var(--color-surface));
+}
+
+.notifications-segmented button {
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.notifications-loading,
+.notifications-empty {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 36px;
+  text-align: center;
+}
+
+.notifications-empty {
+  gap: 12px;
+}
+
+.notifications-list {
+  overflow: hidden;
+  padding: 8px;
+}
+
+.notifications-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.notifications-item + .notifications-item {
+  margin-top: 8px;
+}
+
+.notifications-item:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 30%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .notifications-shell::before {
+    left: 0;
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { BookOpen, Check, CircleAlert, CircleCheck, DollarSign, Edit3, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { BookOpen, Check, Edit3, Plus, Trash2, X } from "lucide-react"
 import { Card, CardContent, CardHeader } from "../../components/ui/Card"
 import { useConfirm } from "../../components/ui/ConfirmDialog"
 import { calculateSmartProfit, listExchangeRates, refreshExchangeRates } from "../../api/smart"
@@ -23,6 +23,14 @@ import { useFullConfig } from "../../hooks/useConfig"
 import type { DictionaryAdminConfig, DictionaryDefinition } from "../../api/settings"
 import type { UnifiedFieldDictionary, UnifiedFieldDictionaryItem } from "../../api/config"
 import { PlatformFieldGroupGovernance } from "./PlatformFieldGroupGovernance"
+import {
+  ExchangeRatesPanel,
+  FeeRateGovernanceSummary,
+  FeeRateTable,
+  FieldDictionaryRow,
+  ProfitCalculatorPanel,
+  buildFeeGovernanceSummary,
+} from "./SettingsDataPanelsParts"
 
 export function DictSettingsCRUD({ toast }: { toast: any }) {
   const confirmAction = useConfirm()
@@ -328,69 +336,6 @@ export function FieldDictionarySettings() {
   )
 }
 
-function FieldDictionaryRow({
-  item,
-  editing,
-  onEdit,
-  onCancel,
-  onChange,
-}: {
-  item: UnifiedFieldDictionaryItem
-  editing: boolean
-  onEdit: () => void
-  onCancel: () => void
-  onChange: (updater: (item: UnifiedFieldDictionaryItem) => UnifiedFieldDictionaryItem) => void
-}) {
-  const rawFieldText = (platform: "shopee" | "temu" | "tiktok" | "miaoshou") => item.platforms?.[platform]?.field || ""
-  const fieldText = (platform: "shopee" | "temu" | "tiktok" | "miaoshou") => rawFieldText(platform) || "待映射"
-  const updateText = (field: keyof UnifiedFieldDictionaryItem, value: string) => {
-    onChange(current => ({ ...current, [field]: value }))
-  }
-  const updatePlatformField = (platform: "shopee" | "temu" | "tiktok" | "miaoshou", value: string) => {
-    onChange(current => ({
-      ...current,
-      platforms: {
-        ...(current.platforms || {}),
-        [platform]: {
-          ...((current.platforms || {})[platform] || {}),
-          field: value,
-        },
-      },
-    }))
-  }
-  const textInput = (value: string, onValueChange: (value: string) => void, width = "w-28") => (
-    <input
-      value={value}
-      onChange={event => onValueChange(event.target.value)}
-      className={`${width} rounded border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[11px] text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]`}
-    />
-  )
-  return (
-    <tr className="border-b border-[var(--color-border)] last:border-b-0">
-      <td className="px-3 py-2 font-mono text-[11px] text-[var(--color-fg)]">{item.key}</td>
-      <td className="px-3 py-2 font-medium text-[var(--color-fg)]">{editing ? textInput(item.label, value => updateText("label", value)) : item.label}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(item.data_type, value => updateText("data_type", value), "w-24") : item.data_type}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(item.module, value => updateText("module", value), "w-24") : item.module}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(rawFieldText("shopee"), value => updatePlatformField("shopee", value)) : fieldText("shopee")}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(rawFieldText("temu"), value => updatePlatformField("temu", value)) : fieldText("temu")}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(rawFieldText("tiktok"), value => updatePlatformField("tiktok", value)) : fieldText("tiktok")}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(rawFieldText("miaoshou"), value => updatePlatformField("miaoshou", value)) : fieldText("miaoshou")}</td>
-      <td className="px-3 py-2 text-[var(--color-muted)]">{editing ? textInput(item.country_difference || "", value => updateText("country_difference", value), "w-32") : item.country_difference || "无"}</td>
-      <td className="px-3 py-2">
-        {editing ? (
-          <button onClick={onCancel} className="rounded border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)]">
-            完成
-          </button>
-        ) : (
-          <button onClick={onEdit} className="rounded border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-primary)]">
-            编辑
-          </button>
-        )}
-      </td>
-    </tr>
-  )
-}
-
 export function FeeRateSettings({ toast }: { toast: any }) {
   const [grouped, setGrouped] = useState<Record<string, any[]>>({})
   const [pricingTemplates, setPricingTemplates] = useState<any[]>([])
@@ -451,239 +396,69 @@ export function FeeRateSettings({ toast }: { toast: any }) {
       : Number(markupPct) <= 0
         ? '请填写大于 0 的加价率'
         : ''
+  const handleSaveFeeRate = async () => {
+    if (Object.values(form).some(value => value === '')) return
+    try {
+      await updateFeeRates({
+        id: editingId,
+        ...Object.fromEntries(Object.entries(form).map(([key, value]) => [key, Number(value)])),
+      })
+      toast.addToast('success', '费率已更新')
+      setEditingId(null)
+      loadFees()
+    } catch (e: any) {
+      logger.error('Update fee rates failed', e)
+      toast.addToast('error', '保存失败')
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <div
-        className="rounded-xl border p-4"
-        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
-        data-ui="settings-fee-rate-governance-summary"
-        aria-label="费率汇率治理摘要"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>费率、汇率与定价模板治理摘要</h3>
-            <p className="mt-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
-              这里只读取已启用平台费率模板、汇率记录和定价附加模板；缺失项保持待配置，不按 0% 或固定汇率代算。
-            </p>
-          </div>
-          <span
-            className="rounded-full px-2 py-1 text-[11px] font-medium"
-            style={{
-              backgroundColor: governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? 'var(--color-warning-light)' : 'var(--color-success-light)',
-              color: governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? 'var(--color-warning)' : 'var(--color-success)',
-            }}
-          >
-            {governanceSummary.missingFeeRows || governanceSummary.exchangeCurrencyCount === 0 ? '配置待补齐' : '配置可用于定价'}
-          </span>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
-          <FeeGovernanceMetric label="平台" value={governanceSummary.platformCount} />
-          <FeeGovernanceMetric label="市场" value={governanceSummary.marketCount} />
-          <FeeGovernanceMetric label="完整费率" value={governanceSummary.completeFeeRows} />
-          <FeeGovernanceMetric label="费率缺口" value={governanceSummary.missingFeeRows} tone={governanceSummary.missingFeeRows ? 'warning' : 'success'} />
-          <FeeGovernanceMetric label="汇率币种" value={governanceSummary.exchangeCurrencyCount} tone={governanceSummary.exchangeCurrencyCount ? 'success' : 'warning'} />
-          <FeeGovernanceMetric label="定价模板" value={governanceSummary.pricingTemplateCount} />
-        </div>
-        <div className="mt-3 grid gap-2 text-[11px] md:grid-cols-2">
-          <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
-            <span className="font-medium" style={{ color: 'var(--color-fg)' }}>当前平台费率：</span>
-            <span style={{ color: 'var(--color-muted)' }}>
-              {activePlatform || '未选择'} · {items.length} 个市场 · 缺口 {items.filter(hasFeeGap).length}
-            </span>
-          </div>
-          <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
-            <span className="font-medium" style={{ color: 'var(--color-fg)' }}>接口说明：</span>
-            <span style={{ color: feeStatusText ? 'var(--color-muted)' : 'var(--color-warning)' }}>
-              {feeStatusText || '费率接口暂未返回来源说明或缺口。'}
-            </span>
-          </div>
-        </div>
-      </div>
-      {/* Exchange Rates Bar */}
-      <div className="rounded-xl border p-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium" style={{ color: 'var(--color-fg)' }}>实时汇率 (1 CNY =)</span>
-          <button onClick={refreshRates} disabled={refreshingRates}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded border hover:bg-[var(--color-bg)]"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}>
-            <RefreshCw className={`w-3 h-3 ${refreshingRates ? 'animate-spin' : ''}`} />
-            {refreshingRates ? '刷新中' : '刷新汇率'}
-          </button>
-        </div>
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-1.5">
-          {rates.map((r: any) => (
-            <div key={r.to_currency} className="text-center px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-bg)' }}>
-              <div className="text-[11px] font-semibold" style={{ color: 'var(--color-fg)' }}>{r.rate < 0.01 ? r.rate.toFixed(6) : r.rate.toFixed(4)}</div>
-              <div className="text-[11px]" style={{ color: 'var(--color-primary)' }}>{r.to_currency}</div>
-            </div>
-          ))}
-          {rates.length === 0 && <div className="col-span-full text-[11px] text-center py-1" style={{ color: 'var(--color-muted)' }}>点击刷新获取最新汇率</div>}
-        </div>
-      </div>
-
-      {/* Profit Calculator */}
-      <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--color-fg)' }}><DollarSign className="w-4 h-4 text-[var(--color-primary)]" />利润试算器</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-          <div>
-            <label className="text-[11px] block mb-0.5" style={{ color: 'var(--color-muted)' }}>进货成本 (¥)</label>
-            <input type="number" value={costRmb} onChange={e => setCostRmb(e.target.value)}
-              className="w-full text-xs border rounded px-2 py-1.5" style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg)', backgroundColor: 'var(--color-bg)' }} />
-          </div>
-          <div>
-            <label className="text-[11px] block mb-0.5" style={{ color: 'var(--color-muted)' }}>头程运费 (¥)</label>
-            <input type="number" value={shippingRmb} onChange={e => setShippingRmb(e.target.value)}
-              className="w-full text-xs border rounded px-2 py-1.5" style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg)', backgroundColor: 'var(--color-bg)' }} />
-          </div>
-          <div>
-            <label className="text-[11px] block mb-0.5" style={{ color: 'var(--color-muted)' }}>加价率 (%)</label>
-            <input type="number" value={markupPct} onChange={e => setMarkupPct(e.target.value)}
-              className="w-full text-xs border rounded px-2 py-1.5" style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg)', backgroundColor: 'var(--color-bg)' }} />
-          </div>
-          <div className="flex items-end">
-            <button onClick={handleCalc} disabled={calcLoading || Boolean(calcDisabledReason)}
-              className="w-full text-xs px-3 py-2 rounded-lg text-[var(--color-primary-text)] disabled:opacity-40" style={{ background: 'var(--gradient-accent)' }}>
-              {calcLoading ? '计算中...' : '计算利润'}
-            </button>
-          </div>
-        </div>
-        {calcDisabledReason && <p className="mb-2 text-[11px] text-[var(--color-warning)]">暂不能试算：{calcDisabledReason}</p>}
-        <div className="text-[11px] mb-2" style={{ color: 'var(--color-muted)' }}>总成本: {costRmb === '' || shippingRmb === '' ? '--' : `¥${(Number(costRmb) + Number(shippingRmb)).toFixed(2)}`} · 加价率: {markupPct === '' ? '--' : `${markupPct}%`} · 目标售价: {markupPct === '' ? '--' : `${(1 + Number(markupPct) / 100).toFixed(1)}x`}</div>
-        {bestMarket && (
-          <div className={`rounded-lg p-2 mb-2 flex items-center gap-2 ${bestMarket.is_profitable ? 'bg-[var(--color-success-light)]' : 'bg-[var(--color-danger-light)]'}`}>
-            {bestMarket.is_profitable ? <CircleCheck className="w-4 h-4 text-[var(--color-success)]" /> : <CircleAlert className="w-4 h-4 text-[var(--color-danger)]" />}
-            <span className="text-xs font-medium" style={{ color: 'var(--color-fg)' }}>最佳: {bestMarket.platform} · {bestMarket.market}</span>
-            <span className="text-xs font-semibold" style={{ color: bestMarket.is_profitable ? 'var(--color-success)' : 'var(--color-danger)' }}>¥{bestMarket.profit_rmb} ({bestMarket.margin_pct}%)</span>
-          </div>
-        )}
-        {calcResults.length > 0 && (
-          <div className="rounded border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-            <table className="w-full text-[11px]">
-              <thead style={{ backgroundColor: 'var(--color-bg)' }}>
-                <tr>
-                  <th className="text-left px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>平台</th>
-                  <th className="text-left px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>市场</th>
-                  <th className="text-right px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>售价</th>
-                  <th className="text-right px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>费率</th>
-                  <th className="text-right px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>利润¥</th>
-                  <th className="text-right px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>利润率</th>
-                </tr>
-              </thead>
-              <tbody>
-                {calcResults.map((r: any, i: number) => (
-                  <tr key={i} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                    <td className="px-1.5 py-1" style={{ color: 'var(--color-fg)' }}>{r.platform}</td>
-                    <td className="px-1.5 py-1" style={{ color: 'var(--color-muted)' }}>{r.market}</td>
-                    <td className="px-1.5 py-1 text-right" style={{ color: 'var(--color-fg)' }}>{r.selling_local.toFixed(2)}</td>
-                    <td className="px-1.5 py-1 text-right" style={{ color: 'var(--color-muted)' }}>{r.fee_pct}%</td>
-                    <td className="px-1.5 py-1 text-right font-semibold" style={{ color: r.is_profitable ? 'var(--color-success)' : 'var(--color-danger)' }}>{r.profit_rmb > 0 ? '+' : ''}{r.profit_rmb}</td>
-                    <td className="px-1.5 py-1 text-right" style={{ color: r.margin_pct >= 20 ? 'var(--color-success)' : r.margin_pct > 0 ? 'var(--color-fg)' : 'var(--color-danger)' }}>{r.margin_pct}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Fee Rate Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-[var(--color-success)]" />
-            <h2 className="font-semibold" style={{ color: 'var(--color-fg)' }}>费率与汇率</h2>
-          </div>
-          <div className="flex gap-1 mt-2 bg-[var(--color-bg)] rounded-lg p-0.5 w-fit">
-            {platformNames.map(pf => (
-              <button key={pf} onClick={() => { setActivePlatform(pf); setEditingId(null) }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md font-medium transition-all ${activePlatform === pf ? 'bg-[var(--color-surface)] shadow-sm text-[var(--color-fg)]' : 'text-[var(--color-muted)]'}`}>
-                <span className="w-4 h-4 rounded flex items-center justify-center text-[11px] text-[var(--color-primary-text)] font-bold bg-[var(--color-primary)]">{pf[0]}</span>{pf}
-              </button>
-            ))}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full text-xs">
-            <thead><tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-              <th className="text-left py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>市场</th>
-              {FF.map(f => <th key={f} className="text-right py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>{FL[f]}</th>)}
-              <th className="text-right py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>总费率</th>
-              <th className="text-center py-2 font-medium" style={{ color: 'var(--color-muted)' }}>操作</th>
-            </tr></thead>
-            <tbody>
-              {items.map((item: any) => {
-                const isE = editingId === item.id
-                return (
-                  <tr key={item.id || item.market} className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-                    <td className="py-2 pr-3 font-medium" style={{ color: 'var(--color-fg)' }}>{item.market}</td>
-                    {FF.map(f => (
-                      <td key={f} className="py-2 pr-3 text-right">
-                        {isE ? (
-                          <input type="number" step="0.001" className="w-14 text-xs border rounded px-1 py-0.5 text-right"
-                            value={form[f]} onChange={e => setForm({...form, [f]: e.target.value})}
-                            style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
-                        ) : (
-                          <span style={{ color: item[f] == null ? 'var(--color-muted)' : 'var(--color-fg)' }}>{item[f] == null ? '--' : `${(item[f] * 100).toFixed(1)}%`}</span>
-                        )}
-                      </td>
-                    ))}
-                    <td className="py-2 pr-3 text-right font-semibold" style={{ color: item.total_pct == null ? 'var(--color-muted)' : 'var(--color-fg)' }}>{item.total_pct ?? '--'}</td>
-                    <td className="py-2 text-center">
-                      {isE ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={async () => {
-                            if (Object.values(form).some(value => value === '')) return
-                            try { await updateFeeRates({ id: editingId, ...Object.fromEntries(Object.entries(form).map(([key, value]) => [key, Number(value)])) }); toast.addToast('success', '费率已更新'); setEditingId(null); loadFees() }
-                            catch (e: any) { logger.error('Update fee rates failed', e); toast.addToast('error', '保存失败') }
-                          }} disabled={Object.values(form).some(value => value === '')} className="text-[var(--color-success)] disabled:opacity-40"><Check className="w-3 h-3" /></button>
-                          <button onClick={() => setEditingId(null)} className="text-[var(--color-muted)]"><X className="w-3 h-3" /></button>
-                        </div>
-                      ) : (
-                        <button onClick={() => {
-                          setEditingId(item.id)
-                          setForm({ commission: item.commission == null ? '' : String(item.commission), transaction: item.transaction == null ? '' : String(item.transaction), tech: item.tech == null ? '' : String(item.tech), low_value_tax: item.low_value_tax == null ? '' : String(item.low_value_tax) })
-                        }} className="text-[var(--color-primary)]"><Edit3 className="w-3 h-3" /></button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function buildFeeGovernanceSummary(grouped: Record<string, any[]>, rates: any[], pricingTemplates: any[]) {
-  const rows = Object.values(grouped).flat()
-  const markets = new Set(rows.map(item => `${item.platform || ''}_${item.market || ''}`))
-  return {
-    platformCount: Object.keys(grouped).length,
-    marketCount: markets.size,
-    completeFeeRows: rows.filter(item => !hasFeeGap(item)).length,
-    missingFeeRows: rows.filter(hasFeeGap).length,
-    exchangeCurrencyCount: rates.length,
-    pricingTemplateCount: pricingTemplates.length,
-  }
-}
-
-function hasFeeGap(item: any) {
-  return ['commission', 'transaction', 'tech', 'low_value_tax'].some(key => item?.[key] == null)
-}
-
-function FeeGovernanceMetric({ label, value, tone }: { label: string; value: number; tone?: 'success' | 'warning' }) {
-  const color = tone === 'success'
-    ? 'var(--color-success)'
-    : tone === 'warning'
-      ? 'var(--color-warning)'
-      : 'var(--color-fg)'
-  return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
-      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{label}</div>
-      <div className="mt-1 text-base font-semibold" style={{ color }}>{value}</div>
+      <FeeRateGovernanceSummary
+        activePlatform={activePlatform}
+        feeStatusText={feeStatusText}
+        governanceSummary={governanceSummary}
+        items={items}
+      />
+      <ExchangeRatesPanel rates={rates} refreshingRates={refreshingRates} onRefreshRates={refreshRates} />
+      <ProfitCalculatorPanel
+        bestMarket={bestMarket}
+        calcDisabledReason={calcDisabledReason}
+        calcLoading={calcLoading}
+        calcResults={calcResults}
+        costRmb={costRmb}
+        markupPct={markupPct}
+        shippingRmb={shippingRmb}
+        onCalculate={handleCalc}
+        onCostChange={setCostRmb}
+        onMarkupChange={setMarkupPct}
+        onShippingChange={setShippingRmb}
+      />
+      <FeeRateTable
+        activePlatform={activePlatform}
+        editingId={editingId}
+        fields={FF}
+        fieldLabels={FL}
+        form={form}
+        items={items}
+        platformNames={platformNames}
+        onCancelEdit={() => setEditingId(null)}
+        onEditItem={item => {
+          setEditingId(item.id)
+          setForm({
+            commission: item.commission == null ? '' : String(item.commission),
+            transaction: item.transaction == null ? '' : String(item.transaction),
+            tech: item.tech == null ? '' : String(item.tech),
+            low_value_tax: item.low_value_tax == null ? '' : String(item.low_value_tax),
+          })
+        }}
+        onFormChange={(field, value) => setForm({ ...form, [field]: value })}
+        onSaveItem={handleSaveFeeRate}
+        onSelectPlatform={platform => {
+          setActivePlatform(platform)
+          setEditingId(null)
+        }}
+      />
     </div>
   )
 }

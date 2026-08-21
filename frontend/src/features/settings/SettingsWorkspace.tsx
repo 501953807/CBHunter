@@ -5,7 +5,7 @@ import SettingsTasksPage from "../../pages/SettingsTasksPage"
 import { useToast } from "../../components/ui/Toast"
 import { getConfigQuality, type ConfigQuality } from "../../api/config"
 import { AIProviderSettings, ProfileSettings } from "./SettingsAccountPanels"
-import { AccessControlSettings } from "./SettingsAccessPanel"
+import { AccessControlSettings, AccessDirectorySettings } from "./SettingsAccessPanel"
 import { BillingSettings } from "./SettingsBillingPanel"
 import { DictSettingsCRUD, FeeRateSettings, FieldDictionarySettings } from "./SettingsDataPanels"
 import { ConfigQualitySettings } from "./SettingsQualityPanel"
@@ -15,7 +15,7 @@ import { cn } from "../../utils/cn"
 import { logger } from "../../utils/logger"
 
 const TITLE_MAP: Record<string, string> = {
-  profile: "账号信息", access: "权限授权", aiproviders: "AI 引擎",
+  profile: "账号信息", users: "用户管理", roles: "角色管理", permissions: "权限清单", access: "权限授权", aiproviders: "AI 引擎",
   dict: "业务字典", fields: "字段字典", fees: "费率与汇率", keys: "接口密钥",
   quality: "配置巡检", billing: "套餐权益", warehouse: "仓储配置", tasks: "系统任务", audit: "审计日志",
 }
@@ -24,14 +24,14 @@ const SETTINGS_NAV_GROUPS = [
   { title: '基础设置', tabs: ['profile', 'dict', 'fields'] },
   { title: '业务参数', tabs: ['fees', 'warehouse', 'keys', 'quality'] },
   { title: '智能与订阅', tabs: ['aiproviders', 'billing'] },
-  { title: '治理审计', tabs: ['access', 'tasks', 'audit'] },
+  { title: '治理审计', tabs: ['users', 'roles', 'permissions', 'access', 'tasks', 'audit'] },
 ]
 
 export default function SettingsPage() {
   const { tab } = useParams()
   const navigate = useNavigate()
   const config = useFullConfig()
-  const governanceTabs = new Set(['access', 'tasks', 'audit'])
+  const governanceTabs = new Set(['users', 'roles', 'permissions', 'access', 'tasks', 'audit'])
   const canViewGovernance = config.loading || config.permissions.is_admin
   const activeTab = tab || 'profile'
   const visibleTabIds = new Set(Object.keys(TITLE_MAP).filter((id) => canViewGovernance || !governanceTabs.has(id)))
@@ -91,6 +91,9 @@ export default function SettingsPage() {
 
         <section className="settings-content-panel min-w-0 rounded-[var(--radius-xl)] p-4">
           {effectiveTab === 'profile' && <ProfileSettings toast={toast} />}
+          {effectiveTab === 'users' && <AccessDirectorySettings kind="users" toast={toast} />}
+          {effectiveTab === 'roles' && <AccessDirectorySettings kind="roles" toast={toast} />}
+          {effectiveTab === 'permissions' && <AccessDirectorySettings kind="permissions" toast={toast} />}
           {effectiveTab === 'access' && <AccessControlSettings toast={toast} />}
           {effectiveTab === 'aiproviders' && <AIProviderSettings toast={toast} />}
           {effectiveTab === 'dict' && <DictSettingsCRUD toast={toast} />}

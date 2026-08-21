@@ -113,3 +113,73 @@
   background: color-mix(in oklch, var(--color-bg) 78%, var(--color-surface));
   color: var(--color-muted);
 }
+
+.finance-shell :is(.luxury-input, select, textarea, input) {
+  min-height: 40px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.finance-shell :is(.luxury-input, select, textarea, input):focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
+}
+
+.finance-shell table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.finance-shell thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface-raised) 92%, var(--color-bg));
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.finance-shell tbody td {
+  border-bottom: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  background: color-mix(in oklch, var(--color-surface) 86%, var(--color-bg));
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.finance-shell tbody tr:hover td {
+  background: color-mix(in oklch, var(--color-primary-light) 24%, var(--color-surface));
+}
+
+.finance-panel,
+.finance-ledger-panel,
+.finance-bill-panel,
+.finance-settlement-panel,
+.finance-risk-panel {
+  overflow: hidden;
+}
+
+.finance-shell button {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.finance-shell button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}

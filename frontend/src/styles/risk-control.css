@@ -1,9 +1,33 @@
 /* V5 risk command visuals. Presentation only; risk data and actions stay unchanged. */
+.risk-shell {
+  position: relative;
+}
+
+.risk-shell::before {
+  content: "";
+  position: absolute;
+  inset: -18px -12px auto;
+  height: 300px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-danger) 14%, transparent), transparent 34%),
+    radial-gradient(circle at 88% 6%, color-mix(in oklch, var(--color-warning) 11%, transparent), transparent 28%);
+}
+
+.risk-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
 .risk-command-metric,
 .risk-command-panel,
 .risk-signal-card {
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-danger) 8%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 90%, var(--color-bg)), var(--color-surface));
 }
 
 .risk-command-metric::before,
@@ -57,4 +81,13 @@
   border-color: color-mix(in oklch, var(--color-primary) 54%, var(--color-border));
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
+}
+
+.risk-shell table thead th,
+.risk-shell [role="columnheader"] {
+  color: var(--color-muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }

@@ -1,5 +1,7 @@
-import type { ContentAsset } from '../../api/content'
+import { CheckCircle2, Clipboard, PackageCheck } from 'lucide-react'
+import { Button } from '../../components/ui/Button'
 import { logger } from '../../utils/logger'
+import type { ContentAsset } from '../../api/content'
 
 export type SkuDraft = {
   enabled: boolean
@@ -151,6 +153,89 @@ export function SpecCheck({ label, ok, detail }: { label: string; ok: boolean; d
       </div>
       <p className="mt-1 text-[11px] leading-4 text-[var(--color-muted)]">{detail}</p>
     </div>
+  )
+}
+
+export function LogisticsPackagingSection({
+  logistics,
+  onChange,
+}: {
+  logistics: LogisticsDraft
+  onChange: (key: keyof LogisticsDraft, value: string) => void
+}) {
+  return (
+    <section id="listing-spec-logistics" aria-label="物流包装编辑区" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-sm font-semibold text-[var(--color-fg)]">物流包装</p>
+      <div aria-label="物流包裹尺寸表" className="mt-3 grid gap-2 md:grid-cols-3">
+        <TextField label="重量(g)" value={logistics.weight} onChange={value => onChange('weight', value)} />
+        <TextField label="长(cm)" value={logistics.length} onChange={value => onChange('length', value)} />
+        <TextField label="宽(cm)" value={logistics.width} onChange={value => onChange('width', value)} />
+        <TextField label="高(cm)" value={logistics.height} onChange={value => onChange('height', value)} />
+        <TextField label="包装方式" value={logistics.packageType} onChange={value => onChange('packageType', value)} />
+        <TextField label="发货时效" value={logistics.shippingSla} onChange={value => onChange('shippingSla', value)} />
+      </div>
+    </section>
+  )
+}
+
+export function ComplianceActionSection({
+  skuReady,
+  skuReadinessLength,
+  skuBlockingGapCount,
+  fieldReady,
+  missingAttrs,
+  logisticsReady,
+  complianceReady,
+  complianceText,
+  saving,
+  productAvailable,
+  onComplianceTextChange,
+  onConfirmCompliance,
+  onSaveSpecificationOverride,
+  onCopySpecificationPack,
+}: {
+  skuReady: boolean
+  skuReadinessLength: number
+  skuBlockingGapCount: number
+  fieldReady: boolean
+  missingAttrs: string[]
+  logisticsReady: boolean
+  complianceReady: boolean
+  complianceText: string
+  saving: boolean
+  productAvailable: boolean
+  onComplianceTextChange: (value: string) => void
+  onConfirmCompliance: () => void
+  onSaveSpecificationOverride: () => void
+  onCopySpecificationPack: () => void
+}) {
+  return (
+    <section id="listing-spec-compliance" aria-label="规格合规校验面板" className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <p className="text-sm font-semibold text-[var(--color-fg)]">规格合规校验</p>
+      <SpecCheck label="SKU/变体" ok={skuReady} detail={skuReady ? '启用 SKU 行已补齐发布阻断字段。' : skuReadinessLength ? `还有 ${skuBlockingGapCount} 个 SKU 阻断缺口。` : '至少补一条启用 SKU。'} />
+      <SpecCheck label="平台属性" ok={fieldReady} detail={fieldReady ? '必填属性已填。' : missingAttrs.length ? `待补：${missingAttrs.slice(0, 4).join('、')}` : '字段组待补齐。'} />
+      <SpecCheck label="物流包装" ok={logisticsReady} detail={logisticsReady ? '重量和尺寸已准备。' : '重量、长宽高会影响运费和履约规则。'} />
+      <SpecCheck label="合规检查" ok={complianceReady} detail={complianceReady ? '已有合规检查文本。' : '需确认禁限售、认证、图片文案规则。'} />
+      <textarea
+        className="min-h-[120px] w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs leading-5 text-[var(--color-fg)] outline-none"
+        value={complianceText}
+        onChange={event => onComplianceTextChange(event.target.value)}
+        placeholder="记录禁限售、认证资料、图片文案、平台规则风险。"
+      />
+      <Button className="w-full" onClick={onConfirmCompliance} disabled={!productAvailable || !complianceText.trim() || saving}>
+        <CheckCircle2 className="mr-1 h-4 w-4" />确认合规检查
+      </Button>
+      <Button className="w-full" onClick={onSaveSpecificationOverride} disabled={!productAvailable || saving}>
+        <PackageCheck className="mr-1 h-4 w-4" />保存规格到店铺覆盖草稿
+      </Button>
+      <Button className="w-full" variant="outline" onClick={onCopySpecificationPack} disabled={!productAvailable}>
+        <Clipboard className="mr-1 h-4 w-4" />复制规格字段包
+      </Button>
+      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[11px] leading-5 text-[var(--color-muted)]">
+        <PackageCheck className="mb-2 h-4 w-4 text-[var(--color-primary)]" />
+        当前草稿用于内容制作阶段准备字段；发布到具体店铺前仍需在平台刊登/店铺 Listing 实例中确认覆盖字段。
+      </div>
+    </section>
   )
 }
 

@@ -14,7 +14,7 @@ if "/content?product_id=${product.id}" not in PRODUCT_SELLER_WORKBENCH:
 if "ProductSellerWorkbench" not in PRODUCT_LIST_PAGE:
     errors.append("product list page must use the seller-console workbench instead of a generic product table")
 for required in ("平台店铺商品", "PlatformStoreProductsPanel", "平台商品同步", "店铺归属", "平台店铺商品库", "基础商品资料", "searchParams.get('tab') === 'master'"):
-    if required not in PRODUCT_LIST_PAGE + PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PRODUCT_LIST_PAGE + PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"product module must expose platform store product inventory: {required}")
 for required in ("productListQuery", "productListQuery.isError", "data-ui=\"product-list-error\"", "重新加载商品列表"):
     if required not in PRODUCT_LIST_PAGE:
@@ -23,7 +23,7 @@ for required in ("productsQuery.isError", "data-ui=\"platform-store-products-err
     if required not in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"AUDIT-P2-03 platform store products panel must expose visible React Query error recovery: {required}")
 for required in ("aria-label=\"平台店铺商品库总览\"", "SummaryCard", "覆盖店铺", "发布图不足", "发布图/SKU", "SKU/规格"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"platform store products must expose store/listing summary cards: {required}")
 for required in (
     "PlatformStoreGroupingBoard",
@@ -36,7 +36,7 @@ for required in (
     "同步状态",
     "buildPlatformStoreGroups",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"platform store products must expose grouped platform/store operating board: {required}")
 for required in (
     "PlatformStoreProductActionStrip",
@@ -54,7 +54,7 @@ for required in (
     "action.severity",
     "storeProductActionDataUi",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"platform store product rows must expose row-level next actions and diagnostics: {required}")
 for required in (
     "PublishPlanQueueBoard",
@@ -67,7 +67,7 @@ for required in (
     "返回批量刊登重试",
     "平台 Open API 未接通",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store products must expose batch publish result writeback queue: {required}")
 for required in (
     "market?: string",
@@ -81,7 +81,7 @@ for required in (
     "platform-store-row-inventory-alert-action",
     "处理库存预警",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store products must expose market filtering and inventory alert entry: {required}")
 for required in (
     "inventory_alert_summary",
@@ -93,7 +93,7 @@ for required in (
     "安全库存",
     "处理库存预警",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store products must expose real inventory alert summary from backend: {required}")
 for required in (
     "PlatformStoreProductFilterSummary",
@@ -104,7 +104,7 @@ for required in (
     "当前筛选全量店铺商品实例",
     "按当前筛选全量店铺市场汇总",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store products summary cards must use API full-filter summary, not current-page counts: {required}")
 for required in (
     "shop_id?: string | null",
@@ -133,14 +133,14 @@ for required in (
     "失败原因",
     "productSyncStatusLabel",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store product rows must expose store shop identity and product sync state: {required}")
-store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_PAGE + SHIPMENT_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
+store_context_content = PRODUCT_LIST_PAGE + ORDER_LIST_SURFACE + SHIPMENT_LIST_PAGE + FINANCE_PAGE + STORE_CONTEXT_BANNER
 for required in ("StoreContextBanner", "aria-label=\"平台店铺上下文横幅\"", "data-ui=\"store-context-banner\"", "当前按店铺筛选", "store drilldown context", "店铺商品", "店铺订单", "店铺物流", "店铺财务", "清除店铺筛选", "platformAccountId={initialPlatformAccountId}", "platformAccountId={platformAccountId}", "currentModule=\"products\"", "currentModule=\"orders\"", "currentModule=\"shipments\"", "currentModule=\"finance\""):
     if required not in store_context_content:
         errors.append(f"store drilldown context must persist across product/order/finance pages: {required}")
 for required in ("mediaReadinessLabel", "平台发布图要求", "发布图缺口", "主档图片"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API:
         errors.append(f"platform store products must expose listing media readiness and master image context: {required}")
 for required in (
     "aria-label=\"基础商品与店铺 Listing 实例关系\"",
@@ -156,22 +156,22 @@ for required in (
     "店铺覆盖字段不回写基础商品版本",
     "store_override_summary",
 ):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API + SYNC_SERVICE_BACKEND:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API + SYNC_SERVICE_BACKEND:
         errors.append(f"platform store product rows must expose product-master to listing-instance relation and store overrides: {required}")
 for required in ("编辑店铺 Listing", "?tab=listings", "listing_id=", "listing_section=", "product_master.id"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"platform store products must provide direct listing edit context: {required}")
 for required in ("getPlatformStoreProducts", "triggerProductSync", "platform_products_open_api", "不生成模拟商品"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + PRODUCTS_API + SYNC_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + PRODUCTS_API + SYNC_API:
         errors.append(f"platform store products must use real sync boundaries and API wrappers: {required}")
 for required in ("useConfig", "toDomainOptions(platform_listing_statuses)", "platformOptionsFromConfig"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE:
         errors.append(f"platform store products filters must read runtime platform/listing dictionaries: {required}")
 for forbidden in ("{ value: 'shopee', label: 'Shopee' }", "{ value: 'active', label: '在售' }"):
     if forbidden in PLATFORM_STORE_PRODUCTS_PANEL:
         errors.append(f"platform store products must not hardcode platform or listing status filter options: {forbidden}")
 for required in ("SyncBlockDetail", "下一步：", "operation_details", "待接入"):
-    if required not in PLATFORM_STORE_PRODUCTS_PANEL + SYNC_API:
+    if required not in PLATFORM_STORE_PRODUCTS_SURFACE + SYNC_API:
         errors.append(f"platform product sync gap must expose connector detail and next action: {required}")
 for required in ("sync_state", "last_product_sync_status", "last_order_sync_status", "最近商品同步", "最近订单同步"):
     if required not in PLATFORMS_API + PLATFORM_SETTINGS_PAGE:
@@ -204,10 +204,10 @@ platform_product_adapter_content = f"{PRODUCT_NORMALIZERS}\n{SHOPEE_CLIENT}\n{TI
 for required in ("normalize_platform_product", "_normalize_shopee_product", "_normalize_tiktok_product", "_normalize_temu_product", "normalize_product_payload"):
     if required not in platform_product_adapter_content:
         errors.append(f"platform product adapters must normalize raw platform payloads before sync: {required}")
-if "platformRequirementsByPlatform" not in BATCH_PUBLISH_SELECT:
+if "platformRequirementsByPlatform" not in BATCH_PUBLISH_SELECT_SURFACE:
     errors.append("batch publish select step must show product master platform attributes by selected platform")
 for required in ("pricingSourceLabel", "预览读取本地 Listing 草稿"):
-    if required not in BATCH_PUBLISH_SELECT + BATCH_PUBLISH_WORKSPACE:
+    if required not in BATCH_PUBLISH_SELECT_SURFACE + BATCH_PUBLISH_WORKSPACE:
         errors.append(f"batch publish deep-linked products must explain draft pricing source before preview: {required}")
 if "platform_attrs" not in PRODUCT_EDIT_PAGE or "ProductPlatformAttributesPanel" not in PRODUCT_EDIT_PAGE:
     errors.append("product edit page must expose platform-specific product attributes")
@@ -280,7 +280,7 @@ for forbidden in ("promotion_config", "促销活动名称", "店铺促销配置"
         errors.append(f"promotion discount must not be edited as listing override: {forbidden}")
 promotion_module_content = "\n".join(
     [
-        PROMOTIONS_PAGE,
+        PROMOTIONS_PAGE_SURFACE,
         PROMOTION_GOVERNANCE_PANEL,
         PROMOTION_TYPE_RULE_GUIDE,
         PROMOTION_WATERMARK_SELECTOR,
@@ -475,40 +475,40 @@ for required in ("useConfirm", "删除仓储配置", "确认删除仓储"):
     if required not in SETTINGS_SYSTEM_PANELS:
         errors.append(f"settings warehouse delete must use system confirm dialog: {required}")
 for required in ("补录平台账单", "entry_type=platform_fee", "order_id=${order.id}"):
-    if required not in ORDER_DETAIL_PAGE:
+    if required not in ORDER_DETAIL_SURFACE:
         errors.append(f"order detail platform bill gap must deep-link to finance ledger replenishment: {required}")
 for required in ("财务入账状态", "finance_entry_context", "OrderFinanceEntryPanel", "关联流水", "销售收入", "订单净利", "view_order_ledger", "record_sales_income", "build_order_finance_entry_context", "FinanceLedgerEntry.order_id == order.id"):
-    if required not in ORDER_DETAIL_PAGE + ORDER_TYPES + ORDER_SERVICE:
+    if required not in ORDER_DETAIL_SURFACE + ORDER_TYPES + ORDER_SERVICE:
         errors.append(f"order detail must expose real finance ledger posting context: {required}")
 for required in ("order_id: Optional[str] = None", "FinanceLedgerEntry.order_id == order_id", "order_id: initialOrderId || undefined"):
     if required not in FINANCE_API + FINANCE_SERVICE + FINANCE_LEDGER_PANEL:
         errors.append(f"finance ledger must support order-level drilldown filtering: {required}")
 for required in ("同步复盘", "platform_sync_status", "平台同步复盘", "platform_sync_review", "最近店铺订单同步"):
-    if required not in ORDER_LIST_PAGE + ORDER_DETAIL_PAGE:
+    if required not in ORDER_LIST_SURFACE + ORDER_DETAIL_SURFACE:
         errors.append(f"orders pages must expose platform order sync review context: {required}")
 for required in ("useTriggerSync", "同步当前店铺订单", "syncMutation.mutate(order.platform_account_id)", "syncMutation.isPending", "qc.invalidateQueries({ queryKey: ['order'] })"):
-    if required not in ORDER_DETAIL_PAGE + USE_SYNC_HOOK:
+    if required not in ORDER_DETAIL_SURFACE + USE_SYNC_HOOK:
         errors.append(f"order detail must provide a real store order sync action from sync review: {required}")
 for required in ("platform_account_id", "platformAccountId", "StoreContextBanner", "currentModule=\"orders\"", "store-context-banner"):
-    if required not in ORDER_LIST_PAGE + ORDERS_API + STORE_CONTEXT_BANNER:
+    if required not in ORDER_LIST_SURFACE + ORDERS_API + STORE_CONTEXT_BANNER:
         errors.append(f"orders page must keep cockpit store drilldown filter context: {required}")
 for required in ("履约异常", "履约异常复盘", "fulfillment_exception", "shipping_overdue", "异常处理动作闭环", "create_shipment", "review_after_sales", "replenish_platform_bill"):
-    if required not in ORDER_LIST_PAGE + ORDER_DETAIL_PAGE + ORDER_SERVICE:
+    if required not in ORDER_LIST_SURFACE + ORDER_DETAIL_SURFACE + ORDER_SERVICE:
         errors.append(f"orders pages must expose fulfillment exception queue context: {required}")
 for required in ("exceptions: exceptionMode ? '1' : undefined", "exceptions: bool = Query(False", "exceptions: bool = False", "fulfillment_context = build_fulfillment_exception_context(order)", "fulfillment_context.get(\"status\") == \"clear\"", "当前筛选范围没有履约异常订单"):
-    if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_API + ORDER_SERVICE:
+    if required not in ORDER_LIST_SURFACE + ORDERS_API + ORDER_API + ORDER_SERVICE:
         errors.append(f"orders exception filter must use fulfillment exception context instead of order status: {required}")
 for required in ("fulfillment_exception_status", "sync_status", "shipping_sla", "_matches_shipping_sla", "data-ui=\"order-fulfillment-filter-bar\"", "shippingSlaLabel"):
-    if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_API + ORDER_SERVICE:
+    if required not in ORDER_LIST_SURFACE + ORDERS_API + ORDER_API + ORDER_SERVICE:
         errors.append(f"orders list must expose sync status, exception status and shipping SLA filters: {required}")
 for required in ("RelatedShipmentsPanel", "关联物流记录", "useShipmentList", "order_id", "新增物流", "本地物流渠道"):
-    if required not in ORDER_DETAIL_PAGE + SHIPMENTS_API:
+    if required not in ORDER_DETAIL_SURFACE + SHIPMENTS_API:
         errors.append(f"order detail must show related shipment records: {required}")
 for required in ("订单履约运营总览", "OrderFulfillmentOverview", "useOrderStats", "/orders/stats", "pending_shipment", "due_soon", "overdue", "store_breakdown", "缺失字段进入数据缺口"):
-    if required not in ORDER_LIST_PAGE + ORDERS_API + ORDER_SERVICE + USE_ORDERS_HOOK:
+    if required not in ORDER_LIST_SURFACE + ORDERS_API + ORDER_SERVICE + USE_ORDERS_HOOK:
         errors.append(f"orders page must expose fulfillment operating overview: {required}")
 for required in ("orderListQuery", "orderStatsQuery.isError", "data-ui=\"order-list-error\"", "data-ui=\"order-stats-error\"", "重新加载订单列表", "重新加载履约统计"):
-    if required not in ORDER_LIST_PAGE:
+    if required not in ORDER_LIST_SURFACE:
         errors.append(f"AUDIT-P2-03 orders page must expose visible React Query error recovery: {required}")
 for required in ("useOrder", "order.after_sales_status", "履约异常原因", "不生成模拟售后记录"):
     if required not in AFTER_SALES_PAGE:
@@ -636,7 +636,7 @@ for required in (
     "sku_price",
     "promotion_price",
 ):
-    if required not in PROMOTIONS_PAGE:
+    if required not in PROMOTIONS_PAGE_SURFACE:
         errors.append(f"promotions must render V5 product/listing fields through unified field dictionary: {required}")
 for required in (
     "useQuery",
@@ -725,7 +725,7 @@ for required in (
     "StoreContextBanner",
     "DataTable",
 ):
-    if required not in ORDER_LIST_PAGE:
+    if required not in ORDER_LIST_SURFACE:
         errors.append(f"order list page must consume V5 fulfillment visual primitive and keep business controls: {required}")
 for required in ("./finance.css",):
     if required not in STYLE_MODULES_CSS:
@@ -760,7 +760,7 @@ for required in (
     "StoreContextBanner",
     "FinanceLedgerPanel",
 ):
-    if required not in FINANCE_PAGE:
+    if required not in FINANCE_PAGE_SURFACE:
         errors.append(f"finance page must consume V5 finance visual primitive and keep business controls: {required}")
 '''
 

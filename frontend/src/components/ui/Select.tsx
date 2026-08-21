@@ -19,13 +19,13 @@ interface SelectProps {
 export function Select({ label, options, value, onChange, placeholder, className, error }: SelectProps) {
   return (
     <div className="space-y-1.5">
-      {label && <label className="block text-sm font-semibold tracking-tight text-[var(--color-fg)]">{label}</label>}
+      {label && <label className="block text-[13px] font-medium tracking-tight text-[var(--color-fg)]">{label}</label>}
       <div className="relative">
         <select
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           className={cn(
-            'luxury-select block w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm shadow-[var(--shadow-sm)] transition-all',
+            'materio-select luxury-select block w-full appearance-none rounded-[var(--radius-md)] border px-3.5 py-2.5 pr-10 text-[15px] shadow-none transition-all',
             'bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-fg)]',
             'focus:border-[var(--color-primary)]',
             'disabled:bg-[var(--color-border)]/50 disabled:text-[var(--color-muted)]',
@@ -39,9 +39,9 @@ export function Select({ label, options, value, onChange, placeholder, className
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-[var(--color-muted)]" />
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted)]" />
       </div>
-      {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
+      {error && <p className="text-[13px] text-[var(--color-danger)]">{error}</p>}
     </div>
   )
 }

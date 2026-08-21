@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Crosshair, LogOut } from 'lucide-react'
+import { ChevronRight, Circle, CircleDot, LogOut, ShoppingBag } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { storage } from '../../utils/storage'
-import { legacyRouteMap, navItems, type NavItem } from './navigation'
+import { legacyRouteMap, navGroups, navItems, type NavItem } from './navigation'
+import { MdiIcon } from '../ui/MdiIcon'
 
 function firstPath(item: NavItem): string {
   return item.to || '#'
@@ -46,11 +48,26 @@ function activePrimaryLabel(path: string): string | null {
   return bestLabel
 }
 
+function activeChildTo(item: NavItem, path: string): string | null {
+  let bestTo: string | null = null
+  let bestScore = 0
+  for (const child of item.children || []) {
+    const score = itemScore(child, path)
+    if (score > bestScore) {
+      bestScore = score
+      bestTo = child.to || null
+    }
+  }
+  return bestTo
+}
+
 export function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   const navigate = useNavigate()
   const location = useLocation()
   const activePath = `${normalizePath(location.pathname)}${location.search}`
   const primaryActive = activePrimaryLabel(activePath)
+  const [manualOpenLabel, setManualOpenLabel] = useState<string | null | undefined>(undefined)
+  const openLabel = manualOpenLabel === undefined ? primaryActive : manualOpenLabel
 
   const logout = () => {
     storage.remove('token')
@@ -58,64 +75,134 @@ export function Sidebar({ expanded, onToggle }: { expanded: boolean; onToggle: (
   }
 
   return (
-    <aside className={cn(
-      'luxury-sidebar relative z-20 flex shrink-0 flex-col border-r border-[var(--color-hairline)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-fg)] shadow-[var(--shadow-lg)] transition-[width] duration-200',
-      expanded ? 'w-[104px]' : 'w-[72px]'
+    <aside
+      data-expanded={expanded ? 'true' : 'false'}
+      className={cn(
+      'layout-vertical-nav luxury-sidebar relative z-20 flex shrink-0 flex-col bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-fg)]',
+      expanded ? '' : 'is-collapsed'
     )}>
-      <div className="flex h-16 flex-col items-center justify-center gap-1 border-b border-[var(--color-hairline)]">
-        <div className="brand-mark flex items-center justify-center">
-          <Crosshair className="h-4 w-4 text-[var(--color-primary-text)]" aria-hidden="true" />
-        </div>
-        {expanded && <span className="text-[12px] font-semibold leading-none tracking-tight text-[var(--color-sidebar-active)]">CBHunter</span>}
+      <div className="nav-header">
+        <button type="button" onClick={() => navigate('/command-center')} className="app-logo app-title-wrapper" aria-label="CBHunter 首页">
+          <span className="brand-mark flex items-center justify-center">
+            <ShoppingBag className="h-4 w-4 text-[var(--color-primary-text)]" aria-hidden="true" />
+          </span>
+          <span className="app-logo-title">CBHunter</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn('header-action', expanded ? 'nav-pin' : 'nav-unpin')}
+          title={expanded ? '折叠菜单' : '固定展开菜单'}
+          aria-label={expanded ? '折叠菜单' : '固定展开菜单'}
+        >
+          {expanded ? <CircleDot className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-3" aria-label="系统一级导航">
-        {navItems.map((item) => (
-          <PrimaryNavItem
-            key={item.label}
-            item={item}
-            expanded={expanded}
-            active={item.label === primaryActive}
-            onNavigate={() => navigate(firstPath(item))}
-          />
+      <div className="vertical-nav-items-shadow" aria-hidden="true" />
+
+      <nav className="nav-items flex-1" aria-label="系统一级导航">
+        {navGroups.map((group) => (
+          <div key={group.label} className="materio-nav-section nav-section">
+            {group.label !== '应用全局' && (
+              <div className="nav-section-title">
+                <span className="section-title-text">{group.label}</span>
+              </div>
+            )}
+            <ul className="space-y-0.5">
+              {group.items.map((item) => (
+                <PrimaryNavItem
+                  key={item.label}
+                  item={item}
+                  active={item.label === primaryActive}
+                  activePath={activePath}
+                  open={openLabel === item.label}
+                  hasActiveChild={Boolean(activeChildTo(item, activePath))}
+	                  onNavigate={() => {
+	                    if (item.children?.length) {
+	                      setManualOpenLabel(current => (current === undefined ? primaryActive : current) === item.label ? null : item.label)
+	                      return
+	                    }
+	                    setManualOpenLabel(undefined)
+	                    navigate(firstPath(item))
+	                  }}
+                  onChildNavigate={(to) => {
+                    navigate(to)
+                  }}
+                />
+              ))}
+            </ul>
+          </div>
         ))}
       </nav>
 
-      <div className="space-y-1 border-t border-[var(--color-hairline)] p-2">
-        <button onClick={onToggle} title={expanded ? '收起侧栏' : '展开侧栏'}
-          className="flex min-h-10 w-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--color-sidebar-fg)] transition-all duration-150 hover:-translate-y-0.5 hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-active)]">
-          {expanded ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          {expanded && <span className="text-[11px]">收起</span>}
-        </button>
+      <div className="nav-footer">
         <button onClick={logout} title="退出登录"
-          className="flex min-h-10 w-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--color-sidebar-fg)] transition-all duration-150 hover:-translate-y-0.5 hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-danger)]">
-          <LogOut className="w-4 h-4" />
-          {expanded && <span className="text-[11px]">退出</span>}
+          className="nav-footer-action">
+          <LogOut className="nav-item-icon" />
+          <span className="nav-item-title">退出登录</span>
         </button>
       </div>
     </aside>
   )
 }
 
-function PrimaryNavItem({ item, expanded, active, onNavigate }: {
+function PrimaryNavItem({ item, active, activePath, open, hasActiveChild, onNavigate, onChildNavigate }: {
   item: NavItem
-  expanded: boolean
   active: boolean
+  activePath: string
+  open: boolean
+  hasActiveChild: boolean
   onNavigate: () => void
+  onChildNavigate: (to: string) => void
 }) {
-  const Icon = item.icon
+  const childActiveTo = activeChildTo(item, activePath)
+  const hasChildren = Boolean(item.children?.length)
   return (
-    <button onClick={onNavigate}
-      data-active={active ? 'true' : 'false'}
-      title={!expanded ? item.label : undefined}
-      className={cn(
-        'luxury-nav-item group relative flex min-h-[58px] w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[var(--color-sidebar-fg)] transition-all duration-150',
-        'hover:-translate-y-0.5 hover:bg-[var(--color-sidebar-hover)] hover:text-[var(--color-sidebar-active)] hover:shadow-[var(--shadow-md)]',
-        active && 'bg-[var(--color-sidebar-hover)] text-[var(--color-sidebar-active)] shadow-[var(--shadow-md)] font-semibold'
-      )}>
-      {active && <span className="absolute left-1 top-2 bottom-2 w-0.5 rounded-full bg-[var(--color-primary)]" />}
-      {Icon && <Icon className="w-5 h-5 shrink-0 transition-transform duration-150 group-hover:-translate-y-0.5" />}
-      {expanded && <span className="text-[11px] leading-tight text-center whitespace-nowrap">{item.label}</span>}
-    </button>
+    <li className={cn(
+      'nav-group group/nav relative',
+      active && 'active',
+      open && hasChildren && 'open show-content',
+    )}>
+      <button onClick={onNavigate}
+        data-active={active ? 'true' : 'false'}
+        data-child-active={hasActiveChild ? 'true' : 'false'}
+        title={item.label}
+        className={cn(
+          'nav-group-label luxury-nav-item',
+          !hasChildren && 'nav-link-label',
+          active && 'router-link-active router-link-exact-active'
+        )}>
+        {item.icon && <MdiIcon path={item.icon} className="nav-item-icon" size={0.9} />}
+        <span className="nav-item-title">{item.label}</span>
+        {item.badge && (
+          <span className={cn('nav-item-badge', `tone-${item.badgeTone || 'primary'}`)}>{item.badge}</span>
+        )}
+        {hasChildren && (
+          <ChevronRight className="nav-group-arrow" />
+        )}
+      </button>
+
+      {hasChildren && (
+        <ul className={cn('nav-group-children materio-subnav-stack', open ? 'is-open' : '')} aria-hidden={!open}>
+          {item.children?.map((child) => (
+            <li
+              key={child.to || child.label}
+            >
+              <button
+                type="button"
+                data-active={child.to === childActiveTo ? 'true' : 'false'}
+                onClick={() => child.to && onChildNavigate(child.to)}
+                className="materio-subnav-item nav-link"
+              >
+                <Circle className="subnav-dot" />
+                <span className="nav-item-title">{child.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }

@@ -1,8 +1,37 @@
 /* V5 operating cockpit command visuals. Presentation only; no business logic. */
+.cockpit-shell {
+  position: relative;
+}
+
+.cockpit-shell::before {
+  content: "";
+  position: absolute;
+  inset: -18px -12px auto;
+  height: 300px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 34%),
+    radial-gradient(circle at 86% 4%, color-mix(in oklch, var(--color-success) 10%, transparent), transparent 28%);
+}
+
+.cockpit-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
 .cockpit-metric-card,
 .cockpit-command-panel {
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 90%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--motion-standard),
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard);
 }
 
 .cockpit-metric-card::before,
@@ -23,6 +52,13 @@
   z-index: 1;
 }
 
+.cockpit-metric-card:hover,
+.cockpit-command-panel:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--color-primary) 44%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
 .cockpit-metric-icon,
 .cockpit-panel-icon {
   display: inline-flex;
@@ -41,4 +77,10 @@
 .cockpit-panel-icon {
   height: 1.75rem;
   width: 1.75rem;
+}
+
+.cockpit-shell [class*="dense"],
+.cockpit-shell [data-ui*="queue"],
+.cockpit-shell [data-ui*="matrix"] {
+  border-color: var(--color-border);
 }

@@ -80,7 +80,7 @@ export function ListingUnifiedEditorSections({
         <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
           主表单只处理同一商品的标题/详情、发布图、SKU/属性/物流/合规；搜索词、内容视频和下游衔接收拢为辅助条，避免挤压核心编辑区。
         </p>
-        <ContentListingCapabilityMap product={product} scriptsCount={scripts.length} hashtagsCount={hashtags.length} />
+        <ListingReadinessCompactStrip product={product} scriptsCount={scripts.length} hashtagsCount={hashtags.length} />
       </div>
 
       <div>
@@ -227,7 +227,7 @@ function ListingAuxiliaryStrip({
   )
 }
 
-function ContentListingCapabilityMap({
+function ListingReadinessCompactStrip({
   product,
   scriptsCount,
   hashtagsCount,
@@ -248,52 +248,42 @@ function ContentListingCapabilityMap({
   ].length
   const capabilities = [
     {
-      title: '标题生成',
-      detail: titleReady ? '已有标题候选，需按平台关键词和长度人工确认。' : '用 AI/五步法生成候选标题，再保存为内容任务版本。',
+      title: '标题',
       status: titleReady ? '有候选' : '待生成',
     },
     {
-      title: '描述编辑',
-      detail: bulletsReady ? '已有卖点摘要候选，继续补商品详情和关键词。' : '补卖点摘要、材质、尺寸、场景、包装和售后说明。',
+      title: '描述',
       status: bulletsReady ? '卖点候选' : '待编辑',
     },
     {
-      title: '图片处理',
-      detail: `平台至少 ${minImages} 张发布图；当前 ${imageCount} 张，发布图不足时先补主图、辅图、尺寸图、场景图和细节图。`,
+      title: '发布图',
       status: imageCount >= minImages ? '发布图达标' : '待补发布图',
     },
     {
-      title: '视频脚本',
-      detail: '围绕当前商品生成 hook、镜头、脚本、CTA 和内容日历。',
+      title: '视频',
       status: scriptsCount ? `${scriptsCount} 条脚本` : '待生成',
     },
     {
-      title: 'A+内容',
-      detail: '沉淀长详情结构：品牌/场景/规格/对比/FAQ，不冒充平台已发布 A+ 页面。',
+      title: '搜索词',
       status: '待编排',
     },
     {
-      title: '平台差异字段校验',
-      detail: platformFieldCount ? `已识别 ${platformFieldCount} 个平台字段要求，需在规格区逐项补齐。` : '待从平台字段组读取类目属性、媒体、合规和物流要求。',
+      title: '平台字段',
       status: platformFieldCount ? '已识别' : '待补字段组',
     },
     {
-      title: 'AI辅助生成入口',
-      detail: 'AI 只能生成候选内容；标题、描述、图片、视频脚本必须人工确认后进入下游定价和刊登。',
+      title: 'AI辅助',
       status: hashtagsCount ? `${hashtagsCount} 个标签` : '候选生成',
     },
   ]
 
   return (
-    <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4" data-ui="content-listing-capability-map">
+    <div className="listing-readiness-compact-strip" data-ui="listing-readiness-compact-strip">
       {capabilities.map(item => (
-        <div key={item.title} className="listing-editor-summary-card rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-semibold text-[var(--color-fg)]">{item.title}</p>
-            <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{item.status}</span>
-          </div>
-          <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">{item.detail}</p>
-        </div>
+        <span key={item.title} className="listing-readiness-compact-chip">
+          <strong>{item.title}</strong>
+          <em>{item.status}</em>
+        </span>
       ))}
     </div>
   )

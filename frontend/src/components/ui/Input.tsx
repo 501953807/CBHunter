@@ -8,27 +8,27 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ className, label, error, id, ...props }: InputProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-[var(--color-fg)]">
+        <label htmlFor={id} className="block text-[13px] font-medium text-[var(--color-fg)]">
           {label}
         </label>
       )}
       <input
         id={id}
         className={cn(
-          'luxury-input block w-full rounded-[var(--radius-lg)] border px-3 py-2 text-sm shadow-sm transition-colors',
+          'materio-input luxury-input block w-full rounded-[var(--radius-md)] border px-3.5 py-2.5 text-[15px] shadow-none transition-colors',
           'bg-[var(--color-surface)]',
           'border-[var(--color-border)] text-[var(--color-fg)]',
           'placeholder:text-[var(--color-muted)]',
-          'focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]',
+          'focus:border-[var(--color-primary)] focus:outline-none',
           'disabled:bg-[var(--color-border)]/50 disabled:text-[var(--color-muted)]',
-          error && 'border-[var(--color-danger)] focus:border-[var(--color-danger)] focus:ring-[var(--color-danger)]',
+          error && 'border-[var(--color-danger)] focus:border-[var(--color-danger)]',
           className
         )}
         {...props}
       />
-      {error && <p className="text-xs text-[var(--color-danger)]">{error}</p>}
+      {error && <p className="text-[13px] text-[var(--color-danger)]">{error}</p>}
     </div>
   )
 }

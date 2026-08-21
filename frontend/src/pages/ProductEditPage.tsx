@@ -157,9 +157,12 @@ export default function ProductEditPage() {
 
   if (!isNew && isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Card><CardContent><div className="space-y-4">
+      <div className="materio-ecommerce-editor product-edit-loading-state page-enter space-y-6">
+        <div className="product-edit-loading-hero">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Card><CardContent><div className="product-edit-loading-stack">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
         </div></CardContent></Card>
       </div>
@@ -167,8 +170,8 @@ export default function ProductEditPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="materio-ecommerce-editor space-y-6">
+      <div className="materio-editor-toolbar flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button aria-label="返回商品列表" title="返回商品列表" onClick={() => navigate('/products')} className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
             <ArrowLeft className="w-5 h-5" />
@@ -206,7 +209,7 @@ export default function ProductEditPage() {
 
       <ProductEditSectionNav activeSection={activeSection} onFocus={focusSection} />
 
-      <div className="space-y-4">
+      <div className="materio-editor-section-stack space-y-4">
         <ProductEditSection id="basic" title="基本信息" summary="维护基础商品版本的 SKU、名称、成本、重量和内部备注。">
           <div className="max-w-2xl space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -350,9 +353,9 @@ function ProductEditObjectOverview({
     { label: '店铺 Listing', ready: listingCount > 0, target: 'listings' },
   ]
   return (
-    <section aria-label="商品编辑对象总览" data-ui="product-edit-object-overview" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
-      <div className="grid gap-4 xl:grid-cols-[120px_minmax(0,1fr)_320px]">
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+    <section aria-label="商品编辑对象总览" data-ui="product-edit-object-overview" className="materio-product-overview rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+      <div className="grid gap-4 xl:grid-cols-[140px_minmax(0,1fr)_320px]">
+        <div className="materio-product-overview-image overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
           {mainImage ? (
             <img src={productImageSrc(mainImage)} alt={name || '商品主图'} className="h-28 w-full object-cover" />
           ) : (
@@ -418,7 +421,7 @@ function ProductEditObjectOverview({
 
 function ProductOverviewMetric({ label, value, warning }: { label: string; value: string; warning?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+    <div className="materio-product-metric rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
       <p className="text-[11px] text-[var(--color-muted)]">{label}</p>
       <p className={warning ? 'mt-1 truncate text-sm font-semibold text-[var(--color-warning)]' : 'mt-1 truncate text-sm font-semibold text-[var(--color-fg)]'}>{value}</p>
     </div>
@@ -427,14 +430,14 @@ function ProductOverviewMetric({ label, value, warning }: { label: string; value
 
 function ProductEditSectionNav({ activeSection, onFocus }: { activeSection: string; onFocus: (sectionId: string) => void }) {
   return (
-    <nav aria-label="商品编辑字段快速定位" className="sticky top-16 z-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-sm)]">
+    <nav aria-label="商品编辑字段快速定位" className="materio-editor-anchor-nav sticky top-16 z-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-sm)]">
       <div className="flex flex-wrap gap-2">
         {FORM_SECTIONS.map(section => (
           <button
             key={section.id}
             type="button"
             onClick={() => onFocus(section.id)}
-            className={`rounded-lg border px-3 py-2 text-xs transition ${activeSection === section.id ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}`}
+              className={`materio-editor-anchor rounded-lg border px-3 py-2 text-xs transition ${activeSection === section.id ? 'is-active border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]'}`}
           >
             {section.label}
           </button>
@@ -447,7 +450,7 @@ function ProductEditSectionNav({ activeSection, onFocus }: { activeSection: stri
 function ProductEditSection({ id, title, summary, children }: { id: string; title: string; summary: string; children: React.ReactNode }) {
   return (
     <section id={`product-section-${id}`} aria-label={title} className="scroll-mt-32">
-      <Card>
+      <Card className="materio-editor-section-card">
         <CardContent className="pt-6">
           <div className="mb-5">
             <h2 className="text-lg font-semibold text-[var(--color-fg)]">{title}</h2>

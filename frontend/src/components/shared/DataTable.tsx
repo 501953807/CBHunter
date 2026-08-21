@@ -87,9 +87,9 @@ export function DataTable<T>({
 
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-[var(--radius-lg)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="luxury-skeleton h-11 animate-pulse rounded-2xl" />
+          <div key={i} className="luxury-skeleton h-11 animate-pulse rounded-[var(--radius-lg)]" />
         ))}
       </div>
     )
@@ -98,7 +98,7 @@ export function DataTable<T>({
   if (data.length === 0) {
     return (
       <div className="luxury-empty-state flex flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] py-12 text-center shadow-[var(--shadow-sm)]">
-        <div className="mb-3 rounded-2xl bg-[var(--color-primary-light)] p-3 text-[var(--color-primary)]">
+          <div className="mb-3 rounded-[var(--radius-lg)] bg-[var(--color-primary-light)] p-3 text-[var(--color-primary)]">
           <Inbox className="h-8 w-8" />
         </div>
         <p className="text-sm text-[var(--color-muted)] mb-3">{emptyMessage}</p>
@@ -109,8 +109,8 @@ export function DataTable<T>({
 
   return (
     <div>
-      <div className="luxury-table-shell overflow-x-auto rounded-[var(--radius-xl)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-        <table className="professional-table min-w-full divide-y divide-[var(--color-border)]">
+      <div className="materio-table-shell luxury-table-shell overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-hairline)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
+        <table className="materio-table professional-table min-w-full divide-y divide-[var(--color-border)]">
           <thead>
             <tr>
               {onSelectionChange && (
@@ -127,7 +127,7 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   className={cn(
-                    'px-4 py-3 text-left text-xs font-medium text-[var(--color-muted)] uppercase tracking-wider',
+                    'px-[18px] py-3.5 text-left text-[13px] font-semibold text-[var(--color-muted)] uppercase tracking-[0.04em]',
                     col.sortable && 'cursor-pointer select-none hover:text-[var(--color-fg)]',
                     col.className
                   )}
@@ -180,7 +180,7 @@ export function DataTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={cn('px-4 py-3 text-sm text-[var(--color-fg)]', col.className)}
+                      className={cn('px-[18px] py-3.5 text-sm text-[var(--color-fg)]', col.className)}
                     >
                       {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '')}
                     </td>
@@ -193,7 +193,7 @@ export function DataTable<T>({
       </div>
 
       {pagination && pagination.total_pages > 1 && (
-        <div className="luxury-pagination mt-4 flex items-center justify-between rounded-full px-3 py-2">
+        <div className="luxury-pagination mt-4 flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2">
           <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
             <span>
               {pagination.page_size * (pagination.page - 1) + 1}-
@@ -204,7 +204,7 @@ export function DataTable<T>({
               <select
                 value={pagination.page_size}
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                className="ml-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-fg)] shadow-[var(--shadow-sm)]"
+                className="ml-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-sm text-[var(--color-fg)] shadow-none"
               >
                 {[20, 50, 100].map((s) => (
                   <option key={s} value={s}>{s}/page</option>
@@ -217,7 +217,7 @@ export function DataTable<T>({
               aria-label="上一页"
               disabled={pagination.page <= 1}
               onClick={() => onPageChange?.(pagination.page - 1)}
-              className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-[var(--radius-md)] p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -229,7 +229,7 @@ export function DataTable<T>({
                   key={pageNum}
                   onClick={() => onPageChange?.(pageNum)}
                   className={cn(
-                    'h-8 w-8 rounded-full text-sm font-semibold transition-colors',
+                    'h-8 w-8 rounded-[var(--radius-md)] text-sm font-semibold transition-colors',
                     pageNum === pagination.page
                       ? 'bg-[var(--color-primary)] text-[var(--color-primary-text)]'
                       : 'text-[var(--color-muted)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]'
@@ -243,7 +243,7 @@ export function DataTable<T>({
               aria-label="下一页"
               disabled={pagination.page >= pagination.total_pages}
               onClick={() => onPageChange?.(pagination.page + 1)}
-              className="rounded-full p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
+              className="rounded-[var(--radius-md)] p-1.5 text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

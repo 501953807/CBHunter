@@ -1,70 +1,11 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { Plus, SlidersHorizontal, Upload } from 'lucide-react'
-import { Badge } from '../../components/ui/Badge'
-import { Button } from '../../components/ui/Button'
 import type { ContentAsset, ContentWorkbenchItem } from '../../api/content'
-import { productImageSrc } from '../../utils/productImages'
-import { SellerImageCropControls } from './SellerImageCropControls'
-import { SellerImageEnhancementControls } from './SellerImageEnhancementControls'
-import { SellerImageExportTaskSummary } from './SellerImageExportTaskSummary'
-import { SellerImageOutputControls } from './SellerImageOutputControls'
-import { SellerImageWatermarkControls } from './SellerImageWatermarkControls'
-import { assetImageUrl, buildCropPreviewStyle, buildWatermarkPreviewStyle, clampImageSlotIndex, listingImageRoleByIndex } from './SellerImageEditorUtils'
+import { assetImageUrl, clampImageSlotIndex, listingImageRoleByIndex } from './SellerImageEditorUtils'
+import { SellerImageCanvasPanel, SellerImageSlotRail } from './SellerImageEditorWorkbenchCanvasParts'
+import { SellerImageToolRail, SellerImageWorkbenchHeader } from './SellerImageEditorWorkbenchParts'
+import type { ImageEditOptions, ImageWatermarkTemplateOption, MediaSlotPlan } from './SellerImageEditorTypes'
 export { listingImageRoleByIndex } from './SellerImageEditorUtils'
-
-const inputClass = 'text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 bg-[var(--color-surface)] text-[var(--color-fg)]'
-
-export type ImageEditOptions = {
-  width: number
-  height: number
-  fit: string
-  background: string
-  brightness: number
-  contrast: number
-  sharpness: number
-  auto_contrast: boolean
-  unsharp_mask: boolean
-  crop_mode: string
-  crop_x: number
-  crop_y: number
-  crop_width: number
-  crop_height: number
-  rotate_degrees: number
-  flip_horizontal: boolean
-  flip_vertical: boolean
-  watermark_text: string
-  watermark_position: string
-  watermark_opacity: number
-  watermark_color: string
-  output_format: string
-  quality: number
-}
-
-export type MediaSlotPlan = {
-  index: number
-  role: string
-  label: string
-  imageUrl: string
-  assetName: string
-  sizeText: string
-  publishable?: boolean
-  editOptions?: ImageEditOptions
-  exportStatus?: string
-  exportError?: string
-  generatedAssetUrl?: string
-  exportedAt?: string
-}
-
-export type ImageWatermarkTemplateOption = {
-  id: string
-  name: string
-  platform: string
-  scope: string
-  text: string
-  position: string
-  opacity: number
-  color: string
-}
+export type { ImageEditOptions, ImageWatermarkTemplateOption, MediaSlotPlan } from './SellerImageEditorTypes'
 
 export function SellerImageEditorWorkbench({
   product,
@@ -379,7 +320,6 @@ export function SellerImageEditorWorkbench({
     }
   }
 
-  const filterStyle = { filter: `brightness(${imageOptions.brightness}) contrast(${imageOptions.contrast})` }
   const publishableSlotCount = imageSlots.filter(slot => slot.imageUrl && isSlotPublishable(slot)).length
   const exportedSlotCount = imageSlots.filter(slot => slot.exportStatus === 'exported_to_content_asset').length
   const exportFailedSlotCount = imageSlots.filter(slot => slot.exportStatus === 'export_failed').length
@@ -388,402 +328,66 @@ export function SellerImageEditorWorkbench({
     : publishableSlotCount === 0
       ? '发布范围内没有可用图片，至少需要1张真实商品图'
       : ''
-  const toolGroups = [
-    { title: '调整', tools: ['消除笔', '裁剪旋转', '修改尺寸', '图片翻译', 'AI设计'] },
-    { title: '更多工具', tools: ['智能抠图', '图片变清晰', '拼图', '切图', '商品堆品', '图片校正'] },
-    { title: '标记工具', tools: ['涂鸦', '形状线条', '商品标尺', '放大镜'] },
-  ]
-  const editableToolHints: Record<string, string> = {
-    消除笔: '记录局部擦除任务；当前不伪造擦除结果。',
-    裁剪旋转: '切换完整留白/居中裁切，保存后由后端重新生成平台尺寸图。',
-    修改尺寸: '设置为平台常用 800×800 方图。',
-    图片翻译: '记录翻译处理任务，避免伪造翻译结果。',
-    AI设计: '记录 AI 设计任务，后续接入可用图像组件。',
-    智能抠图: '输出 PNG 白底图，用于主图白底规范。',
-    图片变清晰: '提升锐化、对比度和自动对比度。',
-    拼图: '生成 1080×1080 留白图，适合多图拼版前置。',
-    切图: '设置居中裁切方图，用于平台缩略图。',
-    商品堆品: '记录堆品处理任务，避免生成假商品组合图。',
-    图片校正: '轻微提升亮度和对比度。',
-    涂鸦: '记录标注画笔任务。',
-    形状线条: '记录标注图形任务。',
-    商品标尺: '记录尺寸标注任务。',
-    放大镜: '记录细节放大任务。',
-  }
-  const imagePreviewStyle = {
-    ...filterStyle,
-    transform: `rotate(${imageOptions.rotate_degrees}deg) scaleX(${imageOptions.flip_horizontal ? -1 : 1}) scaleY(${imageOptions.flip_vertical ? -1 : 1})`,
-    transition: 'filter 160ms ease, transform 160ms ease',
-  }
-  const platformSizePresets = [
-    { label: 'Shopee/TEMU 方图', width: 800, height: 800, fit: 'cover' },
-    { label: 'TikTok 主图', width: 600, height: 600, fit: 'cover' },
-    { label: '营销海报', width: 1080, height: 1080, fit: 'contain' },
-  ]
-
   return (
     <section aria-label="Listing 图片编辑工作台" data-ui="listing-image-editor-workbench" className="image-workbench-shell overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]">
-      <div className="image-workbench-header flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-primary-light)] px-4 py-2 text-xs">
-        <span className="font-semibold text-[var(--color-primary)]">商品图片工作台：拖拽排序、空位补图、当前槽位替换</span>
-        <span
-          className="rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 font-semibold text-[var(--color-primary)]"
-          data-ui="listing-image-active-slot-context"
-          aria-label="Listing 图片编辑当前槽位"
-        >
-          当前槽位：{activeSlot.label} {activeSlot.index}/{imageSlots.length || 1}
-        </span>
-        <div className="flex items-center gap-2">
-          <Badge variant={slotPlanDirty ? 'warning' : 'success'}>{slotPlanDirty ? '槽位待保存' : '槽位已同步'}</Badge>
-          {initialSavedSlotPlan?.length ? (
-            <Badge variant="info" data-ui="restored-image-slot-plan-state">已回显保存计划</Badge>
-          ) : null}
-          <Badge variant={activeSlot.editOptions ? 'info' : 'warning'} data-ui="image-slot-edit-options-state">{activeSlot.editOptions ? '槽位参数已绑定' : '使用当前参数'}</Badge>
-          <Badge variant={exportFailedSlotCount ? 'warning' : exportedSlotCount ? 'success' : 'info'} data-ui="image-export-status-summary">
-            导出 {exportedSlotCount}/{imageSlots.filter(slot => slot.imageUrl).length}
-          </Badge>
-          <Badge variant="success">真实素材绑定</Badge>
-        </div>
-      </div>
+      <SellerImageWorkbenchHeader
+        activeSlot={activeSlot}
+        slotCount={imageSlots.length}
+        slotPlanDirty={slotPlanDirty}
+        restoredSlotPlan={Boolean(initialSavedSlotPlan?.length)}
+        exportedSlotCount={exportedSlotCount}
+        exportFailedSlotCount={exportFailedSlotCount}
+        imageSlotWithImageCount={imageSlots.filter(slot => slot.imageUrl).length}
+      />
       <div className="grid min-h-[560px] grid-cols-1 2xl:grid-cols-[220px_minmax(640px,1fr)_180px]">
-        <aside aria-label="左侧图片工具栏" className="image-workbench-tool-rail border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-b-0 2xl:border-r">
-          <div className="space-y-4">
-            {toolGroups.map(group => (
-              <div key={group.title}>
-                <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">{group.title}</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-2">
-                  {group.tools.map(tool => (
-                    <button
-                      key={tool}
-                      type="button"
-                      onClick={() => applyToolPreset(tool)}
-                      className={tool === activeTool
-                        ? 'image-workbench-tool-button rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-2 py-3 text-xs font-semibold text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
-                        : 'image-workbench-tool-button rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-3 text-xs text-[var(--color-fg)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'}
-                    >
-                      <SlidersHorizontal className="mx-auto mb-1 h-4 w-4 text-[var(--color-muted)]" />
-                      {tool}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <SellerImageToolRail activeTool={activeTool} onApplyToolPreset={applyToolPreset} />
 
-        <div aria-label="图片编辑画布" className="image-workbench-canvas relative grid place-items-center bg-[var(--color-bg)] p-8">
-          {activeSlot.imageUrl ? (
-            <div className="relative w-full max-w-[720px] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-md)]">
-              <img src={productImageSrc(activeSlot.imageUrl)} alt={`${product?.product_name || '商品'}${activeSlot.label}`} className={imageOptions.fit === 'cover' ? 'aspect-square w-full object-cover' : 'aspect-square w-full object-contain'} style={imagePreviewStyle} data-ui="image-canvas-transform-preview" />
-              {imageOptions.crop_mode === 'manual' && (
-                <div
-                  aria-label="图片裁切预览框"
-                  data-ui="image-crop-preview-frame"
-                  className="pointer-events-none absolute rounded-xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)]/10"
-                  style={buildCropPreviewStyle(imageOptions)}
-                >
-                  <span className="absolute left-2 top-2 rounded-full bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] shadow-[var(--shadow-sm)]">
-                    裁切预览 {imageOptions.crop_width || imageOptions.width}×{imageOptions.crop_height || imageOptions.height}
-                  </span>
-                </div>
-              )}
-              {imageOptions.watermark_text ? (
-                <div className="pointer-events-none absolute rounded-xl px-3 py-1.5 text-sm font-semibold shadow-[var(--shadow-sm)]" style={buildWatermarkPreviewStyle(imageOptions)} data-ui="image-watermark-live-preview" aria-label="图片水印实时预览">
-                  {imageOptions.watermark_text}
-                </div>
-              ) : null}
-              <div className="absolute left-4 top-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs font-semibold text-[var(--color-fg)] shadow-[var(--shadow-sm)]">
-                {product?.product_name || '当前商品'}
-              </div>
-              <div className="absolute bottom-4 left-4 rounded-xl bg-[var(--color-surface)]/95 px-3 py-2 text-xs text-[var(--color-muted)] shadow-[var(--shadow-sm)]">
-                {activeTool} · {imageOptions.width}×{imageOptions.height} · {imageOptions.fit === 'cover' ? '裁切' : '留白'} · {imageOptions.output_format.toUpperCase()}
-              </div>
-            </div>
-          ) : (
-            <label className="grid h-[420px] w-full max-w-[720px] cursor-pointer place-items-center rounded-2xl border border-dashed border-[var(--color-primary)] bg-[var(--color-surface)] text-center text-sm text-[var(--color-muted)] transition hover:bg-[var(--color-primary-light)]">
-              <input
-                className="sr-only"
-                data-ui="image-slot-file-input"
-                type="file"
-                accept="image/*"
-                disabled={!product || loading || slotUploading}
-                onChange={event => {
-                  const file = event.target.files?.[0]
-                  if (file) void uploadSlotImage(file)
-                  event.currentTarget.value = ''
-                }}
-              />
-              <span>
-                <Upload className="mx-auto mb-3 h-10 w-10 text-[var(--color-primary)]" />
-                <span className="block font-semibold text-[var(--color-fg)]">上传图片到当前槽位</span>
-                <span className="mt-1 block text-xs">当前为 {activeSlot.label}，仅接受真实商品图，不使用假图占位。</span>
-              </span>
-            </label>
-          )}
-          <div className="image-workbench-control-panel absolute left-4 top-4 max-w-[360px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 p-3 text-xs shadow-[var(--shadow-sm)] backdrop-blur">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">{activeSlot.label}</Badge>
-              <span className="text-[var(--color-muted)]">当前工具：{activeTool}</span>
-            </div>
-            <p className="mt-2 leading-5 text-[var(--color-muted)]">{editableToolHints[activeTool]}</p>
-            <p
-              className={slotPlanDirty
-                ? 'mt-2 rounded-lg border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-2 py-1.5 text-[11px] font-semibold text-[var(--color-warning)]'
-                : 'mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1.5 text-[11px] text-[var(--color-muted)]'}
-              data-ui="image-slot-plan-dirty-state"
-            >
-              {slotPlanDirty ? '当前图片槽位有未保存变更，保存后才写入 Listing 图片计划。' : '当前槽位计划已同步到最近保存状态。'}
-            </p>
-            <SellerImageExportTaskSummary imageSlots={imageSlots} imageOptions={imageOptions} publishImageLimit={publishImageLimit} saveBlockedReason={saveBlockedReason} />
-            <SellerImageCropControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
-            <SellerImageEnhancementControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
-            <SellerImageOutputControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} />
-            <SellerImageWatermarkControls imageOptions={imageOptions} setImageOptions={setImageOptions} inputClass={inputClass} onClearWatermark={onClearWatermark} />
-            <div aria-label="平台图片尺寸预设" data-ui="image-platform-size-presets" className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
-              <p className="mb-2 text-[11px] font-semibold text-[var(--color-fg)]">平台尺寸预设</p>
-              <div className="grid gap-1.5">
-                {platformSizePresets.map(preset => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => setImageOptions(prev => ({ ...prev, width: preset.width, height: preset.height, fit: preset.fit, crop_width: preset.width, crop_height: preset.height }))}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-left text-[11px] text-[var(--color-muted)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-                  >
-                    <span className="font-semibold text-[var(--color-fg)]">{preset.label}</span> · {preset.width}×{preset.height} · {preset.fit === 'cover' ? '裁切' : '留白'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div
-              aria-label="水印模板快速应用"
-              data-ui="listing-image-watermark-template-picker"
-              className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-2"
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="font-semibold text-[var(--color-fg)]">水印模板</p>
-                <span className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-[11px] text-[var(--color-muted)]">模板快速套用</span>
-              </div>
-              {watermarkTemplates.length > 0 ? (
-                <div className="grid gap-1">
-                  {watermarkTemplates.slice(0, 4).map(template => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => onApplyWatermarkTemplate?.(template)}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
-                    >
-                      <span className="block truncate font-semibold text-[var(--color-primary)]">应用水印模板：{template.name}</span>
-                      <span className="block truncate text-[10px] text-[var(--color-muted)]">{template.platform} · {template.scope} · {template.position}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] leading-5 text-[var(--color-muted)]">暂无水印模板；请先在图片/水印模板维护真实模板。</p>
-              )}
-            </div>
-            <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] px-3 py-2 font-semibold text-[var(--color-primary)]">
-              <Upload className="h-4 w-4" />
-              {slotUploading ? '上传处理中...' : '上传/替换当前槽位'}
-              <input
-                className="sr-only"
-                data-ui="image-slot-file-input"
-                type="file"
-                accept="image/*"
-                disabled={!product || loading || slotUploading}
-                onChange={event => {
-                  const file = event.target.files?.[0]
-                  if (file) void uploadSlotImage(file)
-                  event.currentTarget.value = ''
-                }}
-              />
-            </label>
-            <div aria-label="当前图片槽位删除动作" className="mt-2 grid grid-cols-2 gap-2" data-ui="image-slot-clear-remove-actions">
-              <button
-                type="button"
-                onClick={clearActiveSlot}
-                disabled={!activeSlot.imageUrl || loading || slotUploading}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-warning)] transition hover:border-[var(--color-warning)] disabled:cursor-not-allowed disabled:opacity-40"
-                data-ui="clear-active-image-slot"
-              >
-                清空当前槽位
-              </button>
-              <button
-                type="button"
-                onClick={removeActiveSlot}
-                disabled={imageSlots.length <= 1 || loading || slotUploading}
-                className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-danger)] transition hover:border-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-40"
-                data-ui="remove-active-image-slot"
-              >
-                删除当前槽位
-              </button>
-            </div>
-          </div>
-          <div className="absolute bottom-4 right-4 flex flex-wrap gap-2">
-            <Button variant="outline" disabled={!product}>取消</Button>
-            <Button
-              onClick={processSourceImageIntoActiveSlot}
-              disabled={!sourceImage || loading || slotUploading}
-              data-ui="process-source-image-into-active-slot"
-            >
-              {loading || slotUploading ? '处理中...' : '处理源图并替换当前槽位'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => { void saveCurrentSlotPlan() }}
-              disabled={!product || loading || slotUploading || Boolean(saveBlockedReason)}
-              data-ui="save-dirty-image-slot-plan"
-              title={saveBlockedReason || '保存当前图片槽位顺序和发布范围'}
-            >
-              {slotPlanDirty ? '保存槽位变更' : '保存槽位顺序'}
-            </Button>
-          </div>
-        </div>
+        <SellerImageCanvasPanel
+          product={product}
+          activeSlot={activeSlot}
+          imageSlots={imageSlots}
+          imageOptions={imageOptions}
+          setImageOptions={setImageOptions}
+          activeTool={activeTool}
+          slotPlanDirty={slotPlanDirty}
+          slotUploading={slotUploading}
+          loading={loading}
+          sourceImage={sourceImage}
+          publishImageLimit={publishImageLimit}
+          saveBlockedReason={saveBlockedReason}
+          watermarkTemplates={watermarkTemplates}
+          onUploadSlotImage={file => { void uploadSlotImage(file) }}
+          onUseSourceImage={() => { void processSourceImageIntoActiveSlot() }}
+          onSaveImageSlotPlan={() => { void saveCurrentSlotPlan() }}
+          onClearActiveSlot={clearActiveSlot}
+          onRemoveActiveSlot={removeActiveSlot}
+          onClearWatermark={onClearWatermark}
+          onApplyWatermarkTemplate={onApplyWatermarkTemplate}
+        />
 
-        <aside aria-label="右侧图片槽位缩略图" className="image-workbench-slot-rail border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3 2xl:border-l 2xl:border-t-0">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs font-semibold text-[var(--color-fg)]">图片槽位</p>
-              <p className="text-[10px] text-[var(--color-muted)]">拖拽缩略图调整主图/辅图顺序；前{publishImageLimit}张进入发布范围</p>
-            </div>
-            <div className="text-right">
-              <span className="block text-xs text-[var(--color-primary)]">{activeSlot.index}/{imageSlots.length}</span>
-              <button
-                type="button"
-                onClick={fillEmptySlotsFromAssets}
-                disabled={!product || loading || slotUploading || productImageAssets.length === 0 || !imageSlots.some(slot => !slot.imageUrl)}
-                className="mt-1 rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
-                data-ui="fill-empty-image-slots-from-assets"
-                aria-label="用当前商品真实素材填充空图片槽位"
-                title="只使用绑定当前商品的真实素材填充空图片槽位"
-              >
-                一键填充空槽位
-              </button>
-            </div>
-          </div>
-          <div className="grid max-h-[500px] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-6 2xl:block 2xl:space-y-3">
-            {imageSlots.map(slot => (
-              <div
-                key={slot.index}
-                draggable
-                onDragStart={() => setDraggingSlotIndex(slot.index)}
-                onDragOver={event => event.preventDefault()}
-                onDrop={event => {
-                  event.preventDefault()
-                  const droppedAssetId = event.dataTransfer.getData('application/cbhunter-image-asset-id')
-                  if (droppedAssetId) {
-                    const droppedAsset = productImageAssets.find(asset => asset.id === droppedAssetId)
-                    if (droppedAsset) replaceSlotWithAsset(slot.index, droppedAsset)
-                    setDraggingSlotIndex(null)
-                    return
-                  }
-                  if (draggingSlotIndex !== null) reorderSlot(draggingSlotIndex, slot.index)
-                  setDraggingSlotIndex(null)
-                }}
-                onDragEnd={() => setDraggingSlotIndex(null)}
-                className={slot.index === activeSlot.index
-                  ? 'image-workbench-slot-card rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-1 text-left shadow-[var(--shadow-sm)]'
-                  : draggingSlotIndex === slot.index
-                    ? 'image-workbench-slot-card rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-1 text-left opacity-70'
-                    : 'image-workbench-slot-card rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-left transition hover:border-[var(--color-primary)]'}
-              >
-                <button type="button" onClick={() => setActiveSlotIndex(slot.index)} className="block w-full text-left">
-                  {slot.imageUrl ? (
-                    <img src={productImageSrc(slot.imageUrl)} alt={slot.label} className="aspect-square w-full rounded-lg object-cover" />
-                  ) : (
-                    <div className="grid aspect-square place-items-center rounded-lg bg-[var(--color-bg)] text-[10px] text-[var(--color-muted)]">待补图</div>
-                  )}
-                </button>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--color-muted)]">
-                  <span>{slot.sizeText}</span>
-                  <span>{slot.index}/{imageSlots.length}</span>
-                </div>
-                <p
-                  className={slot.index === 1 ? 'mt-1 rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-primary)]' : isSlotPublishable(slot) ? 'mt-1 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-success)]' : 'mt-1 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-center text-[10px] text-[var(--color-muted)]'}
-                  data-ui="image-workbench-slot-publish-state"
-                >
-                  {slot.index === 1 ? '平台主图' : isSlotPublishable(slot) ? `发布前${publishImageLimit}张` : '素材池保留'}
-                </p>
-                <p
-                  className={slot.exportStatus === 'exported_to_content_asset'
-                    ? 'mt-1 rounded-full bg-[var(--color-success-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-success)]'
-                    : slot.exportStatus === 'export_failed'
-                      ? 'mt-1 rounded-full bg-[var(--color-warning-light)] px-2 py-0.5 text-center text-[10px] font-semibold text-[var(--color-warning)]'
-                      : 'mt-1 rounded-full border border-[var(--color-border)] px-2 py-0.5 text-center text-[10px] text-[var(--color-muted)]'}
-                  data-ui="image-slot-export-status"
-                  title={slot.exportError || slot.generatedAssetUrl || '保存图片计划后执行导出任务'}
-                >
-                  {slot.exportStatus === 'exported_to_content_asset' ? '已导出素材' : slot.exportStatus === 'export_failed' ? '导出失败' : '待执行导出'}
-                </p>
-                <div className="mt-1 grid grid-cols-1 gap-1 text-[10px]">
-                  <button type="button" onClick={() => setAsMainImage(slot.index)} disabled={slot.index === 1 || !slot.imageUrl} className="rounded border border-[var(--color-border)] px-1 py-0.5 text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40">设为主图</button>
-                </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addImageSlot}
-              className="grid min-h-28 place-items-center rounded-xl border border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] p-2 text-center text-xs font-medium text-[var(--color-primary)] transition hover:bg-[var(--color-surface)]"
-              aria-label="新增图片空位"
-              data-ui="listing-image-empty-slot"
-            >
-              <span>
-                <Plus className="mx-auto mb-1 h-4 w-4" />
-                新增图片空位
-              </span>
-            </button>
-          </div>
-          {productImageAssets.length > 0 && (
-            <div className="mt-4 border-t border-[var(--color-border)] pt-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold text-[var(--color-fg)]">当前商品真实素材库</p>
-                  <p className="text-[10px] text-[var(--color-muted)]">点选多张后可批量追加为图片槽位</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={appendSelectedAssetsAsSlots}
-                  disabled={!selectedAssetIds.length || loading || slotUploading}
-                  className="rounded-full border border-[var(--color-primary)] bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] disabled:cursor-not-allowed disabled:opacity-40"
-                  data-ui="append-selected-assets-as-image-slots"
-                  aria-label="将选中真实素材批量追加为图片槽位"
-                >
-                  批量追加槽位 {selectedAssetIds.length || ''}
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2 2xl:grid-cols-2">
-                {productImageAssets.slice(0, 8).map(asset => (
-                  <div
-                    key={asset.id}
-                    draggable
-                    onDragStart={event => event.dataTransfer.setData('application/cbhunter-image-asset-id', asset.id)}
-                    className={selectedAssetIds.includes(asset.id)
-                      ? 'image-workbench-asset-card overflow-hidden rounded-lg border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                      : 'image-workbench-asset-card overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] transition hover:border-[var(--color-primary)]'}
-                    data-ui="selectable-product-image-asset"
-                  >
-                    <span className="sr-only" data-ui="draggable-product-image-asset">可拖拽素材</span>
-                    <button
-                      type="button"
-                      data-ui="replace-active-slot-with-asset"
-                      onClick={() => replaceActiveSlotWithAsset(asset)}
-                      className="block w-full"
-                      title="放入当前槽位"
-                    >
-                      <img src={productImageSrc(assetImageUrl(asset))} alt={asset.original_name || asset.id} className="aspect-square w-full object-cover" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleAssetSelection(asset.id)}
-                      className="block w-full border-t border-[var(--color-border)] px-1 py-1 text-[10px] font-semibold text-[var(--color-primary)]"
-                      aria-label="选择真实素材用于批量追加槽位"
-                    >
-                      {selectedAssetIds.includes(asset.id) ? '已选' : '选择'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </aside>
+        <SellerImageSlotRail
+          product={product}
+          productImageAssets={productImageAssets}
+          imageSlots={imageSlots}
+          activeSlot={activeSlot}
+          activeSlotIndex={activeSlot.index}
+          draggingSlotIndex={draggingSlotIndex}
+          selectedAssetIds={selectedAssetIds}
+          publishImageLimit={publishImageLimit}
+          loading={loading}
+          slotUploading={slotUploading}
+          onSetActiveSlotIndex={setActiveSlotIndex}
+          onSetDraggingSlotIndex={setDraggingSlotIndex}
+          onReorderSlot={reorderSlot}
+          onReplaceSlotWithAsset={replaceSlotWithAsset}
+          onReplaceActiveSlotWithAsset={replaceActiveSlotWithAsset}
+          onSetAsMainImage={setAsMainImage}
+          onFillEmptySlotsFromAssets={fillEmptySlotsFromAssets}
+          onAddImageSlot={addImageSlot}
+          onAppendSelectedAssetsAsSlots={appendSelectedAssetsAsSlots}
+          onToggleAssetSelection={toggleAssetSelection}
+          isSlotPublishable={isSlotPublishable}
+        />
       </div>
     </section>
   )

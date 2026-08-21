@@ -36,9 +36,9 @@ export default function CrossValidationPage() {
       const res = await crossValidate1688({ market, limit: 30 })
       setResults(res.data?.results || [])
       setEvidence(res)
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Cross validate 1688 failed', e)
-      setError(e?.response?.data?.detail || '分析失败')
+      setError(responseErrorMessage(e, '分析失败'))
     }
     setLoading(false)
   }
@@ -51,14 +51,24 @@ export default function CrossValidationPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-fg)' }}>1688 × Shopee 交叉验证</h1>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-muted)' }}>
-        从 1688 热搜词出发，实时对比 Shopee 竞争态势。1688 高热度 + Shopee 低竞争 = 选品强信号
-      </p>
+    <div className="smart-scout-tool-page cross-validation-workbench page-enter space-y-6">
+      <section className="smart-tool-hero">
+        <div>
+          <span className="smart-tool-eyebrow">Supply × market proof</span>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-fg)' }}>1688 × Shopee 交叉验证</h1>
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+            从 1688 热搜词出发，实时对比 Shopee 竞争态势。1688 高热度 + Shopee 低竞争 = 选品强信号
+          </p>
+        </div>
+        <div className="smart-tool-hero-metrics" aria-label="交叉验证步骤">
+          <span>1688 热词</span>
+          <span>Shopee 竞争</span>
+          <span>机会排序</span>
+        </div>
+      </section>
 
-      <div className="rounded-xl border p-4 mb-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="smart-tool-input-panel rounded-xl border p-4 mb-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="smart-tool-input-toolbar flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
             <select
@@ -83,7 +93,7 @@ export default function CrossValidationPage() {
             {loading ? '交叉验证中 (约 1-2 分钟)...' : '开始交叉验证'}
           </button>
         </div>
-        <p className="text-xs mt-3" style={{ color: 'var(--color-muted)' }}>
+        <p className="smart-tool-footnote text-xs mt-3" style={{ color: 'var(--color-muted)' }}>
           将从 1688 发现热点词 → 逐一在 Shopee 搜索 → 计算竞争分 → 输出机会排名。预计耗时 1-2 分钟。
         </p>
       </div>
@@ -96,8 +106,8 @@ export default function CrossValidationPage() {
       <EvidenceBanner evidence={evidence} compact />
 
       {results.length > 0 && (
-        <div className="space-y-3">
-          <div className="text-xs mb-2" style={{ color: 'var(--color-muted)' }}>
+        <section className="smart-tool-results cross-validation-results space-y-3" aria-label="交叉验证结果">
+          <div className="smart-tool-results-title text-xs mb-2" style={{ color: 'var(--color-muted)' }}>
             发现 {results.length} 个候选词，按交叉验证得分排列
           </div>
           {results.map((r, i) => {
@@ -105,7 +115,7 @@ export default function CrossValidationPage() {
             return (
               <div
                 key={i}
-                className="rounded-xl border p-4 hover:shadow-md transition-all"
+                className="smart-tool-result-card rounded-xl border p-4 hover:shadow-md transition-all"
                 style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
               >
                 <div className="flex items-start justify-between mb-2">
@@ -141,15 +151,23 @@ export default function CrossValidationPage() {
               </div>
             )
           })}
-        </div>
+        </section>
       )}
     </div>
   )
 }
 
+function responseErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: string } } }).response
+    return response?.data?.detail || fallback
+  }
+  return fallback
+}
+
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="text-center px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="smart-tool-metric text-center px-2 py-1 rounded" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>{value}</div>
       <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{label}</div>
     </div>

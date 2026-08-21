@@ -63,7 +63,7 @@ export function StoreContextBanner({ platformAccountId, platform, statuses = [],
               key={target.key}
               type="button"
               className={target.key === currentModule
-                ? 'rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-white'
+                ? 'rounded-full bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary-text)]'
                 : 'rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'}
               onClick={() => navigate(target.route)}
             >

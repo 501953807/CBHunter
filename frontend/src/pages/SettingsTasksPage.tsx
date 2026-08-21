@@ -46,7 +46,7 @@ export default function SystemTasksSettings() {
       setLogs(logRes?.data?.logs || [])
       setTaskEvidence(taskRes)
       setLogEvidence(logRes)
-    } catch (e: any) { logger.error('Operation failed', e) }
+    } catch (e: unknown) { logger.error('Operation failed', e) }
     setLoading(false)
   }
 
@@ -57,7 +57,7 @@ export default function SystemTasksSettings() {
     try {
       await triggerTask(taskId)
       await load()
-    } catch (e: any) { logger.error('Trigger failed', e) }
+    } catch (e: unknown) { logger.error('Trigger failed', e) }
     setRunning(null)
   }
 
@@ -65,7 +65,7 @@ export default function SystemTasksSettings() {
     try {
       await toggleTask(taskId, enabled)
       await load()
-    } catch (e: any) { logger.error('Toggle failed', e) }
+    } catch (e: unknown) { logger.error('Toggle failed', e) }
   }
 
   const handleUpdateTrigger = async (taskId: string) => {
@@ -73,14 +73,14 @@ export default function SystemTasksSettings() {
       await updateTaskTrigger(taskId, parseInt(editInterval))
       setEditingTrigger(null)
       await load()
-    } catch (e: any) { logger.error('Update trigger failed', e) }
+    } catch (e: unknown) { logger.error('Update trigger failed', e) }
   }
 
   const governanceSummary = buildSystemTaskGovernanceSummary(tasks, logs, taskEvidence?.data?.total, logEvidence?.data?.total)
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="settings-task-page page-enter space-y-6">
+      <Card className="settings-task-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ export default function SystemTasksSettings() {
           <section
             data-ui="settings-system-task-governance-summary"
             aria-label="系统任务配置治理摘要"
-            className="mb-5 rounded-2xl border p-4"
+            className="settings-task-governance mb-5 rounded-2xl border p-4"
             style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -135,9 +135,9 @@ export default function SystemTasksSettings() {
           ) : tasks.length === 0 ? (
             <EmptyState icon={<Clock className="h-9 w-9" />} title="暂无定时任务" description="任务由后端任务目录注册；请检查服务配置与调度器状态。" />
           ) : (
-            <div className="space-y-3">
+            <div className="settings-task-list space-y-3">
               {tasks.map(task => (
-                <div key={task.id} className="flex items-center justify-between py-3 px-4 rounded-lg transition-colors"
+                <div key={task.id} className="settings-task-row flex items-center justify-between py-3 px-4 rounded-lg transition-colors"
                   style={{ background: 'var(--color-bg)' }}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export default function SystemTasksSettings() {
       <PinterestStatusCard />
 
       {/* Execution logs */}
-      <Card>
+      <Card className="settings-task-card">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
@@ -202,11 +202,11 @@ export default function SystemTasksSettings() {
           {(logs || []).length === 0 ? (
             <EmptyState icon={<Clock className="h-9 w-9" />} title="暂无执行记录" description="任务实际运行后在此展示状态、耗时和错误信息。" className="py-6" />
           ) : (
-            <div className="space-y-1">
+            <div className="settings-task-log-list space-y-1">
               {logs.map((log) => {
                 const badge = TASK_RUN_STATUS_META[log.status] || { variant: 'default' as const, label: log.status }
                 return (
-                  <div key={log.id} className="flex items-center gap-3 py-2 px-3 rounded-lg text-xs"
+                  <div key={log.id} className="settings-task-log-row flex items-center gap-3 py-2 px-3 rounded-lg text-xs"
                     style={{ background: 'var(--color-bg)' }}>
                     <span className="shrink-0 font-mono" style={{ color: 'var(--color-muted)' }}>
                       {log.started_at ? new Date(log.started_at).toLocaleString('zh-CN') : '-'}
@@ -241,7 +241,7 @@ function TaskGovernanceMetricCard({ metric }: { metric: TaskGovernanceMetric }) 
   }[metric.tone]
   return (
     <div
-      className="rounded-xl border px-3 py-3"
+      className="settings-task-metric-card rounded-xl border px-3 py-3"
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }}
     >
       <div className="text-xs" style={{ color: 'var(--color-muted)' }}>{metric.label}</div>

@@ -5,6 +5,22 @@
   min-height: 100%;
 }
 
+.settings-shell::before {
+  content: "";
+  position: absolute;
+  inset: -18px -12px auto;
+  height: 260px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 34%),
+    radial-gradient(circle at 86% 8%, color-mix(in oklch, var(--color-info) 9%, transparent), transparent 30%);
+}
+
+.settings-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
 .settings-hero {
   position: relative;
   overflow: hidden;
@@ -42,6 +58,10 @@
     radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 26%),
     var(--surface-card-gradient);
   box-shadow: var(--shadow-sm);
+}
+
+.settings-content-panel {
+  min-height: 36rem;
 }
 
 .settings-nav-panel::before,
@@ -100,6 +120,48 @@
   gap: .5rem;
 }
 
+.settings-content-panel label,
+.settings-content-panel [role="button"],
+.settings-content-panel button {
+  transition:
+    border-color var(--motion-standard),
+    background var(--motion-standard),
+    box-shadow var(--motion-standard),
+    transform var(--motion-standard);
+}
+
+.settings-content-panel label:hover,
+.settings-content-panel [role="button"]:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-content-panel input,
+.settings-content-panel select,
+.settings-content-panel textarea {
+  border-color: var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.settings-content-panel table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.settings-content-panel thead th {
+  color: var(--color-muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settings-content-panel tbody tr:hover td {
+  background: color-mix(in oklch, var(--color-primary-light) 24%, var(--color-surface));
+}
+
 @media (max-width: 1023px) {
   .settings-layout {
     grid-template-columns: 1fr;
@@ -107,5 +169,103 @@
 
   .settings-nav-panel {
     position: static;
+  }
+}
+
+.settings-task-page {
+  position: relative;
+  min-width: 0;
+}
+
+.settings-task-page::before {
+  pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: var(--app-header-height, 64px) 0 auto var(--app-sidebar-width, 96px);
+  height: 280px;
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in oklch, var(--color-primary) 13%, transparent), transparent 34%),
+    radial-gradient(circle at 84% 12%, color-mix(in oklch, var(--color-warning) 10%, transparent), transparent 30%);
+  opacity: .24;
+  z-index: -1;
+}
+
+.settings-task-card {
+  overflow: hidden;
+  border-color: color-mix(in oklch, var(--color-primary) 16%, var(--color-border)) !important;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in oklch, var(--color-primary) 7%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 92%, transparent), var(--color-surface)) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-task-governance {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in oklch, var(--color-primary) 18%, var(--color-border)) !important;
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-primary-light) 20%, var(--color-surface)), var(--color-surface)) !important;
+}
+
+.settings-task-governance::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-primary), color-mix(in oklch, var(--color-warning) 70%, var(--color-primary)));
+}
+
+.settings-task-metric-card {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.settings-task-metric-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--color-primary) 28%, var(--color-border)) !important;
+  box-shadow: var(--shadow-xs);
+}
+
+.settings-task-row,
+.settings-task-log-row {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 10%, var(--color-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 82%, transparent), var(--color-bg)) !important;
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 38%, transparent);
+}
+
+.settings-task-row:hover,
+.settings-task-log-row:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 30%, var(--color-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-primary-light) 20%, var(--color-surface)), var(--color-surface)) !important;
+  box-shadow: var(--shadow-xs);
+}
+
+.settings-task-row input[type="number"] {
+  min-height: 28px;
+  border-color: var(--color-border) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-fg);
+}
+
+.settings-task-log-list {
+  display: grid;
+  gap: .45rem;
+}
+
+@media (max-width: 860px) {
+  .settings-task-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .75rem;
+  }
+
+  .settings-task-log-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }

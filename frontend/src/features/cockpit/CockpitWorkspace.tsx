@@ -81,7 +81,7 @@ export default function CockpitWorkspace() {
     .reduce((sum, item) => sum + item.source_count, 0)
 
   return (
-    <div className="space-y-4">
+    <div className="cockpit-shell space-y-4">
       <CommandCenterFrame
         eyebrow="Command Center"
         title="经营指挥中枢"

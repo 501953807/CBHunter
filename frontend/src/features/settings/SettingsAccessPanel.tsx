@@ -216,6 +216,135 @@ export function AccessControlSettings({ toast }: { toast: any }) {
   )
 }
 
+export function AccessDirectorySettings({ kind, toast }: { kind: 'users' | 'roles' | 'permissions'; toast: any }) {
+  const [matrix, setMatrix] = useState<AccessControlMatrix | null>(null)
+  const [evidence, setEvidence] = useState<ApiResponse<AccessControlMatrix> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await getAccessControl()
+      setMatrix(res.data || null)
+      setEvidence(res)
+    } catch (e: any) {
+      logger.error('Load access directory failed', e)
+      setError(e?.response?.data?.detail || e?.message || '访问治理数据加载失败')
+      toast.addToast('error', '访问治理数据加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  if (loading) {
+    return <div className="text-sm py-8 text-center" style={{ color: 'var(--color-muted)' }}>加载...</div>
+  }
+
+  const users = matrix?.users || []
+  const roles = matrix?.roles || []
+  const permissions = matrix?.permissions || []
+
+  return (
+    <div className="settings-directory space-y-5" data-kind={kind}>
+      {error && (
+        <div className="rounded-2xl border px-4 py-3 text-sm flex items-center justify-between gap-3" style={{ borderColor: 'var(--color-danger)', background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}>
+          <span>{error}</span>
+          <Button size="sm" variant="secondary" onClick={load}>重新加载</Button>
+        </div>
+      )}
+      <EvidenceBanner evidence={evidence} />
+      <div className="settings-directory-hero rounded-[var(--radius-xl)] p-4">
+        <div>
+          <p className="luxury-section-kicker">Access Control</p>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--color-fg)]">{accessDirectoryTitle(kind)}</h2>
+          <p className="mt-1 text-sm text-[var(--color-muted)]">{accessDirectoryDescription(kind)}</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={load}><RefreshCw className="h-3.5 w-3.5" />刷新</Button>
+      </div>
+
+      {kind === 'users' && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {users.map(user => (
+            <Card key={user.id} className="settings-directory-card">
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-fg)]">{user.display_name || user.username}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{user.email}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">用户名：{user.username}</p>
+                  </div>
+                  <Badge variant={user.is_admin ? 'success' : 'outline'}>{user.is_admin ? '管理员' : '普通用户'}</Badge>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <span className="settings-directory-chip">角色 {user.role_ids?.length || matrix?.user_roles?.[user.id]?.length || 0}</span>
+                  <span className="settings-directory-chip">店铺 {user.store_ids?.length || matrix?.user_stores?.[user.id]?.length || 0}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {kind === 'roles' && (
+        <div className="grid gap-3 lg:grid-cols-3">
+          {roles.map(role => (
+            <Card key={role.id} className="settings-directory-card">
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-fg)]">{role.name}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{dataScopeLabel(role.data_scope)}</p>
+                  </div>
+                  <Badge variant="outline">{role.permissions.length} 权限</Badge>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {role.permissions.slice(0, 6).map(code => <span key={String(code)} className="settings-directory-tag">{String(code)}</span>)}
+                  {role.permissions.length > 6 && <span className="settings-directory-tag">+{role.permissions.length - 6}</span>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {kind === 'permissions' && (
+        <div className="settings-directory-table rounded-[var(--radius-xl)]">
+          <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-3 border-b border-[var(--color-hairline)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+            <span>权限代码</span>
+            <span>模块</span>
+            <span>说明</span>
+          </div>
+          {permissions.map(permission => {
+            const code = String(permission.code || '')
+            return (
+            <div key={code} className="grid grid-cols-[1fr_1fr_1.4fr] gap-3 border-b border-[var(--color-hairline)] px-4 py-3 text-sm last:border-b-0">
+              <span className="font-mono text-[var(--color-fg)]">{code}</span>
+              <span className="text-[var(--color-muted)]">{code.split('.')[0] || 'system'}</span>
+              <span className="text-[var(--color-fg)]">{String(permission.label || code)}</span>
+            </div>
+          )})}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function accessDirectoryTitle(kind: 'users' | 'roles' | 'permissions') {
+  if (kind === 'users') return '用户管理'
+  if (kind === 'roles') return '角色管理'
+  return '权限清单'
+}
+
+function accessDirectoryDescription(kind: 'users' | 'roles' | 'permissions') {
+  if (kind === 'users') return '参考目标站 User List / User View，将系统账号、管理员状态、角色与店铺范围集中展示。'
+  if (kind === 'roles') return '参考目标站 Roles，把角色、数据范围与权限数量以卡片方式呈现。'
+  return '参考目标站 Permissions，将权限代码、模块归属和说明独立成表，供治理审计使用。'
+}
+
 function dataScopeLabel(scope: string) {
   if (scope === 'all') return '全部数据'
   if (scope === 'assigned') return '授权店铺'

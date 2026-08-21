@@ -1,4 +1,4 @@
-import type { ImageEditOptions, MediaSlotPlan } from './SellerImageEditorWorkbench'
+import type { ImageEditOptions, MediaSlotPlan } from './SellerImageEditorTypes'
 import { buildImageProcessingSummary } from './SellerImageEditorUtils'
 
 export function SellerImageExportTaskSummary({ imageSlots, imageOptions, publishImageLimit, saveBlockedReason }: {

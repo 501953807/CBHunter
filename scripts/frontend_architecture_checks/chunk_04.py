@@ -355,7 +355,7 @@ for required in (
     "PromotionWatermarkSelector",
     "PromotionTypeRuleGuide",
 ):
-    if required not in PROMOTIONS_PAGE:
+    if required not in PROMOTIONS_PAGE_SURFACE:
         errors.append(f"promotions page must consume V5 visual primitives and keep business controls: {required}")
 for required in (
     "promotions-governance-grid",

@@ -59,11 +59,12 @@ export default function WarehousePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="warehouse-shell page-enter space-y-6">
+      <div className="warehouse-hero">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-fg)]">货代/云仓管理</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
+          <p className="warehouse-eyebrow">warehouse routing</p>
+          <h1>货代/云仓管理</h1>
+          <p>
             1688采购地址 → 云仓收货 → 质检贴单 → 转发平台仓
           </p>
         </div>
@@ -71,18 +72,18 @@ export default function WarehousePage() {
       </div>
 
       {showForm && (
-        <Card>
+        <Card className="warehouse-form-panel">
           <CardContent className="pt-4 space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <input className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)]" placeholder="* 货代名称" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-              <input className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)]" placeholder="* 所在城市" value={form.city} onChange={e => setForm({...form, city: e.target.value})} />
+              <input className="warehouse-input" placeholder="* 货代名称" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <input className="warehouse-input" placeholder="* 所在城市" value={form.city} onChange={e => setForm({...form, city: e.target.value})} />
             </div>
-            <input className="w-full text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)]" placeholder="* 收货地址" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
+            <input className="warehouse-input w-full" placeholder="* 收货地址" value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
             <div className="grid grid-cols-2 gap-3">
-              <input className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)]" placeholder="联系人/电话" value={form.contact} onChange={e => setForm({...form, contact: e.target.value})} />
-              <input className="text-sm border border-[var(--color-border)] rounded-lg px-3 py-2 outline-none focus:border-[var(--color-primary)]" type="number" step="0.1" placeholder="单包裹处理费 ¥" value={form.fee_per_parcel} onChange={e => setForm({...form, fee_per_parcel: e.target.value})} />
+              <input className="warehouse-input" placeholder="联系人/电话" value={form.contact} onChange={e => setForm({...form, contact: e.target.value})} />
+              <input className="warehouse-input" type="number" step="0.1" placeholder="单包裹处理费 ¥" value={form.fee_per_parcel} onChange={e => setForm({...form, fee_per_parcel: e.target.value})} />
             </div>
-            <label className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
+            <label className="warehouse-checkbox-row">
               <input type="checkbox" checked={form.is_default} onChange={e => setForm({...form, is_default: e.target.checked})} />
               设为默认货代（1688采购地址自动使用此地址）
             </label>
@@ -97,17 +98,17 @@ export default function WarehousePage() {
       <EvidenceBanner evidence={evidence} compact />
 
       {loading ? (
-        <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-20 bg-[var(--color-bg)] rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-2">{[1,2].map(i => <div key={i} className="warehouse-skeleton animate-pulse" />)}</div>
       ) : warehouses.length === 0 ? (
-        <Card><CardContent className="pt-4 text-center py-10" style={{ color: 'var(--color-muted)' }}>
+        <Card className="warehouse-empty-card"><CardContent className="pt-4 text-center py-10" style={{ color: 'var(--color-muted)' }}>
           <Warehouse className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p className="text-sm">暂无货代</p>
           <p className="text-xs mt-1">添加入驻的第三方云仓/货代信息</p>
         </CardContent></Card>
       ) : (
-        <div className="space-y-3">
+        <div className="warehouse-card-grid">
           {warehouses.map(wh => (
-            <Card key={wh.id}>
+            <Card key={wh.id} className="warehouse-config-card">
               <CardContent className="pt-3 px-3.5 pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">

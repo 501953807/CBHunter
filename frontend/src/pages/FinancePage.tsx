@@ -19,46 +19,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfig } from '../hooks/useConfig'
 import { usePlatformStatuses } from '../hooks/usePlatforms'
 import { StoreContextBanner } from '../components/shared/StoreContextBanner'
-
-
-const PERIOD_TABS = [
-  { id: 'daily', label: '日报' },
-  { id: 'weekly', label: '周报' },
-  { id: 'monthly', label: '月报' },
-]
-
-const PLATFORM_BILL_JSON_EXAMPLE = JSON.stringify([
-  {
-    import_ref: 'MS-BILL-ORDER-001',
-    entry_type: 'sales_income',
-    amount_rmb: 218.5,
-    order_id: 'ORDER-SG-20260716-001',
-    platform: 'tiktok_shop',
-    market: 'SG',
-    account_name: 'SG 主店',
-    product_name: '旅行收纳洗漱包',
-    description: 'TikTok Shop 订单收入',
-  },
-  {
-    import_ref: 'MS-BILL-FEE-001',
-    entry_type: 'platform_fee',
-    amount_rmb: 18.2,
-    order_id: 'ORDER-SG-20260716-001',
-    platform: 'tiktok_shop',
-    market: 'SG',
-    account_name: 'SG 主店',
-    description: '平台佣金和交易费',
-  },
-  {
-    import_ref: 'MS-BILL-CASH-001',
-    entry_type: 'cash_balance',
-    amount_rmb: 12680,
-    platform: 'tiktok_shop',
-    market: 'SG',
-    account_name: 'SG 主店',
-    description: '卖家钱包可用资金余额',
-  },
-], null, 2)
+import {
+  PERIOD_TABS,
+  PLATFORM_BILL_JSON_EXAMPLE,
+  financeEntryLabel,
+  formatMoney,
+  labelFor,
+} from '../features/finance/FinancePageUtils'
+import { FinanceTrendSnapshot } from '../features/finance/FinanceTrendSnapshot'
+import { TracebackColumn } from '../features/finance/FinanceTracebackColumn'
 
 export default function FinancePage() {
   const navigate = useNavigate()
@@ -585,136 +554,6 @@ export default function FinancePage() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-function formatMoney(value: number | null | undefined) {
-  return value == null ? '--' : `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function financeEntryLabel(options: { id: string; label: string }[], key: string) {
-  return options.find(item => item.id === key)?.label || key
-}
-
-function labelFor(options: { id: string; label: string }[], key: string | null) {
-  return key ? options.find(item => item.id === key)?.label || key : ''
-}
-
-function FinanceTrendSnapshot({
-  periodLabel,
-  points,
-  hasData,
-}: {
-  periodLabel: string
-  points: { label: string; value: number; tone: string }[]
-  hasData: boolean
-}) {
-  const maxAbs = Math.max(...points.map(point => Math.abs(point.value)), 1)
-  const chartWidth = 360
-  const chartHeight = 148
-  const step = chartWidth / Math.max(points.length - 1, 1)
-  const polyline = points
-    .map((point, index) => {
-      const x = index * step
-      const y = chartHeight - 20 - (Math.abs(point.value) / maxAbs) * (chartHeight - 44)
-      return `${x},${y}`
-    })
-    .join(' ')
-
-  return (
-    <Card className="finance-panel">
-      <CardHeader>
-        <h2 className="font-semibold text-[var(--color-fg)]">财务趋势快照</h2>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">
-          以{periodLabel}真实台账汇总展示收入趋势、成本趋势、利润趋势和资金趋势；未入账时保持空态，不补造趋势。
-        </p>
-      </CardHeader>
-      <CardContent>
-        {hasData ? (
-          <div data-ui="finance-trend-chart" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="finance-chart-panel rounded-[var(--radius-xl)] p-3">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="财务趋势快照图" className="h-44 w-full overflow-visible">
-                {[0, 1, 2, 3].map((line) => (
-                  <line key={line} x1="0" x2={chartWidth} y1={20 + line * 34} y2={20 + line * 34} stroke="var(--color-border)" strokeDasharray="4 6" />
-                ))}
-                <polyline points={polyline} fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                {points.map((point, index) => {
-                  const x = index * step
-                  const y = chartHeight - 20 - (Math.abs(point.value) / maxAbs) * (chartHeight - 44)
-                  return (
-                    <g key={point.label}>
-                      <circle cx={x} cy={y} r="5" fill={point.tone} />
-                      <text x={x} y={chartHeight - 2} textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} fill="var(--color-muted)" fontSize="11">
-                        {point.label.replace('趋势', '')}
-                      </text>
-                    </g>
-                  )
-                })}
-              </svg>
-            </div>
-            <div className="space-y-2">
-              {points.map(point => (
-                <div key={point.label} className="finance-structure-card rounded-[var(--radius-xl)] p-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-[var(--color-fg)]">{point.label}</span>
-                    <span style={{ color: point.tone }}>{formatMoney(point.value)}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full bg-[var(--color-border)]">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(Math.abs(point.value) / maxAbs * 100, point.value ? 4 : 0)}%`, background: point.tone }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="finance-empty-panel rounded-[var(--radius-xl)] p-5 text-center text-sm text-[var(--color-muted)]">
-            暂无真实财务台账，收入趋势、成本趋势、利润趋势和资金趋势不展示模拟数据。
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-type TracebackRow = {
-  id: string
-  title: string
-  meta: string
-  revenue: number | null
-  cost: number | null
-  profit: number | null
-  gaps: string[]
-}
-
-function TracebackColumn({ title, empty, rows }: { title: string; empty: string; rows: TracebackRow[] }) {
-  return (
-    <div className="finance-traceback-card rounded-[var(--radius-xl)] p-3">
-      <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">{title}</p>
-      {rows.length === 0 ? (
-        <p className="finance-empty-panel rounded-[var(--radius-lg)] p-4 text-center text-xs text-[var(--color-muted)]">{empty}</p>
-      ) : (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={row.id} className="finance-mini-tile rounded-[var(--radius-lg)] p-3 text-xs">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-[var(--color-fg)]">{row.title}</p>
-                  <p className="mt-1 text-[var(--color-muted)]">{row.meta || '来源字段待补'}</p>
-                </div>
-                <span style={{ color: row.profit == null ? 'var(--color-muted)' : row.profit < 0 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
-                  {formatMoney(row.profit)}
-                </span>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-[var(--color-muted)]">
-                <span>收入 {formatMoney(row.revenue)}</span>
-                <span>成本 {formatMoney(row.cost)}</span>
-                {row.gaps.length > 0 && <span className="text-[var(--color-warning)]">缺口 {row.gaps.join(' / ')}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

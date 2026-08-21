@@ -118,7 +118,7 @@ export function TrendingTab({ platformOptions, marketOptions, categoryOptions }:
   }
 
   return (
-    <div className="space-y-4">
+    <div className="trend-source-tab trend-trending-tab space-y-4">
       <PillFilter title="电商平台" allLabel="全部平台" value={selPlatform}
         options={platformOptions} tone="primary" onChange={setSelPlatform} />
       <PillFilter title="国家/市场" allLabel="全部" value={selMarket}

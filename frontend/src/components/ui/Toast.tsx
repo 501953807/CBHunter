@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, createContext, useContext, useCallback } from 'react'
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react'
 import { cn } from '../../utils/cn'
@@ -53,7 +54,7 @@ function ToastItem({ toast, onRemove }: { toast: ToastItem; onRemove: (id: strin
   return (
     <div
       className={cn(
-        'flex items-start gap-3 px-4 py-3 rounded-lg border-l-4 shadow-md min-w-[300px] max-w-sm animate-in slide-in-from-right',
+        'materio-toast flex min-w-[300px] max-w-sm animate-in items-start gap-3 rounded-[var(--radius-md)] border-l-4 px-4 py-3 shadow-[var(--materio-elevation-2)] slide-in-from-right',
         COLORS[toast.type]
       )}
     >
@@ -81,7 +82,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2">
+      <div className="fixed right-6 top-5 z-[1700] flex flex-col gap-2">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
         ))}

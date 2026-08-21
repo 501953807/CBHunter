@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "@mdi/react": "^1.6.1",
     "@tanstack/react-query": "^5.100.10",
     "axios": "^1.16.0",
     "clsx": "^2.1.1",

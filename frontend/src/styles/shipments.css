@@ -1,0 +1,155 @@
+.shipment-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 112px);
+}
+
+.shipment-shell::before {
+  content: "";
+  position: fixed;
+  inset: 72px 0 0 var(--sidebar-width, 260px);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 8%, color-mix(in oklch, var(--color-info) 10%, transparent), transparent 30%),
+    radial-gradient(circle at 82% 20%, color-mix(in oklch, var(--color-success) 8%, transparent), transparent 28%);
+}
+
+.shipment-hero,
+.shipment-detail-hero,
+.shipment-workbench,
+.shipment-shell .luxury-card,
+.shipment-shell [class*="rounded-2xl"][class*="border"] {
+  border-color: var(--color-border);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface) 98%, transparent), color-mix(in oklch, var(--color-surface-raised) 94%, transparent)),
+    var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.shipment-hero,
+.shipment-detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+}
+
+.shipment-detail-hero {
+  min-height: 76px;
+}
+
+.shipment-eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.shipment-hero h1,
+.shipment-detail-hero h1 {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.shipment-hero p:not(.shipment-eyebrow) {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.shipment-workbench {
+  overflow: hidden;
+}
+
+.shipment-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-bg) 70%, var(--color-surface));
+  padding: 12px;
+}
+
+.shipment-workbench table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+.shipment-workbench table tbody tr {
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.shipment-workbench table tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary) 6%, var(--color-surface));
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.shipment-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.shipment-detail-main,
+.shipment-detail-side {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+.shipment-detail-shell input,
+.shipment-detail-shell select {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.shipment-detail-shell input:focus,
+.shipment-detail-shell select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.shipment-detail-shell .grid.min-w-max {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-bg) 72%, var(--color-surface));
+  padding: 12px;
+}
+
+@media (min-width: 1024px) {
+  .shipment-detail-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .shipment-shell::before {
+    left: 0;
+  }
+
+  .shipment-hero,
+  .shipment-detail-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px;
+  }
+}

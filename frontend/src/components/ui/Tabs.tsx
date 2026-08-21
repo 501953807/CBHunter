@@ -14,7 +14,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div data-ui-scheme="professional-tabs" className="professional-tabbar overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-hairline)] px-2 py-1 shadow-[var(--shadow-sm)]">
+    <div data-ui-scheme="professional-tabs" className="materio-tabs professional-tabbar overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-hairline)] px-1.5 py-1.5 shadow-none">
       <nav className="flex min-w-max gap-1" aria-label="页面视图">
         {tabs.map((tab) => (
           <button
@@ -22,9 +22,9 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
             onClick={() => onChange(tab.id)}
             aria-pressed={activeTab === tab.id}
             className={cn(
-              'rounded-full px-3 py-2 text-sm font-semibold tracking-tight transition-all whitespace-nowrap',
+              'rounded-[var(--radius-sm)] px-4 py-2 text-[15px] font-medium tracking-normal transition-all whitespace-nowrap',
               activeTab === tab.id
-                ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)] shadow-[var(--shadow-sm)]'
+                ? 'bg-[var(--color-surface)] text-[var(--color-primary)] shadow-[var(--shadow-sm)]'
                 : 'text-[var(--color-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-fg)]'
             )}
           >
@@ -32,7 +32,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
             {tab.count !== undefined && (
               <span
                 className={cn(
-                  'ml-2 rounded-full px-2 py-0.5 text-xs',
+                  'ml-2 rounded-full px-2 py-0.5 text-xs font-semibold',
                   activeTab === tab.id
                     ? 'bg-[var(--color-surface)] text-[var(--color-primary)]'
                     : 'bg-[var(--color-border)] text-[var(--color-muted)]'

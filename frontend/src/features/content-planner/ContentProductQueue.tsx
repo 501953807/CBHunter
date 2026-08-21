@@ -5,14 +5,8 @@ import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/conten
 import { Card, CardContent } from '../../components/ui/Card'
 import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
 import { productImageSrc } from '../../utils/productImages'
-
-const STATUS_LABELS: Record<string, string> = {
-  not_started: '待制作',
-  in_progress: '制作中',
-  ready: '内容完成',
-}
-
-type BulkActionKind = 'copy' | 'media' | 'pricing'
+import { BulkActionWorkbench, QueueCheckbox } from './ContentProductQueueParts'
+import { bulkWorkflowUrl, getPageSize, hasAttributeValue, matchesProduct, objectRefContextLabel, productIdForAction, STATUS_LABELS, storeContextLabel, type BulkActionKind, workflowUrl } from './ContentProductQueueUtils'
 
 export function ContentProductQueue({
   onSelect,
@@ -45,18 +39,24 @@ export function ContentProductQueue({
   useEffect(() => {
     const first = workbench?.items?.find(item => matchesProduct(item, initialProductId)) || (autoSelect ? workbench?.items?.[0] : undefined)
     if (!first) return
-    setSelectedId(first.work_item_id)
-    const firstIndex = workbench?.items?.findIndex(item => item.work_item_id === first.work_item_id) ?? 0
-    setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout, tablePageSize)) + 1)
-    onSelect(first)
+    const timer = window.setTimeout(() => {
+      setSelectedId(first.work_item_id)
+      const firstIndex = workbench?.items?.findIndex(item => item.work_item_id === first.work_item_id) ?? 0
+      setQueuePage(Math.floor(Math.max(firstIndex, 0) / getPageSize(layout, tablePageSize)) + 1)
+      onSelect(first)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [onSelect, initialProductId, layout, workbench, autoSelect, tablePageSize])
 
-  const items = (workbench?.items || []).filter(item => {
-    const statusMatched = statusFilter === 'all' || item.content_status === statusFilter
-    const keyword = searchTerm.trim().toLowerCase()
-    const keywordMatched = !keyword || [item.product_name, item.target_platform, item.target_market, item.category].some(value => (value || '').toLowerCase().includes(keyword))
-    return statusMatched && keywordMatched
-  })
+  const items = useMemo(
+    () => (workbench?.items || []).filter(item => {
+      const statusMatched = statusFilter === 'all' || item.content_status === statusFilter
+      const keyword = searchTerm.trim().toLowerCase()
+      const keywordMatched = !keyword || [item.product_name, item.target_platform, item.target_market, item.category].some(value => (value || '').toLowerCase().includes(keyword))
+      return statusMatched && keywordMatched
+    }),
+    [searchTerm, statusFilter, workbench?.items],
+  )
   const pageSize = getPageSize(layout, tablePageSize)
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize))
   const safePage = Math.min(queuePage, totalPages)
@@ -158,16 +158,10 @@ export function ContentProductQueue({
             data-ui="content-product-bulk-action-toolbar"
             className="content-product-bulk-action-toolbar"
           >
-            <label className="content-product-check-label">
-              <input
-                type="checkbox"
-                checked={allVisibleChecked}
-                ref={element => { if (element) element.indeterminate = partiallyChecked }}
-                onChange={toggleVisible}
-                aria-label="选择当前页内容商品"
-              />
+            <span className="content-product-check-label">
+              <QueueCheckbox checked={allVisibleChecked} indeterminate={partiallyChecked} onChange={toggleVisible} ariaLabel="选择当前页内容商品" />
               当前页全选
-            </label>
+            </span>
             <span>已选择 {selectedItems.length} 个商品</span>
             <span>发布图缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
             <span>内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
@@ -371,14 +365,8 @@ export function ContentProductQueue({
               <thead>
                 <tr>
                   <th className="w-10">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleChecked}
-                        ref={element => { if (element) element.indeterminate = partiallyChecked }}
-                        onChange={toggleVisible}
-                        aria-label="选择当前页全部商品"
-                      />
-                    </th>
+                    <QueueCheckbox checked={allVisibleChecked} indeterminate={partiallyChecked} onChange={toggleVisible} ariaLabel="选择当前页全部商品" />
+                  </th>
                   <th>商品信息</th>
                   <th>平台 / 店铺 / 市场</th>
                   <th>内容状态</th>
@@ -409,14 +397,10 @@ export function ContentProductQueue({
                   className={active ? 'content-product-row content-product-row-active' : 'content-product-row'}
                 >
                   <td>
-                      <input
-                        type="checkbox"
-                        checked={checkedIds.includes(item.work_item_id)}
-                        onClick={event => event.stopPropagation()}
-                        onChange={() => toggleRow(item.work_item_id)}
-                        aria-label={`选择商品 ${item.product_name}`}
-                      />
-                    </td>
+                    <span onClick={event => event.stopPropagation()}>
+                      <QueueCheckbox checked={checkedIds.includes(item.work_item_id)} onChange={() => toggleRow(item.work_item_id)} ariaLabel={`选择商品 ${item.product_name}`} />
+                    </span>
+                  </td>
                   <td>
                     <div className="content-product-info-cell">
                       {item.image_url ? (
@@ -531,209 +515,4 @@ export function ContentProductQueue({
       </CardContent>
     </Card>
   )
-}
-
-function BulkActionWorkbench({
-  action,
-  items,
-  onClose,
-  onOpenListing,
-  onOpenMediaWorkbench,
-}: {
-  action: BulkActionKind
-  items: ContentWorkbenchItem[]
-  onClose: () => void
-  onOpenListing: (item: ContentWorkbenchItem) => void
-  onOpenMediaWorkbench?: (item: ContentWorkbenchItem) => void
-}) {
-  const meta = bulkActionMeta(action)
-  return (
-    <section
-      aria-label="内容商品批量处理队列"
-      data-ui="content-product-bulk-action-workbench"
-      className="content-product-bulk-action-workbench"
-    >
-      <div className="content-product-bulk-workbench-header">
-        <div>
-          <p>{meta.title}</p>
-          <span>{meta.description}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="content-product-secondary-action"
-        >
-          收起队列
-        </button>
-      </div>
-      <div className="content-product-bulk-table-shell">
-        <table>
-          <thead>
-            <tr>
-              <th>商品</th>
-              <th>平台/市场</th>
-              <th>当前缺口</th>
-              <th className="text-right">处理动作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => (
-              <tr key={`${action}-${item.work_item_id}`}>
-                <td>
-                  <p>{item.product_name}</p>
-                  <span>状态：{STATUS_LABELS[item.content_status] || item.content_status}</span>
-                </td>
-                <td>
-                  <p>{item.target_platform || '--'}</p>
-                  <span>{item.target_market || '--'}</span>
-                </td>
-                <td className="content-product-warning-text">
-                  {bulkActionGaps(action, item).join('、') || '未发现该类阻断缺口，可进入人工复核'}
-                </td>
-                <td>
-                  <div className="content-product-bulk-row-actions">
-                    {action === 'media' && onOpenMediaWorkbench ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenMediaWorkbench(item)}
-                        className="content-product-primary-outline-action"
-                      >
-                        处理图片
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onOpenListing(item)}
-                        className="content-product-primary-outline-action"
-                      >
-                        打开 Listing
-                      </button>
-                    )}
-                    {action === 'pricing' && (
-                      <a
-                        href={workflowUrl('/pricing', item)}
-                        className="content-product-secondary-action"
-                      >
-                        定价页
-                      </a>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="content-product-bulk-boundary-note">
-        该队列只组织本地处理入口，不声明已批量生成、已完成素材校验或已完成定价；实际写入仍在 Listing、图片或定价页面人工确认后发生。
-      </p>
-    </section>
-  )
-}
-
-function bulkActionMeta(action: BulkActionKind) {
-  if (action === 'copy') {
-    return {
-      title: '批量文案处理队列',
-      description: '把已选商品集中为文案处理清单，逐个进入 Listing 编辑区生成或确认标题、描述和卖点。',
-    }
-  }
-  if (action === 'media') {
-    return {
-      title: '批量素材校验队列',
-      description: '把已选商品集中为发布图/视频处理清单，逐个进入图片工作台补图、排序、设主图或处理发布图缺口。',
-    }
-  }
-  return {
-    title: '批量定价校验队列',
-    description: '把已选商品集中为价格处理清单，逐个进入定价页或 Listing 价格区核对成本、售价和利润缺口。',
-  }
-}
-
-function bulkActionGaps(action: BulkActionKind, item: ContentWorkbenchItem) {
-  if (action === 'media') return item.media_readiness?.gaps || []
-  if (action === 'pricing') {
-    return [
-      item.selling_price_local == null ? '售价待定价' : '',
-      item.profit_margin_pct == null ? '利润待校验' : '',
-      item.source_price_rmb == null ? '采购成本待补' : '',
-    ].filter(Boolean)
-  }
-  return item.content_gaps.length > 0 ? item.content_gaps : ['标题/描述/卖点需人工复核']
-}
-
-function productIdForAction(item: ContentWorkbenchItem) {
-  return item.object_refs?.find(ref => ref.type === 'product')?.id || item.id || item.work_item_id
-}
-
-function workflowUrl(basePath: '/pricing' | '/publish', item: ContentWorkbenchItem) {
-  const params = new URLSearchParams()
-  params.set('product_id', productIdForAction(item))
-  if (item.target_platform) params.set('target_platform', item.target_platform)
-  if (item.target_market) params.set('target_market', item.target_market)
-  const storeRef = objectRefByType(item, ['store_listing', 'platform_account', 'store'])
-  if (storeRef?.id) params.set('target_store', storeRef.id)
-  return `${basePath}?${params.toString()}`
-}
-
-function bulkWorkflowUrl(basePath: '/pricing' | '/publish', items: ContentWorkbenchItem[]) {
-  const params = new URLSearchParams()
-  const productIds = items.map(productIdForAction).filter(Boolean)
-  if (productIds.length === 1) params.set('product_id', productIds[0])
-  if (productIds.length > 1) params.set('product_ids', productIds.join(','))
-  const samePlatform = sameValue(items.map(item => item.target_platform).filter(isPresentString))
-  const sameMarket = sameValue(items.map(item => item.target_market).filter(isPresentString))
-  if (samePlatform) params.set('target_platform', samePlatform)
-  if (sameMarket) params.set('target_market', sameMarket)
-  const storeIds = items
-    .map(item => objectRefByType(item, ['store_listing', 'platform_account', 'store'])?.id || '')
-    .filter(isPresentString)
-  const sameStore = sameValue(storeIds)
-  if (sameStore) params.set('target_store', sameStore)
-  return `${basePath}?${params.toString()}`
-}
-
-function sameValue(values: string[]) {
-  const unique = Array.from(new Set(values.filter(Boolean)))
-  return unique.length === 1 ? unique[0] : ''
-}
-
-function isPresentString(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
-function hasAttributeValue(values: Record<string, unknown>, field: string) {
-  const value = values[field]
-  if (Array.isArray(value)) return value.length > 0
-  if (typeof value === 'string') return value.trim().length > 0
-  return value != null && value !== false
-}
-
-function getPageSize(layout: 'table' | 'rail', tablePageSize: number) {
-  return layout === 'rail' ? 6 : tablePageSize
-}
-
-function matchesProduct(item: ContentWorkbenchItem, productId: string) {
-  return Boolean(productId && (
-    item.id === productId ||
-    item.work_item_id === productId ||
-    item.object_refs?.some(ref => ref.type === 'product' && ref.id === productId)
-  ))
-}
-
-function storeContextLabel(item: ContentWorkbenchItem) {
-  const storeRef = objectRefByType(item, ['store_listing', 'platform_account', 'store'])
-  if (storeRef) return `店铺实例：${storeRef.label || storeRef.id}`
-  const listingRef = objectRefByType(item, ['platform_listing', 'listing'])
-  if (listingRef) return `店铺实例：待选择；关联Listing ${listingRef.label || listingRef.id}`
-  return '店铺实例：待选择，批量刊登时写入当前店铺Listing'
-}
-
-function objectRefContextLabel(item: ContentWorkbenchItem) {
-  const productRef = objectRefByType(item, ['product', 'base_product'])
-  return `商品对象：${productRef?.label || productRef?.id || item.id || item.work_item_id}`
-}
-
-function objectRefByType(item: ContentWorkbenchItem, types: string[]) {
-  return item.object_refs?.find(ref => types.includes(ref.type))
 }

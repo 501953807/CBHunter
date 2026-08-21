@@ -45,9 +45,9 @@ export default function SmartRadarPage() {
       const res = await searchRadar(keywords, market)
       setResults(res.data?.results || [])
       setEvidence(res)
-    } catch (e: any) {
+    } catch (e: unknown) {
       logger.error('Smart radar search failed', e)
-      setError(e?.response?.data?.detail || '分析失败，请重试')
+      setError(responseErrorMessage(e, '分析失败，请重试'))
     }
     setLoading(false)
   }
@@ -60,15 +60,25 @@ export default function SmartRadarPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-fg)' }}>关键词雷达</h1>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-muted)' }}>
-        实时扫描 Shopee 搜索关键词的竞争态势，结果仅作为进一步验证信号
-      </p>
+    <div className="smart-scout-tool-page smart-radar-workbench page-enter space-y-6">
+      <section className="smart-tool-hero">
+        <div>
+          <span className="smart-tool-eyebrow">Keyword intelligence</span>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-fg)' }}>关键词雷达</h1>
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+            实时扫描 Shopee 搜索关键词的竞争态势，结果仅作为进一步验证信号
+          </p>
+        </div>
+        <div className="smart-tool-hero-metrics" aria-label="关键词雷达约束">
+          <span>≤ 20 关键词</span>
+          <span>2-5 秒间隔</span>
+          <span>真实接口优先</span>
+        </div>
+      </section>
 
       {/* Input area */}
-      <div className="rounded-xl border p-4 mb-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center gap-3 mb-3">
+      <div className="smart-tool-input-panel rounded-xl border p-4 mb-6" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="smart-tool-input-toolbar flex items-center gap-3 mb-3">
           <Globe className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
           <select
             value={market}
@@ -90,7 +100,7 @@ export default function SmartRadarPage() {
           className="w-full text-sm px-3 py-2 rounded-lg border resize-none"
           style={{ color: 'var(--color-fg)', borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
         />
-        <div className="flex items-center justify-between mt-3">
+        <div className="smart-tool-action-row flex items-center justify-between mt-3">
           <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
             {keywordInput.split('\n').filter(Boolean).length} 个关键词 · 每次搜索间隔 2-5 秒
           </span>
@@ -114,13 +124,13 @@ export default function SmartRadarPage() {
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="space-y-3">
+        <section className="smart-tool-results space-y-3" aria-label="关键词扫描结果">
           {results.map((r, i) => {
             const colors = getScoreColor(r.competition_score)
             return (
               <div
                 key={i}
-                className={`rounded-xl border p-4 ${colors.border} transition-all hover:shadow-md`}
+                className={`smart-tool-result-card rounded-xl border p-4 ${colors.border} transition-all hover:shadow-md`}
                 style={{ backgroundColor: 'var(--color-surface)' }}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -148,11 +158,11 @@ export default function SmartRadarPage() {
               </div>
             )
           })}
-        </div>
+        </section>
       )}
 
       {!loading && results.length === 0 && !error && (
-        <div className="text-center py-16" style={{ color: 'var(--color-muted)' }}>
+        <div className="smart-tool-empty-state text-center py-16" style={{ color: 'var(--color-muted)' }}>
           <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">输入关键词开始扫描 Shopee 市场</p>
         </div>
@@ -161,9 +171,17 @@ export default function SmartRadarPage() {
   )
 }
 
+function responseErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: string } } }).response
+    return response?.data?.detail || fallback
+  }
+  return fallback
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="text-center px-2 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="smart-tool-metric text-center px-2 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="text-lg font-semibold" style={{ color: 'var(--color-fg)' }}>{value}</div>
       <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{label}</div>
     </div>

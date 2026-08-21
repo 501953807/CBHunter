@@ -1,6 +1,20 @@
 .platform-settings-shell {
+  position: relative;
   display: grid;
   gap: 1.5rem;
+}
+
+.platform-settings-shell::before {
+  pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: var(--app-header-height, 64px) 0 auto var(--app-sidebar-width, 96px);
+  height: 320px;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-warning) 13%, transparent), transparent 30%),
+    radial-gradient(circle at 78% 6%, color-mix(in oklch, var(--color-primary) 15%, transparent), transparent 34%);
+  opacity: .3;
+  z-index: -1;
 }
 
 .platform-settings-hero,
@@ -216,6 +230,16 @@
 
 .platform-settings-platform-card {
   border-radius: 1.3rem;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-platform-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 32%, var(--color-border));
+  box-shadow: var(--shadow-md);
 }
 
 .platform-settings-platform-card > div {
@@ -316,6 +340,7 @@
   background: color-mix(in srgb, var(--color-surface) 82%, transparent);
   font-size: 0.68rem;
   line-height: 1.55;
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
 }
 
 .platform-settings-token-panel > span:first-child {
@@ -337,6 +362,14 @@
   border-radius: 999px;
   padding: 0.16rem 0.55rem;
   background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-sync-chip-row span:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 34%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 28%, var(--color-surface));
 }
 
 .platform-settings-store-actions {
@@ -409,6 +442,31 @@
   padding: 0.75rem 0.85rem;
   font-size: 0.76rem;
   background: color-mix(in srgb, var(--color-bg) 74%, transparent);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-log-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 32%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 22%, var(--color-surface));
+}
+
+.platform-settings-shell :is(input, select, textarea, .luxury-input) {
+  min-height: 40px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.platform-settings-shell :is(input, select, textarea, .luxury-input):focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
 }
 
 .platform-settings-modal-form {

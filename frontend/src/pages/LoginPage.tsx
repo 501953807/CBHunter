@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { mdiLockOutline, mdiLoginVariant, mdiAccountOutline } from '@mdi/js'
 import { login } from '../api/auth'
 import { storage } from '../utils/storage'
 import { logger } from '../utils/logger'
+import { AuthShell } from '../components/shared/AuthShell'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { MdiIcon } from '../components/ui/MdiIcon'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -34,104 +39,53 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{ background: 'var(--color-bg)' }}
+    <AuthShell
+      eyebrow="Welcome back"
+      title="登录 CBHunter 工作台"
+      description="使用系统账号进入多平台跨境运营后台。"
     >
-      <div className="w-full max-w-sm relative z-10">
-        {/* Brand */}
-        <div className="text-center mb-10">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg"
-            style={{ background: 'var(--gradient-accent)' }}>
-            <span className="text-[var(--color-primary-text)] text-lg font-bold">CB</span>
-          </div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>CBHunter</h1>
-          <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>个人多平台电商管理系统</p>
+      <form onSubmit={handleSubmit} className="auth-v2-form">
+        <Input
+          label="用户名"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="admin"
+          autoFocus
+          className="auth-v2-input"
+        />
+        <Input
+          label="密码"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="输入登录密码"
+          className="auth-v2-input"
+        />
+        <div className="auth-v2-row">
+          <label className="auth-v2-check">
+            <input type="checkbox" />
+            <span>保持登录状态</span>
+          </label>
+          <Link to="/forgot-password">忘记密码？</Link>
         </div>
-
-        {/* Login Card */}
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl py-7 px-8 space-y-5 shadow-[var(--shadow-md)] border"
-          style={{
-            background: 'var(--color-surface)',
-            borderColor: 'var(--color-border)',
-          }}
-        >
-          <div>
-            <label
-              className="block text-sm font-medium mb-1.5"
-              style={{ color: 'var(--color-fg)' }}
-            >
-              用户名
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="block w-full rounded-xl border px-3.5 py-2.5 text-sm transition-all duration-200 bg-[var(--color-surface)]"
-              style={{
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-fg)',
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--color-border)'}
-              placeholder="输入用户名"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label
-              className="block text-sm font-medium mb-1.5"
-              style={{ color: 'var(--color-fg)' }}
-            >
-              密码
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="block w-full rounded-xl border px-3.5 py-2.5 text-sm transition-all duration-200 bg-[var(--color-surface)]"
-              style={{
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-fg)',
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--color-border)'}
-              placeholder="输入密码"
-            />
-          </div>
-
-          {error && (
-            <p
-              className="text-sm rounded-xl px-3.5 py-2.5 flex items-center gap-2"
-              style={{
-                color: 'var(--color-danger)',
-                background: 'var(--color-danger-light)',
-              }}
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="15" y1="9" x2="9" y2="15" />
-                <line x1="9" y1="9" x2="15" y2="15" />
-              </svg>
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !username || !password}
-            className="w-full rounded-xl py-2.5 text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: 'var(--color-primary)',
-              color: 'var(--color-primary-text)',
-            }}
-          >
-            {loading ? '登录中...' : '登录'}
-          </button>
-        </form>
+        {error && <p className="auth-v2-error">{error}</p>}
+        <Button type="submit" disabled={loading || !username || !password} className="w-full">
+          <MdiIcon path={mdiLoginVariant} size={0.82} />
+          {loading ? '登录中...' : '登录'}
+        </Button>
+        <div className="auth-v2-divider"><span>New on CBHunter?</span></div>
+        <Link to="/register" className="auth-v2-secondary-action">
+          <MdiIcon path={mdiAccountOutline} size={0.82} />
+          创建账号
+        </Link>
+        <p className="auth-v2-helper">
+          默认管理员账号仍为 <span>admin / Admin@123</span>。生产环境请在设置中心完成密码与权限治理。
+        </p>
+      </form>
+      <div className="auth-v2-security-note">
+        <MdiIcon path={mdiLockOutline} size={0.85} />
+        登录只复用现有 JWT 鉴权流程，本次改造不改变认证业务逻辑。
       </div>
-    </div>
+    </AuthShell>
   )
 }

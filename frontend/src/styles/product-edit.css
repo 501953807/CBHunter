@@ -1,0 +1,22 @@
+.product-edit-loading-state {
+  position: relative;
+  min-width: 0;
+}
+
+.product-edit-loading-hero {
+  display: grid;
+  gap: .75rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--color-primary) 18%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 92%, transparent), var(--color-surface));
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem;
+}
+
+.product-edit-loading-stack {
+  display: grid;
+  gap: 1rem;
+}

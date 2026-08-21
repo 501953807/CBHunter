@@ -1,0 +1,71 @@
+.product-selection-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 112px);
+}
+
+.product-selection-shell::before {
+  content: "";
+  position: fixed;
+  inset: 72px 0 0 var(--sidebar-width, 260px);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 16% 6%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 30%),
+    radial-gradient(circle at 84% 18%, color-mix(in oklch, var(--color-success) 8%, transparent), transparent 28%);
+}
+
+.product-selection-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface) 98%, transparent), color-mix(in oklch, var(--color-surface-raised) 94%, transparent)) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.product-selection-hero::after {
+  content: "";
+  position: absolute;
+  right: -72px;
+  top: -96px;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 68%);
+  pointer-events: none;
+}
+
+.product-selection-status-tile {
+  position: relative;
+  z-index: 1;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.product-selection-status-tile:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 32%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 50%, var(--color-surface)) !important;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.product-selection-shell .selection-decision-workbench {
+  position: relative;
+  z-index: 1;
+}
+
+.product-selection-shell .selection-decision-workbench [class*="rounded-2xl"][class*="border"],
+.product-selection-shell .selection-decision-workbench [class*="rounded-xl"][class*="border"] {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+  .product-selection-shell::before {
+    left: 0;
+  }
+}

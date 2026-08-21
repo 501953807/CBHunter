@@ -41,7 +41,7 @@ for required in (
     "spu_skc",
     "sku_image_role",
 ):
-    if required not in ORDER_DETAIL_PAGE:
+    if required not in ORDER_DETAIL_SURFACE:
         errors.append(f"order detail must render V5 SKU context through unified field dictionary: {required}")
 for required in ("--color-command-bg", "--color-command-panel", "--color-command-accent", "--color-workspace-chrome", "--shadow-command"):
     if required not in INDEX_CSS:
@@ -52,15 +52,46 @@ for required in (
     "--gradient-workspace",
     "./styles/modules.css",
     "./styles/luxury-system.css",
+    "./styles/materio-system.css",
+    "#8C57FF",
+    "#F4F5FA",
+    "#2E263D",
     "[data-theme=\"dark-luxury\"]",
     "[data-theme=\"warm-luxury\"]",
     "font-family: var(--font-sans)",
 ):
     if required not in INDEX_CSS:
         errors.append(f"V5 luxury UI token system must be declared in index.css: {required}")
+for required in (
+    "--materio-sidebar-expanded: 260px",
+    "--materio-sidebar-collapsed: 68px",
+    "--materio-navbar-height: 64px",
+    "--materio-page-max: 1440px",
+    "--materio-focus-ring",
+    "--materio-elevation-1",
+    ".layout-navbar",
+    ".layout-vertical-nav",
+    ".nav-group-arrow",
+    ".nav-item-badge",
+    ".materio-navbar-action",
+    ".materio-action-badge",
+    ".luxury-sidebar",
+    ".luxury-control",
+    ".luxury-card",
+    ".luxury-table-shell",
+    ".professional-table thead",
+    ".theme-preset-menu",
+    "[data-theme=\"dark-luxury\"]",
+    "[data-theme=\"warm-luxury\"]",
+):
+    if required not in MATERIO_SYSTEM_CSS:
+        errors.append(f"Materio reference visual system overlay must keep extracted token/control primitive: {required}")
 for required in ("luxury-app-shell", "luxury-header", "luxury-sidebar", "luxury-card", "luxury-table-shell", "luxury-theme-select", "theme-preset-menu", "theme-preset-option", "luxury-toolbar", "luxury-input", "luxury-page-title", "luxury-page-description", "luxury-page-actions", "luxury-section-header", "luxury-action-bar", "luxury-kpi-grid", "luxury-form-grid", "luxury-modal-panel", "luxury-modal-close", "luxury-menu-popover", "luxury-menu-item", "luxury-pagination", "table:not(.professional-table)", ".rounded-xl.border", "prefers-reduced-motion"):
     if required not in LUXURY_SYSTEM_CSS:
         errors.append(f"global luxury system stylesheet must keep reusable admin UI primitives: {required}")
+for required in ("layout-wrapper", "layout-nav-type-vertical", "layout-content-wrapper", "layout-vertical-nav-collapsed"):
+    if required not in APP_LAYOUT:
+        errors.append(f"global shell must align to Materio sidebar/navbar sizing and ecommerce chrome: {required}")
 for component_name, component_content, required_class in (
     ("AppLayout", APP_LAYOUT, "luxury-app-shell"),
     ("Header", HEADER, "luxury-theme-select"),
@@ -89,9 +120,12 @@ for required in (
 ):
     if required not in THEME_CONTEXT:
         errors.append(f"ThemeContext must expose the V5 theme preset model: {required}")
-for required in ("Palette", "Check", "theme-preset-select", "theme-preset-menu", "theme-preset-option", "V5 UI", "Theme preset"):
+for required in ("Palette", "Check", "Languages", "Star", "Maximize2", "Moon", "Sun", "UserRound", "materio-topbar", "materio-navbar-action", "navbar-content-container", "theme-preset-select", "theme-preset-menu", "theme-preset-option", "language-menu-select", "profile-menu-select", "materio-user-trigger", "V5", "Theme preset"):
     if required not in HEADER:
         errors.append(f"Header must keep the right-top Theme preset entry and V5 chrome marker: {required}")
+for forbidden in ("materio-global-search", "⌘K"):
+    if forbidden in HEADER:
+        errors.append(f"Header topbar must remove reference search control per current shell requirement: {forbidden}")
 for component_name, component_content in (
     ("AppLayout", APP_LAYOUT),
     ("Sidebar", SIDEBAR),
@@ -106,8 +140,15 @@ for component_name, component_content in (
     ("DataTable", DATA_TABLE),
 ):
     for required in ("var(--color-", "transition"):
-        if required not in component_content:
+        haystack = component_content + (MATERIO_SYSTEM_CSS if component_name == "Sidebar" else "")
+        if required not in haystack:
             errors.append(f"{component_name} must use shared V5 tokenized visual styling: {required}")
+for required in ("CircleDot", "Circle", "ChevronRight", "nav-pin", "nav-unpin", "nav-group-arrow", "nav-item-badge", "nav-group-children", "is-collapsed"):
+    if required not in SIDEBAR:
+        errors.append(f"Sidebar must replicate Materio source nav mechanics: {required}")
+for required in ("materio-navbar-action", "materio-action-badge", "materio-notification-panel", "materio-popover", "materio-notification-item"):
+    if required not in HEADER + NOTIFICATION_BELL:
+        errors.append(f"Header/notification shell must replicate Materio navbar popover mechanics: {required}")
 for required in ("cockpit-metric-card", "cockpit-command-panel", "cockpit-metric-icon", "cockpit-panel-icon"):
     if required not in COCKPIT_CSS:
         errors.append(f"operating cockpit must keep V5 luxury command visuals in cockpit.css: {required}")
@@ -139,7 +180,7 @@ for page_name, page_content in (
 if "data-ui-scheme=\"professional-saas\"" not in PROFESSIONAL_WORKSPACE_FRAME:
     errors.append("professional workspace frame must explicitly mark the A-style professional SaaS shell")
 for required in ("professional-tabbar", "professional-table", "professional-context-rail", "professional-status-chip"):
-    if required not in INDEX_CSS:
+    if required not in ALL_STYLE_CSS:
         errors.append(f"professional SaaS workspaces must share density/style utility: {required}")
 for required in ("./product-inventory.css",):
     if required not in STYLE_MODULES_CSS:
@@ -178,7 +219,7 @@ for required in ("pricing-shell", "pricing-panel", "pricing-form-panel", "pricin
         errors.append(f"smart pricing stylesheet must keep V5 pricing visual primitive: {required}")
 for component_name, component_content, required_class in (
     ("SmartPricingPage", SMART_PRICING_PAGE, "pricing-shell"),
-    ("SmartPricingPage", SMART_PRICING_PAGE, "pricing-panel"),
+    ("SmartPricingPage", SMART_PRICING_SURFACE, "pricing-panel"),
     ("PricingItemSelector", PRICING_ITEM_SELECTOR, "pricing-item-context"),
     ("PricingTemplateStorePreview", PRICING_TEMPLATE_STORE_PREVIEW, "pricing-template-panel"),
 ):
@@ -286,8 +327,11 @@ for required in (
 ):
     if required not in SCOUT_SOURCES_VIEW:
         errors.append(f"scout signal capture must put four signal layers in top primary tabs: {required}")
+for required in ("./scout-workflow.css",):
+    if required not in STYLE_MODULES_CSS:
+        errors.append(f"scout workflow V5 stylesheet must be imported in styles/modules.css: {required}")
 for required in ("scout-workflow-page", "scout-workflow-main", "signal-command-panel", "signal-layer-tab", "signal-layer-orb", "signal-layer-chip", "signal-detail-shell", "signal-guide-card", "signal-readiness-stack", "signal-funnel-map", "signal-funnel-path", "signal-funnel-outcome"):
-    if required not in INDEX_CSS:
+    if required not in ALL_STYLE_CSS:
         errors.append(f"scout signal capture must use the shared modern signal command visual system: {required}")
 for required in ("SignalFunnelMap", "aria-label=\"四层信号收缩路径\"", "信号收缩路径", "从市场信号到候选商品", "归并率", "signal-funnel-map", "signal-funnel-path", "signal-funnel-outcome", "orderLayers"):
     if required not in SIGNAL_FUNNEL_OVERVIEW:
@@ -310,7 +354,7 @@ for required in ("item.match", "itemScore(item, path)", "routeScore(route, path)
 for required in ("activeItemTo", "itemMatchScore", "item.to === activeTo"):
     if required not in MODULE_SUBNAV:
         errors.append(f"module tabs must use single best-match active tab, not prefix-highlight multiple tabs: {required}")
-listing_workspace_content = f"{BATCH_PUBLISH_PREVIEW}\n{BATCH_PUBLISH_QUEUE}\n{BATCH_PUBLISH_COMPLETENESS}"
+listing_workspace_content = f"{BATCH_PUBLISH_PREVIEW_SURFACE}\n{BATCH_PUBLISH_QUEUE}\n{BATCH_PUBLISH_COMPLETENESS}"
 for required in ("ListingDraftQueue", "草稿队列", "当前编辑商品", "Listing 一体化工作台", "activeDraftIndex"):
     if required not in listing_workspace_content:
         errors.append(f"listing workbench must use a queue plus one active product editor: {required}")
@@ -445,8 +489,8 @@ for page_name, page_content in (
         errors.append(f"{page_name} must not render the six-step top pipeline; use ContentListingStageRail")
     if "ContentListingStageRail" not in page_content:
         errors.append(f"{page_name} must render ContentListingStageRail as the downstream floating stage rail")
-if "平台同步" not in HEADER:
-    errors.append("global sync action must be labeled as platform sync")
+if "同步所有平台订单、商品、物流和刊登状态" not in HEADER:
+    errors.append("global sync action must keep accessible platform sync title")
 if "同步所有平台" in HEADER and "订单" not in HEADER:
     errors.append("global sync title must explain what is synchronized")
 if "alert(" in SCOUT_WORKSPACE:
@@ -457,7 +501,7 @@ if "业务处理总线" not in BUSINESS_FLOW_V2:
     errors.append("business monitor must expose a business processing spine, not only stage cards")
 if "BusinessFlowCommandBoard" not in BUSINESS_FLOW_WORKSPACE:
     errors.append("business monitor must put the flow total-and-breakdown board in the main visual area")
-business_flow_board_with_range_util = BUSINESS_FLOW_COMMAND_BOARD + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
+business_flow_board_with_range_util = BUSINESS_FLOW_COMMAND_BOARD_SURFACE + COMPARISON_RANGE_UTIL + COMPARISON_RANGE_CARDS + COMMAND_INSIGHT_STRIP + METRIC_STACK_BAR
 for required in ("业务流程总分看板", "业务流程卡点总览", "业务处理总览", "当前瓶颈", "卡点率", "待补关键资料", "业务处理动作", "data-ui=\"flow-hero\"", "商品流程数量对比", "业务核心判断条", "业务核心判断", "链路卡点率", "当前瓶颈阶段", "下一步动作", "data-ui=\"command-insight-strip\"", "指标口径 · 业务含义 · 下一步", "本周", "上周", "去年同周", "本月", "上月", "去年同月", "本季度", "上季度", "去年同季", "所选区间", "上一等长区间", "去年同日期区间", "商品流程对比范围说明", "ComparisonRangeCards", "data-ui=\"comparison-range-cards\"", "parseComparisonRange", "aria-label=\"日期起止时间线\"", "实际天数", "开始", "结束", "八阶段卡点矩阵", "平台业务对象分布", "平台对象占比", "店铺卡点热力", "推进结构", "MetricStackBar", "data-ui=\"store-drilldown-priority-bar\"", "店铺业务推进结构", "信号收集", "候选验证", "选品决策", "Listing 制作", "定价策略", "平台刊登", "BarChart", "PieChart", "comparisonRangeLabel"):
     if required not in business_flow_board_with_range_util:
         errors.append(f"business monitor V5 board must expose total/breakdown/stage charts: {required}")
@@ -465,7 +509,7 @@ for required in ("flow-command-board", "flow-command-card", "flow-stage-card", "
     if required not in BUSINESS_FLOW_CSS:
         errors.append(f"business monitor V5 CSS must keep command-tower visual primitives: {required}")
 for required in ("data-ui=\"flow-v5-command-board\"", "data-ui=\"flow-v5-action-panel\"", "data-ui=\"flow-v5-unassigned-actions\"", "data-ui=\"flow-v5-stage-matrix-card\"", "data-ui=\"flow-v5-platform-distribution\"", "data-ui=\"flow-v5-platform-share\"", "data-ui=\"flow-v5-store-heatmap\"", "flow-command-board", "flow-command-card", "flow-stage-card"):
-    if required not in BUSINESS_FLOW_COMMAND_BOARD:
+    if required not in BUSINESS_FLOW_COMMAND_BOARD_SURFACE:
         errors.append(f"business monitor command board must keep V5 visual marker: {required}")
 for required in ("data-ui=\"flow-v5-processing-workspace\"", "data-ui=\"flow-v5-object-table-panel\"", "data-ui=\"flow-v5-stage-swimlanes\"", "data-ui=\"flow-v5-swimlane-card\"", "data-ui=\"flow-v5-stage-ribbon\"", "flow-object-panel", "flow-object-row"):
     if required not in BUSINESS_FLOW_V2:
@@ -483,16 +527,16 @@ for required in ("stageDwellWindowLabel", "comparisonRangeLabel('current', data.
     if required not in BUSINESS_FLOW_COMMAND_BOARD:
         errors.append(f"business monitor stage dwell badge must use explicit comparison windows: {required}")
 for required in ("流程商品数", "阻塞商品数", "待补资料商品数"):
-    if required not in BUSINESS_FLOW_COMMAND_BOARD:
+    if required not in BUSINESS_FLOW_COMMAND_BOARD_SURFACE:
         errors.append(f"business monitor object chart must use concrete product-flow labels: {required}")
-for required in ("data.comparison.previous", "data.comparison.last_year", "data.flow_store_matrix.length"):
-    if required not in BUSINESS_FLOW_COMMAND_BOARD:
+for required in ("data.comparison.previous", "data.comparison.last_year", "storeRows={data.flow_store_matrix}", "storeRows.length"):
+    if required not in BUSINESS_FLOW_COMMAND_BOARD_SURFACE:
         errors.append(f"business monitor total board must use real comparison and full store matrix counts: {required}")
 if "min-h-[104px]" in BUSINESS_FLOW_V2:
     errors.append("business monitor stage ribbon must not regress to large card-like stage blocks")
 if "aria-label=\"业务处理阶段\"" not in BUSINESS_FLOW_V2:
     errors.append("business monitor stage spine must expose an accessible workflow label")
-business_flow_content = f"{BUSINESS_FLOW_V2}\n{BUSINESS_FLOW_CONTEXT_RAIL}\n{BUSINESS_FLOW_COMMAND_BOARD}\n{BUSINESS_FLOW_ROUTES}"
+business_flow_content = f"{BUSINESS_FLOW_V2}\n{BUSINESS_FLOW_CONTEXT_RAIL}\n{BUSINESS_FLOW_COMMAND_BOARD_SURFACE}\n{BUSINESS_FLOW_ROUTES}"
 if "item.image_url" not in business_flow_content:
     errors.append("business monitor must show real product images for item-level workflow context")
 for required in ("item.account_name", "店铺待定位"):
@@ -692,10 +736,10 @@ for required in (
     "target_market",
     "routeStoreId",
 ):
-    if required not in SMART_PRICING_PAGE:
+    if required not in SMART_PRICING_SURFACE:
         errors.append(f"CORE-V5-005 pricing page must consume content factory handoff context: {required}")
 for required in ("useQuery", "queryKey: ['pricing-workbench']", "pricingWorkbenchQuery", "data-ui=\"pricing-workbench-error\"", "重新加载定价队列"):
-    if required not in SMART_PRICING_PAGE:
+    if required not in SMART_PRICING_SURFACE:
         errors.append(f"AUDIT-P2-03 pricing page must use React Query boundary and visible workbench error state: {required}")
 if "getPricingWorkbench" not in PRICING_API or "client.get<ApiResponse<PricingWorkbench>>" not in PRICING_API:
     errors.append("AUDIT-P2-03 pricing workbench must stay behind api/pricing.ts encapsulation")
@@ -703,7 +747,7 @@ for required in ("nextRoute.startsWith('/pricing')", "content_item_id", "product
     if required not in BUSINESS_FLOW_ROUTES:
         errors.append(f"business flow route builder must carry product_id into pricing route: {required}")
 for required in ("confirmedProductId", "/publish?product_id=${confirmedProductId}", "进入平台刊登"):
-    if required not in SMART_PRICING_PAGE:
+    if required not in SMART_PRICING_SURFACE:
         errors.append(f"pricing page must continue confirmed product into batch publishing: {required}")
 for required in ("查看货源", "平台字段组核验", "素材要求"):
     if required not in PRICING_ITEM_SELECTOR:
@@ -723,7 +767,7 @@ for required in (
 for required in ("overrideStoreId", "item.listing_store_override?.store_id"):
     if required not in SMART_PRICING_PAGE:
         errors.append(f"pricing page must prefer the store selected in content store override: {required}")
-pricing_template_preview_surface = SMART_PRICING_PAGE + PRICING_TEMPLATE_STORE_PREVIEW
+pricing_template_preview_surface = SMART_PRICING_SURFACE + PRICING_TEMPLATE_STORE_PREVIEW
 for required in (
     "PricingTemplateStorePreview",
     "data-ui=\"pricing-template-store-override-preview\"",
@@ -756,13 +800,13 @@ for required in (
     if required not in pricing_template_preview_surface:
         errors.append(f"CORE-V5-005 pricing template engine must expose store override price preview: {required}")
 for required in ("media_readiness", "发布图缺口", "发布图就绪", "已排入发布", "平台至少"):
-    if required not in CONTENT_PRODUCT_QUEUE + PRICING_ITEM_SELECTOR + BATCH_PUBLISH_SELECT + BATCH_PUBLISH_COMPLETENESS:
+    if required not in CONTENT_PRODUCT_QUEUE + PRICING_ITEM_SELECTOR + BATCH_PUBLISH_SELECT_SURFACE + BATCH_PUBLISH_COMPLETENESS:
         errors.append(f"content/pricing/listing workbenches must expose media readiness gaps: {required}")
 if "aria-label=\"素材商品上下文\"" not in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must expose the selected product context before image/video processing")
 if "使用当前商品源图处理" not in CONTENT_MEDIA_STUDIO:
     errors.append("content media studio must support using the selected product source image")
-content_media_surface = CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_CROP_CONTROLS + SELLER_IMAGE_ENHANCEMENT_CONTROLS + SELLER_IMAGE_EXPORT_TASK_SUMMARY + SELLER_IMAGE_OUTPUT_CONTROLS + SELLER_IMAGE_WATERMARK_CONTROLS
+content_media_surface = CONTENT_MEDIA_STUDIO + SELLER_IMAGE_EDITOR_WORKBENCH + SELLER_IMAGE_EDITOR_WORKBENCH_PARTS + SELLER_IMAGE_EDITOR_UTILS + SELLER_IMAGE_CROP_CONTROLS + SELLER_IMAGE_ENHANCEMENT_CONTROLS + SELLER_IMAGE_EXPORT_TASK_SUMMARY + SELLER_IMAGE_OUTPUT_CONTROLS + SELLER_IMAGE_WATERMARK_CONTROLS
 '''
 
 def run(env: dict[str, object]) -> None:

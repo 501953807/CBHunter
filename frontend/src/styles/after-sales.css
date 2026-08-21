@@ -1,0 +1,191 @@
+.after-sales-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 112px);
+}
+
+.after-sales-shell::before {
+  content: "";
+  position: fixed;
+  inset: 72px 0 0 var(--sidebar-width, 260px);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 16% 10%, color-mix(in oklch, var(--color-primary) 12%, transparent), transparent 30%),
+    radial-gradient(circle at 82% 18%, color-mix(in oklch, var(--color-warning) 10%, transparent), transparent 28%);
+}
+
+.after-sales-hero,
+.after-sales-context-card,
+.after-sales-analysis-card,
+.after-sales-empty-card {
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface) 98%, transparent), color-mix(in oklch, var(--color-surface-raised) 94%, transparent)),
+    var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.after-sales-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 24px;
+}
+
+.after-sales-hero::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 68%);
+  transform: translate(70%, -48%);
+}
+
+.after-sales-eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.after-sales-hero h1 {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.after-sales-hero p:not(.after-sales-eyebrow) {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.after-sales-context-chip {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in oklch, var(--color-primary) 18%, var(--color-border));
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  padding: 8px 12px;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.after-sales-warning {
+  border: 1px solid color-mix(in oklch, var(--color-warning) 26%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-light);
+  padding: 12px;
+  color: var(--color-warning);
+  font-size: 12px;
+}
+
+.after-sales-analysis-card {
+  overflow: hidden;
+}
+
+.after-sales-analysis-card [class*="grid"] > a,
+.after-sales-action-card,
+.after-sales-metric {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.after-sales-action-card {
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-bg) 72%, var(--color-surface));
+  padding: 12px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.after-sales-action-card:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  box-shadow: 0 12px 28px color-mix(in oklch, var(--color-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.after-sales-note,
+.after-sales-metric {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--color-bg) 68%, var(--color-surface));
+}
+
+.after-sales-note {
+  padding: 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.after-sales-metric {
+  padding: 12px;
+}
+
+.after-sales-metric:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 28%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.after-sales-primary-action,
+.after-sales-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.after-sales-primary-action {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  box-shadow: 0 10px 24px color-mix(in oklch, var(--color-primary) 22%, transparent);
+}
+
+.after-sales-secondary-action {
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 90%, transparent);
+  color: var(--color-fg);
+}
+
+.after-sales-primary-action:hover,
+.after-sales-secondary-action:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .after-sales-shell::before {
+    left: 0;
+  }
+
+  .after-sales-hero {
+    flex-direction: column;
+    padding: 18px;
+  }
+}

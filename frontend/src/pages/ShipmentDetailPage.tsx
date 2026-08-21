@@ -86,7 +86,7 @@ export default function ShipmentDetailPage() {
 
   if (!isNew && isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="shipment-shell page-enter space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -95,7 +95,7 @@ export default function ShipmentDetailPage() {
 
   if (!isNew && !shipment) {
     return (
-      <div className="text-center py-12">
+      <div className="shipment-shell page-enter text-center py-12">
         <p className="text-[var(--color-muted)]">物流记录未找到</p>
         <Button className="mt-4" onClick={() => navigate('/shipments')}>返回物流列表</Button>
       </div>
@@ -154,8 +154,8 @@ export default function ShipmentDetailPage() {
   const shipmentStatusOptions = toDomainOptions(shipment_statuses)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="shipment-shell shipment-detail-shell page-enter space-y-6">
+      <div className="shipment-detail-hero">
         <div className="flex items-center gap-3">
           <button aria-label={isNew ? '返回订单列表' : '返回物流列表'} title={isNew ? '返回订单列表' : '返回物流列表'} onClick={() => navigate(isNew ? '/orders' : '/shipments')} className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
             <ArrowLeft className="w-5 h-5" />
@@ -177,8 +177,8 @@ export default function ShipmentDetailPage() {
 
       {!isNew && <EvidenceBanner evidence={data} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="shipment-detail-grid">
+        <div className="shipment-detail-main">
           {isNew && (
             <OrderShipmentContextPanel
               order={orderContext}
@@ -290,7 +290,7 @@ export default function ShipmentDetailPage() {
         </div>
 
         {displayShipment && (
-          <div className="space-y-4">
+          <div className="shipment-detail-side">
             <Card>
               <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">关联订单</h2></CardHeader>
               <CardContent className="space-y-3">

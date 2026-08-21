@@ -300,7 +300,7 @@ export default function BatchPublishPage() {
       <ProfessionalWorkspaceFrame
         eyebrow="Listing Publish"
         title="批量刊登"
-          description="以发布就绪商品队列为主，选择目标平台和店铺后生成店铺级本地 Listing 草稿；市场由店铺归属或商品目标市场带入。"
+        description="以发布就绪商品队列为主，选择目标平台和店铺后生成店铺级本地 Listing 草稿；市场由店铺归属或商品目标市场带入。"
         metrics={[
           { label: '发布队列', value: publishableItems.length, hint: '内容和定价已就绪' },
           { label: '已选商品', value: selectedItems.size, hint: '来源于发布队列或商品深链' },

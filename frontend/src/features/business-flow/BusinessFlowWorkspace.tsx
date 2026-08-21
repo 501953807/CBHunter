@@ -44,7 +44,7 @@ export default function BusinessFlowWorkspace() {
   if (!data) return null
 
   return (
-    <div className="space-y-4">
+    <div className="flow-shell space-y-4">
       <CommandCenterFrame
         eyebrow="Business Flow"
         title="业务处理总线"

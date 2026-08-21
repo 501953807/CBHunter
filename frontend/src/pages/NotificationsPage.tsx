@@ -39,21 +39,22 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-6 page-enter">
-      <PageHeader
-        title="通知中心"
-        description={`共 ${total} 条通知${unreadCount > 0 ? `，${unreadCount} 条未读` : ''}`}
-        actions={
-          <div className="flex items-center gap-2">
+    <div className="notifications-shell space-y-6 page-enter">
+      <div className="notifications-hero">
+        <PageHeader
+          title="通知中心"
+          description={`共 ${total} 条通知${unreadCount > 0 ? `，${unreadCount} 条未读` : ''}`}
+          actions={
+            <div className="notifications-command-bar">
             <button
               onClick={() => checkAlertsMutation.mutate()}
               disabled={checkAlertsMutation.isPending}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border disabled:opacity-40"
+              className="notifications-action-button disabled:opacity-40"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
             >
               <RefreshCw className={`w-3 h-3 ${checkAlertsMutation.isPending ? 'animate-spin' : ''}`} />检查预警
             </button>
-            <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="notifications-segmented" style={{ borderColor: 'var(--color-border)' }}>
               <button
                 onClick={() => setFilter('all')}
                 className="text-xs px-3 py-1.5"
@@ -74,34 +75,35 @@ export default function NotificationsPage() {
             <button
               onClick={() => { if (unreadCount > 0) markAllRead.mutate() }}
               disabled={unreadCount === 0}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border disabled:opacity-40"
+              className="notifications-action-button disabled:opacity-40"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
             >
               <CheckCheck className="w-3 h-3" />全部已读
             </button>
-          </div>
-        }
-      />
+            </div>
+          }
+        />
+      </div>
       <EvidenceBanner evidence={data} />
 
       {isLoading ? (
-        <div className="text-center py-12 text-sm" style={{ color: 'var(--color-muted)' }}>加载中...</div>
+        <div className="notifications-loading" style={{ color: 'var(--color-muted)' }}>加载中...</div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
+        <div className="notifications-empty">
           <Bell className="w-10 h-10" style={{ color: 'var(--color-border)' }} />
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
             {filter === 'unread' ? '所有通知已读' : '暂无通知'}
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="notifications-list">
           {filtered.map(n => {
             const Icon = LEVEL_ICON[n.level] || Info
             return (
               <button
                 key={n.id}
                 onClick={() => handleItemClick(n)}
-                className="w-full text-left px-4 py-3.5 flex items-start gap-3 rounded-xl border transition-all hover:shadow-sm"
+                className="notifications-item"
                 style={{
                   borderColor: 'var(--color-border)',
                   background: n.read ? 'var(--color-surface)' : 'var(--color-bg)',

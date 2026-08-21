@@ -11,18 +11,10 @@ import { documentTitle, resolveRouteTitle } from './routeMeta'
 export function AppLayout() {
   useRealtimeNotifications()
   const location = useLocation()
-  const [sidebarExpanded, setSidebarExpanded] = useState(true)
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => storage.get('sidebarExpanded') !== 'false')
   useEffect(() => {
     document.title = documentTitle(location.pathname)
   }, [location.pathname])
-
-  // Persist sidebar state
-  useEffect(() => {
-    const saved = storage.get('sidebarExpanded')
-    if (saved !== null) {
-      setSidebarExpanded(saved === 'true')
-    }
-  }, [])
 
   const toggleSidebar = () => {
     setSidebarExpanded(prev => {
@@ -35,16 +27,16 @@ export function AppLayout() {
   const title = resolveRouteTitle(location.pathname)
 
   return (
-    <div className="luxury-app-shell flex h-screen text-[var(--color-fg)] transition-colors">
+    <div className={`layout-wrapper layout-nav-type-vertical luxury-app-shell min-h-[100dvh] text-[var(--color-fg)] transition-colors ${sidebarExpanded ? '' : 'layout-vertical-nav-collapsed'}`}>
       <Sidebar
         expanded={sidebarExpanded}
         onToggle={toggleSidebar}
       />
 
-      <div className="luxury-main-shell flex flex-1 flex-col overflow-hidden">
+      <div className="layout-content-wrapper luxury-main-shell flex min-w-0 flex-1 flex-col overflow-visible">
         <Header title={title} />
 
-        <main className="flex-1 overflow-auto">
+        <main className="materio-main-content flex-1 overflow-auto">
           <ModuleSubnav />
           <div className="luxury-page-pad">
             <div className="luxury-page-frame page-enter mx-auto w-full">

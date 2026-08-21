@@ -55,17 +55,18 @@ export default function TrendDiscoveryPage() {
   const effectiveMarkets = dict?.markets || []
 
   return (
-    <div className="scout-workflow-page space-y-6">
+    <div className="scout-workflow-page trend-discovery-shell page-enter space-y-6">
       <ScoutStageRail activeStage="candidate" />
       <div className="scout-workflow-main min-w-0 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="trend-discovery-hero flex items-center justify-between">
           <div>
+            <p className="trend-discovery-eyebrow">Candidate validation</p>
             <h1 className="text-2xl font-bold text-[var(--color-fg)]">候选验证</h1>
             <p className="text-sm text-[var(--color-muted)] mt-1">把四层信号归并成具体商品机会，优先补图片、市场、供应和竞品资料，再送入选品决策。</p>
           </div>
         </div>
-        <section className="space-y-3" aria-label="候选商品主工作区">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
+        <section className="trend-candidate-workbench space-y-3" aria-label="候选商品主工作区">
+          <div className="trend-candidate-summary rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
             <h2 className="text-sm font-semibold text-[var(--color-fg)]">候选商品池</h2>
             <p className="mt-1 text-xs text-[var(--color-muted)]">主视觉区先呈现可决策的商品机会；趋势、图片、热卖和 AI 推荐只是补证工具，不再喧宾夺主。</p>
           </div>
@@ -75,7 +76,7 @@ export default function TrendDiscoveryPage() {
           </div>
         </section>
         <CandidatePoolSourceHub activeCandidateSource={activeCandidateSource} setActiveCandidateSource={setActiveCandidateSource} />
-        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]" aria-label="候选池补资料工作区">
+        <section className="trend-source-workbench rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]" aria-label="候选池补资料工作区">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-[var(--color-primary)]">当前补资料入口</p>
@@ -104,7 +105,7 @@ function CandidatePoolSourceHub({
   setActiveCandidateSource: (value: string) => void
 }) {
   return (
-    <section aria-label="候选池数据入口" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
+    <section aria-label="候选池数据入口" className="trend-source-hub rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-sm)]">
       <div className="mb-3">
         <p className="text-xs font-semibold text-[var(--color-primary)]">候选商品池数据入口</p>
         <h2 className="mt-1 text-lg font-semibold text-[var(--color-fg)]">围绕候选池补资料</h2>
@@ -112,7 +113,7 @@ function CandidatePoolSourceHub({
           趋势、图片、热卖、推荐和选品库不再是五个割裂页面；它们是候选商品池的五类补资料入口。
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="trend-source-grid grid gap-3 md:grid-cols-5">
         {CANDIDATE_SOURCE_ENTRIES.map((entry) => {
           const EntryIcon = entry.icon
           const active = activeCandidateSource === entry.id
@@ -121,7 +122,7 @@ function CandidatePoolSourceHub({
               key={entry.id}
               type="button"
               onClick={() => setActiveCandidateSource(entry.id)}
-              className={`rounded-2xl border p-3 text-left transition-all ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] shadow-[var(--shadow-sm)]' : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-primary)]'}`}
+              className={`trend-source-card rounded-2xl border p-3 text-left transition-all ${active ? 'trend-source-card-active border-[var(--color-primary)] bg-[var(--color-primary-light)] shadow-[var(--shadow-sm)]' : 'border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-primary)]'}`}
             >
               <div className="flex items-center gap-2">
                 <span className="rounded-xl bg-[var(--color-surface)] p-2">

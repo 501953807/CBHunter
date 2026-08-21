@@ -6,9 +6,9 @@ import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { Select } from '../../components/ui/Select'
 import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
+import type { PlatformAccount } from '../../types/common'
 import { usePlatforms } from '../../hooks/usePlatforms'
 import { ContentProductQueue } from './ContentProductQueue'
-import { ProfessionalWorkspaceFrame } from '../../components/shared/ProfessionalWorkspaceFrame'
 import { productImageSrc } from '../../utils/productImages'
 import { ContentListingStageRail } from './ContentListingStageRail'
 import { ContentMediaStudio } from './ContentMediaStudio'
@@ -31,7 +31,7 @@ export default function ContentPlannerPage() {
     [searchParams],
   )
   const { data: platformsData } = usePlatforms()
-  const storeOptions = (platformsData?.data || []).map((account: any) => ({
+  const storeOptions = (platformsData?.data || []).map((account: PlatformAccount) => ({
     value: account.id,
     label: `${account.platform} · ${account.account_name}`,
   }))
@@ -59,7 +59,7 @@ export default function ContentPlannerPage() {
         item.id === currentProductId || item.work_item_id === currentWorkItemId,
       )
       setSelectedProduct(current => refreshed || (current ? { ...current } : current))
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Refresh selected content workbench product failed', error)
       setSelectedProduct(current => current ? { ...current } : current)
     }
@@ -115,22 +115,26 @@ export default function ContentPlannerPage() {
 
   useEffect(() => {
     if (workspaceMode !== 'image') return
-    setActiveImageSlotIndex(initialImageSlotIndex)
+    const timer = window.setTimeout(() => setActiveImageSlotIndex(initialImageSlotIndex), 0)
+    return () => window.clearTimeout(timer)
   }, [initialImageSlotIndex, workspaceMode])
 
   return (
-    <div className="space-y-6">
+    <div className="content-planner-page">
       <ContentListingStageRail />
-      <ProfessionalWorkspaceFrame
-        eyebrow="Content Operations"
-        title="内容制作"
-        density="compact"
-        actions={
-          <div data-ui="content-listing-compact-toolbar" className="flex min-w-[520px] flex-wrap items-center justify-end gap-2">
-            <span className="max-w-[220px] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-muted)]">
+
+      <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="content-factory-shell">
+        <div data-ui="content-queue-command-toolbar" className="content-factory-toolbar">
+          <div className="content-factory-heading">
+            <p>Listing Operations</p>
+            <h2>待制作商品列表</h2>
+            <span>从选品库确认上架的商品在此进入 Listing、图片、SKU/属性、定价和刊登处理。</span>
+          </div>
+          <div data-ui="content-listing-compact-toolbar" className="content-factory-context-controls">
+            <span className="content-factory-selected-product">
               {selectedProduct ? selectedProduct.product_name : '未选择商品'}
             </span>
-            <div className="w-64">
+            <div className="content-factory-store-select">
               <Select
                 options={storeOptions}
                 value={activeStore}
@@ -138,29 +142,6 @@ export default function ContentPlannerPage() {
                 placeholder="选择已绑定店铺"
               />
             </div>
-          </div>
-        }
-      />
-
-      <section aria-label="内容工厂待制作产品列表" data-ui="content-factory-product-queue-page" className="content-factory-shell min-h-[calc(100vh-190px)] space-y-4 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-md)]">
-        <div data-ui="content-queue-command-toolbar" className="content-factory-toolbar flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
-          <div>
-            <p className="text-xs font-semibold text-[var(--color-primary)]">Listing 一体化内容工作台</p>
-            <p className="text-sm font-semibold text-[var(--color-fg)]">待制作商品列表</p>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">先从商品队列选择对象，再打开 Listing 详情处理标题、描述、图片、SKU 和平台字段。列表始终保留为主页面，详情以覆盖式工作台打开。</p>
-          </div>
-          <div data-ui="content-queue-real-action-guide" className="grid gap-2 text-xs sm:grid-cols-3">
-            {[
-              ['1', '勾选商品', '在表格中选择一个或多个待处理商品'],
-              ['2', '选择动作', '使用表格批量区生成文案、素材或定价队列'],
-              ['3', '进入工作台', '逐个打开 Listing 详情或图片工作台人工确认'],
-            ].map(([step, title, desc]) => (
-              <div key={step} className="content-factory-card rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">{step}</span>
-                <p className="mt-1 font-semibold text-[var(--color-fg)]">{title}</p>
-                <p className="text-[var(--color-muted)]">{desc}</p>
-              </div>
-            ))}
           </div>
         </div>
         <ContentProductQueue

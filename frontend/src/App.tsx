@@ -22,6 +22,10 @@ const AISuggestionsPage = lazy(() => import('./pages/AISuggestionsPage'))
 const ContentPlannerPage = lazy(() => import('./pages/ContentPlannerPage'))
 const TrendDiscoveryPage = lazy(() => import('./pages/TrendDiscoveryPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const ScoutSourcesPage = lazy(() => import('./pages/ScoutSourcesPage'))
 const FinancePage = lazy(() => import('./pages/FinancePage'))
 const GrowthEnginePage = lazy(() => import('./pages/GrowthEnginePage'))
@@ -40,6 +44,7 @@ const PromotionsPage = lazy(() => import('./pages/PromotionsPage'))
 const CommandCenterPage = lazy(() => import('./pages/CommandCenterPage'))
 const RiskControlPage = lazy(() => import('./pages/RiskControlPage'))
 const BusinessFlowPage = lazy(() => import('./pages/BusinessFlowPage'))
+const DesignSystemPage = import.meta.env.DEV ? lazy(() => import('./pages/DesignSystemPage')) : null
 
 function RouteFallback() {
   return (
@@ -59,6 +64,10 @@ export default function App() {
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route element={<AuthGuard />}>
                   <Route element={<AppLayout />}>
                     <Route path="command-center" element={<CommandCenterPage />} />
@@ -102,6 +111,7 @@ export default function App() {
                     <Route path="monitor" element={<CompetitorMonitorPage />} />
                     <Route path="reports" element={<ReportsPage />} />
                     <Route path="notifications" element={<NotificationsPage />} />
+                    {DesignSystemPage && <Route path="design-system" element={<DesignSystemPage />} />}
                   </Route>
                 </Route>
                 </Routes>

@@ -127,15 +127,16 @@ export default function ShipmentListPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="shipment-shell page-enter space-y-6">
+      <div className="shipment-hero">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-fg)]">物流管理</h1>
-          <p className="text-sm text-[var(--color-muted)] mt-1">发货与物流追踪</p>
+          <p className="shipment-eyebrow">fulfillment tracking</p>
+          <h1>物流管理</h1>
+          <p>发货、承运商、平台发货时限与物流追踪</p>
         </div>
       </div>
 
-      <Card>
+      <Card className="shipment-workbench">
         <CardContent className="pt-4">
           <EvidenceBanner evidence={data} compact />
           <StoreContextBanner
@@ -145,7 +146,7 @@ export default function ShipmentListPage() {
             currentModule="shipments"
             clearHref="/shipments"
           />
-          <div className="flex items-center gap-3 mb-4">
+          <div className="shipment-filter-toolbar">
             <Select
               options={withAllOption('全部状态', shipmentStatusOptions)}
               value={status}

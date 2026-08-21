@@ -20,6 +20,85 @@
   z-index: 1;
 }
 
+.pricing-command-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: stretch;
+  padding: 1rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(circle at 4% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 28%),
+    linear-gradient(135deg, color-mix(in oklch, var(--color-surface-raised) 92%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.pricing-command-kicker {
+  display: block;
+  margin-bottom: .35rem;
+  color: var(--color-primary);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.pricing-command-strip h2 {
+  margin: 0;
+  color: var(--color-fg);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.pricing-command-strip p {
+  max-width: 56rem;
+  margin: .35rem 0 0;
+  color: var(--color-muted);
+  font-size: .8rem;
+  line-height: 1.7;
+}
+
+.pricing-command-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(7.5rem, 1fr));
+  min-width: min(52rem, 100%);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklch, var(--color-bg) 78%, var(--color-surface));
+}
+
+.pricing-command-stats span {
+  display: grid;
+  gap: .2rem;
+  padding: .8rem .95rem;
+  color: var(--color-muted);
+  font-size: .7rem;
+  border-left: 1px solid var(--color-border);
+}
+
+.pricing-command-stats span:first-child {
+  border-left: 0;
+}
+
+.pricing-command-stats strong {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--color-fg);
+  font-size: .95rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pricing-command-stats .is-ready strong {
+  color: var(--color-success);
+}
+
+.pricing-command-stats .is-blocked strong {
+  color: var(--color-warning);
+}
+
 .pricing-panel,
 .pricing-form-panel,
 .pricing-template-panel,
@@ -101,4 +180,24 @@
     radial-gradient(circle at 100% 0%, color-mix(in oklch, var(--color-primary) 18%, transparent), transparent 34%),
     color-mix(in oklch, var(--color-primary-light) 60%, var(--color-surface));
   box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 1180px) {
+  .pricing-command-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-command-stats {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pricing-command-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricing-command-stats span:nth-child(odd) {
+    border-left: 0;
+  }
 }

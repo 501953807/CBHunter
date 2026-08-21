@@ -12,15 +12,18 @@ export default function AfterSalesPage() {
   const { data, isLoading } = useOrder(orderId || '')
   const order = data?.data
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-fg)]">售后处理</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-1">退款、退货和平台争议需来自已授权店铺的真实售后数据</p>
-        {orderId && <p className="mt-1 text-xs text-[var(--color-primary)]">当前跟进订单：{orderId}</p>}
+    <div className="after-sales-shell page-enter space-y-6">
+      <div className="after-sales-hero">
+        <div>
+          <p className="after-sales-eyebrow">after-sales console</p>
+          <h1>售后处理</h1>
+          <p>退款、退货和平台争议需来自已授权店铺的真实售后数据；未接入真实售后接口前，本页只承接订单异常处理闭环。</p>
+        </div>
+        {orderId && <span className="after-sales-context-chip">当前跟进订单：{orderId}</span>}
       </div>
       {orderId && isLoading && <Skeleton className="h-28 w-full" />}
       {order && (
-        <Card>
+        <Card className="after-sales-context-card">
           <CardContent className="py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -34,7 +37,7 @@ export default function AfterSalesPage() {
               </Badge>
             </div>
             {(order.fulfillment_exception?.reasons || []).length > 0 && (
-              <div className="mt-3 rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3 text-xs text-[var(--color-warning)]">
+              <div className="after-sales-warning">
                 <p className="font-medium">履约异常原因</p>
                 {(order.fulfillment_exception?.reasons || []).map(reason => <p key={reason} className="mt-1">• {reason}</p>)}
               </div>
@@ -43,7 +46,7 @@ export default function AfterSalesPage() {
         </Card>
       )}
       {order && <AfterSalesFulfillmentAnalysis order={order} />}
-      <Card>
+      <Card className="after-sales-empty-card">
         <CardContent className="py-12 text-center">
           <PackageX className="w-12 h-12 mx-auto text-[var(--color-muted)] mb-3" />
           <h2 className="text-lg font-semibold text-[var(--color-fg)]">售后数据接口待接入</h2>
@@ -51,13 +54,13 @@ export default function AfterSalesPage() {
             当前平台连接器尚未提供真实退款、退货与争议单读取能力，因此系统不生成模拟售后记录。
           </p>
           {orderId && (
-            <p className="mt-3 rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] px-3 py-2 text-xs text-[var(--color-warning)]">
+            <p className="after-sales-warning mx-auto mt-3 max-w-3xl">
               本页仅承接订单异常动作闭环，后续接入平台售后 API 后才会显示真实售后单；当前可先回到订单详情记录备注或在平台后台处理。
             </p>
           )}
           <div className="mt-5 flex items-center justify-center gap-3">
-            <Link to={orderId ? `/orders/${orderId}` : '/orders'} className="px-4 py-2 rounded-lg text-sm text-[var(--color-primary-text)] bg-[var(--color-primary)]">{orderId ? '返回订单详情' : '返回订单列表'}</Link>
-            <Link to="/platforms" className="px-4 py-2 rounded-lg text-sm border border-[var(--color-border)] text-[var(--color-fg)] inline-flex items-center gap-2"><Settings className="w-4 h-4" />检查平台配置</Link>
+            <Link to={orderId ? `/orders/${orderId}` : '/orders'} className="after-sales-primary-action">{orderId ? '返回订单详情' : '返回订单列表'}</Link>
+            <Link to="/platforms" className="after-sales-secondary-action"><Settings className="w-4 h-4" />检查平台配置</Link>
           </div>
         </CardContent>
       </Card>
@@ -88,7 +91,7 @@ function AfterSalesFulfillmentAnalysis({ order }: { order: OrderDetail }) {
     },
   ]
   return (
-    <Card>
+    <Card className="after-sales-analysis-card">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -113,13 +116,13 @@ function AfterSalesFulfillmentAnalysis({ order }: { order: OrderDetail }) {
         )}
         <div className="grid gap-2 md:grid-cols-3">
           {actions.map(action => (
-            <Link key={action.label} to={action.route} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left text-xs hover:border-[var(--color-primary)]">
+            <Link key={action.label} to={action.route} className="after-sales-action-card">
               <span className="font-medium text-[var(--color-primary)]">{action.label}</span>
               <span className="mt-1 block text-[var(--color-muted)]">{action.detail}</span>
             </Link>
           ))}
         </div>
-        <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
+        <p className="after-sales-note">
           售后履约分析只使用当前订单字段和已入库财务台账。平台退款、退货、争议单接口未接通前，本页不生成模拟售后记录，也不把平台后台未确认事项写成系统事实。
         </p>
       </CardContent>
@@ -130,7 +133,7 @@ function AfterSalesFulfillmentAnalysis({ order }: { order: OrderDetail }) {
 function AnalysisMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'danger' }) {
   const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div className="after-sales-metric">
       <p className="text-xs text-[var(--color-muted)]">{label}</p>
       <p className="mt-1 line-clamp-2 text-sm font-semibold" style={{ color }}>{value}</p>
     </div>

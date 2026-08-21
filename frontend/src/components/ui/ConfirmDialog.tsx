@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
@@ -64,7 +65,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
-            className="w-full max-w-md rounded-2xl border p-5 shadow-[var(--shadow-lg)]"
+            className="materio-dialog w-full max-w-md rounded-[var(--radius-md)] border p-5 shadow-[var(--materio-elevation-3)]"
             style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
           >
             <div className="flex items-start gap-3">
@@ -85,7 +86,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => close(false)}
-                className="rounded-lg border px-4 py-2 text-sm transition-colors hover:bg-[var(--color-bg)]"
+                className="rounded-[var(--radius-md)] border px-4 py-2 text-sm transition-colors hover:bg-[var(--color-bg)]"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
               >
                 {request.cancelText}
@@ -93,7 +94,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => close(true)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--color-primary-text)] transition-opacity hover:opacity-90"
+                className="rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium text-[var(--color-primary-text)] transition-opacity hover:opacity-90"
                 style={{ backgroundColor: tone.button }}
               >
                 {request.confirmText}

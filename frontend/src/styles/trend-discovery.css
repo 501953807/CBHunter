@@ -1,0 +1,121 @@
+.trend-discovery-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.trend-discovery-hero,
+.trend-candidate-summary,
+.trend-candidate-workbench,
+.trend-source-hub,
+.trend-source-workbench,
+.trend-recommendation-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.trend-discovery-hero {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 18%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in oklch, var(--color-primary) 14%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 92%, transparent), var(--color-surface));
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem;
+}
+
+.trend-discovery-eyebrow {
+  margin-bottom: .35rem;
+  color: var(--color-primary);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.trend-candidate-summary,
+.trend-source-hub,
+.trend-source-workbench,
+.trend-recommendation-panel {
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--color-primary) 9%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 90%, transparent), var(--color-surface));
+}
+
+.trend-candidate-summary::before,
+.trend-source-hub::before,
+.trend-source-workbench::before,
+.trend-recommendation-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--color-primary) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in oklch, var(--color-primary) 5%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: .18;
+}
+
+.trend-candidate-summary > *,
+.trend-source-hub > *,
+.trend-source-workbench > *,
+.trend-recommendation-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.trend-source-grid {
+  align-items: stretch;
+}
+
+.trend-source-card {
+  min-height: 138px;
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface) 86%, var(--color-bg)), var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.trend-source-card:hover,
+.trend-source-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  outline: none;
+}
+
+.trend-source-card-active {
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in oklch, var(--color-primary) 18%, transparent), transparent 34%),
+    color-mix(in oklch, var(--color-primary-light) 66%, var(--color-surface));
+}
+
+.trend-recommendation-toolbar select,
+.trend-source-tab select,
+.trend-source-tab input {
+  min-height: 38px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.trend-recommendation-toolbar select:focus,
+.trend-source-tab select:focus,
+.trend-source-tab input:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
+}
+
+.trend-trending-tab [class*="grid-cols-2"] > div,
+.trend-trending-tab [class*="grid-cols-3"] > div,
+.trend-trending-tab [class*="grid-cols-4"] > div,
+.trend-trending-tab [class*="grid-cols-5"] > div {
+  border-color: color-mix(in oklch, var(--color-primary) 14%, var(--color-border));
+  box-shadow: var(--shadow-sm);
+}

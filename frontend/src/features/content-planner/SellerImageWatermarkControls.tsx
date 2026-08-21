@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { ImageEditOptions } from './SellerImageEditorWorkbench'
+import type { ImageEditOptions } from './SellerImageEditorTypes'
 
 export function SellerImageWatermarkControls({ imageOptions, setImageOptions, inputClass, onClearWatermark }: {
   imageOptions: ImageEditOptions

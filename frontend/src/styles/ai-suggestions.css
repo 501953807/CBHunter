@@ -1,6 +1,20 @@
 .ai-suggestions-shell {
+  position: relative;
   display: grid;
   gap: 18px;
+}
+
+.ai-suggestions-shell::before {
+  pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: var(--app-header-height, 64px) 0 auto var(--app-sidebar-width, 96px);
+  height: 300px;
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in oklch, var(--color-primary) 17%, transparent), transparent 32%),
+    radial-gradient(circle at 82% 8%, color-mix(in oklch, var(--color-info) 12%, transparent), transparent 30%);
+  opacity: .28;
+  z-index: -1;
 }
 
 .ai-suggestions-hero {
@@ -84,11 +98,23 @@
 }
 
 .ai-suggestions-engine-panel {
+  position: relative;
+  overflow: hidden;
   border-color: color-mix(in srgb, var(--color-border) 82%, var(--color-primary) 18%);
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%), var(--color-surface)),
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 28%);
   box-shadow: 0 16px 42px color-mix(in srgb, var(--color-fg) 7%, transparent);
+}
+
+.ai-suggestions-engine-panel::before,
+.ai-suggestion-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--surface-metal-line);
+  opacity: .58;
 }
 
 .ai-suggestions-provider-link {
@@ -124,6 +150,10 @@
   border-radius: 18px;
   background: color-mix(in srgb, var(--color-bg) 74%, var(--color-surface) 26%);
   padding: 14px;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .ai-suggestions-metric-card::before {
@@ -152,6 +182,12 @@
   font-size: 20px;
   font-weight: 850;
   letter-spacing: -0.03em;
+}
+
+.ai-suggestions-metric-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 36%, var(--color-border));
+  box-shadow: var(--shadow-sm);
 }
 
 .ai-suggestions-trace-grid {
@@ -196,10 +232,38 @@
 }
 
 .ai-suggestion-card {
+  position: relative;
+  overflow: hidden;
   border-color: color-mix(in srgb, var(--color-border) 84%, transparent);
   background: color-mix(in srgb, var(--color-surface) 95%, var(--color-bg) 5%);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--color-fg) 5%, transparent);
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ai-suggestions-shell :is(input, select, textarea, .luxury-input) {
+  min-height: 40px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.ai-suggestions-shell :is(input, select, textarea, .luxury-input):focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
+}
+
+.ai-suggestions-shell button {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.ai-suggestions-shell button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .ai-suggestion-card:hover {

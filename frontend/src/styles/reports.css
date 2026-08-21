@@ -2,6 +2,19 @@
   position: relative;
 }
 
+.reports-shell::before {
+  pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: var(--app-header-height, 64px) 0 auto var(--app-sidebar-width, 96px);
+  height: 300px;
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in oklch, var(--color-primary) 16%, transparent), transparent 32%),
+    radial-gradient(circle at 84% 10%, color-mix(in oklch, var(--color-info) 12%, transparent), transparent 30%);
+  opacity: .28;
+  z-index: -1;
+}
+
 .reports-operations-panel {
   border: 1px solid var(--color-hairline);
   background:
@@ -91,4 +104,54 @@
 .reports-progress-bar {
   background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
   box-shadow: 0 6px 18px color-mix(in oklch, var(--color-primary) 24%, transparent);
+}
+
+.reports-shell :is(input, select, textarea, .luxury-input) {
+  min-height: 40px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.reports-shell :is(input, select, textarea, .luxury-input):focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
+}
+
+.reports-shell table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.reports-shell thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface-raised) 92%, var(--color-bg));
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.reports-shell tbody td {
+  border-bottom: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
+  background: color-mix(in oklch, var(--color-surface) 86%, var(--color-bg));
+}
+
+.reports-shell tbody tr:hover td {
+  background: color-mix(in oklch, var(--color-primary-light) 24%, var(--color-surface));
+}
+
+.reports-operations-panel,
+.reports-chart-panel,
+.reports-tab-panel,
+.reports-anomaly-panel {
+  overflow: hidden;
 }
