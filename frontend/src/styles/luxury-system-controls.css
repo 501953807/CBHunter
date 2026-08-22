@@ -1,0 +1,187 @@
+.luxury-control,
+.luxury-select,
+.luxury-filter {
+  border: 1px solid var(--color-hairline);
+  background: color-mix(in oklch, var(--color-surface) 90%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    transform var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.luxury-control:hover,
+.luxury-select:hover,
+.luxury-filter:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 52%, var(--color-border));
+  background: color-mix(in oklch, var(--color-surface) 78%, var(--color-primary-light));
+  box-shadow: var(--shadow-md);
+}
+
+.luxury-control:focus-visible,
+.luxury-select:focus-visible,
+.luxury-filter:focus-visible,
+.theme-preset-option:focus-visible,
+.luxury-nav-item:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--color-primary) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.luxury-table-shell table {
+  background: transparent;
+}
+
+.luxury-table-shell thead {
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-bg) 72%, var(--color-surface)), color-mix(in oklch, var(--color-surface) 88%, var(--color-bg)));
+}
+
+.luxury-table-shell tbody tr {
+  transition:
+    background var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.luxury-table-shell tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 36%, var(--color-surface));
+  box-shadow: inset 3px 0 0 color-mix(in oklch, var(--color-primary) 72%, transparent);
+}
+
+.luxury-table-shell input[type="checkbox"] {
+  accent-color: var(--color-primary);
+}
+
+.luxury-toolbar {
+  border: 1px solid var(--color-hairline);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-surface-raised) 82%, var(--color-bg)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-input {
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  color: var(--color-fg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background var(--motion-standard);
+}
+
+.luxury-input:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 16%, transparent);
+  outline: none;
+}
+
+.luxury-page-frame input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.luxury-page-frame textarea,
+.luxury-page-frame select {
+  border-color: var(--color-border);
+  background-color: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  color: var(--color-fg);
+  transition:
+    border-color var(--motion-standard),
+    box-shadow var(--motion-standard),
+    background-color var(--motion-standard);
+}
+
+.luxury-page-frame input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+.luxury-page-frame textarea:focus,
+.luxury-page-frame select:focus {
+  border-color: color-mix(in oklch, var(--color-primary) 62%, var(--color-border));
+  background-color: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 16%, transparent);
+  outline: none;
+}
+
+.luxury-page-frame input[type="checkbox"],
+.luxury-page-frame input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+.luxury-page-frame textarea {
+  line-height: 1.65;
+}
+
+.luxury-page-frame ::selection {
+  background: color-mix(in oklch, var(--color-primary) 26%, transparent);
+  color: var(--color-fg);
+}
+
+.luxury-page-frame :where(.rounded-xl.border, .rounded-2xl.border):not(.luxury-card):not(.luxury-table-shell):not(.luxury-empty-state):not(.luxury-modal-panel) {
+  border-color: var(--color-hairline);
+  background-color: color-mix(in oklch, var(--color-surface) 88%, var(--color-bg));
+  box-shadow: var(--shadow-sm);
+}
+
+.luxury-page-frame :where(.rounded-lg.border, .rounded-md.border):not(.luxury-filter):not(.luxury-control) {
+  border-color: var(--color-hairline);
+  background-color: color-mix(in oklch, var(--color-surface) 90%, var(--color-bg));
+}
+
+.luxury-page-frame :where(button, a)[class*="rounded"]:not(:disabled) {
+  transition:
+    transform var(--motion-standard),
+    border-color var(--motion-standard),
+    background var(--motion-standard),
+    color var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.luxury-page-frame :where(button, a)[class*="rounded"]:not(:disabled):active {
+  transform: scale(.98);
+}
+
+.luxury-page-frame table:not(.professional-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--color-fg);
+}
+
+.luxury-page-frame table:not(.professional-table) th {
+  background: color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.luxury-page-frame table:not(.professional-table) td,
+.luxury-page-frame table:not(.professional-table) th {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: .75rem 1rem;
+}
+
+.luxury-page-frame table:not(.professional-table) tbody tr {
+  transition: background var(--motion-standard), box-shadow var(--motion-standard);
+}
+
+.luxury-page-frame table:not(.professional-table) tbody tr:hover {
+  background: color-mix(in oklch, var(--color-primary-light) 34%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in oklch, var(--color-primary) 64%, transparent);
+}
+
+.luxury-page-frame ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.luxury-page-frame ::-webkit-scrollbar-track {
+  background: color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+}
+
+.luxury-page-frame ::-webkit-scrollbar-thumb {
+  border: 2px solid color-mix(in oklch, var(--color-bg) 82%, var(--color-surface));
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-primary) 34%, var(--color-border));
+}
+
+.luxury-page-frame ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--color-primary) 54%, var(--color-border));
+}

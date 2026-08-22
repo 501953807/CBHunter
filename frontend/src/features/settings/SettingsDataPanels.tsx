@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react"
-import { BookOpen, Check, Edit3, Plus, Trash2, X } from "lucide-react"
-import { Card, CardContent, CardHeader } from "../../components/ui/Card"
 import { useConfirm } from "../../components/ui/ConfirmDialog"
 import { calculateSmartProfit, listExchangeRates, refreshExchangeRates } from "../../api/smart"
 import {
@@ -16,18 +14,16 @@ import {
 } from "../../api/settings"
 import { listSeeds } from "../../api/seeds"
 import { logger } from "../../utils/logger"
-import SeedManagerTab from "./SeedManagerTab"
-import { EvidenceBanner } from "../../components/shared/EvidenceBanner"
 import type { ApiResponse } from "../../types/common"
 import { useFullConfig } from "../../hooks/useConfig"
 import type { DictionaryAdminConfig, DictionaryDefinition } from "../../api/settings"
 import type { UnifiedFieldDictionary, UnifiedFieldDictionaryItem } from "../../api/config"
-import { PlatformFieldGroupGovernance } from "./PlatformFieldGroupGovernance"
+import { DictionarySettingsCard } from "./SettingsDictionaryCrudParts"
+import { SettingsFieldDictionaryPanel } from "./SettingsFieldDictionaryPanel"
 import {
   ExchangeRatesPanel,
   FeeRateGovernanceSummary,
   FeeRateTable,
-  FieldDictionaryRow,
   ProfitCalculatorPanel,
   buildFeeGovernanceSummary,
 } from "./SettingsDataPanelsParts"
@@ -68,42 +64,31 @@ export function DictSettingsCRUD({ toast }: { toast: any }) {
     try { await deleteDictItem(activeDict, id); toast.addToast('success', '已删除'); loadDicts() } catch (e: any) { logger.error('Delete dict item failed', e); toast.addToast('error', '删除失败') }
   }
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
-            <h2 className="font-semibold" style={{ color: 'var(--color-fg)' }}>业务字典</h2>
-          </div>
-          {activeDict !== 'seeds' && !adding && (
-            <button onClick={() => { setAdding(true); setAddForm({}) }}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-[var(--color-primary-text)]"
-              style={{ background: 'var(--gradient-accent)' }}>
-              <Plus className="w-3 h-3" /> 新增
-            </button>
-          )}
-        </div>
-        <div className="flex gap-1 mt-2 bg-[var(--color-bg)] rounded-lg p-0.5 w-fit">
-          {definitions.map(t => (
-            <button key={t.id}
-              onClick={() => { setActiveDict(t.id); setEditingId(null); setAdding(false) }}
-              className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all ${activeDict === t.id ? 'bg-[var(--color-surface)] shadow-sm text-[var(--color-fg)]' : 'text-[var(--color-muted)]'}`}>
-              {t.label} ({getTabCount(t.id)})
-            </button>
-          ))}
-        </div>
-      </CardHeader>
-      <EvidenceBanner evidence={evidence} compact />
-      {activeDict === 'seeds' ? (
-        <CardContent><SeedManagerTab toast={toast} /></CardContent>
-      ) : (
-        <CardContent>
-      {adding && <div className="mb-3 p-3 rounded-lg border" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}><div className="flex items-end gap-2 flex-wrap">{fields.map(f => <div key={f}><label className="text-[11px] block mb-0.5" style={{ color: 'var(--color-muted)' }}>{fieldLabel(f)}</label><input className="text-xs border rounded px-2 py-1.5 w-24" placeholder={fieldLabel(f)} value={addForm[f] || ''} onChange={e => setAddForm({...addForm, [f]: e.target.value})} style={{ borderColor: 'var(--color-border)' }} /></div>)}<button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded bg-[var(--color-success)] text-[var(--color-primary-text)]"><Check className="w-3 h-3 inline mr-1" />添加</button><button onClick={() => setAdding(false)} className="text-xs px-3 py-1.5 rounded border" style={{ borderColor: 'var(--color-border)' }}>取消</button></div></div>}
-      <table className="w-full text-xs"><thead><tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>{fields.map(f => <th key={f} className="text-left py-2 pr-3 font-medium" style={{ color: 'var(--color-muted)' }}>{fieldLabel(f)}</th>)}<th className="text-left py-2 font-medium" style={{ color: 'var(--color-muted)' }}>操作</th></tr></thead><tbody>{active.items.map((item: any) => <tr key={item.id} className="border-b" style={{ borderColor: 'var(--color-border)' }}>{fields.map(f => <td key={f} className="py-2 pr-3">{editingId === item.id ? <input className="text-xs border rounded px-1.5 py-0.5 w-full" value={editForm[f] || ''} onChange={e => setEditForm({...editForm, [f]: e.target.value})} style={{ borderColor: 'var(--color-border)' }} /> : <span style={{ color: 'var(--color-fg)' }}>{item[f]}</span>}</td>)}<td className="py-2 flex gap-1">{editingId === item.id ? <><button onClick={handleSave} className="text-[var(--color-success)]"><Check className="w-3 h-3" /></button><button onClick={() => setEditingId(null)} className="text-[var(--color-muted)]"><X className="w-3 h-3" /></button></> : <><button onClick={() => startEdit(item)} className="text-[var(--color-primary)]"><Edit3 className="w-3 h-3" /></button><button onClick={() => handleDelete(item.id)} className="text-[var(--color-danger)]"><Trash2 className="w-3 h-3" /></button></>}</td></tr>)}</tbody></table>
-    </CardContent>
-  )}
-  </Card>
-)
+    <DictionarySettingsCard
+      active={active}
+      activeDict={activeDict}
+      adding={adding}
+      addForm={addForm}
+      definitions={definitions}
+      editingId={editingId}
+      editForm={editForm}
+      evidence={evidence}
+      fieldLabel={fieldLabel}
+      fields={fields}
+      getTabCount={getTabCount}
+      onAdd={handleAdd}
+      onAddFormChange={(field, value) => setAddForm({ ...addForm, [field]: value })}
+      onCancelAdd={() => setAdding(false)}
+      onCancelEdit={() => setEditingId(null)}
+      onDelete={handleDelete}
+      onEditFormChange={(field, value) => setEditForm({ ...editForm, [field]: value })}
+      onSave={handleSave}
+      onSelectDict={(id) => { setActiveDict(id); setEditingId(null); setAdding(false) }}
+      onStartAdd={() => { setAdding(true); setAddForm({}) }}
+      onStartEdit={startEdit}
+      toast={toast}
+    />
+  )
 }
 
 export function FieldDictionarySettings() {
@@ -203,136 +188,38 @@ export function FieldDictionarySettings() {
   }
 
   return (
-    <div className="space-y-4">
-    <Card data-ui="settings-unified-field-dictionary">
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
-              <h2 className="font-semibold text-[var(--color-fg)]">统一字段字典</h2>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
-              通过生效版、草稿和历史版本治理标准字段、数据类型、所属模块、三平台字段和妙手参考字段；草稿不影响运行时字段映射，发布后才进入全系统配置。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[var(--color-primary-light)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)]">
-              字段 {fields.length}
-            </span>
-            <button
-              onClick={loadVersions}
-              disabled={loading}
-              className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-fg)] disabled:opacity-50"
-            >
-              {loading ? "加载中" : "刷新版本"}
-            </button>
-          </div>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
-          {[
-            ["Shopee", platformCoverage("shopee")],
-            ["TEMU", platformCoverage("temu")],
-            ["TikTok", platformCoverage("tiktok")],
-            ["妙手参考", platformCoverage("miaoshou")],
-          ].map(([label, value]) => (
-            <div key={label as string} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-              <p className="text-[11px] text-[var(--color-muted)]">{label as string}</p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-fg)]">{value as number}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 grid gap-2 text-xs md:grid-cols-3" data-ui="settings-field-dictionary-version-governance">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <p className="text-[var(--color-muted)]">生效版</p>
-            <p className="mt-1 font-semibold text-[var(--color-fg)]">{active.version || "default"} · {active.fields?.length || 0} 字段</p>
-          </div>
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <p className="text-[var(--color-muted)]">草稿</p>
-            <p className="mt-1 font-semibold text-[var(--color-fg)]">{draftVersion || "无草稿"} {dirty ? "· 未保存" : ""}</p>
-          </div>
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <p className="text-[var(--color-muted)]">历史版本</p>
-            <p className="mt-1 font-semibold text-[var(--color-fg)]">{history.length} 个归档</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            placeholder="搜索标准字段、中文名、平台字段或妙手字段"
-            className="min-w-[260px] flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
-          />
-          <select
-            value={moduleFilter}
-            onChange={event => setModuleFilter(event.target.value)}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
-          >
-            <option value="all">全部模块</option>
-            {modules.map(module => <option key={module} value={module}>{module}</option>)}
-          </select>
-          <input
-            value={changeNote}
-            onChange={event => setChangeNote(event.target.value)}
-            placeholder="变更说明，例如：补齐 Shopee 越南字段"
-            className="min-w-[260px] flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]"
-          />
-          <button
-            onClick={saveDraft}
-            disabled={saving || fields.length === 0}
-            className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-[var(--color-primary-text)] disabled:opacity-50"
-          >
-            保存草稿
-          </button>
-          <button
-            onClick={publishDraft}
-            disabled={saving || dirty || !draftDictionary?.version}
-            className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-semibold text-[var(--color-fg)] disabled:opacity-50"
-          >
-            发布草稿
-          </button>
-        </div>
-        {statusText ? (
-          <p className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            {statusText}
-          </p>
-        ) : null}
-        <div className="overflow-hidden rounded-xl border border-[var(--color-border)]">
-          <div className="max-h-[560px] overflow-auto">
-            <table className="w-full min-w-[900px] text-xs">
-              <thead className="sticky top-0 bg-[var(--color-bg)]">
-                <tr>
-                  {["标准字段", "中文名", "类型", "模块", "Shopee", "TEMU", "TikTok", "妙手参考", "国别差异", "操作"].map(head => (
-                    <th key={head} className="border-b border-[var(--color-border)] px-3 py-2 text-left font-medium text-[var(--color-muted)]">{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredFields.map(item => (
-                  <FieldDictionaryRow
-                    key={item.key}
-                    item={item}
-                    editing={editingKey === item.key}
-                    onEdit={() => setEditingKey(item.key)}
-                    onCancel={() => setEditingKey(null)}
-                    onChange={updater => updateField(item.key, updater)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredFields.length === 0 ? (
-            <p className="bg-[var(--color-surface)] px-4 py-8 text-center text-xs text-[var(--color-muted)]">
-              当前筛选没有字段；请调整关键词或模块。
-            </p>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-    <PlatformFieldGroupGovernance />
-    </div>
+    <SettingsFieldDictionaryPanel
+      activeFieldCount={active.fields?.length || 0}
+      activeVersion={active.version || "default"}
+      changeNote={changeNote}
+      dirty={dirty}
+      draftVersion={draftVersion}
+      editingKey={editingKey}
+      fields={fields}
+      filteredFields={filteredFields}
+      historyCount={history.length}
+      loading={loading}
+      moduleFilter={moduleFilter}
+      modules={modules}
+      platformCoverage={{
+        shopee: platformCoverage("shopee"),
+        temu: platformCoverage("temu"),
+        tiktok: platformCoverage("tiktok"),
+        miaoshou: platformCoverage("miaoshou"),
+      }}
+      query={query}
+      saving={saving}
+      statusText={statusText}
+      onCancelEdit={() => setEditingKey(null)}
+      onChangeNoteChange={setChangeNote}
+      onModuleFilterChange={setModuleFilter}
+      onPublishDraft={publishDraft}
+      onQueryChange={setQuery}
+      onReload={loadVersions}
+      onSaveDraft={saveDraft}
+      onStartEdit={setEditingKey}
+      onUpdateField={updateField}
+    />
   )
 }
 

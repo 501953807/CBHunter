@@ -1,7 +1,11 @@
 /* CBHunter V5 Materio reference system overlay.
    Scope: visual tokens and shared component states only; no business semantics. */
 @import "./materio-foundation.css";
+@import "./materio-navbar.css";
+@import "./materio-form-controls.css";
+@import "./materio-sidebar-shell.css";
 @import "./materio-sidebar.css";
+@import "./materio-customizer.css";
 @import "./materio-overlays.css";
 @import "./materio-components.css";
 @import "./materio-auth.css";

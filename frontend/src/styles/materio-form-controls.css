@@ -1,0 +1,225 @@
+.materio-field-shell {
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+  color: var(--color-muted);
+  font-size: .8125rem;
+  font-weight: 500;
+}
+
+.materio-search-field {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  gap: .625rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  padding-inline: .875rem;
+  transition: var(--transition-base);
+}
+
+.materio-search-field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--materio-focus-ring);
+}
+
+.materio-search-field input {
+  min-height: auto !important;
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--color-fg);
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.materio-check {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: .5rem;
+  color: var(--color-fg);
+  font-size: .9375rem;
+}
+
+.materio-check-control,
+.materio-switch-control {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: .625rem;
+  color: var(--color-fg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.materio-check-control.is-disabled,
+.materio-switch-control.is-disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.materio-check-input,
+.materio-radio-input,
+.materio-switch-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.materio-check-visual,
+.materio-radio-visual {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin-block-start: .125rem;
+  border: 2px solid color-mix(in srgb, var(--color-fg) 34%, transparent);
+  background: var(--color-surface);
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.materio-check-visual {
+  border-radius: 5px;
+}
+
+.materio-radio-visual {
+  border-radius: 999px;
+}
+
+.materio-check-visual::after {
+  content: "";
+  inline-size: .36rem;
+  block-size: .62rem;
+  margin-block-start: -.12rem;
+  border: solid var(--color-primary-text);
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg) scale(.7);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.materio-radio-visual::after {
+  content: "";
+  inline-size: .55rem;
+  block-size: .55rem;
+  border-radius: inherit;
+  background: var(--color-primary);
+  opacity: 0;
+  transform: scale(.45);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.materio-check-input:checked + .materio-check-visual,
+.materio-radio-input:checked + .materio-radio-visual {
+  border-color: var(--color-primary);
+}
+
+.materio-check-input:checked + .materio-check-visual {
+  background: var(--color-primary);
+  box-shadow: var(--materio-primary-button-shadow);
+}
+
+.materio-check-input:checked + .materio-check-visual::after,
+.materio-radio-input:checked + .materio-radio-visual::after {
+  opacity: 1;
+}
+
+.materio-check-input:checked + .materio-check-visual::after {
+  transform: rotate(45deg) scale(1);
+}
+
+.materio-radio-input:checked + .materio-radio-visual::after {
+  transform: scale(1);
+}
+
+.materio-check-input:focus-visible + .materio-check-visual,
+.materio-radio-input:focus-visible + .materio-radio-visual,
+.materio-switch-input:focus-visible + .materio-switch-track {
+  box-shadow: var(--materio-focus-ring);
+}
+
+.materio-check-control:hover .materio-check-visual,
+.materio-check-control:hover .materio-radio-visual {
+  border-color: color-mix(in srgb, var(--color-primary) 72%, var(--color-border));
+}
+
+.materio-check-copy {
+  display: grid;
+  gap: .1rem;
+  min-inline-size: 0;
+}
+
+.materio-check-label {
+  font-size: .9375rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-fg) 92%, transparent);
+}
+
+.materio-check-description {
+  font-size: .8125rem;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.materio-radio-group {
+  display: grid;
+  gap: .75rem;
+}
+
+.materio-radio-group.is-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.materio-switch-track {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  inline-size: 2.375rem;
+  block-size: 1.375rem;
+  margin-block-start: .08rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-fg) 18%, transparent);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.materio-switch-thumb {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: var(--materio-elevation-1);
+  transition: transform 150ms ease;
+}
+
+.materio-switch-input:checked + .materio-switch-track {
+  background: var(--color-primary);
+}
+
+.materio-switch-input:checked + .materio-switch-track .materio-switch-thumb {
+  transform: translateX(1rem);
+}
+
+[dir="rtl"] .materio-switch-input:checked + .materio-switch-track .materio-switch-thumb {
+  transform: translateX(-1rem);
+}
+
+.materio-switch-row.compact {
+  min-height: 34px;
+  margin: 0;
+  gap: .75rem;
+}

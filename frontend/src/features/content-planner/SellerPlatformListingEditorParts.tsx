@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
-import { CheckCircle2, GripVertical, ImagePlus } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import type { ContentWorkbenchItem } from '../../api/content'
-import { Button } from '../../components/ui/Button'
+import { PlatformFieldGroupEditor, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
 import { productImageSrc } from '../../utils/productImages'
 import { ListingCriticalActionStrip } from './ListingCriticalActionStrip'
-import type { ListingGap, ListingImageSlot } from './SellerPlatformListingEditorUtils'
+import { hasAttributeValue, type ListingGap } from './SellerPlatformListingEditorUtils'
 
 export function EditorSection({
   id,
@@ -94,138 +94,6 @@ export function InlineInput({
       placeholder={placeholder}
       className="w-full min-w-[88px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-fg)] outline-none placeholder:text-[var(--color-muted)] focus:border-[var(--color-primary)]"
     />
-  )
-}
-
-export function ListingImageSlotSection({
-  active,
-  product,
-  imageSlots,
-  draggingImageIndex,
-  recommendedImages,
-  minImages,
-  publishableSlotImageCount,
-  confirmedSlotCount,
-  confirmedPublishableCount,
-  confirmedRetainedCount,
-  changeTab,
-  onDragStart,
-  onDrop,
-  onDragEnd,
-  onSetMainImage,
-  onAddImageSlot,
-}: {
-  active: boolean
-  product: ContentWorkbenchItem | null
-  imageSlots: ListingImageSlot[]
-  draggingImageIndex: number | null
-  recommendedImages: number
-  minImages: number
-  publishableSlotImageCount: number
-  confirmedSlotCount: number
-  confirmedPublishableCount: number
-  confirmedRetainedCount: number
-  changeTab: (nextTab: string, options?: { imageSlotIndex?: number }) => void
-  onDragStart: (index: number) => void
-  onDrop: (index: number) => void
-  onDragEnd: () => void
-  onSetMainImage: (index: number) => void
-  onAddImageSlot: () => void
-}) {
-  return (
-    <EditorSection id="listing-master-media" title="商品图片与素材" description="顶部先处理商品图片。素材池可以保留多张，发布到平台时只取前 9 个槽位；槽位顺序决定平台主图和辅图顺序。" active={active}>
-      <div
-        id="listing-field-images"
-        tabIndex={-1}
-        className="grid grid-cols-2 gap-3 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9"
-        data-ui="listing-master-image-slot-grid"
-      >
-        {imageSlots.map((slot, index) => (
-          <div
-            key={slot.id}
-            draggable
-            onDragStart={() => onDragStart(index)}
-            onDragOver={event => event.preventDefault()}
-            onDrop={() => onDrop(index)}
-            onDragEnd={onDragEnd}
-            className={draggingImageIndex === index ? 'overflow-hidden rounded-xl border border-[var(--color-primary)] bg-[var(--color-surface)] opacity-60 shadow-[var(--shadow-md)]' : 'overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)]'}
-            data-ui="listing-image-slot-order-card"
-          >
-            <button
-              type="button"
-              onClick={() => changeTab('media', { imageSlotIndex: index + 1 })}
-              className="group relative block w-full bg-[var(--color-bg)]"
-              data-ui="listing-image-slot-edit-link"
-              aria-label={`编辑${slot.label}图片槽位`}
-            >
-              {slot.imageUrl ? (
-                <img src={productImageSrc(slot.imageUrl)} alt={slot.label} className="aspect-square w-full object-cover" />
-              ) : (
-                <div className="grid aspect-square place-items-center gap-1 text-[11px] text-[var(--color-muted)]">
-                  <ImagePlus className="h-5 w-5" />
-                  <span>{slot.required ? '必填图' : '素材位'}</span>
-                </div>
-              )}
-              <span className="absolute bottom-0 left-0 right-0 bg-[var(--color-fg)]/70 px-1 py-1 text-[10px] text-[var(--color-surface)]">{slot.label}</span>
-              <span
-                className={index === 0 ? 'absolute left-1 top-1 rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-surface)] shadow-[var(--shadow-sm)]' : 'absolute left-1 top-1 rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-fg)] shadow-[var(--shadow-sm)]'}
-                data-ui="listing-image-slot-publish-order"
-              >
-                {index === 0 ? '主图' : `第${index + 1}张`}
-              </span>
-              <span
-                className="absolute right-1 top-1 inline-flex items-center gap-1 rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] text-[var(--color-muted)] shadow-[var(--shadow-sm)]"
-                data-ui="listing-image-slot-drag-handle"
-              >
-                <GripVertical className="h-3 w-3" />拖拽
-              </span>
-              <span className="absolute right-1 top-7 hidden rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] text-[var(--color-primary)] shadow-[var(--shadow-sm)] group-hover:block">编辑图片</span>
-            </button>
-            <div className="space-y-1 border-t border-[var(--color-border)] px-2 py-1">
-              <p className="truncate text-[10px] text-[var(--color-muted)]">{slot.role}</p>
-              <p
-                className={index < recommendedImages ? 'text-[10px] font-semibold text-[var(--color-success)]' : 'text-[10px] font-semibold text-[var(--color-muted)]'}
-                data-ui="listing-image-slot-publish-state"
-              >
-                {index === 0 ? '平台主图 / 搜索首图' : index < recommendedImages ? `发布前${recommendedImages}张内` : '素材池保留，不随本次发布'}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-1 border-t border-[var(--color-border)] p-1 text-[10px]">
-              <button type="button" onClick={() => onSetMainImage(index)} disabled={index === 0 || !slot.imageUrl} className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-primary)] disabled:opacity-30">设主图</button>
-              <button
-                type="button"
-                onClick={() => changeTab('media', { imageSlotIndex: index + 1 })}
-                className="rounded-md border border-[var(--color-border)] px-1 py-1 text-[var(--color-muted)]"
-                data-ui="listing-image-slot-edit-link"
-                aria-label={`编辑${slot.label}图片槽位`}
-              >
-                编辑
-              </button>
-            </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={onAddImageSlot}
-          className="grid min-h-[132px] place-items-center rounded-xl border border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] p-3 text-center text-xs text-[var(--color-primary)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)]"
-          data-ui="listing-master-add-image-slot"
-        >
-          <span>
-            <ImagePlus className="mx-auto mb-2 h-6 w-6" />
-            添加图片
-            <span className="mt-1 block text-[11px] text-[var(--color-muted)]">素材可多于 9 张，发布取前 9 张</span>
-          </span>
-        </button>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]" data-ui="listing-image-operation-toolbar" aria-label="Listing 图片槽位操作规则">
-        <span className="rounded-full border border-[var(--color-border)] px-2 py-1">素材池 {imageSlots.length} 张，发布取前 {recommendedImages} 张</span>
-        <span className="rounded-full border border-[var(--color-border)] px-2 py-1">已排入发布 {publishableSlotImageCount}/{recommendedImages}</span>
-        <span className={confirmedSlotCount ? 'rounded-full bg-[var(--color-success-light)] px-2 py-1 font-semibold text-[var(--color-success)]' : 'rounded-full border border-[var(--color-border)] px-2 py-1'} data-ui="listing-confirmed-image-slot-plan-summary">{confirmedSlotCount ? `已回显图片计划 ${confirmedPublishableCount || confirmedSlotCount} 张发布图${confirmedRetainedCount ? `，素材池 ${confirmedRetainedCount}` : ''}` : '未保存图片计划，使用源图初始化'}</span>
-        <span className="rounded-full border border-[var(--color-border)] px-2 py-1">至少 {minImages} 张</span>
-        <span className="rounded-full border border-[var(--color-border)] px-2 py-1">直接拖拽图片排序，首位即平台主图</span>
-        <Button size="sm" variant="outline" onClick={() => changeTab('media', { imageSlotIndex: 1 })} disabled={!product}>打开第1张图片工作台</Button>
-      </div>
-    </EditorSection>
   )
 }
 
@@ -352,5 +220,103 @@ export function ListingEditorHeader({
       </div>
       <ListingCriticalActionStrip product={product} activeStore={activeStore} listingGaps={listingGaps} jump={jump} changeTab={changeTab} />
     </div>
+  )
+}
+
+export function ListingAttributeSection({
+  active,
+  draft,
+  requiredAttributes,
+  mergedAttributeValues,
+  filledAttributes,
+  effectivePlatformRequirements,
+  highlightedFieldKey,
+  onPlatformRequirementsChange,
+  updateDraft,
+}: {
+  active: boolean
+  draft: Record<string, string>
+  requiredAttributes: string[]
+  mergedAttributeValues: Record<string, unknown>
+  filledAttributes: number
+  effectivePlatformRequirements?: PlatformRequirementsLike
+  highlightedFieldKey: string
+  onPlatformRequirementsChange: (requirements?: PlatformRequirementsLike) => void
+  updateDraft: (field: string, value: string) => void
+}) {
+  return (
+    <EditorSection id="listing-master-attributes" title="类目属性" description="先按三平台字段组补齐类目属性，再维护系统统一共性字段。字段组来自商品当前平台要求，不再只展示少数固定属性。" active={active}>
+      <div className="space-y-4">
+        <div
+          className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+          data-ui="seller-listing-platform-attribute-editor"
+          id="listing-platform-field-group"
+          tabIndex={-1}
+          aria-label="卖家后台平台属性编辑区"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-3 py-3">
+            <div>
+              <p className="text-xs font-semibold text-[var(--color-fg)]">平台必填属性状态</p>
+              <p className="mt-1 text-[11px] text-[var(--color-muted)]">字段来自目标平台/类目 Schema，缺口可直接在下方字段组和共性字段中补齐。</p>
+            </div>
+            <span className="rounded-full bg-[var(--color-primary-light)] px-2 py-1 text-[11px] font-semibold text-[var(--color-primary)]">
+              已填写 {filledAttributes}/{requiredAttributes.length || 0}
+            </span>
+          </div>
+          <table className="w-full min-w-[720px] text-left text-xs" aria-label="平台必填字段状态表">
+            <thead className="bg-[var(--color-bg)] text-[var(--color-muted)]">
+              <tr>
+                <th className="border-b border-[var(--color-border)] px-3 py-2">平台字段</th>
+                <th className="border-b border-[var(--color-border)] px-3 py-2">当前值</th>
+                <th className="border-b border-[var(--color-border)] px-3 py-2">状态</th>
+                <th className="border-b border-[var(--color-border)] px-3 py-2">处理位置</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(requiredAttributes.length ? requiredAttributes : ['品牌/No Brand', '材质', '型号', '颜色', '尺寸']).map(field => {
+                const lowerField = String(field).toLowerCase()
+                const value = mergedAttributeValues[field] || mergedAttributeValues[lowerField] || ''
+                const ready = hasAttributeValue(mergedAttributeValues, field) || hasAttributeValue(mergedAttributeValues, lowerField)
+                return (
+                  <tr key={field}>
+                    <td className="border-b border-[var(--color-border)] px-3 py-2 font-medium text-[var(--color-fg)]">{field}</td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-muted)]">{String(value || '待填写')}</td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-2">
+                      <span className={ready ? 'rounded-full bg-[var(--color-success-light)] px-2 py-1 text-[11px] text-[var(--color-success)]' : 'rounded-full bg-[var(--color-warning-light)] px-2 py-1 text-[11px] text-[var(--color-warning)]'}>
+                        {ready ? '已填写' : '待补'}
+                      </span>
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-3 py-2 text-[var(--color-muted)]">字段组 / 共性字段</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <PlatformFieldGroupEditor
+          requirements={effectivePlatformRequirements}
+          onChange={onPlatformRequirementsChange}
+          highlightedFieldKey={highlightedFieldKey}
+        />
+        <div>
+          <p className="mb-2 text-xs font-semibold text-[var(--color-fg)]">统一共性字段补充</p>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['category', '商品类目'],
+              ['brand', requiredAttributes[0] || '品牌/No Brand'],
+              ['material', requiredAttributes[1] || '材质'],
+              ['model', requiredAttributes[2] || '型号'],
+              ['audience', requiredAttributes[3] || '适用人群'],
+              ['color', requiredAttributes[4] || '颜色'],
+              ['size', requiredAttributes[5] || '尺寸'],
+              ['capacity', requiredAttributes[6] || '容量'],
+              ['style', requiredAttributes[7] || '风格'],
+            ].map(([field, label]) => (
+              <EditableInput key={field} fieldId={field === 'category' ? 'listing-field-category' : undefined} label={label} value={draft[field] || ''} onChange={value => updateDraft(field, value)} placeholder="待填写" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </EditorSection>
   )
 }

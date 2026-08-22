@@ -3,23 +3,21 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { PlatformFieldGroupEditor, type PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
+import type { PlatformRequirementsLike } from '../../components/shared/PlatformFieldGroups'
 import { getProductListingMatrix, promoteListingToBaseVersion, updateListingOverrides, type ListingInstanceMatrixItem, type ProductListingMatrix } from '../../api/listing'
 import type { ProductListing, ProductVariant, ProductCompliance } from '../../types/product'
 import { logger } from '../../utils/logger'
-import { productImageSrc } from '../../utils/productImages'
 import {
   CurrentListingInstanceCommandPanel,
   ListingInlineSectionNavigator,
   PlatformListingSellerPreview,
   ProductListingEditOverview,
-  SectionHeading,
   listingInstanceReadiness,
   type ListingEditSectionKey,
   type StoreListingEditForm,
   type VariantEditRow,
 } from './ProductListingEditorChrome'
-import { LegacyListingsTable, ListingFieldEvidencePanel, ListingMasterMatrixPanel } from './ProductDetailTabsParts'
+import { LegacyListingsTable, ListingContinuousEditSections, ListingMasterMatrixPanel } from './ProductDetailTabsParts'
 
 export function VariationsPanel({ variants, onChange }: { variants: ProductVariant[]; onChange: (items: ProductVariant[]) => void }) {
   const add = () => onChange([...variants, { sku: '', name: '', stock: 0 }])
@@ -266,169 +264,19 @@ export function ListingsPanel({ productId, listings, initialListingId = '', init
         />
         <ListingInlineSectionNavigator activeSection={listingEditSection} onSelectSection={selectListingEditSection} />
 
-        <div aria-label="当前 Listing 连续编辑分区" data-ui="listing-continuous-edit-sections" data-route-param="listing_section" className="space-y-4">
-          <section id="listing-section-basic" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="基础信息" note="店铺标题、货源链接和当前平台店铺身份。" />
-            <div className="grid gap-3 xl:grid-cols-[1.3fr_0.7fr]">
-            <div className="space-y-3">
-              <Input label="店铺专属标题" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
-              <Input label="货源链接" value={editForm.sourceUrl} onChange={e => setEditForm({ ...editForm, sourceUrl: e.target.value })} placeholder="如 1688、供应商或采集来源链接，仅保存到当前店铺 Listing" />
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-              <p className="text-sm font-semibold text-[var(--color-fg)]">当前店铺覆盖</p>
-              <p className="mt-2 text-xs text-[var(--color-muted)]">平台：{selectedListing.platform.toUpperCase()}</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">店铺：{selectedListing.store.account_name}</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">市场：{selectedListing.store.market || '市场待补'}</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">状态：{selectedListing.status}</p>
-            </div>
-          </div>
-          </section>
-
-          <section id="listing-section-detail" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="商品详情" note="描述、卖点和买家可见的商品说明集中维护。" />
-            <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">店铺专属描述</label>
-              <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={5} className="block w-full rounded-lg border px-3 py-2 text-sm bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-fg)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]" />
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
-              <p className="font-semibold text-[var(--color-fg)]">商品详情编写规则</p>
-              <p className="mt-2">Listing 详情应围绕标题、卖点、材质、尺寸、使用场景、包装清单和售后说明组织；AI 文案优化后仍要落到当前店铺 Listing 实例，不能直接覆盖其他平台/店铺。</p>
-            </div>
-          </div>
-          </section>
-
-          <section id="listing-section-sales" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="销售资料/SKU" note="当前店铺售价、库存、SKU 和规格矩阵。" />
-            <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="店铺售价" type="number" value={editForm.price} onChange={e => setEditForm({ ...editForm, price: e.target.value })} />
-              <Input label="店铺库存" type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })} />
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]" aria-label="促销活动独立模块提示">
-              促销折扣是独立活动模块：一个活动可包含多个商品。请到“运营增长 / 促销活动”创建活动、添加商品和维护折扣，当前 Listing 编辑页只维护商品本身的售价和库存。
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] p-3" aria-label="SKU 变体结构化编辑">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-fg)]">SKU 变体结构化编辑</p>
-                  <p className="text-xs text-[var(--color-muted)]">按当前店铺 Listing 维护平台 SKU、规格名、库存和售价。</p>
-                </div>
-                <Button size="sm" variant="secondary" onClick={() => setVariantRows([...variantRows, { sku: '', name: '', stock: '0', price: '' }])}><Plus className="mr-1 h-4 w-4" />添加变体</Button>
-              </div>
-              {variantRows.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">单规格商品可不添加变体。</p>
-              ) : variantRows.map((row, index) => (
-                <div key={index} className="mb-2 grid grid-cols-1 gap-2 rounded-lg border border-[var(--color-border)] p-2 md:grid-cols-[1fr_1fr_90px_100px_36px]">
-                  <Input label="平台 SKU" value={row.sku} onChange={e => updateVariantRow(index, { sku: e.target.value }, variantRows, setVariantRows)} />
-                  <Input label="规格名" value={row.name} onChange={e => updateVariantRow(index, { name: e.target.value }, variantRows, setVariantRows)} placeholder="如：黑色 / L" />
-                  <Input label="库存" type="number" value={row.stock} onChange={e => updateVariantRow(index, { stock: e.target.value }, variantRows, setVariantRows)} />
-                  <Input label="售价" type="number" value={row.price} onChange={e => updateVariantRow(index, { price: e.target.value }, variantRows, setVariantRows)} />
-                  <button type="button" aria-label="删除变体" className="mt-6 text-[var(--color-danger)]" onClick={() => setVariantRows(variantRows.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
-          </div>
-          </section>
-
-          <section id="listing-section-media" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="媒体素材" note="主图、辅图、店铺视频和主档图片复用。" />
-            <div className="space-y-3">
-            <Input label="店铺视频 URL" value={editForm.videoUrl} onChange={e => setEditForm({ ...editForm, videoUrl: e.target.value })} placeholder="生成或采集的视频素材 URL；平台发布前按 TikTok/Shopee 规则复核格式和大小" />
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-fg)] mb-1">图片 URL（第一张主图，其余辅图）</label>
-              <textarea value={editForm.imagesText} onChange={e => setEditForm({ ...editForm, imagesText: e.target.value })} rows={6} className="block w-full rounded-lg border px-3 py-2 font-mono text-xs bg-[var(--color-surface)] border-[var(--color-border)] text-[var(--color-fg)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]" placeholder="每行一张真实图片 URL" />
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] p-3" aria-label="从商品图片选择">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-fg)]">从商品图片选择</p>
-                  <p className="text-xs text-[var(--color-muted)]">商品主档已入库图片可直接用于当前店铺 Listing；勾选后会写入店铺图片列表。</p>
-                </div>
-                <span className="text-xs text-[var(--color-muted)]">使用主档图片 {masterImages.filter(url => selectedListingImageSet.has(url)).length}/{masterImages.length}</span>
-              </div>
-              {masterImages.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[var(--color-border)] p-4 text-center text-xs text-[var(--color-muted)]">商品主档暂无已入库图片；请先到“图片”分区上传或采集图片入库。</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  {masterImages.map((url, index) => {
-                    const selected = selectedListingImageSet.has(url)
-                    return (
-                      <button
-                        key={`${url}-${index}`}
-                        type="button"
-                        onClick={() => toggleListingImage(url)}
-                        className={`rounded-xl border p-2 text-left transition ${selected ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]' : 'border-[var(--color-border)] bg-[var(--color-bg)]'}`}
-                      >
-                        <img src={productImageSrc(url)} alt="商品主档已入库图片" className="aspect-square w-full rounded-lg object-cover" />
-                        <p className="mt-2 truncate text-[11px] text-[var(--color-muted)]">{selected ? '已用于当前 Listing' : '点击使用主档图片'}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-muted)]">
-              <p className="font-semibold text-[var(--color-fg)]">视频与图片处理</p>
-              <p className="mt-2">当前页先管理 Listing 主图/辅图引用；图片编辑、视频翻译、AI 图生视频等制作动作从内容与刊登模块进入，生成后应回填到当前店铺 Listing。</p>
-            </div>
-          </div>
-          </section>
-
-          <section id="listing-section-logistics" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="物流与发布" note="包裹重量、尺寸、本地发布计划和平台同步边界。" />
-            <div className="grid gap-3 xl:grid-cols-2">
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-              <p className="text-sm font-semibold text-[var(--color-fg)]">物流资料</p>
-              <p className="mt-2 text-xs text-[var(--color-muted)]">商品主档重量：{matrix?.product_master.weight_g == null ? '待补' : `${matrix.product_master.weight_g}g`}</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <Input label="包裹重量(g)" type="number" value={editForm.packageWeightG} onChange={e => setEditForm({ ...editForm, packageWeightG: e.target.value })} />
-                <Input label="物流备注" value={editForm.logisticsNote} onChange={e => setEditForm({ ...editForm, logisticsNote: e.target.value })} placeholder="如平台物流模板、特殊包装说明" />
-              </div>
-              <p className="mt-3 text-xs font-semibold text-[var(--color-fg)]">包裹长宽高(cm)</p>
-              <div className="mt-2 grid grid-cols-3 gap-3">
-                <Input label="长" type="number" value={editForm.packageLengthCm} onChange={e => setEditForm({ ...editForm, packageLengthCm: e.target.value })} />
-                <Input label="宽" type="number" value={editForm.packageWidthCm} onChange={e => setEditForm({ ...editForm, packageWidthCm: e.target.value })} />
-                <Input label="高" type="number" value={editForm.packageHeightCm} onChange={e => setEditForm({ ...editForm, packageHeightCm: e.target.value })} />
-              </div>
-              <p className="mt-3 text-xs text-[var(--color-muted)]">包裹尺寸：按当前店铺覆盖保存为 shipping_config；发布前必须满足对应平台校验。</p>
-              <p className="mt-1 text-xs text-[var(--color-muted)]">平台参考：TikTok 编辑页将包裹重量、长宽高作为独立必填物流分区。</p>
-            </div>
-            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-              <p className="text-sm font-semibold text-[var(--color-fg)]">发布边界</p>
-              <p className="mt-2 text-xs text-[var(--color-muted)]">发布状态：{selectedListing.platform_publish_status || selectedListing.platform_api_status || '本地草稿'}</p>
-              <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3" aria-label="本地发布计划">
-                <p className="text-xs font-semibold text-[var(--color-fg)]">本地发布计划</p>
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-fg)]">
-                  <label className="inline-flex items-center gap-2"><input type="radio" checked={editForm.publishMode === 'immediate'} onChange={() => setEditForm({ ...editForm, publishMode: 'immediate', scheduledAt: '' })} />立即计划</label>
-                  <label className="inline-flex items-center gap-2"><input type="radio" checked={editForm.publishMode === 'scheduled'} onChange={() => setEditForm({ ...editForm, publishMode: 'scheduled' })} />定时计划</label>
-                </div>
-                {editForm.publishMode === 'scheduled' && (
-                  <div className="mt-3">
-                    <Input label="定时发布时间" value={editForm.scheduledAt} onChange={e => setEditForm({ ...editForm, scheduledAt: e.target.value })} placeholder="2026-07-16T10:30:00+08:00" />
-                  </div>
-                )}
-              </div>
-              <p className="mt-3 text-xs text-[var(--color-muted)]">当前保存只更新本地 Listing；平台 API 接通后，由平台刊登流程执行同步、更新或定时发布。</p>
-            </div>
-          </div>
-          </section>
-
-          <section id="listing-section-attributes" className="scroll-mt-24 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-            <SectionHeading title="平台属性" note="按 Shopee / TEMU / TikTok Shop 类目字段组补齐平台要求。" />
-            <div className="rounded-lg border border-[var(--color-border)] p-3" aria-label="按三平台字段组编辑">
-              <div className="mb-3">
-                <p className="text-sm font-semibold text-[var(--color-fg)]">按三平台字段组编辑</p>
-                <p className="text-xs text-[var(--color-muted)]">根据当前 Listing 的 `field_groups` 渲染平台字段组编辑，不再要求手工猜属性 Key。</p>
-              </div>
-              <ListingFieldEvidencePanel requirements={selectedListingRequirements} platform={selectedListing.platform} />
-              <PlatformFieldGroupEditor
-                requirements={selectedListingRequirements}
-                onChange={setSelectedListingRequirements}
-              />
-            </div>
-          </section>
-        </div>
+        <ListingContinuousEditSections
+          editForm={editForm}
+          masterImages={masterImages}
+          matrix={matrix}
+          selectedListing={selectedListing}
+          selectedListingImageSet={selectedListingImageSet}
+          selectedListingRequirements={selectedListingRequirements}
+          setEditForm={setEditForm}
+          setSelectedListingRequirements={setSelectedListingRequirements}
+          setVariantRows={setVariantRows}
+          toggleListingImage={toggleListingImage}
+          variantRows={variantRows}
+        />
         <p className="mt-3 text-xs text-[var(--color-warning)]">保存后只写入当前 `PlatformListing.platform_data.listing_overrides` 和当前 Listing 字段；不会自动同步平台，也不会改商品主档。只有点击“生成新基础版本”才会把当前店铺 Listing 显式反哺为商品基础版本并写审计。</p>
         {saveMessage && <p className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-muted)]">{saveMessage}</p>}
       </section>
@@ -445,10 +293,6 @@ function toVariantRows(items: Array<Record<string, unknown>>): VariantEditRow[] 
     stock: item.stock == null ? '0' : String(item.stock),
     price: item.price == null ? '' : String(item.price),
   }))
-}
-
-function updateVariantRow(index: number, patch: Partial<VariantEditRow>, rows: VariantEditRow[], setRows: (rows: VariantEditRow[]) => void) {
-  setRows(rows.map((row, i) => i === index ? { ...row, ...patch } : row))
 }
 
 function normalizeListingSectionParam(value: string): ListingEditSectionKey | '' {

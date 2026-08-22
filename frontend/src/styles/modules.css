@@ -3,6 +3,7 @@
 @import "./business-flow.css";
 @import "./content-factory.css";
 @import "./content-product-queue.css";
+@import "./content-product-queue-table.css";
 @import "./listing-editor.css";
 @import "./listing-spec-editor.css";
 @import "./product-inventory.css";
@@ -25,6 +26,9 @@
 @import "./ai-suggestions.css";
 @import "./listing-templates.css";
 @import "./platform-settings.css";
+@import "./platform-settings-store-log.css";
 @import "./product-selection.css";
 @import "./scout-workflow.css";
+@import "./scout-decision-workbench.css";
+@import "./scout-smart-tool.css";
 @import "./trend-discovery.css";

@@ -1,8 +1,12 @@
+import { CalendarDays } from 'lucide-react'
 import type { PromotionCampaign } from '../../api/promotions'
 import type { UnifiedFieldDictionary } from '../../api/config'
 import type { PlatformStoreProduct } from '../../api/products'
+import { Badge } from '../../components/ui/Badge'
 import { productImageSrc } from '../../utils/productImages'
-import { formatPromotionMoney } from './PromotionPageModel'
+import { formatPromotionMoney, marketingRulesSummary, promotionTypeLabel } from './PromotionPageModel'
+import { marketingWatermarkSummary } from './PromotionWatermarkUtils'
+import { promotionPlatformSyncSummary } from './PromotionSyncUtils'
 
 export function PromotionEffectSummary({ campaign }: { campaign: PromotionCampaign }) {
   const summary = campaign.price_summary
@@ -110,6 +114,95 @@ export function PromotionListingFieldDictionary({
         </p>
       ))}
     </div>
+  )
+}
+
+export function PromotionCampaignTable({
+  campaigns,
+  saving,
+  unified_field_dictionary,
+  onEndCampaign,
+  onStartAction,
+  onSyncCampaign,
+}: {
+  campaigns: PromotionCampaign[]
+  saving: boolean
+  unified_field_dictionary?: UnifiedFieldDictionary
+  onEndCampaign: (campaignId: string) => void
+  onStartAction: (campaign: PromotionCampaign, mode: 'edit' | 'add-items' | 'discount') => void
+  onSyncCampaign: (campaignId: string) => void
+}) {
+  return (
+    <section className="promotions-table-panel">
+      <div className="promotions-section-heading mb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-fg)]">活动列表</h2>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">集中维护本地促销活动、参与商品、活动价格、营销水印和平台同步边界。</p>
+        </div>
+        <span className="promotions-count-pill">活动 {campaigns.length} 个</span>
+      </div>
+      {campaigns.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-muted)]">
+          暂无促销活动。促销活动应先独立创建，再添加多个参与商品。
+        </div>
+      ) : (
+        <div className="promotions-table-shell">
+          <table className="professional-table w-full text-left text-sm">
+            <thead className="bg-[var(--color-bg)] text-xs text-[var(--color-muted)]">
+              <tr>
+                <th className="px-3 py-2">活动名称/ID</th>
+                <th className="px-3 py-2">所属店铺</th>
+                <th className="px-3 py-2">活动产品</th>
+                <th className="px-3 py-2">活动效果</th>
+                <th className="px-3 py-2">状态/活动时间</th>
+                <th className="px-3 py-2">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((item) => (
+                <tr key={item.id} className="promotions-row border-t border-[var(--color-border)] align-top">
+                  <td className="px-3 py-3">
+                    <p className="font-medium text-[var(--color-fg)]">{item.name}</p>
+                    <p className="mt-1 text-xs text-[var(--color-primary)]">{promotionTypeLabel(item.promotion_type)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{marketingRulesSummary(item.platform_data?.marketing_rules)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{marketingWatermarkSummary(item.platform_data?.marketing_watermark)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{promotionPlatformSyncSummary(item.platform_data?.promotion_platform_sync)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{item.id}</p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <Badge>{item.platform.toUpperCase()}</Badge>
+                    <p className="mt-2 text-xs text-[var(--color-muted)]">{item.store.account_name}</p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="text-[var(--color-fg)]">{item.product_count} 个产品参与</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">{item.items.map((entry) => entry.product_name).join('、') || '待添加商品'}</p>
+                    <PromotionListingFieldDictionary campaign={item} unified_field_dictionary={unified_field_dictionary} />
+                  </td>
+                  <td className="px-3 py-3">
+                    <PromotionEffectSummary campaign={item} />
+                  </td>
+                  <td className="px-3 py-3">
+                    <Badge variant={item.status === 'active' || item.status === 'ongoing' ? 'success' : 'default'}>{item.status}</Badge>
+                    <p className="mt-2 flex items-center gap-1 text-xs text-[var(--color-muted)]">
+                      <CalendarDays className="h-3.5 w-3.5" />{item.starts_at || '开始待定'} - {item.ends_at || '结束待定'}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => onStartAction(item, 'edit')}>修改活动</button>
+                      <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => onStartAction(item, 'add-items')}>添加产品</button>
+                      <button type="button" className="promotions-row-action text-[var(--color-primary)]" onClick={() => onStartAction(item, 'discount')}>修改折扣</button>
+                      <button type="button" className="promotions-row-action text-[var(--color-danger)] disabled:text-[var(--color-muted)]" disabled={saving || item.status === 'ended'} onClick={() => onEndCampaign(item.id)}>结束活动</button>
+                      <button type="button" className="promotions-row-action text-[var(--color-muted)]" disabled={saving} onClick={() => onSyncCampaign(item.id)}>同步</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   )
 }
 

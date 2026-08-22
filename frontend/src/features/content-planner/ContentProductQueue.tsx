@@ -1,12 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, DollarSign, Edit3, FileText, Image, Megaphone, PackageOpen, Search, TriangleAlert } from 'lucide-react'
 import { getContentWorkbench, type ContentWorkbenchItem } from '../../api/content'
 import { Card, CardContent } from '../../components/ui/Card'
-import { PlatformFieldGroupSummary } from '../../components/shared/PlatformFieldGroups'
-import { productImageSrc } from '../../utils/productImages'
-import { BulkActionWorkbench, QueueCheckbox } from './ContentProductQueueParts'
-import { bulkWorkflowUrl, getPageSize, hasAttributeValue, matchesProduct, objectRefContextLabel, productIdForAction, STATUS_LABELS, storeContextLabel, type BulkActionKind, workflowUrl } from './ContentProductQueueUtils'
+import {
+  BulkActionToolbar,
+  BulkActionWorkbench,
+  ContentProductRailList,
+  ContentQueueEmpty,
+  ContentQueueError,
+  QueuePagination,
+  QueueSummaryBar,
+  SelectionCommandDeck,
+  SellerFilterToolbar,
+} from './ContentProductQueueParts'
+import { ContentProductSellerTable } from './ContentProductQueueTableParts'
+import {
+  bulkWorkflowUrl,
+  getPageSize,
+  hasAttributeValue,
+  matchesProduct,
+  type BulkActionKind,
+} from './ContentProductQueueUtils'
 
 export function ContentProductQueue({
   onSelect,
@@ -104,414 +118,87 @@ export function ContentProductQueue({
   return (
     <Card className="content-product-queue-workbench h-full" data-ui="content-product-queue-workbench">
       <CardContent className="content-product-queue-content">
-        <div data-ui="content-v5-queue-summary-bar" className="content-product-queue-summary-bar">
-          <div className="content-product-queue-title">
-            <PackageOpen className="h-4 w-4" />
-            <h3>内容工厂商品列表</h3>
-          </div>
-          <span>共 {workbench?.metrics.total || 0} 个</span>
-          <span>待制作 {workbench?.metrics.not_started || 0}</span>
-          <span className="content-product-queue-success-text">已完成 {workbench?.metrics.ready || 0}</span>
-        </div>
-        {layout === 'table' && (
-          <div aria-label="内容商品卖家后台筛选工具条" data-ui="content-product-seller-filter-toolbar" className="content-product-seller-filter-toolbar">
-            <div className="content-product-search-box">
-              <Search className="h-4 w-4" />
-              <input
-                value={searchTerm}
-                onChange={event => { setSearchTerm(event.target.value); setQueuePage(1) }}
-                placeholder="搜索商品名称、平台、市场、类目"
-                className="content-product-search-input"
-              />
-            </div>
-            {[
-              ['all', `全部 ${workbench?.metrics.total || 0}`],
-              ['not_started', `待制作 ${workbench?.metrics.not_started || 0}`],
-              ['in_progress', `制作中 ${workbench?.metrics.in_progress || 0}`],
-              ['ready', `内容完成 ${workbench?.metrics.ready || 0}`],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => { setStatusFilter(value); setQueuePage(1) }}
-                className={statusFilter === value ? 'content-product-filter-chip content-product-filter-chip-active' : 'content-product-filter-chip'}
-              >
-                {label}
-              </button>
-            ))}
-            <label className="content-product-page-size">
-              每页
-              <select
-                value={tablePageSize}
-                onChange={event => { setTablePageSize(Number(event.target.value)); setQueuePage(1) }}
-                className="content-product-page-size-select"
-                aria-label="内容商品列表每页条数"
-              >
-                {[20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
-              </select>
-            </label>
-          </div>
-        )}
-        {layout === 'table' && items.length > 0 && (
-          <div
-            aria-label="内容商品批量操作工具栏"
-            data-ui="content-product-bulk-action-toolbar"
-            className="content-product-bulk-action-toolbar"
-          >
-            <span className="content-product-check-label">
-              <QueueCheckbox checked={allVisibleChecked} indeterminate={partiallyChecked} onChange={toggleVisible} ariaLabel="选择当前页内容商品" />
-              当前页全选
-            </span>
-            <span>已选择 {selectedItems.length} 个商品</span>
-            <span>发布图缺口 {selectedItems.filter(item => (item.media_readiness?.missing_image_count || 0) > 0).length}</span>
-            <span>内容未完成 {selectedItems.filter(item => item.content_status !== 'ready').length}</span>
-            <div className="content-product-bulk-action-set">
-              <button
-                type="button"
-                disabled={selectedItems.length === 0}
-                onClick={() => runBulkAction('copy')}
-                className="content-product-secondary-action"
-                title="生成批量文案处理队列，逐个进入 Listing 编辑区处理"
-              >
-                批量生成文案
-              </button>
-              <button
-                type="button"
-                disabled={selectedItems.length === 0}
-                onClick={() => runBulkAction('media')}
-                className="content-product-secondary-action"
-                title="生成批量发布图处理队列，逐个进入图片工作台补图/校验"
-              >
-                批量校验素材
-              </button>
-              <button
-                type="button"
-                disabled={selectedItems.length === 0}
-                onClick={() => runBulkAction('pricing')}
-                className="content-product-secondary-action"
-                title="生成定价校验处理队列，逐个进入定价页或 Listing 价格区"
-              >
-                送入定价校验
-              </button>
-            </div>
-          </div>
-        )}
-        {layout === 'table' && selectedItems.length > 0 && (
-          <section
-            aria-label="已选内容商品发布准备操作台"
-            data-ui="content-product-selection-command-deck"
-            className="content-product-selection-command-deck"
-          >
-            <div className="min-w-0">
-              <div className="content-product-selection-chip-row">
-                <span className="content-product-selection-primary-chip">已选 {selectedItems.length} 个商品</span>
-                <span>发布图缺口 {selectedMediaGaps}</span>
-                <span>属性缺口 {selectedAttributeGaps}</span>
-                <span>内容缺口 {selectedContentGaps}</span>
-              </div>
-              <p className="content-product-selection-note">
-                已选商品先在内容工厂补齐 Listing、发布图、SKU/属性/物流，再按目标店铺进入定价或批量刊登；这里不伪造批量生成或平台发布结果。
-              </p>
-              <div className="content-product-selection-strip">
-                {selectedItems.slice(0, 8).map(item => (
-                  <button
-                    key={`selected-${item.work_item_id}`}
-                    type="button"
-                    onClick={() => openRow(item)}
-                    className="content-product-selection-item"
-                  >
-                    <span>{item.product_name}</span>
-                    <span>{item.target_platform || '--'} / {storeContextLabel(item)}</span>
-                  </button>
-                ))}
-                {selectedItems.length > 8 && <span className="content-product-selection-more">另 {selectedItems.length - 8} 个</span>}
-              </div>
-            </div>
-            <div className="content-product-selection-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  const first = selectedItems[0]
-                  if (!first) return
-                  openRow(first)
-                  onOpenListing?.(first)
-                }}
-                className="content-product-primary-outline-action"
-              >
-                打开首个 Listing
-              </button>
-              {onOpenMediaWorkbench && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const first = selectedItems.find(item => (item.media_readiness?.missing_image_count || 0) > 0) || selectedItems[0]
-                    if (!first) return
-                    openRow(first)
-                    onOpenMediaWorkbench(first)
-                  }}
-                  className="content-product-primary-outline-action"
-                >
-                  处理首个发布图
-                </button>
-              )}
-              <a href={selectedPricingUrl} className="content-product-secondary-action">送入定价</a>
-              <a href={selectedPublishUrl} className="content-product-primary-action">进入批量刊登</a>
-            </div>
-          </section>
-        )}
-        {layout === 'table' && bulkAction && selectedItems.length > 0 && (
+        <QueueSummaryBar metrics={workbench?.metrics} />
+        {layout === 'table' ? (
+          <SellerFilterToolbar
+            metrics={workbench?.metrics}
+            onPageSizeChange={(size) => { setTablePageSize(size); setQueuePage(1) }}
+            onSearchChange={(value) => { setSearchTerm(value); setQueuePage(1) }}
+            onStatusChange={(value) => { setStatusFilter(value); setQueuePage(1) }}
+            searchTerm={searchTerm}
+            statusFilter={statusFilter}
+            tablePageSize={tablePageSize}
+          />
+        ) : null}
+        {layout === 'table' && items.length > 0 ? (
+          <BulkActionToolbar
+            allVisibleChecked={allVisibleChecked}
+            onRunBulkAction={runBulkAction}
+            onToggleVisible={toggleVisible}
+            partiallyChecked={partiallyChecked}
+            selectedItems={selectedItems}
+          />
+        ) : null}
+        {layout === 'table' && selectedItems.length > 0 ? (
+          <SelectionCommandDeck
+            onOpenListing={onOpenListing}
+            onOpenMediaWorkbench={onOpenMediaWorkbench}
+            onOpenRow={openRow}
+            selectedAttributeGaps={selectedAttributeGaps}
+            selectedContentGaps={selectedContentGaps}
+            selectedItems={selectedItems}
+            selectedMediaGaps={selectedMediaGaps}
+            selectedPricingUrl={selectedPricingUrl}
+            selectedPublishUrl={selectedPublishUrl}
+          />
+        ) : null}
+        {layout === 'table' && bulkAction && selectedItems.length > 0 ? (
           <BulkActionWorkbench
             action={bulkAction}
             items={selectedItems}
             onClose={() => setBulkAction(null)}
             onOpenListing={(item) => {
-              setSelectedId(item.work_item_id)
-              onSelect(item)
+              openRow(item)
               onOpenListing?.(item)
             }}
             onOpenMediaWorkbench={onOpenMediaWorkbench ? (item) => {
-              setSelectedId(item.work_item_id)
-              onSelect(item)
+              openRow(item)
               onOpenMediaWorkbench(item)
             } : undefined}
           />
-        )}
-        {items.length > 0 && (
-          <div aria-label="内容商品队列分页" className="content-product-pagination">
-            <span>显示 {startIndex}-{endIndex} / {items.length}</span>
-            <button
-              type="button"
-              disabled={safePage <= 1}
-              onClick={() => setQueuePage(page => Math.max(1, page - 1))}
-              className="content-product-pagination-button"
-            >
-              上一页
-            </button>
-            <small>第 {safePage}/{totalPages} 页</small>
-            <button
-              type="button"
-              disabled={safePage >= totalPages}
-              onClick={() => setQueuePage(page => Math.min(totalPages, page + 1))}
-              className="content-product-pagination-button"
-            >
-              下一页
-            </button>
-          </div>
-        )}
-
-        {contentWorkbenchQuery.isError && (
-          <div
-            data-ui="content-workbench-error"
-            className="content-product-error-panel"
-          >
-            <span>内容商品队列加载失败，当前 Listing 编制对象、内容任务矩阵和发布图缺口暂不可用。</span>
-            <button
-              type="button"
-              onClick={() => contentWorkbenchQuery.refetch()}
-              className="content-product-danger-action"
-            >
-              重新加载内容商品队列
-            </button>
-          </div>
-        )}
-        {!contentWorkbenchQuery.isError && items.length === 0 && (
-          <div className="content-product-empty-state">
-            <TriangleAlert className="h-4 w-4" />
-            <span>暂无已通过选品决策的商品。请先在选品决策完成绿灯/黄灯验证，再进入内容制作。</span>
-          </div>
-        )}
-        {items.length > 0 && layout === 'rail' && (
-          <div aria-label="内容商品侧边队列" className="max-h-[calc(100vh-260px)] space-y-2 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-            {visibleItems.map((item) => {
-              const active = item.work_item_id === selectedId
-              const mediaReadiness = item.media_readiness
-              const mediaGaps = mediaReadiness?.gaps || []
-              return (
-                <button
-                  key={item.work_item_id}
-                  onClick={() => { setSelectedId(item.work_item_id); onSelect(item) }}
-                  className="w-full rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-[var(--shadow-sm)]"
-                  style={{ borderColor: active ? 'var(--color-primary)' : 'var(--color-border)', backgroundColor: active ? 'var(--color-primary-light)' : 'var(--color-bg)' }}
-                >
-                  <div className="flex gap-2">
-                    {item.image_url ? (
-                      <img src={productImageSrc(item.image_url)} alt={item.product_name} className="h-12 w-12 shrink-0 rounded-lg border object-cover" style={{ borderColor: 'var(--color-border)' }} />
-                    ) : (
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border text-[10px] text-[var(--color-muted)]" style={{ borderColor: 'var(--color-border)' }}>无图</div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-sm font-semibold text-[var(--color-fg)]">{item.product_name}</p>
-                      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.target_platform || '--'} / {item.target_market || '--'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                    <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[var(--color-muted)]">{STATUS_LABELS[item.content_status] || item.content_status}</span>
-                    <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[var(--color-muted)]">资料 {item.evidence_summary.present}/{item.evidence_summary.total}</span>
-                  </div>
-                  {mediaReadiness && (
-                    <p className="mt-2 line-clamp-2 text-[11px] text-[var(--color-warning)]">
-                      发布图 {mediaReadiness.captured_image_count ?? 0}/{mediaReadiness.min_platform_images ?? 5}；{mediaGaps.length ? mediaGaps.join('、') : '发布图基础达标'}
-                    </p>
-                  )}
-                  {item.content_gaps.length > 0 && <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-warning)]">{item.content_gaps.join('、')}</p>}
-                </button>
-              )
-            })}
-          </div>
-        )}
-        {items.length > 0 && layout === 'table' && (
-          <div className="content-product-table" style={{ scrollbarWidth: 'thin' }} data-ui="content-product-seller-console-table">
-            <table>
-              <thead>
-                <tr>
-                  <th className="w-10">
-                    <QueueCheckbox checked={allVisibleChecked} indeterminate={partiallyChecked} onChange={toggleVisible} ariaLabel="选择当前页全部商品" />
-                  </th>
-                  <th>商品信息</th>
-                  <th>平台 / 店铺 / 市场</th>
-                  <th>内容状态</th>
-                  <th>发布图 / 视频</th>
-                  <th>标题 / 描述</th>
-                  <th>SKU / 属性</th>
-                  <th>价格 / 库存</th>
-                  <th>待处理缺口</th>
-                  <th className="text-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-            {visibleItems.map((item) => {
-              const active = item.work_item_id === selectedId
-              const brief = item.content_brief?.bullets || []
-              const mediaReadiness = item.media_readiness
-              const mediaGaps = mediaReadiness?.gaps || []
-              const requiredAttributes = item.platform_requirements?.required_attributes || []
-              const attributeValues = item.platform_requirements?.attribute_values || {}
-              const filledAttributes = requiredAttributes.filter(field => hasAttributeValue(attributeValues, field)).length
-              const productId = productIdForAction(item)
-              const pricingUrl = workflowUrl('/pricing', item)
-              const publishUrl = workflowUrl('/publish', item)
-              return (
-                <tr
-                  key={item.work_item_id}
-                  onClick={() => openRow(item)}
-                  className={active ? 'content-product-row content-product-row-active' : 'content-product-row'}
-                >
-                  <td>
-                    <span onClick={event => event.stopPropagation()}>
-                      <QueueCheckbox checked={checkedIds.includes(item.work_item_id)} onChange={() => toggleRow(item.work_item_id)} ariaLabel={`选择商品 ${item.product_name}`} />
-                    </span>
-                  </td>
-                  <td>
-                    <div className="content-product-info-cell">
-                      {item.image_url ? (
-                        <img
-                          src={productImageSrc(item.image_url)}
-                          alt={item.product_name}
-                        />
-                      ) : (
-                        <div className="content-product-image-missing">缺主图</div>
-                      )}
-                      <div>
-                        <p className="content-product-name">{item.product_name}</p>
-                        <p>资料 {item.evidence_summary.present}/{item.evidence_summary.total}</p>
-                        <p>ID：{productId}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td data-ui="content-product-store-context-summary">
-                    <p className="content-product-strong-text">{item.target_platform || '--'}</p>
-                    <p>{storeContextLabel(item)}</p>
-                    <p>市场：{item.target_market || '--'}</p>
-                    <p>{objectRefContextLabel(item)}</p>
-                  </td>
-                  <td>
-                    <div className="content-product-status-line">
-                    {item.content_status === 'ready'
-                      ? <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />
-                      : <FileText className="h-4 w-4 text-[var(--color-warning)]" />}
-                      <span>{STATUS_LABELS[item.content_status] || item.content_status}</span>
-                    </div>
-                    <p>{item.lifecycle_label}</p>
-                  </td>
-                  <td>
-                    <p className={mediaReadiness && (mediaReadiness.captured_image_count ?? 0) >= (mediaReadiness.min_platform_images ?? 5) ? 'content-product-success-text' : 'content-product-warning-text'}>
-                      发布图 {mediaReadiness?.captured_image_count ?? 0}/{mediaReadiness?.min_platform_images ?? 5}
-                    </p>
-                    <p>推荐 {mediaReadiness?.recommended_platform_images ?? 9} 张 · 主图/辅图/SKU图</p>
-                    <p>视频：{item.content_brief?.video_script ? '已有脚本' : '待生成/可选'}</p>
-                  </td>
-                  <td>
-                    <p className="content-product-copy-title">{item.content_brief?.title || item.product_name}</p>
-                    <p>卖点摘要 {brief.length} 项 · 描述 {brief.join('').length} 字</p>
-                  </td>
-                  <td className="content-product-attribute-cell">
-                    <PlatformFieldGroupSummary requirements={item.platform_requirements} compact maxGroups={1} />
-                    <p className={requiredAttributes.length > 0 && filledAttributes >= requiredAttributes.length ? 'content-product-success-text' : 'content-product-warning-text'}>
-                      平台属性 {filledAttributes}/{requiredAttributes.length || 0}
-                    </p>
-                    <p>SKU/变体：进入 Listing 编辑页维护组合、价格、库存和SKU图</p>
-                  </td>
-                  <td>
-                    <p className="content-product-strong-text">{item.selling_price_local != null ? item.selling_price_local : '待定价'}</p>
-                    <p>采购 {item.source_price_rmb != null ? `¥${item.source_price_rmb}` : '待补'} · 利润 {item.profit_margin_pct != null ? `${item.profit_margin_pct}%` : '待校验'}</p>
-                    <p>库存：发布/同步后回写</p>
-                  </td>
-                  <td>
-                    {[...item.content_gaps, ...mediaGaps].length > 0
-                      ? <p className="content-product-gap-text">{[...item.content_gaps, ...mediaGaps].slice(0, 5).join('、')}</p>
-                      : <span className="content-product-success-text">无阻断缺口</span>}
-                  </td>
-                  <td>
-                    <div className="content-product-row-action-set" data-ui="content-product-row-action-set">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openRow(item)
-                          onOpenListing?.(item)
-                        }}
-                        className="content-product-action content-product-action-primary"
-                      >
-                        <Edit3 className="mr-1 h-3 w-3" />
-                        编辑 Listing
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openRow(item)
-                          onOpenMediaWorkbench?.(item)
-                        }}
-                        className="content-product-action"
-                      >
-                        <Image className="mr-1 h-3 w-3" />
-                        处理图片
-                      </button>
-                      <a
-                        href={pricingUrl}
-                        onClick={event => event.stopPropagation()}
-                        className="content-product-action"
-                      >
-                        <DollarSign className="mr-1 h-3 w-3" />
-                        定价
-                      </a>
-                      <a
-                        href={publishUrl}
-                        onClick={event => event.stopPropagation()}
-                        className="content-product-action"
-                      >
-                        <Megaphone className="mr-1 h-3 w-3" />
-                        刊登
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ) : null}
+        {items.length > 0 ? (
+          <QueuePagination
+            endIndex={endIndex}
+            itemCount={items.length}
+            onNext={() => setQueuePage(page => Math.min(totalPages, page + 1))}
+            onPrevious={() => setQueuePage(page => Math.max(1, page - 1))}
+            safePage={safePage}
+            startIndex={startIndex}
+            totalPages={totalPages}
+          />
+        ) : null}
+        {contentWorkbenchQuery.isError ? (
+          <ContentQueueError onRetry={() => contentWorkbenchQuery.refetch()} />
+        ) : null}
+        {!contentWorkbenchQuery.isError && items.length === 0 ? <ContentQueueEmpty /> : null}
+        {items.length > 0 && layout === 'rail' ? (
+          <ContentProductRailList items={visibleItems} onOpenRow={openRow} selectedId={selectedId} />
+        ) : null}
+        {items.length > 0 && layout === 'table' ? (
+          <ContentProductSellerTable
+            allVisibleChecked={allVisibleChecked}
+            checkedIds={checkedIds}
+            items={visibleItems}
+            onOpenListing={onOpenListing}
+            onOpenMediaWorkbench={onOpenMediaWorkbench}
+            onOpenRow={openRow}
+            onToggleRow={toggleRow}
+            onToggleVisible={toggleVisible}
+            partiallyChecked={partiallyChecked}
+            selectedId={selectedId}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )

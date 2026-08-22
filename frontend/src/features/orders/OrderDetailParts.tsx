@@ -1,10 +1,28 @@
+import { ArrowLeft, Truck } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
-import { Skeleton } from '../../components/shared/LoadingSkeleton'
 import type { UnifiedFieldDictionary } from '../../api/config'
-import type { OrderFinanceEntryContext, OrderItem } from '../../types/order'
-import type { Shipment } from '../../types/shipment'
+import type { OrderDetail, OrderItem } from '../../types/order'
+
+export {
+  OrderFeeSummaryPanel,
+  OrderFinanceEntryPanel,
+  OrderFulfillmentExceptionPanel,
+  OrderPlatformFeeBreakdownPanel,
+  OrderPlatformSyncReviewPanel,
+  OrderShippingAddressPanel,
+  RelatedShipmentsPanel,
+  fulfillmentBadgeVariant,
+  fulfillmentStatusLabel,
+  InfoRow,
+  MoneyRow,
+  reconciliationText,
+  syncBadgeVariant,
+  syncStatusLabel,
+} from './OrderDetailOperationalPanels'
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'outline'
 
 type OrderV5SkuFieldRow = {
   key: string
@@ -12,6 +30,244 @@ type OrderV5SkuFieldRow = {
   platformField: string
   dataType: string
   value: string
+}
+
+export function OrderDetailHero({
+  order,
+  badge,
+  onBack,
+}: {
+  order: OrderDetail
+  badge: { label: string; variant: BadgeVariant }
+  onBack: () => void
+}) {
+  return (
+    <div className="order-detail-hero">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-[var(--color-muted)] hover:text-[var(--color-muted)]">
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-fg)]">
+            订单 {order.order_number || order.platform_order_id?.slice(0, 12)}
+          </h1>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+            <Badge variant={order.source === 'manual' ? 'warning' : 'outline'}>{order.source === 'manual' ? '手工录入' : '平台数据'}</Badge>
+            <span className="text-xs text-[var(--color-muted)]">
+              {order.platform} · {order.ordered_at ? new Date(order.ordered_at).toLocaleString('zh-CN') : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function OrderManualSourceWarning({ source }: { source: string }) {
+  if (source !== 'manual') return null
+  return (
+    <p className="rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-3 text-xs text-[var(--color-warning)]">
+      该订单由人工录入，尚未经过平台 API 对账；财务收入需按真实收款另行入账。
+    </p>
+  )
+}
+
+export function OrderItemsPanel({
+  order,
+  unifiedFieldDictionary,
+}: {
+  order: OrderDetail
+  unifiedFieldDictionary: UnifiedFieldDictionary | undefined
+}) {
+  return (
+    <Card>
+      <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">商品明细</h2></CardHeader>
+      <CardContent>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-muted)]">
+              <th className="pb-2 font-medium">商品</th>
+              <th className="pb-2 font-medium">SKU</th>
+              <th className="pb-2 text-right font-medium">数量</th>
+              <th className="pb-2 text-right font-medium">单价</th>
+              <th className="pb-2 text-right font-medium">小计</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(order.items || []).map((item) => (
+              <tr key={item.id} className="border-b border-[var(--color-border)]">
+                <td className="py-2.5 text-[var(--color-fg)]">{item.name}</td>
+                <td className="py-2.5 text-[var(--color-muted)]">{item.sku || '--'}</td>
+                <td className="py-2.5 text-right">{item.quantity}</td>
+                <td className="py-2.5 text-right">{order.currency} {item.unit_price.toFixed(2)}</td>
+                <td className="py-2.5 text-right font-medium">{order.currency} {item.total_price.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {(order.items || []).some(item => item.v5_sku_context) && (
+          <OrderV5SkuDictionaryPanel order={order} unifiedFieldDictionary={unifiedFieldDictionary} />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function OrderV5SkuDictionaryPanel({
+  order,
+  unifiedFieldDictionary,
+}: {
+  order: OrderDetail
+  unifiedFieldDictionary: UnifiedFieldDictionary | undefined
+}) {
+  return (
+    <div data-ui="order-v5-sku-field-dictionary" className="mt-4 space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+      <div>
+        <p className="text-sm font-semibold text-[var(--color-fg)]">V5 SKU 字段字典说明</p>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">
+          订单项只读取店铺 Listing 的 V5 SKU 上下文，不反写订单金额；字段名称来自统一字段字典，平台字段名按当前订单平台展示。
+        </p>
+      </div>
+      <div className="space-y-3">
+        {(order.items || []).map(item => {
+          const rows = orderV5SkuFieldRows(item, unifiedFieldDictionary, order.platform)
+          if (!rows.length) return null
+          return (
+            <div key={`v5-sku-${item.id}`} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-[var(--color-fg)]">{item.name}</p>
+                <Badge variant={item.v5_sku_context?.status === 'matched' ? 'success' : 'warning'}>
+                  {item.v5_sku_context?.status === 'matched' ? '已匹配店铺 SKU' : 'SKU 上下文待补'}
+                </Badge>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {rows.map(row => (
+                  <div key={`${item.id}-${row.key}`} className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-[var(--color-fg)]">{row.label}</p>
+                        <p className="mt-0.5 text-[var(--color-muted)]">{row.platformField}</p>
+                      </div>
+                      <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] text-[var(--color-muted)]">{row.dataType}</span>
+                    </div>
+                    <p className="mt-2 break-all text-[var(--color-fg)]">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+              {(item.v5_sku_context?.data_gaps || []).length > 0 && (
+                <p className="mt-2 rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-2 text-xs text-[var(--color-warning)]">
+                  SKU 数据缺口：{item.v5_sku_context?.data_gaps?.join('、')}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function OrderTimelinePanel({ order, statusLabel }: { order: OrderDetail; statusLabel: string }) {
+  return (
+    <Card>
+      <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">时间线</h2></CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
+              <div className="w-0.5 flex-1 bg-[var(--color-primary-light)]" />
+            </div>
+            <div>
+              <p className="text-sm text-[var(--color-fg)]">买家下单</p>
+              <p className="text-xs text-[var(--color-muted)]">
+                {order.ordered_at ? new Date(order.ordered_at).toLocaleString('zh-CN') : '--'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" />
+            <div>
+              <p className="text-sm text-[var(--color-fg)]">当前状态 ({statusLabel})</p>
+              <p className="text-xs text-[var(--color-muted)]">
+                {order.created_at ? new Date(order.created_at).toLocaleString('zh-CN') : '--'}
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                发货时限：{order.fulfillment_deadline_at ? new Date(order.fulfillment_deadline_at).toLocaleString('zh-CN') : '待平台同步'}
+              </p>
+              <p className="text-xs text-[var(--color-muted)]">
+                物流渠道：{order.logistics_channel || '待平台同步'} · 售后：{order.after_sales_status || '未知'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function OrderNotesPanel({
+  notes,
+  saving,
+  onChange,
+  onSave,
+}: {
+  notes: string
+  saving: boolean
+  onChange: (value: string) => void
+  onSave: () => void
+}) {
+  return (
+    <Card>
+      <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">备注</h2></CardHeader>
+      <CardContent>
+        <textarea
+          value={notes}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          className="mb-2 w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+          placeholder="添加备注..."
+        />
+        <Button size="sm" variant="secondary" onClick={onSave} disabled={saving}>
+          保存备注
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function OrderActionsPanel({
+  allowedTransitions,
+  onMarkProcessing,
+  onCreateShipment,
+  onCancel,
+}: {
+  allowedTransitions: string[]
+  onMarkProcessing: () => void
+  onCreateShipment: () => void
+  onCancel: () => void
+}) {
+  if (allowedTransitions.length === 0) return null
+  return (
+    <Card>
+      <CardHeader><h2 className="font-semibold text-[var(--color-fg)]">操作</h2></CardHeader>
+      <CardContent className="flex gap-2">
+        {allowedTransitions.includes('processing') && (
+          <Button onClick={onMarkProcessing}>标记处理中</Button>
+        )}
+        {allowedTransitions.includes('shipped') && (
+          <Button onClick={onCreateShipment}>
+            <Truck className="mr-1.5 h-4 w-4" />
+            创建物流发货
+          </Button>
+        )}
+        {allowedTransitions.includes('cancelled') && (
+          <Button variant="danger" onClick={onCancel}>取消订单</Button>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 export function orderV5SkuFieldRows(
@@ -82,213 +338,3 @@ function normalizePlatformKey(platform: string) {
 function formatOptionalNumber(value?: number | null) {
   return value == null ? '' : String(value)
 }
-
-export function RelatedShipmentsPanel({
-  shipments,
-  loading,
-  onCreate,
-  onOpen,
-}: {
-  shipments: Shipment[]
-  loading: boolean
-  onCreate: () => void
-  onOpen: (shipmentId: string) => void
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-[var(--color-fg)]">关联物流记录</h2>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">直接查看该订单已经创建的本地物流单、运单号、承运商和平台发货时限。</p>
-          </div>
-          <Button size="sm" variant="secondary" onClick={onCreate}>新增物流</Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : shipments.length > 0 ? (
-          <div className="space-y-2">
-            {shipments.map(shipment => (
-              <button
-                key={shipment.id}
-                type="button"
-                onClick={() => onOpen(shipment.id)}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left transition hover:border-[var(--color-primary)]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-fg)]">{shipment.tracking_number || '运单号待补'}</p>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">{shipment.carrier || '承运商待补'} · {shipment.shipping_method || '运输方式待补'}</p>
-                  </div>
-                  <Badge variant={shipment.fulfillment_exception?.severity === 'critical' ? 'danger' : shipment.fulfillment_exception?.severity === 'warning' ? 'warning' : 'outline'}>
-                    {shipment.status}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-xs text-[var(--color-muted)]">
-                  平台发货时限：{shipment.fulfillment_deadline_at ? new Date(shipment.fulfillment_deadline_at).toLocaleString('zh-CN') : '待平台同步'}
-                </p>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-4 text-sm text-[var(--color-muted)]">
-            当前订单还没有本地物流记录。需要发货时请创建物流，创建后订单履约异常会自动承接本地物流渠道。
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-export function OrderFinanceEntryPanel({
-  context,
-  onNavigate,
-}: {
-  context: OrderFinanceEntryContext
-  onNavigate: (route: string) => void
-}) {
-  const gaps = context.data_gaps || []
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-[var(--color-fg)]">财务入账状态</h2>
-          <Badge variant={financeLedgerBadgeVariant(context.status)}>
-            {financeLedgerStatusLabel(context.status)}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <div className="grid gap-3 md:grid-cols-4">
-          <FinanceMetric label="关联流水" value={`${context.entry_count || 0} 条`} />
-          <FinanceMetric label="销售收入" value={context.revenue_rmb == null ? '待入账' : `¥${context.revenue_rmb.toFixed(2)}`} tone={context.revenue_rmb == null ? 'warning' : 'default'} />
-          <FinanceMetric label="费用/成本" value={context.cost_rmb == null ? '待补' : `¥${context.cost_rmb.toFixed(2)}`} tone={gaps.includes('platform_bill') ? 'warning' : 'default'} />
-          <FinanceMetric label="订单净利" value={context.net_profit_rmb == null ? '待核算' : `¥${context.net_profit_rmb.toFixed(2)}`} tone={context.net_profit_rmb != null && context.net_profit_rmb < 0 ? 'danger' : 'default'} />
-        </div>
-        {gaps.length > 0 && (
-          <div className="rounded-md border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-2 text-xs text-[var(--color-warning)]">
-            入账缺口：{gaps.join('、')}。订单金额和费用字段不能替代真实财务台账。
-          </div>
-        )}
-        {(context.actions || []).length > 0 && (
-          <div className="grid gap-2 md:grid-cols-3">
-            {(context.actions || []).map(action => (
-              <button
-                key={action.code}
-                type="button"
-                onClick={() => onNavigate(action.route)}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-left text-xs hover:border-[var(--color-primary)]"
-              >
-                <span className="font-medium text-[var(--color-primary)]">{action.label}</span>
-                {action.reason && <span className="mt-1 block text-[var(--color-muted)]">{action.reason}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-        {(context.recent_entries || []).length > 0 && (
-          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
-            <p className="mb-2 text-xs font-medium text-[var(--color-fg)]">最近订单财务流水</p>
-            <div className="space-y-1">
-              {(context.recent_entries || []).map(entry => (
-                <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="text-[var(--color-muted)]">{entry.description || entry.entry_type}</span>
-                  <span className="font-mono text-[var(--color-fg)]">¥{entry.amount_rmb.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {context.confidence_reason && <p className="text-xs text-[var(--color-muted)]">{context.confidence_reason}</p>}
-      </CardContent>
-    </Card>
-  )
-}
-
-function FinanceMetric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'danger' }) {
-  const color = tone === 'danger' ? 'var(--color-danger)' : tone === 'warning' ? 'var(--color-warning)' : 'var(--color-fg)'
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-      <p className="text-xs text-[var(--color-muted)]">{label}</p>
-      <p className="mt-1 text-sm font-semibold" style={{ color }}>{value}</p>
-    </div>
-  )
-}
-
-function financeLedgerStatusLabel(value?: string | null) {
-  if (value === 'ledger_ready') return '已入账'
-  if (value === 'ledger_missing') return '未入账'
-  if (value === 'ledger_incomplete') return '入账待补'
-  return '待确认'
-}
-
-function financeLedgerBadgeVariant(value?: string | null) {
-  if (value === 'ledger_ready') return 'success'
-  if (value === 'ledger_missing' || value === 'ledger_incomplete') return 'warning'
-  return 'outline'
-}
-
-export function reconciliationText(status: string) {
-  const labels: Record<string, string> = {
-    bill_imported: '账单已导入',
-    reconciled: '已对账',
-    pending: '待对账',
-    not_reconciled: '未对账',
-  }
-  return labels[status] || status
-}
-
-export function syncStatusLabel(value?: string | null) {
-  if (value === 'synced' || value === 'success') return '已同步'
-  if (value === 'sync_failed' || value === 'failed' || value === 'partial_failed') return '同步异常'
-  if (value === 'manual_not_synced') return '手工未同步'
-  if (value === 'not_synced') return '未同步'
-  if (value === 'running') return '同步中'
-  return '待确认'
-}
-
-export function syncBadgeVariant(value?: string | null) {
-  if (value === 'synced' || value === 'success') return 'success'
-  if (value === 'sync_failed' || value === 'failed' || value === 'partial_failed') return 'danger'
-  if (value === 'manual_not_synced' || value === 'not_synced') return 'warning'
-  return 'outline'
-}
-
-export function fulfillmentStatusLabel(value?: string | null) {
-  if (value === 'shipping_overdue') return '发货超期'
-  if (value === 'shipping_due_soon') return '临近时限'
-  if (value === 'after_sales_open') return '售后处理中'
-  if (value === 'logistics_missing') return '物流待补'
-  if (value === 'sync_required') return '同步待补'
-  if (value === 'clear') return '正常'
-  return '待确认'
-}
-
-export function fulfillmentBadgeVariant(value?: string | null) {
-  if (value === 'critical') return 'danger'
-  if (value === 'warning') return 'warning'
-  if (value === 'clear') return 'success'
-  return 'outline'
-}
-
-export function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3 text-xs">
-      <span className="text-[var(--color-muted)]">{label}</span>
-      <span className="text-right text-[var(--color-fg)]">{value}</span>
-    </div>
-  )
-}
-
-export function MoneyRow({ label, currency, value, negative = false }: { label: string; currency: string; value?: number | null; negative?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-[var(--color-muted)]">{label}</span>
-      <span className={negative && value != null ? 'text-[var(--color-danger)]' : ''}>
-        {value == null ? '--' : `${negative ? '-' : ''}${currency} ${value.toFixed(2)}`}
-      </span>
-    </div>
-  )
-}
-

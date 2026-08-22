@@ -517,13 +517,13 @@ for required in ("AfterSalesFulfillmentAnalysis", "售后履约分析", "退款/
     if required not in AFTER_SALES_PAGE:
         errors.append(f"after-sales page must analyze fulfillment and finance context without fake after-sales tickets: {required}")
 for required in ("OrderShipmentContextPanel", "订单发货上下文", "useOrder(orderContextId)", "平台发货时限", "买家与收货地址", "返回订单详情", "shippingAddressText"):
-    if required not in SHIPMENT_DETAIL_PAGE:
+    if required not in SHIPMENT_DETAIL_SURFACE:
         errors.append(f"shipment creation page must carry order fulfillment context: {required}")
 for required in ("ShipmentStatusLifecycle", "物流状态轨迹", "物流状态字典轨迹", "基于系统物流状态字典", "承运商真实轨迹", "当前阶段", "已推进", "待推进", "当前物流状态未在统一字典中配置"):
-    if required not in SHIPMENT_DETAIL_PAGE:
+    if required not in SHIPMENT_DETAIL_SURFACE:
         errors.append(f"shipment detail must show local shipment status lifecycle separately from carrier tracking events: {required}")
 for required in ("平台/店铺", "order_number", "buyer_name", "fulfillment_deadline_at", "platform_account_name", "平台时限待同步"):
-    if required not in SHIPMENT_LIST_PAGE + SHIPMENT_DETAIL_PAGE + SHIPMENT_SERVICE:
+    if required not in SHIPMENT_LIST_PAGE + SHIPMENT_DETAIL_SURFACE + SHIPMENT_SERVICE:
         errors.append(f"shipment pages must expose platform-store-order context: {required}")
 for required in ("platform_account_id", "platformAccountId", "StoreContextBanner", "currentModule=\"shipments\"", "店铺物流"):
     if required not in SHIPMENT_LIST_PAGE + SHIPMENTS_API + SHIPMENT_SERVICE + STORE_CONTEXT_BANNER:
@@ -563,10 +563,10 @@ for required in ("allowsZeroBudgetOperationRecord", "listing_optimization", "0 �
     if required not in OPERATIONS_WORKSPACE:
         errors.append(f"operations workspace must allow zero-budget listing optimization records from risk/product diagnostics: {required}")
 for required in ("initialOrderId", "order_id", "关联订单ID"):
-    if required not in FINANCE_LEDGER_PANEL + FINANCE_PAGE:
+    if required not in FINANCE_LEDGER_PANEL + FINANCE_PAGE_SURFACE:
         errors.append(f"finance ledger panel must accept order_id from query for platform bill replenishment: {required}")
 for required in ("initialPlatformAccountId", "platform_account_id", "StoreContextBanner", "currentModule=\"finance\"", "store-context-banner"):
-    if required not in FINANCE_LEDGER_PANEL + FINANCE_PAGE + FINANCE_API + STORE_CONTEXT_BANNER:
+    if required not in FINANCE_LEDGER_PANEL + FINANCE_PAGE_SURFACE + FINANCE_API + STORE_CONTEXT_BANNER:
         errors.append(f"finance page must keep cockpit store drilldown filter context: {required}")
 for required in (
     "getFinanceSummary(period, { platform_account_id: platformAccountId || undefined })",
@@ -577,7 +577,7 @@ for required in (
     "_latest_cash_balance(db, user_id, platform_account_id=platform_account_id, as_at=now)",
     "finance_ledger_entries.store_scope",
 ):
-    if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_BACKEND_API:
+    if required not in FINANCE_PAGE_SURFACE + FINANCE_API + FINANCE_SERVICE + FINANCE_BACKEND_API:
         errors.append(f"finance store drilldown must filter summary, traceback and cash balance, not only ledger rows: {required}")
 for required in (
     "unified_field_dictionary",
@@ -590,7 +590,7 @@ for required in (
     "sku_image_role",
     "FinanceV5SkuFieldRow",
 ):
-    if required not in FINANCE_PAGE + FINANCE_API + FINANCE_V5_SKU_FIELD_DICTIONARY:
+    if required not in FINANCE_PAGE_SURFACE + FINANCE_API + FINANCE_V5_SKU_FIELD_DICTIONARY:
         errors.append(f"finance traceback must render V5 SKU context through unified field dictionary: {required}")
 for required in (
     "useQuery",
@@ -603,16 +603,16 @@ for required in (
     "重新加载财务汇总",
     "重新加载利润回溯",
 ):
-    if required not in FINANCE_PAGE:
+    if required not in FINANCE_PAGE_SURFACE:
         errors.append(f"AUDIT-P2-03 finance page must use React Query boundaries and visible error recovery: {required}")
 for required in ("平台账单批量导入", "importPlatformBills", "/finance/platform-bills/import", "import_ref 用于去重"):
-    if required not in FINANCE_PAGE + FINANCE_API:
+    if required not in FINANCE_PAGE_SURFACE + FINANCE_API:
         errors.append(f"finance page must expose platform bill batch import workflow: {required}")
 for required in ("Open API 同步", "syncPlatformBills", "/finance/platform-bills/sync", "账单API待接入", "Open API 暂不可用"):
-    if required not in FINANCE_PAGE + FINANCE_API:
+    if required not in FINANCE_PAGE_SURFACE + FINANCE_API:
         errors.append(f"finance page must expose truthful platform bill Open API sync workflow: {required}")
 for required in ("risk_signals", "FinanceRiskSignal", "_finance_risk_signals", "收入台账未入账", "成本台账不完整", "平台费缺失", "资金余额未录入", "negative_profit", "action_route"):
-    if required not in FINANCE_PAGE + FINANCE_API + FINANCE_SERVICE + FINANCE_SCHEMA:
+    if required not in FINANCE_PAGE_SURFACE + FINANCE_API + FINANCE_SERVICE + FINANCE_SCHEMA:
         errors.append(f"finance risks must come from backend reusable summary signals, not local page heuristics: {required}")
 for required in ("financial_risk_signals", "ReportFinancialRiskPanel", "报表财务风险", "get_finance_summary", "_report_bounds", "finance_risk_count", "ReportFinancialRiskSignal"):
     if required not in REPORT_SERVICE + REPORT_DISPLAY + REPORT_TYPES:

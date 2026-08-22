@@ -1,0 +1,267 @@
+.platform-settings-platform-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.platform-settings-platform-card {
+  border-radius: 1.3rem;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-platform-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 32%, var(--color-border));
+  box-shadow: var(--shadow-md);
+}
+
+.platform-settings-platform-card > div {
+  position: relative;
+  z-index: 1;
+}
+
+.platform-settings-platform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.platform-settings-platform-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.platform-settings-platform-icon {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 0.85rem;
+  color: var(--color-primary-text);
+  font-size: 0.9rem;
+  font-weight: 850;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 34%, transparent);
+}
+
+.platform-settings-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+  border: 1px dashed color-mix(in srgb, var(--color-border) 92%, transparent);
+  border-radius: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+}
+
+.platform-settings-empty-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-muted);
+  opacity: 0.56;
+}
+
+.platform-settings-empty-state small {
+  max-width: 28rem;
+}
+
+.platform-settings-store-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.platform-settings-store-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.platform-settings-store-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-warning) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 5%, var(--color-bg));
+}
+
+.platform-settings-store-main {
+  display: flex;
+  min-width: 0;
+  gap: 0.72rem;
+}
+
+.platform-settings-store-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  color: var(--color-muted);
+}
+
+.platform-settings-token-panel {
+  margin-top: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 0.8rem;
+  padding: 0.46rem 0.6rem;
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  font-size: 0.68rem;
+  line-height: 1.55;
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.platform-settings-token-panel > span:first-child {
+  color: var(--color-fg);
+  font-weight: 760;
+}
+
+.platform-settings-sync-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  margin-top: 0.45rem;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+}
+
+.platform-settings-sync-chip-row span {
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-sync-chip-row span:hover {
+  border-color: color-mix(in oklch, var(--color-primary) 34%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 28%, var(--color-surface));
+}
+
+.platform-settings-store-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.platform-settings-icon-button {
+  display: inline-grid;
+  width: 1.85rem;
+  height: 1.85rem;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.72rem;
+  color: var(--color-muted);
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.platform-settings-icon-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 9%, var(--color-surface));
+}
+
+.platform-settings-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.platform-settings-icon-button-danger:hover {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.platform-settings-log-panel {
+  border-radius: 1.3rem;
+}
+
+.platform-settings-log-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-warning);
+}
+
+.platform-settings-log-empty {
+  padding: 1.1rem 0;
+  color: var(--color-muted);
+  text-align: center;
+  font-size: 0.76rem;
+}
+
+.platform-settings-log-list {
+  display: grid;
+  gap: 0.62rem;
+}
+
+.platform-settings-log-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.9rem;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  border-radius: 0.95rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.76rem;
+  background: color-mix(in srgb, var(--color-bg) 74%, transparent);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.platform-settings-log-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklch, var(--color-primary) 32%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary-light) 22%, var(--color-surface));
+}
+
+.platform-settings-shell :is(input, select, textarea, .luxury-input) {
+  min-height: 40px;
+  border-color: var(--color-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-bg));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 42%, transparent);
+}
+
+.platform-settings-shell :is(input, select, textarea, .luxury-input):focus {
+  border-color: color-mix(in oklch, var(--color-primary) 68%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--color-primary) 13%, transparent),
+    inset 0 1px 0 color-mix(in oklch, white 44%, transparent);
+  outline: none;
+}
+
+.platform-settings-modal-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.platform-settings-modal-note {
+  display: grid;
+  gap: 0.28rem;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 26%, var(--color-border));
+  border-radius: 1rem;
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--color-warning) 6%, var(--color-bg));
+}
+
+.platform-settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+}
